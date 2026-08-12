@@ -308,7 +308,22 @@ label.flabel{font-size:12.5px; color:var(--sub); font-weight:600; margin:10px 0 
 	.revision-note{font-size:11px; color:var(--sub); text-align:center; margin:8px 0 0;}
 
 	.exam-nav-footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + var(--safe-b)); z-index: 100; max-width: 560px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-	</style>
+/* Phase 1+2 visual system: premium academic cards, accessible contrast, mobile-safe feed */
+:root{--ink:#16211c;--surface-soft:#f4f8f5;--accent-coral:#f18f72;--accent-blue:#5b8def;--shadow-soft:0 12px 32px rgba(22,67,49,.08);--shadow-card:0 5px 18px rgba(22,67,49,.07);--radius-lg:20px}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Noto Sans Bengali",sans-serif;background:linear-gradient(180deg,#fbfdfb 0%,var(--bg) 42%);color:var(--ink)}
+.page{padding:18px 16px 30px}.topbar{padding:14px 16px;border-bottom:0;box-shadow:0 3px 16px rgba(17,55,38,.04)}
+.card{border:0;border-radius:var(--radius-lg);box-shadow:var(--shadow-card);padding:18px;transition:transform .18s cubic-bezier(.23,1,.32,1),box-shadow .18s ease,border-color .18s ease}
+.card:hover{box-shadow:var(--shadow-soft)}.card:active{transform:scale(.987)}
+.premium-card{box-shadow:0 14px 28px rgba(15,107,79,.2)}.btn{border-radius:14px;min-height:44px;box-shadow:0 5px 12px rgba(15,107,79,.12);transition:transform .16s ease,filter .16s ease}.btn:hover{filter:brightness(1.03)}.btn:active{transform:scale(.97)}
+.iconbtn{border-radius:12px}.h2{font-size:16px;letter-spacing:-.15px;margin:22px 0 10px}.explorer-title{font-size:25px}.explorer-head{margin:2px 0 18px}.explorer-kicker{color:var(--accent-coral);letter-spacing:.12em}
+.bottomnav{border-top:0;box-shadow:0 -8px 24px rgba(20,55,38,.08);padding-top:7px}.navbtn{padding-top:7px}.navbtn.active{font-weight:800}.navbtn .ic{font-size:21px}
+.bank-feed{display:flex;flex-direction:column;gap:14px}.question-card{padding:18px;border:1px solid color-mix(in srgb,var(--emerald) 10%,transparent);background:linear-gradient(180deg,var(--card),#fbfefc)}.question-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.question-number{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:10px;background:var(--mint);color:var(--emerald-d);font-weight:800;font-size:12px}.question-text{font-size:15px;font-weight:750;line-height:1.55;margin-top:12px}.bank-option{margin:8px 0;padding:13px 14px;border-radius:14px;background:var(--surface-soft);border:1px solid transparent;transition:background .18s ease,border-color .18s ease,transform .18s ease}.bank-option:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--emerald) 28%,transparent)}.bank-option .let{width:28px;height:28px}.bank-option.correct{background:color-mix(in srgb,var(--green) 13%,var(--card));border-color:var(--green)}.bank-option.wrong{background:color-mix(in srgb,var(--red) 13%,var(--card));border-color:var(--red)}.answer-reveal{margin-top:12px;padding:12px;border-radius:14px;background:var(--surface-soft);border-left:4px solid var(--green);animation:answerReveal .2s ease-out}.answer-reveal.wrong{border-left-color:var(--red)}
+@keyframes answerReveal{from{opacity:.2;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+.exam-ready{background:linear-gradient(135deg,#eaf8f0,#f2fbf8);border:1px solid #ccebdd;box-shadow:0 14px 30px rgba(15,107,79,.11)}.exam-ready .ready-icon{width:54px;height:54px;border-radius:18px;background:var(--emerald);color:#fff;display:grid;place-items:center;font-size:28px;box-shadow:0 8px 16px rgba(15,107,79,.2)}.start-exam-btn{min-height:58px;font-size:17px;border-radius:17px;letter-spacing:.01em}
+.mistake-book-card.mastered{opacity:.72}.mistake-book-card{border-left:4px solid var(--red)}.mistake-book-card.mastered{border-left-color:var(--green)}.vocab-card{border-left:4px solid var(--accent-blue)}.vocab-word{font-size:18px;font-weight:850}.vocab-meaning{font-size:14px;color:var(--emerald-d);margin-top:3px}.vocab-detail{margin-top:12px;padding:11px 12px;border-radius:12px;background:var(--surface-soft);font-size:12.5px;line-height:1.6}.vocab-progress{height:10px;background:var(--mint);border-radius:10px;overflow:hidden}.vocab-progress>div{height:100%;background:linear-gradient(90deg,var(--accent-blue),var(--emerald));border-radius:inherit}.recommend-card{background:linear-gradient(135deg,#fff3df,#fffaf3);border:1px solid #f7d7a8;box-shadow:0 12px 26px rgba(198,138,44,.12)}.recommend-card .recommend-icon{width:42px;height:42px;border-radius:14px;background:#f7b955;color:#fff;display:grid;place-items:center;font-size:21px}
+@media(max-width:390px){.page{padding-left:13px;padding-right:13px}.card{padding:15px}.question-text{font-size:14px}.bottomnav{padding-bottom:calc(4px + var(--safe-b))}}
+
+</style>
 
 <style id="premium-upgrade-styles">
 :root{--accent:var(--emerald);--accent-soft:var(--mint);--card-radius:16px;--density:1;--upgrade-shadow:0 8px 28px rgba(15,107,79,.08)}
@@ -786,6 +801,8 @@ function renderDashboard(){
         </div>
       `}
 
+      <div class="h2">Recommended for you</div><div class="card recommend-card fade-in stagger-2"><div class="row" style="align-items:flex-start;gap:12px"><div class="recommend-icon">✦</div><div style="flex:1"><b>${smartFocus.length?`Revise ${esc(smartFocus[0].name)}`:'Build your first study streak'}</b><div class="muted" style="margin-top:5px">${smartFocus.length?`${smartFocus[0].mCount} mistakes and ${round2(smartFocus[0].acc)}% accuracy make this your highest-impact next step.`:'Complete a short practice set so your dashboard can recommend weak topics and less-practiced subjects.'}</div></div></div><button class="btn sm" style="margin-top:14px" onclick="${smartFocus.length?`startWeakTopicPractice()`:`navigate('exam/setup')`}">${smartFocus.length?'Practice weak topic':'Start practice'}</button></div>
+
       <!-- Smart Focus -->
       <div class="h2">Today's Smart Focus</div>
       <div class="card fade-in stagger-3">
@@ -937,54 +954,36 @@ function explorerFilterAndSort(){
 function explorerHasRefinements(){return !!(ExplorerState.query.trim()||ExplorerState.subjectId||ExplorerState.topicId||ExplorerState.status!=='all'||ExplorerState.difficulty!=='all'||ExplorerState.bookmarked||ExplorerState.mistakes||ExplorerState.recentlyAdded);}
 function renderQuestionBank(){
   const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order);
-  const orphans = CACHE.questions.filter(q => !q.subjectId || !q.topicId || !CACHE.subjects.some(s => s.id === q.subjectId) || !CACHE.topics.some(t => t.id === q.topicId));
-
-  const html=`
-  <div class="explorer-head fade-in"><div class="explorer-kicker">Emerald Academic</div><div class="explorer-title">Question Bank</div><div class="explorer-subtitle">Browse by subject and topic or use smart search.</div></div>
-
-  <div class="searchbar explorer-search"><span class="search-icon">⌕</span><input type="search" id="bankSearch" value="${esc(ExplorerState.query)}" placeholder="Search across all questions..." oninput="onBankSearch(this.value)"><button class="iconbtn ${ExplorerState.query?'':'hide'}" aria-label="Clear search" onclick="resetExplorerQuery()">×</button></div>
-
-  ${ExplorerState.query ? `
-    <div class="card explorer-filter-card">
-      <div class="row between"><b style="font-size:13px;">Search Filters</b><button class="btn ghost sm" onclick="resetExplorerFilters()">Reset</button></div>
-      <div class="explorer-filter-grid" style="margin-top:10px;">
-        <label><span class="explorer-filter-label">Subject</span><select id="explorerSubject" onchange="setExplorerFilter('subjectId',this.value)"><option value="">All subjects</option>${subs.map(s=>`<option value="${s.id}" ${ExplorerState.subjectId===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
-        <label><span class="explorer-filter-label">Topic</span><select id="explorerTopic" onchange="setExplorerFilter('topicId',this.value)"><option value="">All topics</option>${CACHE.topics.filter(t=>!ExplorerState.subjectId||t.subjectId===ExplorerState.subjectId).sort((a,b)=>a.order-b.order).map(t=>`<option value="${t.id}" ${ExplorerState.topicId===t.id?'selected':''}>${esc(subjectName(t.subjectId))} · ${esc(t.name)}</option>`).join('')}</select></label>
-      </div>
-      <div class="explorer-filter-chips">
-        <button class="chip ${ExplorerState.bookmarked?'active':''}" onclick="toggleExplorerFilter('bookmarked')">☆ Bookmarked</button>
-        <button class="chip ${ExplorerState.mistakes?'active':''}" onclick="toggleExplorerFilter('mistakes')">⚠ Mistakes</button>
-      </div>
-    </div>
-    <div class="explorer-toolbar"><div class="explorer-toolbar-left"><span class="explorer-toolbar-title">Search Results</span><span id="explorerResultCount" class="explorer-count"></span></div><div class="row" style="gap:6px;"><select aria-label="Sort" style="width:auto;padding:7px 9px;font-size:12px;" onchange="setExplorerSort(this.value)"><option value="newest" ${ExplorerState.sort==='newest'?'selected':''}>Newest</option><option value="alphabetical" ${ExplorerState.sort==='alphabetical'?'selected':''}>A–Z</option></select></div></div>
-    <div id="explorerResultsRoot"></div>
-  ` : `
-    <div class="explorer-subjects-head"><div class="h2">Subjects</div><div class="row"><button class="btn ghost sm" onclick="openImportTool()">⬆️ Import</button><button class="btn secondary sm" onclick="openSubjectForm(null)">+ Subject</button></div></div>
-
-    ${orphans.length > 0 ? `
-      <div class="card" style="border-left:4px solid var(--orange);" onclick="navigate('question-bank/orphans')">
-        <div class="row between">
-          <div class="row"><div style="font-size:20px;">⚠</div><div><b>Unorganized Questions</b><div class="muted">${orphans.length} questions need categorization</div></div></div>
-          <span class="ic">→</span>
-        </div>
-      </div>
-    ` : ''}
-
-    ${subs.length===0?emptyState('📚','No subjects yet','Add a subject to organize your question bank.','+ Add subject','openSubjectForm(null)'):subs.map((s,i)=>`
-      <div class="card" onclick="navigate('question-bank/subject/${s.id}')">
-        <div class="row between">
-          <div class="row"><div style="font-size:20px;">${s.icon||'📘'}</div><div><b>${esc(s.name)}</b><div class="muted">${subjectQCount(s.id)} questions · ${topicsOf(s.id).length} topics</div></div></div>
-          <div class="row" onclick="event.stopPropagation()">
-            <button class="iconbtn" onclick="openSubjectForm('${s.id}')">✏️</button>
-            <button class="iconbtn" onclick="deleteSubject('${s.id}')">🗑️</button>
-          </div>
-        </div>
-      </div>`).join('')}
-  `}
-  `;
+  const orphans=CACHE.questions.filter(q=>!q.subjectId||!q.topicId||!CACHE.subjects.some(s=>s.id===q.subjectId)||!CACHE.topics.some(t=>t.id===q.topicId));
+  const filtered=CACHE.questions.filter(q=>{const term=(ExplorerState.query||'').trim().toLowerCase();return !term||[q.question,q.explanation,...(q.options||[]),subjectName(q.subjectId),topicName(q.topicId)].join(' ').toLowerCase().includes(term);}).sort((a,b)=>(b.updatedAt||b.createdAt||0)-(a.updatedAt||a.createdAt||0));
+  const cards=filtered.map((q,i)=>bankQuestionCard(q,i)).join('');
+  const html=`<div class="explorer-head fade-in"><div class="explorer-kicker">Emerald Academic</div><div class="explorer-title">Question Bank</div><div class="explorer-subtitle">Practice directly in a calm, continuous feed. Your answer is revealed once and then locked.</div></div>
+    <div class="searchbar explorer-search"><span class="search-icon">⌕</span><input type="search" id="bankSearch" value="${esc(ExplorerState.query||'')}" placeholder="Search across all questions..." oninput="onBankSearch(this.value)"><button class="iconbtn ${ExplorerState.query?'':'hide'}" aria-label="Clear search" onclick="resetExplorerQuery()">×</button></div>
+    <div class="explorer-subjects-head"><div class="h2" style="margin:0">Question Feed <span class="muted">${filtered.length}</span></div><div class="row"><button class="btn ghost sm" onclick="openImportTool()">⬆️ Import</button><button class="btn secondary sm" onclick="openSubjectForm(null)">+ Subject</button></div></div>
+    ${orphans.length?`<div class="card" style="border-left:4px solid var(--orange);cursor:pointer" onclick="navigate('question-bank/orphans')"><div class="row between"><div><b>Unorganized Questions</b><div class="muted">${orphans.length} questions need categorization</div></div><span>→</span></div></div>`:''}
+    ${filtered.length?`<div class="bank-feed">${cards}</div>`:emptyState('📚','No questions yet','Import or add questions to start your practice feed.','+ Add question','navigate("add-question")')}
+    <div class="h2">Browse by Subject</div><div class="bank-subject-list">${subs.map(s=>`<button class="card" style="width:100%;text-align:left;cursor:pointer;margin-bottom:10px" onclick="navigate('question-bank/subject/${s.id}')"><div class="row between"><div class="row"><span style="font-size:22px">${s.icon||'📘'}</span><span><b>${esc(s.name)}</b><span class="muted" style="display:block">${subjectQCount(s.id)} questions · ${topicsOf(s.id).length} topics</span></span></div><span>›</span></div></button>`).join('')}</div>`;
   renderShell(html,{title:'Question Bank'});
-  if(ExplorerState.query) renderQuestionExplorerResults();
 }
+function bankQuestionCard(q,i){
+  const state=BankAnswers[q.id];
+  const correct=Number(q.answerIndex??q.answer??0);
+  return `<article class="card question-card fade-in" id="bank-q-${q.id}"><div class="question-card-head"><div class="row" style="align-items:flex-start"><span class="question-number">Q${i+1}</span><div><div class="muted">${esc(subjectName(q.subjectId))} · ${esc(topicName(q.topicId))}</div><div class="question-text">${esc(q.question)}</div></div></div><button class="iconbtn" aria-label="Bookmark question" onclick="event.stopPropagation();toggleQuestionBookmark('${q.id}');renderQuestionBank()">${q.bookmarked?'★':'☆'}</button></div><div style="margin-top:14px">${(q.options||[]).map((o,j)=>{let cls='';if(state){if(j===correct)cls='correct';else if(j===state.selected)cls='wrong';}return `<button class="opt bank-option ${cls}" ${state?'disabled':''} onclick="selectBankAnswer('${q.id}',${j})"><span class="let">${String.fromCharCode(65+j)}</span><span style="text-align:left">${esc(o)}</span></button>`}).join('')}</div>${state?`<div class="answer-reveal ${state.correct?'':'wrong'}"><b>${state.correct?'✓ Correct':'✕ Wrong'}</b>${state.correct?'':`<div class="muted" style="margin-top:4px">Correct answer: ${esc((q.options||[])[correct]||'')}</div>`}${q.explanation?`<div class="muted" style="margin-top:5px"><b>Why:</b> ${esc(q.explanation)}</div>`:''}</div>`:''}<div class="row between" style="margin-top:12px"><span class="muted">${q.bookmarked?'Bookmarked':'Save for later'}</span><button class="btn ghost sm" onclick="event.stopPropagation();startQuestionPractice(['${q.id}'])">Practice</button></div></article>`;
+}
+var BankAnswers=window.BankAnswers||{};
+async function selectBankAnswer(qid,idx){
+  if(BankAnswers[qid])return;
+  const q=CACHE.questions.find(x=>x.id===qid);if(!q)return;
+  const correct=Number(q.answerIndex??q.answer??0),now=Date.now(),isCorrect=idx===correct;
+  BankAnswers[qid]={selected:idx,correct:isCorrect};
+  q.stats=q.stats||{attempts:0,correct:0,wrong:0};q.stats.attempts++;q.stats[isCorrect?'correct':'wrong']++;q.updatedAt=q.updatedAt||now;await dbPut('questions',q);
+  if(!isCorrect){
+    let m=CACHE.mistakes.find(x=>x.questionId===qid);if(!m)m={id:uid(),questionId:qid,wrongCount:0,revisionStatus:'pending',mastered:false};
+    m.question=q.question;m.options=q.options||[];m.subjectId=q.subjectId;m.topicId=q.topicId;m.correctAnswerIndex=correct;m.correctAnswer=(q.options||[])[correct]||'';m.wrongAnswer=(q.options||[])[idx]||'';m.selectedAnswer=m.wrongAnswer;m.explanation=q.explanation||'';m.wrongCount=Number(m.wrongCount||0)+1;m.lastWrongAt=now;m.time=now;m.status='needs-review';m.revisionStatus='pending';m.mastered=false;await dbPut('mistakes',m);
+  }
+  await loadCache();renderQuestionBank();
+}
+
 
 function renderOrphanExplorer(){
   const orphans = CACHE.questions.filter(q => !q.subjectId || !q.topicId || !CACHE.subjects.some(s => s.id === q.subjectId) || !CACHE.topics.some(t => t.id === q.topicId));
@@ -2100,7 +2099,7 @@ function renderExamSetup(){
 
   const wizardProgress = `
     <div class="wizard-progress">
-      ${[1,2,3,4,5,6,7,8,9,10,11].map(i=>`<div class="wizard-dot ${i===step?'active':(i<step?'complete':'')}"></div>`).join('')}
+      ${[1,2,3,4,5,6,7,8,9,10,11,12].map(i=>`<div class="wizard-dot ${i===step?'active':(i<step?'complete':'')}"></div>`).join('')}
     </div>
   `;
 
@@ -2225,17 +2224,10 @@ function renderExamSetup(){
       </div>
     `;
   } else if(step === 11){
-    const customTotal = st.distribution==='custom' ? Object.values(st.customCounts).reduce((a,b)=>a+(parseInt(b)||0),0) : st.totalCount;
-    stepHtml = `
-      <div class="h2" style="margin-top:0;">Step 11 — Summary</div>
-      <div class="card premium-card">
-        <div class="summary-item"><span class="summary-label">Mode</span><span class="summary-value">${st.mode.toUpperCase()}</span></div>
-        <div class="summary-item"><span class="summary-label">Questions</span><span class="summary-value">${customTotal}</span></div>
-        <div class="summary-item"><span class="summary-label">Duration</span><span class="summary-value">${st.duration ? st.duration+' min' : 'No Limit'}</span></div>
-        <div class="summary-item"><span class="summary-label">Marking</span><span class="summary-value">+${st.marksPerQ} / -${st.negative}</span></div>
-      </div>
-      <div class="muted" style="margin-top:10px; text-align:center;">Ready to start your practice?</div>
-    `;
+    stepHtml = `<div class="h2" style="margin-top:0;">Step 11 — Instructions</div><div class="card"><b>One calm session at a time.</b><div class="muted" style="margin-top:8px;line-height:1.6">Your answers auto-save during the session. Mock Test timing and review behavior remain unchanged.</div></div>`;
+  } else if(step === 12){
+    const customTotal=st.distribution==='custom'?Object.values(st.customCounts).reduce((a,b)=>a+(parseInt(b)||0),0):st.totalCount;
+    stepHtml=`<div class="h2" style="margin-top:0;">Step 12 — Final Review</div><div class="card exam-ready"><div class="row" style="align-items:flex-start;gap:13px"><div class="ready-icon">✓</div><div><div class="muted" style="text-transform:uppercase;letter-spacing:.08em;font-weight:800">Exam Ready</div><h2 style="margin:4px 0 6px;font-size:23px">Your session is configured</h2><div class="muted">Review the essentials below, then start the existing Exam Engine.</div></div></div><div class="grid2" style="margin-top:18px"><div class="stat-card"><div class="v">${st.mode.toUpperCase()}</div><div class="l">Mode</div></div><div class="stat-card"><div class="v">${customTotal}</div><div class="l">Questions</div></div><div class="stat-card"><div class="v">${st.duration?st.duration+'m':'∞'}</div><div class="l">Time</div></div><div class="stat-card"><div class="v">+${st.marksPerQ}</div><div class="l">Per correct</div></div></div></div>`;
   }
 
   const html = `
@@ -2246,7 +2238,7 @@ function renderExamSetup(){
 
     <div class="row between" style="margin-top:24px;">
       <button class="btn secondary sm" onclick="wizardBack()">${step===1?'Cancel':'← Back'}</button>
-      <button class="btn sm" onclick="wizardNext()">${step===11?'START EXAM':'Next →'}</button>
+      <button class="btn sm" onclick="wizardNext()">${step===12?'START EXAM':'Next →'}</button>
     </div>
   `;
   renderShell(html, {title:'Exam Setup'});
@@ -2543,34 +2535,11 @@ function confirmSubmitExam(){
 
 /* ---- Flash Test ---- */
 function renderFlashRunning(){
-  const e=ActiveExam;
-  const q=e.questions[e.currentIndex];
-  const answered = e.flashResults[q.id];
-  const html=`
-  <div class="row between" style="margin-bottom:10px;">
-    <div class="muted">Flash ${e.currentIndex+1} / ${e.questions.length}</div>
-    <div class="pill">✓ ${Object.values(e.flashResults).filter(r=>r.correct).length} &nbsp; ✕ ${Object.values(e.flashResults).filter(r=>!r.correct).length}</div>
-  </div>
-  <div class="card">
-    <div style="font-size:15.5px; font-weight:600; margin-bottom:12px;">${esc(q.question)}</div>
-    ${q.options.map((o,i)=>{
-      let cls='';
-      if(answered){
-        if(i===q.answerIndex) cls='correct';
-        else if(i===answered.selected) cls='wrong';
-      }
-      return `<div class="opt ${cls}" onclick="${answered?'':`selectFlashAnswer('${q.id}',${i})`}">
-        <div class="let">${String.fromCharCode(65+i)}</div><div>${esc(o)}</div></div>`;
-    }).join('')}
-    ${answered? `<div class="reveal" style="margin-top:8px;">
-      <div class="pill ${answered.correct?'':'red'}">${answered.correct? '✓ Correct':'✕ Wrong'}</div>
-      ${q.explanation? `<div class="muted" style="margin-top:8px;"><b>Explanation:</b> ${esc(q.explanation)}</div>` : ''}
-    </div>` : ''}
-  </div>
-  ${answered? `<button class="btn" onclick="flashNext()">${e.currentIndex===e.questions.length-1?'Finish':'Next Question →'}</button>` : ''}
-  `;
-  renderShell(html, {title:'Flash Test', hideNav:true});
+  const e=ActiveExam,q=e.questions[e.currentIndex],answered=e.flashResults[q.id];
+  const html=`<div class="row between" style="margin-bottom:12px"><div class="muted">Flash ${e.currentIndex+1} / ${e.questions.length}</div><div class="pill">✓ ${Object.values(e.flashResults).filter(r=>r.correct).length} · ✕ ${Object.values(e.flashResults).filter(r=>!r.correct).length}</div></div><article class="card question-card ${answered?'flash-answered':''}"><div class="question-text" style="margin-top:0">${esc(q.question)}</div><div style="margin-top:14px">${q.options.map((o,i)=>{let cls='';if(answered){if(i===q.answerIndex)cls='correct';else if(i===answered.selected)cls='wrong';}return `<button class="opt bank-option ${cls}" ${answered?'disabled':''} onclick="${answered?'':`selectFlashAnswer('${q.id}',${i})`}"><span class="let">${String.fromCharCode(65+i)}</span><span style="text-align:left">${esc(o)}</span></button>`}).join('')}</div>${answered?`<div class="answer-reveal ${answered.correct?'':'wrong'}"><b>${answered.correct?'✓ Correct':'✕ Wrong'}</b>${answered.correct?'':`<div class="muted" style="margin-top:4px">Correct answer: ${esc(q.options[q.answerIndex]||'')}</div>`}${q.explanation?`<div class="muted" style="margin-top:5px"><b>Why:</b> ${esc(q.explanation)}</div>`:''}</div>`:''}</article>${answered?`<button class="btn start-exam-btn" onclick="flashNext()">${e.currentIndex===e.questions.length-1?'Finish':'Next Question →'}</button>`:''}`;
+  renderShell(html,{title:'Flash Test',hideNav:true});
 }
+
 async function selectFlashAnswer(qid,idx){
   const e=ActiveExam;
   const q=e.questions.find(x=>x.id===qid);
@@ -4488,11 +4457,10 @@ boot();
   window.deleteVocab=function(id){confirmModal('Delete Vocabulary','Remove this vocabulary item?',async()=>{await dbDel('vocabulary',id);CACHE.vocabulary=await dbGetAll('vocabulary');toast('Deleted');render();},'Delete',true)};
   window.startVocabularyPractice=function(){navigate('vocabulary/practice')};
   window.renderVocabulary=function(){
-    const rows=vocabRows(), due=rows.filter(vocabDue), learned=rows.filter(v=>v.learned);
-    const cards=rows.map(v=>`<article class="card vocab-card"><div class="row between" style="align-items:flex-start;gap:8px"><div><div class="vocab-word">${esc(v.word)}</div><div class="vocab-meaning">${esc(v.meaning||'Meaning not added')}</div></div><button class="iconbtn" aria-label="Edit vocabulary" onclick="openVocabForm('${v.id}')">✏️</button></div><div class="vocab-detail"><div><b>Example:</b> ${esc(v.example||'—')}</div><div><b>Synonym:</b> ${esc(v.synonym||'—')} · <b>Antonym:</b> ${esc(v.antonym||'—')}</div></div><div class="vocab-meta"><span class="pill ${v.learned?'green':vocabDue(v)?'red':''}">${esc(vocabStatus(v))}</span><span class="pill">${v.reviewCount||0} reviews</span>${v.mistakeCount?`<span class="pill red">${v.mistakeCount} weak</span>`:''}</div><div class="vocab-actions"><button class="btn secondary sm" onclick="reviewVocab('${v.id}','again')">Again</button><button class="btn ghost sm" onclick="reviewVocab('${v.id}','hard')">Hard</button><button class="btn sm" onclick="reviewVocab('${v.id}','good')">${v.learned?'Review again':'Learned'}</button><button class="iconbtn" aria-label="Delete vocabulary" onclick="deleteVocab('${v.id}')">🗑️</button></div></article>`).join('');
-    const html=`<div class="explorer-head"><div class="explorer-kicker">Language Tools</div><div class="explorer-title">Smart Vocabulary</div><div class="explorer-subtitle">Spaced review for English words, Bengali meanings, and weak vocabulary.</div></div><div class="phase-grid"><div class="phase-metric"><b>${rows.length}</b><span>Total words</span></div><div class="phase-metric"><b>${due.length}</b><span>Due today</span></div><div class="phase-metric"><b>${learned.length}</b><span>Learned</span></div></div><div class="row wrap" style="gap:8px;margin:12px 0"><button class="btn" onclick="openVocabForm('')">+ Add Word</button><button class="btn secondary" onclick="openVocabularyParser()">Import Vocabulary</button><button class="btn ghost" onclick="startVocabularyPractice()">Practice Due (${due.length})</button></div>${rows.length?cards:emptyState('📚','No vocabulary yet','Add a word or import a vocabulary list with the dedicated parser.','+ Add Word',"openVocabForm('')")}`;
-    renderShell(html,{title:'Vocabulary'});
-  };
+    const rows=vocabRows(),due=rows.filter(vocabDue),learned=rows.filter(v=>v.learned),pct=rows.length?Math.round(learned.length/rows.length*100):0;
+    const cards=rows.map(v=>`<article class="card vocab-card"><div class="row between" style="align-items:flex-start;gap:8px"><div><div class="vocab-word">${esc(v.word)}</div><div class="vocab-meaning">${esc(v.meaning||'Meaning not added')}</div></div><div class="row"><button class="iconbtn" aria-label="Edit vocabulary" onclick="openVocabForm('${v.id}')">✏️</button><button class="iconbtn" aria-label="Delete vocabulary" onclick="deleteVocab('${v.id}')">🗑️</button></div></div><div class="vocab-detail"><div><b>Example:</b> ${esc(v.example||'—')}</div><div><b>Synonym:</b> ${esc(v.synonym||'—')} · <b>Antonym:</b> ${esc(v.antonym||'—')}</div></div><div class="vocab-meta"><span class="pill ${v.learned?'green':vocabDue(v)?'red':''}">${esc(vocabStatus(v))}</span><span class="pill">${v.reviewCount||0} reviews</span><span class="pill">Next: ${v.dueAt?new Date(v.dueAt).toLocaleDateString():'Today'}</span></div><div class="vocab-actions"><button class="btn secondary sm" onclick="reviewVocab('${v.id}','again')">Again</button><button class="btn ghost sm" onclick="reviewVocab('${v.id}','hard')">Hard</button><button class="btn sm" onclick="reviewVocab('${v.id}','good')">Learned</button></div></article>`).join('');
+    const html=`<div class="explorer-head"><div class="explorer-kicker">Daily Revision</div><div class="explorer-title">Smart Vocabulary</div><div class="explorer-subtitle">Learn, revise and practice words with spaced repetition.</div></div><div class="card"><div class="row between"><div><b>${learned.length} of ${rows.length} learned</b><div class="muted">${due.length} due for revision</div></div><b style="color:var(--emerald)">${pct}%</b></div><div class="vocab-progress" style="margin-top:12px"><div style="width:${pct}%"></div></div></div><div class="row wrap" style="margin-bottom:10px"><button class="btn sm" onclick="openVocabForm(null)">+ Add Word</button><button class="btn secondary sm" onclick="navigate('vocabulary/parser')">Import Parser</button><button class="btn ghost sm" onclick="startVocabularyPractice()">Practice Due</button></div>${cards||emptyState('📖','No vocabulary yet','Add or import a word with meaning, example, synonym and antonym.','+ Add Word',"openVocabForm('')")}`;renderShell(html,{title:'Smart Vocabulary'});
+  };;
   let VocabPracticeIndex=0;
   window.renderVocabularyPractice=function(){
     const due=vocabRows().filter(vocabDue); if(!due.length){renderShell(emptyState('✅','No vocabulary due','Add words or wait for the next spaced-review date.','Back to Vocabulary',"navigate('vocabulary')"),{title:'Vocabulary Practice',back:"navigate('vocabulary')"});return;}
@@ -4505,11 +4473,10 @@ boot();
   window.startMistakeRetry=function(){const rows=mistakeRows().filter(m=>!m.mastered);const pool=CACHE.questions.filter(q=>rows.some(m=>m.questionId===q.id));if(!pool.length){toast('No active mistakes to retry');return;}ExamSetup=freshSetup();ExamSetup.mode='mock';ExamSetup.totalCount=pool.length;ExamSetup.onlyQuestionIds=pool.map(q=>q.id);beginExam();};
   window.startWeakTopicPractice=function(){const rows=mistakeRows().filter(m=>!m.mastered);const counts={};rows.forEach(m=>{counts[m.topicId]=(counts[m.topicId]||0)+(m.wrongCount||1)});const topicId=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];const pool=CACHE.questions.filter(q=>q.topicId===topicId);if(!pool.length){toast('No weak topic questions available');return;}beginExamFromPool(pool,'weak');};
   window.renderMistakes=function(){
-    const rows=mistakeRows(), active=rows.filter(m=>!m.mastered), mastered=rows.filter(m=>m.mastered);
-    const cards=rows.map(m=>`<article class="card mistake-book-card ${m.mastered?'mastered':''}"><div class="row between" style="align-items:flex-start;gap:8px"><div class="mistake-question">${esc(m.question)}</div><span class="pill ${m.mastered?'green':'red'}">${m.mastered?'Mastered':'Priority '+((m.wrongCount||0)>=3?'High':'Review')}</span></div><div class="muted" style="margin-top:8px">${esc(subjectName(m.subjectId))} · ${esc(topicName(m.topicId))} · Wrong ${m.wrongCount||0}× · Last mistake ${m.lastWrongAt?new Date(m.lastWrongAt).toLocaleDateString():'—'}</div><div class="mistake-answer"><b>Correct answer:</b> ${esc(m.correctAnswer||'—')}<br><span class="muted">${esc(m.explanation||'No explanation stored')}</span></div><div class="mistake-actions"><button class="btn secondary sm" onclick="startQuestionPractice(['${m.questionId}'])">Practice</button><button class="btn ghost sm" onclick="markMistakeStatus('${m.id}','reviewed')">Reviewed</button><button class="btn sm" onclick="markMistakeStatus('${m.id}','mastered')">${m.mastered?'Mastered':'Mark Mastered'}</button></div></article>`).join('');
-    const html=`<div class="explorer-head"><div class="explorer-kicker">Revision Tools</div><div class="explorer-title">Smart Mistake Book</div><div class="explorer-subtitle">Wrong questions are stored once, prioritized by repeated mistakes, and connected to your existing question data.</div></div><div class="phase-grid"><div class="phase-metric"><b>${active.length}</b><span>Active mistakes</span></div><div class="phase-metric"><b>${mastered.length}</b><span>Mastered</span></div><div class="phase-metric"><b>${rows.reduce((n,m)=>n+(m.wrongCount||0),0)}</b><span>Total wrong attempts</span></div></div><div class="grid2" style="margin:12px 0"><button class="btn" onclick="startMistakeRetry()">Retry Wrong</button><button class="btn secondary" onclick="startMistakeFlashReview()">Flash Review</button><button class="btn ghost" onclick="startWeakTopicPractice()">Practice Weak Topic</button><button class="btn ghost" onclick="navigate('question-bank')">Browse Question Bank</button></div>${cards||emptyState('✅','No mistakes yet','Wrong questions will be added automatically after a completed exam.','Start Practice',"navigate('exam')")}`;
-    renderShell(html,{title:'Smart Mistake Book',back:"navigate('dashboard')"});
-  };
+    const rows=mistakeRows(),active=rows.filter(m=>!m.mastered),mastered=rows.filter(m=>m.mastered);
+    const cards=rows.map(m=>`<article class="card mistake-book-card ${m.mastered?'mastered':''}"><div class="row between" style="align-items:flex-start;gap:8px"><div class="mistake-question">${esc(m.question)}</div><span class="pill ${m.mastered?'green':'red'}">${m.mastered?'Mastered':((m.wrongCount||0)>=3?'Needs Review':'Review')}</span></div><div class="muted" style="margin-top:8px">${esc(subjectName(m.subjectId))} · ${esc(topicName(m.topicId))} · Wrong ${m.wrongCount||0}× · ${m.lastWrongAt?new Date(m.lastWrongAt).toLocaleString():'Time not recorded'}</div><div class="mistake-answer"><b>Wrong answer:</b> ${esc(m.wrongAnswer||m.selectedAnswer||'Not recorded')}<br><b>Correct answer:</b> ${esc(m.correctAnswer||'—')}<br><span class="muted">${esc(m.explanation||'No explanation stored')}</span></div><div class="mistake-actions"><button class="btn secondary sm" onclick="startQuestionPractice(['${m.questionId}'])">Retry Wrong</button><button class="btn ghost sm" onclick="startMistakeFlashReview()">Flash Review</button><button class="btn ghost sm" onclick="startWeakTopicPractice()">Weak Topic</button><button class="btn sm" onclick="markMistakeStatus('${m.id}','${m.mastered?'reviewed':'mastered'}')">${m.mastered?'Needs Review':'Mastered'}</button></div></article>`).join('');
+    const html=`<div class="explorer-head"><div class="explorer-kicker">Revision Tools</div><div class="explorer-title">Smart Mistake Book</div><div class="explorer-subtitle">Every mistake is preserved with its question, subject, topic, answers, count, time and revision status.</div></div><div class="phase-grid"><div class="phase-metric"><b>${active.length}</b><span>Needs review</span></div><div class="phase-metric"><b>${mastered.length}</b><span>Mastered</span></div><div class="phase-metric"><b>${rows.reduce((n,m)=>n+(m.wrongCount||0),0)}</b><span>Wrong attempts</span></div></div><div class="grid2" style="margin:12px 0"><button class="btn" onclick="startMistakeRetry()">Retry Wrong</button><button class="btn secondary" onclick="startMistakeFlashReview()">Flash Review</button><button class="btn ghost" onclick="startWeakTopicPractice()">Practice Weak Topic</button><button class="btn ghost" onclick="navigate('question-bank')">Browse Bank</button></div>${cards||emptyState('✅','No mistakes yet','Wrong questions will be added automatically after completed attempts.','Start Practice',"navigate('exam')")}`;renderShell(html,{title:'Smart Mistake Book',back:"navigate('dashboard')"});
+  };;
 
   const oldRenderFinal=render;
   render=function(){if(Router.path==='vocabulary/practice')return renderVocabularyPractice();if(Router.path==='vocabulary/parser')return openVocabularyParser();return oldRenderFinal();};
