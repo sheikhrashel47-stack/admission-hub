@@ -327,6 +327,41 @@ body.compact .card{padding:12px;margin-bottom:10px} body.compact .page{padding-t
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important;scroll-behavior:auto!important}}
 body.no-motion *,body.no-motion *::before,body.no-motion *::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}
 </style>
+
+<style id="phase12-safety-styles">
+  /* Phase 1/2: Bengali-safe wrapping and compact, touch-friendly setup cards. */
+  html, body { min-height: 100%; }
+  body { overflow-x: hidden; }
+  #app { min-height: 100dvh; }
+  .choice, .chip, .card, .opt, .topbar, .togglerow { min-width: 0; }
+  .choice b, .choice small, .chip, .card, .opt > div:last-child, .topbar h1 {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    line-height: 1.45;
+  }
+  .filter-row .choice {
+    height: auto;
+    min-height: 68px;
+    max-height: none;
+    overflow: visible;
+    align-items: flex-start;
+  }
+  .filter-row .choice b { display: block; max-height: none; -webkit-line-clamp: unset; }
+  .setup-scroll { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .keyboard-open .bottomnav { transform: translateY(110%); transition: transform .15s ease; }
+  .keyboard-open #app { padding-bottom: 24px; }
+  @media (max-width: 430px) {
+    .page { padding-left: 12px; padding-right: 12px; }
+    .choice-grid { grid-template-columns: 1fr; }
+    .choice { padding: 13px 12px; }
+    .setup-section { padding: 14px 0; }
+    .setup-footer { padding-bottom: max(4px, env(safe-area-inset-bottom)); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .keyboard-open .bottomnav { transition: none; }
+  }
+</style>
 </head>
 <body>
 <div id="app"></div>
@@ -4022,6 +4057,140 @@ async function executeAIAction(act){
 })();
 
 boot();
+
+/* ================= PHASE 1 + 2 COMPATIBILITY FIXES ================= */
+(function(){
+  const phaseBaseNormalize = typeof normalizeSettings === 'function' ? normalizeSettings : null;
+  const settingsWithFeedback = (input) => {
+    const source = input && typeof input === 'object' ? input : {};
+    const base = phaseBaseNormalize ? phaseBaseNormalize(source) : source;
+    base.feedback = Object.assign({sound:false, visual:true, success:true, error:true}, base.feedback || {});
+    return base;
+  };
+
+  // Settings are persisted in the existing IndexedDB settings store; normalize legacy records
+  // without replacing or clearing any user data.
+  const phaseOldLoadCache = loadCache;
+  loadCache = async function(){
+    await phaseOldLoadCache();
+    CACHE.settings = settingsWithFeedback(CACHE.settings);
+    await dbPut('settings', CACHE.settings);
+  };
+
+  function phasePersistSettings(){
+    CACHE.settings = settingsWithFeedback(CACHE.settings);
+    return dbPut('settings', CACHE.settings);
+  }
+  window.toggleFeedbackSetting = async function(key){
+    const s = settingsWithFeedback(CACHE.settings);
+    s.feedback[key] = s.feedback[key] !== true;
+    CACHE.settings = s;
+    await phasePersistSettings();
+    if (typeof applyUpgradePrefs === 'function') applyUpgradePrefs();
+    render();
+  };
+
+  // Centralized, gesture-safe audio feedback. Web Audio is created only after a user answer,
+  // so it works in mobile browsers without autoplay violations.
+  let phaseAudioContext = null;
+  function phasePlayTone(kind){
+    const s = settingsWithFeedback(CACHE.settings);
+    if (!((s.feedback.sound === true) || s.sound === true || s.sound === 'on') || (kind === 'success' && s.feedback.success !== true) || (kind === 'error' && s.feedback.error !== true)) return;
+    try {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      phaseAudioContext = phaseAudioContext || new Ctx();
+      if (phaseAudioContext.state === 'suspended') phaseAudioContext.resume();
+      const now = phaseAudioContext.currentTime;
+      const osc = phaseAudioContext.createOscillator();
+      const gain = phaseAudioContext.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(kind === 'success' ? 660 : 220, now);
+      osc.frequency.linearRampToValueAtTime(kind === 'success' ? 880 : 160, now + .12);
+      gain.gain.setValueAtTime(.0001, now);
+      gain.gain.exponentialRampToValueAtTime(.12, now + .012);
+      gain.gain.exponentialRampToValueAtTime(.0001, now + .16);
+      osc.connect(gain); gain.connect(phaseAudioContext.destination);
+      osc.start(now); osc.stop(now + .17);
+    } catch (_) { /* audio is enhancement only; never interrupt answering */ }
+  }
+  window.playFeedbackSound = phasePlayTone;
+
+  // Flash Test feedback is immediate; Mock Test remains untouched and never calls this path.
+  const phaseOldFlashAnswer = selectFlashAnswer;
+  selectFlashAnswer = async function(qid, idx){
+    const q = ActiveExam && ActiveExam.questions.find(x => x.id === qid);
+    const isCorrect = !!q && idx === q.answerIndex;
+    await phaseOldFlashAnswer(qid, idx);
+    phasePlayTone(isCorrect ? 'success' : 'error');
+  };
+
+  // Respect the visual-feedback setting in Flash Test only. The underlying result remains
+  // persisted and is still scored normally when visual feedback is disabled.
+  const phaseOldRenderFlash = renderFlashRunning;
+  renderFlashRunning = function(){
+    const s = settingsWithFeedback(CACHE.settings);
+    if (s.feedback.visual !== false) return phaseOldRenderFlash();
+    const e = ActiveExam, q = e.questions[e.currentIndex], answered = e.flashResults[q.id];
+    const html = `<div class="row between" style="margin-bottom:10px;"><div class="muted">Flash ${e.currentIndex+1} / ${e.questions.length}</div><div class="pill">✓ ${Object.values(e.flashResults).filter(r=>r.correct).length} &nbsp; ✕ ${Object.values(e.flashResults).filter(r=>!r.correct).length}</div></div><div class="card"><div style="font-size:15.5px;font-weight:600;margin-bottom:12px;">${esc(q.question)}</div>${q.options.map((o,i)=>`<div class="opt" onclick="${answered?'':`selectFlashAnswer('${q.id}',${i})`}"><div class="let">${String.fromCharCode(65+i)}</div><div>${esc(o)}</div></div>`).join('')}</div>${answered?`<button class="btn" onclick="flashNext()">${e.currentIndex===e.questions.length-1?'Finish':'Next Question →'}</button>`:''}`;
+    renderShell(html, {title:'Flash Test', hideNav:true});
+  };
+
+  // One default back affordance for every non-root page; active exam already uses hideNav/topbar:false.
+  const phaseOldTopbar = topbarHtml;
+  function phaseBackPath(path){
+    if (path.startsWith('question-bank/topic/')) return `question-bank/subject/${path.split('/')[2] ? (CACHE.topics.find(t=>t.id===path.split('/')[2])||{}).subjectId || '' : ''}`;
+    if (path.startsWith('question-bank/subject/')) return 'question-bank';
+    if (path.startsWith('question-bank') || path==='add-question' || path==='import-questions' || path.startsWith('edit-question') || path.startsWith('question/')) return 'dashboard';
+    if (path==='exam/setup') return 'exam';
+    if (path==='exam/result') return 'history';
+    if (path.startsWith('history/')) return 'history';
+    if (path==='exam' || path==='history' || path==='progress' || path==='settings' || path==='mistakes' || path==='vocabulary' || path==='ai-chat') return 'dashboard';
+    return '';
+  }
+  topbarHtml = function(opts){
+    opts = opts || {};
+    if (!opts.back && opts.topbar !== false && !opts.hideNav && Router.path !== 'dashboard') {
+      const back = phaseBackPath(Router.path);
+      if (back) opts = Object.assign({}, opts, {back:`navigate('${back}')`});
+    }
+    return phaseOldTopbar(opts);
+  };
+
+  // Keep fixed navigation stable when iOS/Android opens the software keyboard.
+  function phaseKeyboardViewport(){
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const keyboardLikely = vv.height < window.innerHeight * .78;
+    document.body.classList.toggle('keyboard-open', keyboardLikely);
+    document.documentElement.style.setProperty('--visual-viewport-height', `${vv.height}px`);
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', phaseKeyboardViewport, {passive:true});
+    window.visualViewport.addEventListener('scroll', phaseKeyboardViewport, {passive:true});
+  }
+  document.addEventListener('focusin', e=>{ if (e.target.matches('input,textarea,select,[contenteditable]')) setTimeout(phaseKeyboardViewport, 50); }, {passive:true});
+  document.addEventListener('focusout', ()=>setTimeout(phaseKeyboardViewport, 150), {passive:true});
+  phaseKeyboardViewport();
+
+  // Expose an explicit testable helper for persistence verification without touching data.
+  window.getAdmissionHubFeedbackSettings = () => ({...settingsWithFeedback(CACHE.settings).feedback});
+  window.phaseSettingsWithFeedback = settingsWithFeedback;
+})();
+
+(function(){
+  const settingsWithFeedback = window.phaseSettingsWithFeedback;
+  const oldRenderShell = renderShell;
+  renderShell = function(innerHtml, opts){
+    if (Router.path === 'settings' && !innerHtml.includes('phase-feedback-controls')) {
+      const s = settingsWithFeedback(CACHE.settings);
+      const controls = `<div id="phase-feedback-controls" class="h2">Feedback controls</div><div class="card" aria-label="Feedback settings"><div class="togglerow"><div><b>Visual Feedback</b><div class="muted">Show correct and wrong answer states.</div></div><div role="switch" aria-checked="${s.feedback.visual===true}" class="toggle ${s.feedback.visual===true?'on':''}" onclick="toggleFeedbackSetting('visual')"><div class="dot"></div></div></div><div class="togglerow"><div><b>Success Effects</b><div class="muted">Enable correct-answer effects and sounds.</div></div><div role="switch" aria-checked="${s.feedback.success===true}" class="toggle ${s.feedback.success===true?'on':''}" onclick="toggleFeedbackSetting('success')"><div class="dot"></div></div></div><div class="togglerow" style="border-bottom:none"><div><b>Error Effects</b><div class="muted">Enable wrong-answer effects and sounds.</div></div><div role="switch" aria-checked="${s.feedback.error===true}" class="toggle ${s.feedback.error===true?'on':''}" onclick="toggleFeedbackSetting('error')"><div class="dot"></div></div></div></div>`;
+      innerHtml += controls;
+    }
+    return oldRenderShell(innerHtml, opts);
+  };
+})();
+
 </script>
 </body>
 </html>
