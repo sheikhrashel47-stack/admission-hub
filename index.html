@@ -3393,6 +3393,7 @@ function getAiProvider(){ const p=localStorage.getItem('ai_provider'); return AI
 function setAiProvider(p){ localStorage.setItem('ai_provider', AI_PROVIDERS.some(x=>x.key===p)?p:'gemini'); }
 function getProviderKey(provider){ return localStorage.getItem(AI_KEYS[provider||getAiProvider()])||''; }
 function setProviderKey(provider,k){ localStorage.setItem(AI_KEYS[provider], k); }
+function clearProviderKey(provider){ localStorage.removeItem(AI_KEYS[provider]); localStorage.removeItem(AI_KEYS[provider]+'_model'); }
 function getProviderModel(provider){ return localStorage.getItem(AI_KEYS[provider+'_model'])||AI_MODEL_DEFAULTS[provider]||''; }
 function setProviderModel(provider,m){ localStorage.setItem(AI_KEYS[provider+'_model'], m); }
 /* Mask key for UI display: never show plain text. Shows ****ab12 pattern (last 4 visible). */
