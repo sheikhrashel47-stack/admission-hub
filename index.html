@@ -5,8 +5,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>My Admission Hub</title>
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.json">
+<link rel="alternate" type="application/manifest+json" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f6b4f">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Admission Hub">
 <meta name="description" content="A privacy-first admission preparation hub with smart importing and real progress tracking.">
 <style>
 :root{
@@ -4373,6 +4378,33 @@ boot();
     if(intel) page.appendChild(intel);
   }
   renderShell=function(inner,opts){previousShell(inner,opts); arrangeDashboard();};
+})();
+/* ================= PWA UPDATE / CACHE INVALIDATION ================= */
+(function(){
+  function showPwaUpdate(registration){
+    if(document.getElementById('pwaUpdateNotice')) return;
+    const notice=document.createElement('div');
+    notice.id='pwaUpdateNotice';
+    notice.setAttribute('role','status');
+    notice.style.cssText='position:fixed;left:12px;right:12px;bottom:calc(82px + var(--safe-b));z-index:250;background:var(--emerald-d);color:#fff;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:12px;';
+    notice.innerHTML='<span style="flex:1">A new version is available.</span><button id="pwaUpdateApply" class="btn sm" style="width:auto;background:#fff;color:var(--emerald-d)">Refresh</button>';
+    document.body.appendChild(notice);
+    document.getElementById('pwaUpdateApply').onclick=()=>{registration.waiting?.postMessage({type:'SKIP_WAITING'}); window.location.reload()};
+  }
+  async function registerPwaUpdates(){
+    if(!('serviceWorker' in navigator)) return;
+    try{
+      const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
+      registration.update().catch(()=>{});
+      if(registration.waiting) showPwaUpdate(registration);
+      registration.addEventListener('updatefound',()=>{
+        const worker=registration.installing; if(!worker) return;
+        worker.addEventListener('statechange',()=>{if(worker.state==='installed' && navigator.serviceWorker.controller) showPwaUpdate(registration)});
+      });
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__pwaRefreshing){window.__pwaRefreshing=true;window.location.reload()}});
+    }catch(error){console.warn('PWA registration failed',error)}
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',registerPwaUpdates,{once:true}); else registerPwaUpdates();
 })();
 </script>
 </body>
