@@ -121,10 +121,11 @@ button{font-family:inherit;}
 .btn.danger{background:color-mix(in srgb, var(--red) 15%, var(--card)); color:var(--red);}
 .btn.ghost{background:none; border:1px solid var(--line); color:var(--text);}
 .btn.sm{width:auto; padding:8px 12px; font-size:13px; border-radius:9px;}
-input[type=text],input[type=number],textarea,select{
+input[type=text],input[type=password],input[type=number],textarea,select{
   width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:14.5px;
   background:var(--card); color:var(--text); font-family:inherit;
 }
+input:focus,textarea:focus,select:focus{outline:2px solid color-mix(in srgb,var(--emerald) 45%,transparent); outline-offset:1px;}
 textarea{resize:vertical; min-height:70px;}
 label.flabel{font-size:12.5px; color:var(--sub); font-weight:600; margin:10px 0 4px; display:block;}
 .progbar{height:8px; background:var(--mint); border-radius:6px; overflow:hidden;}
@@ -158,8 +159,8 @@ label.flabel{font-size:12.5px; color:var(--sub); font-weight:600; margin:10px 0 
 .qnavbtn{aspect-ratio:1; border-radius:8px; border:1px solid var(--line); background:var(--card); font-size:12px; font-weight:700; cursor:pointer;}
 .qnavbtn.answered{background:var(--emerald); color:#fff; border-color:var(--emerald);}
 .qnavbtn.current{outline:2px solid var(--orange);}
-.exam-q-card { border-left: 4px solid transparent; transition: all 0.3s ease; animation: fadeUp 0.4s ease-out both; }
-.exam-q-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.exam-q-card { border-left: 4px solid transparent; transition: border-color .15s ease; }
+.exam-q-card:active { opacity:.94; }
 .qnavbtn.flagged { border-color: var(--red); color: var(--red); background: #fff5f5; }
 .options-list { display: flex; flex-direction: column; gap: 8px; }
 .sticky-bottom { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0; z-index: 10; }
@@ -3065,7 +3066,7 @@ function renderHistory(){
       <label class="flabel">Subject<select onchange="setHistoryFilter('subject',this.value)"><option value="">All Subjects</option>${subs.map(x=>`<option ${x===HistoryFilters.subject?'selected':''}>${esc(x)}</option>`).join('')}</select></label><label class="flabel">Topic<select onchange="setHistoryFilter('topic',this.value)"><option value="">All Topics</option>${tops.map(x=>`<option ${x===HistoryFilters.topic?'selected':''}>${esc(x)}</option>`).join('')}</select></label>
       <label class="flabel" style="grid-column:1/-1">Sort<select onchange="setHistoryFilter('sort',this.value)"><option value="dateDesc" ${HistoryFilters.sort==='dateDesc'?'selected':''}>Newest First</option><option value="scoreDesc" ${HistoryFilters.sort==='scoreDesc'?'selected':''}>Highest Score</option><option value="scoreAsc" ${HistoryFilters.sort==='scoreAsc'?'selected':''}>Lowest Score</option><option value="accuracyDesc" ${HistoryFilters.sort==='accuracyDesc'?'selected':''}>Highest Accuracy</option><option value="accuracyAsc" ${HistoryFilters.sort==='accuracyAsc'?'selected':''}>Lowest Accuracy</option></select></label></div><button class="btn ghost sm" style="margin-top:10px" onclick="resetHistoryFilters()">Reset Filters</button></div>
     <div class="row between" style="margin:12px 0 8px"><b>${rows.length} completed exam${rows.length===1?'':'s'}</b><button class="btn sm" onclick="navigate('exam/setup')">Start Exam</button></div>
-    ${rows.length?rows.map(historyRecordHtml).join(''):emptyState('📋','No matching exam records','Completed exams will appear here without replacing or deleting existing data.')}`;
+    ${rows.length?rows.map(historyRecordHtml).join(''):emptyState('📋','কোনো প্রাসঙ্গিক পরীক্ষা নেই','Completed exams will appear here without replacing or deleting existing data.','📝 Start an Exam',"navigate('exam')")}`;
   renderShell(html,{title:'Exam History'});
 }
 function renderHistoryDetail(id){const r=CACHE.examResults.find(x=>x.id===id);if(!r){navigate('history');return;}ResultFilter='all';ResultSubjectFilter='';ResultTopicFilter='';renderResultView(normalizeExamResult(r),false);}
@@ -3079,7 +3080,7 @@ function renderMistakes(){
     return {m,q};
   }).filter(Boolean);
 
-  const html = rows.length===0? emptyState('❌','Mistake Bank is Empty','Great job! You have no pending mistakes to revise.') : `
+  const html = rows.length===0? emptyState('✅','কোনো Mistake নেই','Great job! Wrong answers will appear here automatically after completed exams.','📝 Start an Exam',"navigate('exam')") : `
   <div class="explorer-head">
     <h2 class="explorer-title">Mistake Bank</h2>
     <p class="explorer-subtitle">You have ${rows.length} questions to master.</p>
@@ -3180,7 +3181,7 @@ function renderVocabulary(){
     ${[['english','English'],['bangla','বাংলা শব্দার্থ'],['idiom','Idiom/বাগধারা'],['prep','Preposition']].map(([k,l])=>`<div class="tab ${VocabTab===k?'active':''}" onclick="VocabTab='${k}'; render();">${l}</div>`).join('')}
   </div>
   <button class="btn" style="margin-bottom:12px;" onclick="openVocabForm(null)">+ Add Word</button>
-  ${items.length===0? emptyState('📖','এখনো কোনো শব্দ নেই','প্রথম শব্দ যোগ করুন।') :
+  ${items.length===0? emptyState('📖','এখনো কোনো শব্দ নেই','প্রথম শব্দ যোগ করুন।','+ Add Word','openVocabForm(null)') :
     items.map(v=>`<div class="card">
       <div class="row between"><b>${esc(v.word)}</b><div class="row"><button class="iconbtn" onclick="openVocabForm('${v.id}')">✏️</button><button class="iconbtn" onclick="deleteVocab('${v.id}')">🗑️</button></div></div>
       <div class="muted">${esc(v.meaning||'')}</div>
@@ -3217,7 +3218,17 @@ function deleteVocab(id){
 function renderSettings(){
   const s=CACHE.settings;
   const html=`
-  <div class="h2" style="margin-top:0;">Appearance</div>
+  <div class="h2" style="margin-top:0;">AI Assistant</div>
+  <div class="card">
+    <div class="muted" style="margin-bottom:8px;">Provider</div>
+    <div class="row wrap" style="margin-bottom:6px;">
+      ${AI_PROVIDERS.map(p=>`<button class="chip ${getAiProvider()===p.key?'active':''}" onclick="switchAiProvider('${p.key}')">${p.name}</button>`).join('')}
+    </div>
+    <div class="muted">Active key: <b>${maskKey()}</b> · Model: <b>${esc(getProviderModel(getAiProvider()))||AI_MODEL_DEFAULTS[getAiProvider()]}</b></div>
+    <button class="btn secondary" style="margin-top:12px;" onclick="openAiKeyDialog()">⚙️ Manage API Key & Model</button>
+  </div>
+
+  <div class="h2">Appearance</div>
   <div class="card">
     <div class="muted" style="margin-bottom:8px;">Theme</div>
     <div class="row wrap" style="margin-bottom:6px;">
@@ -3327,9 +3338,21 @@ async function setTheme(theme){
   render();
 }
 async function boot(){
-  await openDB();
-  await seedIfEmpty();
-  await loadCache();
+  try{
+    await openDB();
+  }catch(err){
+    console.error('IndexedDB open failed',err);
+    document.body.innerHTML=`<div style="padding:40px 20px; text-align:center; max-width:480px; margin:0 auto;"><div style="font-size:36px; margin-bottom:10px;">⚠️</div><h3 style="margin:0 0 8px;">Storage not available</h3><p style="color:#6b7370; font-size:14px;">Your browser could not open its local database. This usually happens in private/incognito mode or when storage is blocked. Your existing data has NOT been deleted — try opening this site in a regular tab or refresh the page.</p><p style="color:#6b7370; font-size:13px;">Error: ${esc(String(err&&err.message||err))}</p></div>`;
+    return;
+  }
+  try{
+    await seedIfEmpty();
+    await loadCache();
+  }catch(err){
+    console.error('Data load failed',err);
+    toast('Could not load data — check storage permission and reload.');
+    return;
+  }
   applyTheme();
   Router.path=location.hash.slice(1)||'dashboard';
 
@@ -3361,11 +3384,20 @@ function resumeActiveExam(){
   navigate('exam/running');
 }
 
-/* ================= GEMINI AI CHATBOT ================= */
-function getGeminiKey(){ return localStorage.getItem('gemini_api_key') || ''; }
-function setGeminiKey(k){ localStorage.setItem('gemini_api_key', k); }
-function getGeminiUrl(){ return `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=${getGeminiKey()}`; }
-// Key will be prompted on first use if not set
+/* ================= AI ASSISTANT (MULTI-PROVIDER) ================= */
+/* Providers: Gemini (default) & Groq. Keys are kept in localStorage, never in HTML/source/GitHub. */
+const AI_PROVIDERS=[{key:'gemini',name:'Gemini',desc:'Google Gemini (aistudio.google.com)'},{key:'groq',name:'Groq',desc:'Groq Fast Inference (console.groq.com)'}];
+const AI_KEYS={gemini:'gemini_api_key',groq:'groq_api_key'};
+const AI_MODEL_DEFAULTS={gemini:'gemini-3.5-flash-lite',groq:'llama-3.3-70b-versatile'};
+function getAiProvider(){ const p=localStorage.getItem('ai_provider'); return AI_PROVIDERS.some(x=>x.key===p)?p:'gemini'; }
+function setAiProvider(p){ localStorage.setItem('ai_provider', AI_PROVIDERS.some(x=>x.key===p)?p:'gemini'); }
+function getProviderKey(provider){ return localStorage.getItem(AI_KEYS[provider||getAiProvider()])||''; }
+function setProviderKey(provider,k){ localStorage.setItem(AI_KEYS[provider], k); }
+function getProviderModel(provider){ return localStorage.getItem(AI_KEYS[provider+'_model'])||AI_MODEL_DEFAULTS[provider]||''; }
+function setProviderModel(provider,m){ localStorage.setItem(AI_KEYS[provider+'_model'], m); }
+/* Mask key for UI display: never show plain text. Shows ****ab12 pattern (last 4 visible). */
+function maskKey(k){ k=k||getProviderKey(); if(!k) return 'Not set'; const kl=String(k); if(kl.length<=8) return '****'; return '****'+kl.slice(-4); }
+// Keys will be prompted (via secure masked dialog) on first use if not set
 
 let AIChatState = {
   messages: [],
@@ -3406,6 +3438,19 @@ function renderAIChat(){
       `:''}
     </div>
 
+    <div class="card row between" style="margin-bottom:8px; padding:8px 12px;">
+      <div style="min-width:0;">
+        <div style="font-size:11px; font-weight:700; color:var(--sub); text-transform:uppercase; letter-spacing:.04em;">AI Provider</div>
+        <div class="row" style="margin-top:5px; gap:12px; flex-wrap:nowrap;">
+          ${AI_PROVIDERS.map(p=>`<label style="display:flex; align-items:center; gap:6px; font-size:13.5px; cursor:pointer; white-space:nowrap;">
+            <input type="radio" name="aiProvider" value="${p.key}" ${getAiProvider()===p.key?'checked':''} onchange="switchAiProvider(this.value)" style="accent-color:var(--emerald); width:15px; height:15px;"> ${p.name}
+          </label>`).join('')}
+        </div>
+        <div class="muted" style="margin-top:5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Key: ${maskKey()}${getProviderModel(getAiProvider())?' · '+esc(getProviderModel(getAiProvider())):''}</div>
+      </div>
+      <button class="btn sm secondary" onclick="openAiKeyDialog()" style="width:auto; white-space:nowrap;">⚙️ Set Key</button>
+    </div>
+
     ${AIChatState.pendingImage?`
       <div class="card row between" style="margin-bottom:8px; padding:8px 12px;">
         <div class="row">
@@ -3428,6 +3473,46 @@ function renderAIChat(){
   `;
   renderShell(html, {title:'AI Assistant'});
   scrollChatBottom();
+}
+
+function switchAiProvider(p){
+  setAiProvider(p);
+  toast('AI Provider switched to '+AI_PROVIDERS.find(x=>x.key===p).name);
+  render();
+}
+
+/* Provider key dialog — uses a custom masked modal, never prompt() and never plain text */
+function openAiKeyDialog(){
+  const provider=getAiProvider();
+  const p=AI_PROVIDERS.find(x=>x.key===provider);
+  const hasKey=!!getProviderKey(provider);
+  openModal(`
+    <h3>${p.name} API Key</h3>
+    <p class="muted" style="margin-top:4px;">${hasKey?'Stored key: <b>'+esc(maskKey())+'</b> — save again to update.':'No key stored yet. Enter your key below.'}</p>
+    <p class="muted">Key is saved only in your browser (localStorage). It is never hard-coded, never shown in plain text, and never sent anywhere except the provider's official API endpoint.</p>
+    <label class="flabel">API Key</label>
+    <div class="row" style="gap:6px; margin-top:4px;">
+      <input type="password" id="aiKeyInput" placeholder="Paste your ${p.name} API key..." autocomplete="off" style="flex:1; min-width:0;">
+      <button class="iconbtn" onclick="toggleAiKeyVisibility()" title="Show/Hide">👁️</button>
+    </div>
+    <label class="flabel" style="margin-top:10px;">Model</label>
+    <input type="text" id="aiModelInput" value="${esc(getProviderModel(provider))}" placeholder="${AI_MODEL_DEFAULTS[provider]}" style="width:100%; margin-top:4px;">
+    <button class="btn" style="margin-top:14px;" onclick="saveAiKeyFromDialog()">${hasKey?'Update Key':'Save Key'}</button>
+    <button class="btn ghost" style="margin-top:8px;" onclick="closeModal()">Cancel</button>
+  `);
+}
+function toggleAiKeyVisibility(){
+  const i=document.getElementById('aiKeyInput'); if(!i) return;
+  i.type=i.type==='password'?'text':'password';
+}
+async function saveAiKeyFromDialog(){
+  const i=document.getElementById('aiKeyInput'), m=document.getElementById('aiModelInput');
+  const v=i?i.value.trim():'', mv=m?m.value.trim():'';
+  if(!v){ toast('API Key required'); return; }
+  const provider=getAiProvider();
+  setProviderKey(provider,v);
+  if(mv) setProviderModel(provider,mv);
+  closeModal(); toast(AI_PROVIDERS.find(x=>x.key===provider).name+' key saved'); render();
 }
 
 function quickAiPrompt(text){
@@ -3477,10 +3562,8 @@ async function sendAIChatMessage(userText, imageObj){
     toast('You are offline. AI Chat requires internet connection.');
     return;
   }
-  if(!getGeminiKey()){
-    const k=prompt('Enter your Gemini API Key (from aistudio.google.com):');
-    if(!k||!k.trim()){toast('API Key required'); return;}
-    setGeminiKey(k.trim());
+  if(!getProviderKey()){
+    openAiKeyDialog(); toast('Please save your API Key first'); return;
   }
 
   AIChatState.messages.push({
@@ -3590,34 +3673,78 @@ Always ensure your response is helpful, accurate, and includes valid JSON for ac
       });
     }
 
-    const requestBody={
-      system_instruction:{
-        parts:[{text:systemInstruction}]
-      },
-      contents:contents,
-      generationConfig:{
-        temperature:0.4,
-        maxOutputTokens:2048
+    const provider=getAiProvider();
+    let aiRawText='';
+
+    if(provider==='gemini'){
+      const requestBody={
+        system_instruction:{
+          parts:[{text:systemInstruction}]
+        },
+        contents:contents,
+        generationConfig:{
+          temperature:0.4,
+          maxOutputTokens:2048
+        }
+      };
+
+      const url=`https://generativelanguage.googleapis.com/v1beta/models/${getProviderModel(provider)||'gemini-3.5-flash-lite'}:generateContent?key=${getProviderKey()}`;
+      const response=await fetch(url, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(requestBody)
+      });
+
+      if(!response.ok){
+        const errText=await response.text();
+        throw new Error(`Gemini API error: ${response.status} ${errText}`);
       }
-    };
 
-    const response=await fetch(getGeminiUrl(), {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(requestBody)
-    });
-
-    if(!response.ok){
-      const errText=await response.text();
-      throw new Error(`Gemini API error: ${response.status} ${errText}`);
-    }
-
-    const data=await response.json();
-    const candidate=data.candidates && data.candidates[0];
-    const aiRawText=candidate && candidate.content && candidate.content.parts && candidate.content.parts[0] && candidate.content.parts[0].text;
-
-    if(!aiRawText){
-      throw new Error('Empty response from Gemini AI');
+      const data=await response.json();
+      const candidate=data.candidates && data.candidates[0];
+      aiRawText=candidate && candidate.content && candidate.content.parts && candidate.content.parts[0] && candidate.content.parts[0].text;
+      if(!aiRawText){
+        if(data.promptFeedback && data.promptFeedback.blockReason){
+          throw new Error('Response blocked by Gemini (reason: '+data.promptFeedback.blockReason+'). Try rephrasing.');
+        }
+        throw new Error('Empty response from Gemini AI');
+      }
+    } else if(provider==='groq'){
+      /* Groq: OpenAI-compatible chat completions. Text only (no image support via Groq API keys). */
+      const openaiMessages=[];
+      openaiMessages.push({role:'system', content:systemInstruction});
+      for(const m of recentMsgs){
+        openaiMessages.push({
+          role: m.role==='model'?'assistant':'user',
+          content: m.text || (m.image ? "Please describe this image's content in text." : "")
+        });
+      }
+      const groqUrl='https://api.groq.com/openai/v1/chat/completions';
+      const groqResponse=await fetch(groqUrl, {
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':'Bearer '+getProviderKey()
+        },
+        body:JSON.stringify({
+          model:getProviderModel(provider)||'llama-3.3-70b-versatile',
+          messages:openaiMessages,
+          temperature:0.4,
+          max_tokens:2048
+        })
+      });
+      if(!groqResponse.ok){
+        const errText=await groqResponse.text();
+        throw new Error(`Groq API error: ${groqResponse.status} ${errText}`);
+      }
+      const groqData=await groqResponse.json();
+      const choice=groqData.choices && groqData.choices[0];
+      aiRawText=choice && choice.message && choice.message.content;
+      if(!aiRawText){
+        throw new Error('Empty response from Groq AI');
+      }
+    } else {
+      throw new Error('Unknown AI provider: '+provider);
     }
 
     let actionObj=null;
@@ -3874,7 +4001,7 @@ async function executeAIAction(act){
   window.openCustomDuration=function(){const v=prompt('Minutes',String(ExamSetup.duration||20)); if(v!==null){ExamSetup.duration=Math.max(0,Number(v)||0);render();}};
   window.openCustomNegative=function(){const v=prompt('Negative mark',String(ExamSetup.negative||0)); if(v!==null){ExamSetup.negative=Math.max(0,Number(v)||0);render();}};
 
-  renderSettings=function(){const s=normalizeSettings(CACHE.settings), cards=s.dashboardCards, toggle=(label,key,group='root')=>`<div class="togglerow"><span>${label}</span><div class="toggle ${((group==='cards'?cards[key]:s[key])?'on':'')}" onclick="toggleUpgrade('${group}','${key}')"><div class="dot"></div></div></div>`; const html=`<div class="explorer-head"><div class="explorer-kicker">Personalization</div><div class="explorer-title">Settings</div><div class="explorer-subtitle">Tune the study environment without touching your existing records.</div></div><div class="h2" style="margin-top:0">Appearance</div><div class="card"><div class="muted">Theme</div><div class="filter-row" style="margin-top:8px">${[['light','Emerald Light'],['dark','Soft Dark'],['midnight','Midnight'],['focus','Focus Mode']].map(([v,l])=>`<button class="chip ${s.theme===v?'active':''}" onclick="setTheme('${v}')">${l}</button>`).join('')}</div><div class="muted" style="margin-top:12px">Accent</div><div class="filter-row" style="margin-top:8px">${[['emerald','Emerald'],['blue','Blue'],['violet','Violet'],['amber','Amber']].map(([v,l])=>`<button class="chip ${s.accent===v?'active':''}" onclick="setAccent('${v}')">${l}</button>`).join('')}</div><label class="flabel">UI Density</label><select onchange="CACHE.settings.density=this.value;persistUpgradeSetting()"><option value="comfortable" ${s.density==='comfortable'?'selected':''}>Comfortable</option><option value="compact" ${s.density==='compact'?'selected':''}>Compact</option></select><label class="flabel">Card Style</label><select onchange="CACHE.settings.cardStyle=this.value;persistUpgradeSetting()"><option value="soft" ${s.cardStyle==='soft'?'selected':''}>Soft</option><option value="minimal" ${s.cardStyle==='minimal'?'selected':''}>Minimal</option><option value="elevated" ${s.cardStyle==='elevated'?'selected':''}>Elevated</option></select></div><div class="h2">Animation & Feedback</div><div class="card">${toggle('Animations','animation')} ${toggle('Reduced motion','reducedMotion')} ${toggle('Result animation','resultAnimation')} ${toggle('Number animation','numberAnimation')} ${toggle('Page transition','pageTransition')} ${toggle('Sound','sound')} ${toggle('Visual feedback','visual','feedback')} ${toggle('Success effects','success','feedback')} ${toggle('Error effects','error','feedback')}</div><div class="h2">Dashboard cards</div><div class="card">${Object.entries({goal:'Daily goal',streak:'Streak',performance:'Performance',revision:'Smart revision',lifetime:'Lifetime'}).map(([k,l])=>toggle(l,k,'cards')).join('')}</div><div class="h2">Exam defaults</div><div class="card"><label class="flabel">Question count</label><input type="number" value="${s.examDefaults.count}" onchange="CACHE.settings.examDefaults.count=Math.max(1,Number(this.value)||20);persistUpgradeSetting()"><label class="flabel">Duration (minutes)</label><input type="number" value="${s.examDefaults.duration}" onchange="CACHE.settings.examDefaults.duration=Math.max(0,Number(this.value)||20);persistUpgradeSetting()"><label class="flabel">Negative marking</label><input type="number" step=".05" value="${s.examDefaults.negative}" onchange="CACHE.settings.examDefaults.negative=Math.max(0,Number(this.value)||0);persistUpgradeSetting()"><label class="flabel">Difficulty</label><select onchange="CACHE.settings.examDefaults.difficulty=this.value;persistUpgradeSetting()"><option value="mixed" ${s.examDefaults.difficulty==='mixed'?'selected':''}>Mixed</option><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>${toggle('Auto-save','autoSave','examDefaults')}${toggle('Resume exam','resume','examDefaults')}${toggle('Submit confirmation','confirmSubmit','examDefaults')}</div><div class="h2">Data management</div><div class="card"><div class="muted">Questions: ${CACHE.questions.length.toLocaleString()} · Exams: ${CACHE.examResults.length} · History: ${CACHE.examResults.length} · Vocabulary: ${CACHE.vocabulary.length}</div><button class="btn secondary" style="margin-top:12px" onclick="exportBackup()">📦 Export Full Backup</button><button class="btn ghost" style="margin-top:8px" onclick="document.getElementById('restoreFile').click()">📥 Import Backup</button><input id="restoreFile" type="file" accept="application/json" class="hide" onchange="handleRestoreFile(event)"></div><div class="h2">Danger zone</div><div class="card"><button class="btn ghost" onclick="resetStats()">Reset Statistics</button><button class="btn ghost" style="margin-top:8px" onclick="confirmModal('Clear Exam History','This deletes only completed exam records and keeps questions and subjects.',()=>{for(const store of ['exams','examResults']) dbClear(store).then(loadCache).then(()=>{toast('Exam history cleared');render()})},'Clear',true)">Clear Exam History</button><button class="btn danger" style="margin-top:8px" onclick="confirmModal('Delete Mistakes','Remove all mistake records while keeping questions and history?',async()=>{await dbClear('mistakes');await loadCache();toast('Mistakes deleted');render()},'Delete',true)">Delete Mistakes</button><button class="btn danger" style="margin-top:8px" onclick="resetAll()">Delete All Data</button></div></div>`; renderShell(html,{title:'Settings'});};
+  renderSettings=function(){const s=normalizeSettings(CACHE.settings), cards=s.dashboardCards, toggle=(label,key,group='root')=>`<div class="togglerow"><span>${label}</span><div class="toggle ${((group==='cards'?cards[key]:s[key])?'on':'')}" onclick="toggleUpgrade('${group}','${key}')"><div class="dot"></div></div></div>`; const html=`<div class="explorer-head"><div class="explorer-kicker">Personalization</div><div class="explorer-title">Settings</div><div class="explorer-subtitle">Tune the study environment without touching your existing records.</div><div class="h2">AI Assistant</div><div class="card"><div class="muted">Provider</div><div class="filter-row" style="margin-top:8px">${AI_PROVIDERS.map(p=>`<button class="chip ${getAiProvider()===p.key?'active':''}" onclick="switchAiProvider('${p.key}')">${p.name}</button>`).join('')}</div>${AI_PROVIDERS.map(p=>`<div style="margin-top:12px;padding:11px;background:var(--bg);border-radius:12px"><div class="row between"><b style="font-size:13px">${p.name}</b><span class="muted" style="font-size:11px">${maskKey(getProviderKey('${p.key}'))}${getProviderModel('${p.key}')?' &middot; '+esc(getProviderModel('${p.key}')):''}</span></div><div class="row" style="gap:8px;margin-top:8px"><button class="btn sm" onclick="switchAiProvider('${p.key}');setTimeout(openAiKeyDialog,60)">Set Key</button><button class="btn ghost sm" onclick="if(confirm('Remove stored ${p.name} key?')){clearProviderKey('${p.key}');toast('${p.name} key removed');render()}">Clear</button></div></div>`).join('')}<div class="muted" style="margin-top:10px;font-size:11.5px">Keys are saved only in your browser (localStorage). They are never hard-coded, never shown in plain text, and sent only to the provider's official API endpoint.</div></div></div><div class="h2" style="margin-top:0">Appearance</div><div class="card"><div class="muted">Theme</div><div class="filter-row" style="margin-top:8px">${[['light','Emerald Light'],['dark','Soft Dark'],['midnight','Midnight'],['focus','Focus Mode']].map(([v,l])=>`<button class="chip ${s.theme===v?'active':''}" onclick="setTheme('${v}')">${l}</button>`).join('')}</div><div class="muted" style="margin-top:12px">Accent</div><div class="filter-row" style="margin-top:8px">${[['emerald','Emerald'],['blue','Blue'],['violet','Violet'],['amber','Amber']].map(([v,l])=>`<button class="chip ${s.accent===v?'active':''}" onclick="setAccent('${v}')">${l}</button>`).join('')}</div><label class="flabel">UI Density</label><select onchange="CACHE.settings.density=this.value;persistUpgradeSetting()"><option value="comfortable" ${s.density==='comfortable'?'selected':''}>Comfortable</option><option value="compact" ${s.density==='compact'?'selected':''}>Compact</option></select><label class="flabel">Card Style</label><select onchange="CACHE.settings.cardStyle=this.value;persistUpgradeSetting()"><option value="soft" ${s.cardStyle==='soft'?'selected':''}>Soft</option><option value="minimal" ${s.cardStyle==='minimal'?'selected':''}>Minimal</option><option value="elevated" ${s.cardStyle==='elevated'?'selected':''}>Elevated</option></select></div><div class="h2">Animation & Feedback</div><div class="card">${toggle('Animations','animation')} ${toggle('Reduced motion','reducedMotion')} ${toggle('Result animation','resultAnimation')} ${toggle('Number animation','numberAnimation')} ${toggle('Page transition','pageTransition')} ${toggle('Sound','sound')} ${toggle('Visual feedback','visual','feedback')} ${toggle('Success effects','success','feedback')} ${toggle('Error effects','error','feedback')}</div><div class="h2">Dashboard cards</div><div class="card">${Object.entries({goal:'Daily goal',streak:'Streak',performance:'Performance',revision:'Smart revision',lifetime:'Lifetime'}).map(([k,l])=>toggle(l,k,'cards')).join('')}</div><div class="h2">Exam defaults</div><div class="card"><label class="flabel">Question count</label><input type="number" value="${s.examDefaults.count}" onchange="CACHE.settings.examDefaults.count=Math.max(1,Number(this.value)||20);persistUpgradeSetting()"><label class="flabel">Duration (minutes)</label><input type="number" value="${s.examDefaults.duration}" onchange="CACHE.settings.examDefaults.duration=Math.max(0,Number(this.value)||20);persistUpgradeSetting()"><label class="flabel">Negative marking</label><input type="number" step=".05" value="${s.examDefaults.negative}" onchange="CACHE.settings.examDefaults.negative=Math.max(0,Number(this.value)||0);persistUpgradeSetting()"><label class="flabel">Difficulty</label><select onchange="CACHE.settings.examDefaults.difficulty=this.value;persistUpgradeSetting()"><option value="mixed" ${s.examDefaults.difficulty==='mixed'?'selected':''}>Mixed</option><option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option></select>${toggle('Auto-save','autoSave','examDefaults')}${toggle('Resume exam','resume','examDefaults')}${toggle('Submit confirmation','confirmSubmit','examDefaults')}</div><div class="h2">Data management</div><div class="card"><div class="muted">Questions: ${CACHE.questions.length.toLocaleString()} · Exams: ${CACHE.examResults.length} · History: ${CACHE.examResults.length} · Vocabulary: ${CACHE.vocabulary.length}</div><button class="btn secondary" style="margin-top:12px" onclick="exportBackup()">📦 Export Full Backup</button><button class="btn ghost" style="margin-top:8px" onclick="document.getElementById('restoreFile').click()">📥 Import Backup</button><input id="restoreFile" type="file" accept="application/json" class="hide" onchange="handleRestoreFile(event)"></div><div class="h2">Danger zone</div><div class="card"><button class="btn ghost" onclick="resetStats()">Reset Statistics</button><button class="btn ghost" style="margin-top:8px" onclick="confirmModal('Clear Exam History','This deletes only completed exam records and keeps questions and subjects.',()=>{for(const store of ['exams','examResults']) dbClear(store).then(loadCache).then(()=>{toast('Exam history cleared');render()})},'Clear',true)">Clear Exam History</button><button class="btn danger" style="margin-top:8px" onclick="confirmModal('Delete Mistakes','Remove all mistake records while keeping questions and history?',async()=>{await dbClear('mistakes');await loadCache();toast('Mistakes deleted');render()},'Delete',true)">Delete Mistakes</button><button class="btn danger" style="margin-top:8px" onclick="resetAll()">Delete All Data</button></div></div>`; renderShell(html,{title:'Settings'});};
   window.toggleUpgrade=async function(group,key){const s=normalizeSettings(CACHE.settings); if(group==='cards') s.dashboardCards[key]=s.dashboardCards[key]===false; else if(group==='feedback') s.feedback[key]=s.feedback[key]===false; else if(group==='examDefaults') s.examDefaults[key]=s.examDefaults[key]===false; else if(key==='animation') s.animation=s.animation==='on'?'off':'on'; else s[key]=!s[key]; CACHE.settings=s; await dbPut('settings',s); applyUpgradePrefs(); render();};
 
   function mistakeRows(){return CACHE.mistakes.map(m=>{const q=CACHE.questions.find(x=>x.id===m.questionId); if(!q)return null; const attempts=Math.max(Number(m.attempts||0),Number(q.stats&&q.stats.attempts||0),Number(m.wrongCount||0)); const wrong=Math.max(Number(m.wrongCount||0),Number(q.stats&&q.stats.wrong||0)); const correct=Math.max(0,Number(m.correctCount||0),Number(q.stats&&q.stats.correct||0)); const acc=attempts?round2(correct/attempts*100):0; const age=Math.max(0,Date.now()-Number(m.lastWrongAt||m.updatedAt||0)); const priority=wrong>=5||acc<50?'high':wrong>=2||acc<75?'medium':'low'; return {m,q,attempts,wrong,correct,acc,age,priority};}).filter(Boolean);}
