@@ -2366,33 +2366,7 @@ function renderMockRunning(){
     `).join('')}
   </div>
 
-  <div class="exam-nav-footer">
-    <div style="flex:1;">
-      <div class="row between" style="margin-bottom:6px;">
-        <span style="font-size:12px; font-weight:700;">NAVIGATOR</span>
-        <select onchange="window.examNavFilter=this.value; render()" style="width:auto; font-size:11px; padding:4px 8px; border-radius:8px;">
-          <option value="all" ${window.examNavFilter==='all'?'selected':''}>All Questions</option>
-          <option value="unanswered" ${window.examNavFilter==='unanswered'?'selected':''}>Unanswered</option>
-          <option value="answered" ${window.examNavFilter==='answered'?'selected':''}>Answered</option>
-          <option value="flagged" ${window.examNavFilter==='flagged'?'selected':''}>Flagged</option>
-        </select>
-      </div>
-      <div class="qnav" style="grid-template-columns:repeat(8,1fr); max-height:70px; overflow-y:auto; gap:4px;">
-        ${e.questions.map((qq,i)=>{
-          const isAnswered = e.selectedAnswers[qq.id]!==undefined;
-          const isFlagged = e.flags.has(qq.id);
-          const filter = window.examNavFilter || 'all';
-          if(filter==='unanswered' && isAnswered) return '';
-          if(filter==='answered' && !isAnswered) return '';
-          if(filter==='flagged' && !isFlagged) return '';
 
-          return `<button class="qnavbtn ${isAnswered?'answered':''} ${isFlagged?'pill red':''}"
-            style="aspect-ratio:1; padding:0; font-size:10px; ${isFlagged?'border-color:var(--red); color:var(--red);':''}"
-            onclick="scrollToQuestion(${i})">${i+1}</button>`;
-        }).join('')}
-      </div>
-    </div>
-  </div>
   `;
   renderShell(html, {topbar:false, hideNav:true});
 }
@@ -2729,20 +2703,29 @@ function renderResultView(r, isFresh){
     ${filtered.map((s,idx)=>{
       const isCareless = s.status==='wrong' && s.timing && s.timing.ms < 5000;
       return `
-      <div class="card" style="padding:14px; border-left:4px solid ${s.status==='correct'?'var(--green)':s.status==='wrong'?'var(--red)':'var(--sub)'}">
-        <div class="row between" style="margin-bottom:8px;">
+      <div class="card" style="padding:16px; border-left:4px solid ${s.status==='correct'?'var(--green)':s.status==='wrong'?'var(--red)':'var(--sub)'}">
+        <div class="row between" style="margin-bottom:10px;">
           <span class="pill">Q${idx+1}</span>
           <div class="row">
             ${isCareless ? '<span class="careless-tag">⚠ Possible Careless</span>' : ''}
             <span class="time-tag normal">${s.timing ? Math.round(s.timing.ms/1000)+'s' : '-'}</span>
           </div>
         </div>
-        <div style="font-size:14px; font-weight:700; margin-bottom:12px;">${esc(s.question)}</div>
-        <div style="font-size:13px; margin-bottom:8px;">
-          <div style="color:var(--sub);">Your Answer: <b style="color:${s.status==='correct'?'var(--green)':'var(--red)'}">${s.selected!==null?String.fromCharCode(65+s.selected):'Skipped'}</b></div>
-          <div style="color:var(--sub);">Correct Answer: <b style="color:var(--green);">${String.fromCharCode(65+s.answerIndex)}</b></div>
+        <div style="font-size:15px; font-weight:700; margin-bottom:14px; line-height:1.5;">${esc(s.question)}</div>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+          ${(s.options||[]).map((opt,oi)=>{
+            const isSelected = s.selected===oi;
+            const isCorrect = s.answerIndex===oi;
+            let optClass = '';
+            if(isCorrect) optClass = 'correct';
+            if(isSelected && !isCorrect) optClass = 'wrong';
+            return '<div class="opt '+optClass+'" style="cursor:default;"><div class="let">'+String.fromCharCode(65+oi)+'</div><div style="flex:1">'+esc(opt)+'</div>'+(isSelected?'<span style="font-size:10px;font-weight:700;color:'+(isCorrect?'var(--green)':'var(--red)')+'">তোমার উত্তর</span>':'')+(isCorrect&&!isSelected?'<span style="font-size:10px;font-weight:700;color:var(--green)">সঠিক উত্তর</span>':'')+'</div>';
+          }).join('')}
         </div>
-        ${s.explanation ? `<div style="font-size:12px; padding:10px; background:var(--bg); border-radius:8px; margin-top:8px;"><b>Explanation:</b> ${esc(s.explanation)}</div>` : ''}
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span style="font-size:13px; font-weight:600; color:${s.status==='correct'?'var(--green)':s.status==='wrong'?'var(--red)':'var(--sub)'}">${s.status==='correct'?'✅ সঠিক':s.status==='wrong'?'❌ ভুল':'➖ উত্তর দেওয়া হয়নি'}</span>
+        </div>
+        ${s.explanation ? '<div style="font-size:12px; padding:10px; background:var(--bg); border-radius:8px; margin-top:8px;"><b>💡 ব্যাখ্যা:</b> '+esc(s.explanation)+'</div>' : ''}
       </div>`;
     }).join('')}
   </div>
