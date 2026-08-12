@@ -21,6 +21,8 @@
   --radius:14px;
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-t: env(safe-area-inset-top, 0px);
+  --shadow: 0 4px 12px rgba(0,0,0,0.05);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 [data-theme="dark"]{
   --emerald:#22c55e;
@@ -82,8 +84,26 @@ button{font-family:inherit;}
 .navbtn.active{color:var(--emerald);}
 
 .page{padding:14px 16px 24px;}
-.card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:12px;}
-.card:active{transform:scale(.997);}
+.card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:16px; box-shadow: var(--shadow); transition: var(--transition);}
+.card:active{transform:scale(.985);}
+.premium-card{background: linear-gradient(135deg, var(--emerald), var(--emerald-d)); color: #fff; border: none;}
+.premium-card .muted{color: rgba(255,255,255,0.8);}
+.premium-card .progbar{background: rgba(255,255,255,0.2);}
+.premium-card .progbar>div{background: #fff;}
+.stat-value{font-size: 22px; font-weight: 800; letter-spacing: -0.5px;}
+.stat-label{font-size: 11px; text-transform: uppercase; font-weight: 600; opacity: 0.7; margin-top: 2px;}
+.focus-tag{padding: 4px 10px; border-radius: 8px; font-size: 12px; font-weight: 600;}
+.focus-tag.revision{background: #fee2e2; color: #ef4444;}
+.focus-tag.improving{background: #fef3c7; color: #d97706;}
+.focus-tag.strong{background: #dcfce7; color: #16a34a;}
+.animate-count{display: inline-block;}
+.btn-press{transition: transform 0.1s ease;}
+.btn-press:active{transform: translateY(2px);}
+@keyframes countUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in{animation: fadeUp 0.5s ease-out forwards;}
+.stagger-1{animation-delay: 0.1s;}
+.stagger-2{animation-delay: 0.2s;}
+.stagger-3{animation-delay: 0.3s;}
 .row{display:flex; align-items:center; gap:10px;}
 .between{justify-content:space-between;}
 .wrap{flex-wrap:wrap;}
@@ -138,8 +158,58 @@ label.flabel{font-size:12.5px; color:var(--sub); font-weight:600; margin:10px 0 
 .qnavbtn{aspect-ratio:1; border-radius:8px; border:1px solid var(--line); background:var(--card); font-size:12px; font-weight:700; cursor:pointer;}
 .qnavbtn.answered{background:var(--emerald); color:#fff; border-color:var(--emerald);}
 .qnavbtn.current{outline:2px solid var(--orange);}
+.exam-q-card { border-left: 4px solid transparent; transition: all 0.3s ease; animation: fadeUp 0.4s ease-out both; }
+.exam-q-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.qnavbtn.flagged { border-color: var(--red); color: var(--red); background: #fff5f5; }
+.options-list { display: flex; flex-direction: column; gap: 8px; }
+.sticky-bottom { position: sticky; bottom: 0; background: var(--bg); padding: 10px 0; z-index: 10; }
+.import-card-valid { border-left: 4px solid var(--emerald); }
+.import-card-invalid { border-left: 4px solid var(--red); }
+.import-card-duplicate { border-left: 4px solid var(--orange); }
 .searchbar{display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:11px; padding:9px 12px; margin-bottom:12px; background:var(--card);}
 .searchbar input{border:none; padding:0; flex:1;}
+.explorer-head{margin:4px 0 14px;}
+.explorer-kicker{font-size:11px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--emerald);}
+.explorer-title{font-size:22px; font-weight:800; letter-spacing:-.5px; margin:3px 0;}
+.explorer-subtitle{font-size:12.5px; color:var(--sub); line-height:1.4;}
+.explorer-search{padding:12px 14px; border-color:color-mix(in srgb, var(--emerald) 28%, var(--line)); box-shadow:0 2px 9px rgba(15,107,79,.06);}
+.explorer-search input{font-size:15px;}
+.explorer-search .search-icon{font-size:18px;}
+.explorer-filter-card{padding:12px; margin-bottom:12px;}
+.explorer-filter-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+.explorer-filter-grid label{min-width:0;}
+.explorer-filter-grid select{padding:9px 10px; font-size:13px;}
+.explorer-filter-label{display:block; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--sub); margin:0 0 4px 2px;}
+.explorer-filter-chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;}
+.explorer-filter-chips .chip{margin:0; padding:7px 10px; font-size:12px;}
+.explorer-toolbar{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:12px 0 8px;}
+.explorer-toolbar-left{display:flex; align-items:center; gap:8px; min-width:0;}
+.explorer-toolbar-title{font-weight:800; font-size:14px;}
+.explorer-count{font-size:11.5px; color:var(--sub); white-space:nowrap;}
+.explorer-select{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--sub); white-space:nowrap;}
+.explorer-select input,.explorer-check input{width:18px; height:18px; accent-color:var(--emerald);}
+.explorer-card{position:relative; padding:13px; margin-bottom:9px; animation:fadeUp .28s ease both;}
+.explorer-card.is-selected{border-color:var(--emerald); box-shadow:0 0 0 2px color-mix(in srgb, var(--emerald) 14%, transparent);}
+.explorer-card-top{display:flex; align-items:flex-start; gap:9px;}
+.explorer-check{padding-top:1px; flex-shrink:0;}
+.explorer-qbody{min-width:0; flex:1;}
+.explorer-qtext{font-size:14px; font-weight:700; line-height:1.42; color:var(--text);}
+.explorer-qmeta{display:flex; flex-wrap:wrap; gap:5px 8px; margin-top:7px; font-size:11.5px; color:var(--sub);}
+.explorer-qmeta span{display:inline-flex; align-items:center; gap:3px;}
+.explorer-qactions{display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end; margin-top:10px; padding-top:9px; border-top:1px solid var(--line);}
+.explorer-qactions .iconbtn{font-size:16px; padding:7px 8px;}
+.explorer-qactions .iconbtn.action-label{font-size:11.5px; font-weight:700; border:1px solid var(--line); padding:7px 9px; color:var(--emerald-d);}
+.explorer-bookmark{color:var(--orange) !important;}
+.explorer-status{font-size:10.5px; font-weight:800; padding:3px 7px; border-radius:8px; white-space:nowrap;}
+.explorer-status.good{background:color-mix(in srgb, var(--green) 14%, var(--card)); color:var(--green);}
+.explorer-status.bad{background:color-mix(in srgb, var(--red) 14%, var(--card)); color:var(--red);}
+.explorer-status.neutral{background:var(--mint); color:var(--sub);}
+.explorer-load{margin:4px 0 14px;}
+.explorer-bulk{display:flex; gap:6px; flex-wrap:wrap; padding:10px 12px; background:var(--mint); border-radius:11px; margin:8px 0 12px; animation:fadeUp .2s ease;}
+.explorer-bulk .btn{font-size:12px; padding:8px 10px;}
+.explorer-subjects-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:22px 0 8px;}
+.explorer-subjects-head .h2{margin:0;}
+@media (max-width:380px){.explorer-filter-grid{grid-template-columns:1fr;}.explorer-qactions{justify-content:stretch;}.explorer-qactions .action-label{flex:1;}.explorer-title{font-size:20px;}}
 .stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 .stat-card{background:var(--mint); border-radius:12px; padding:12px;}
 .stat-card .v{font-size:20px; font-weight:800; color:var(--emerald-d);}
@@ -154,11 +224,56 @@ label.flabel{font-size:12.5px; color:var(--sub); font-weight:600; margin:10px 0 
 .divider{height:1px; background:var(--line); margin:12px 0;}
 .errbox{background:color-mix(in srgb, var(--red) 15%, var(--card)); color:var(--red); border-radius:10px; padding:9px 12px; font-size:12.5px; margin-top:6px;}
 .timerbox.timer-warn{color:var(--orange);}
-.timerbox.timer-danger{color:var(--red);}
-.reveal{animation:fadeUp .25s ease;}
-@keyframes fadeUp{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
-a.link{color:var(--emerald-d); text-decoration:underline;}
-</style>
+	.timerbox.timer-danger{color:var(--red);}
+	.reveal{animation:fadeUp .25s ease;}
+	@keyframes fadeUp{from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);}}
+	a.link{color:var(--emerald-d); text-decoration:underline;}
+
+	/* Exam System 2.0 Styles */
+	.exam-center-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+	.exam-mode-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; cursor: pointer; transition: var(--transition); }
+	.exam-mode-card:active { transform: scale(0.96); }
+	.exam-mode-card .icon { font-size: 24px; }
+	.exam-mode-card .name { font-weight: 700; font-size: 14px; color: var(--text); }
+	.exam-mode-card .desc { font-size: 11px; color: var(--sub); line-height: 1.3; }
+	.exam-mode-card.active { border-color: var(--emerald); background: var(--mint); }
+
+	.wizard-step { display: none; animation: fadeUp 0.3s ease-out both; }
+	.wizard-step.active { display: block; }
+	.wizard-progress { display: flex; gap: 4px; margin-bottom: 20px; }
+	.wizard-dot { flex: 1; height: 4px; background: var(--line); border-radius: 2px; }
+	.wizard-dot.active { background: var(--emerald); }
+	.wizard-dot.complete { background: var(--emerald-d); }
+
+	.summary-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+	.summary-item:last-child { border-bottom: none; }
+	.summary-label { color: var(--sub); font-size: 13px; }
+	.summary-value { font-weight: 700; font-size: 13px; }
+
+	.navigator-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 150; display: flex; align-items: flex-end; }
+	.navigator-panel { background: var(--card); width: 100%; max-width: 560px; margin: 0 auto; border-radius: 20px 20px 0 0; padding: 20px 16px calc(20px + var(--safe-b)); max-height: 80vh; overflow-y: auto; }
+
+	.comparison-grid { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin: 12px 0; }
+	.comparison-val { text-align: center; }
+	.comparison-val .label { font-size: 10px; text-transform: uppercase; color: var(--sub); margin-bottom: 2px; }
+	.comparison-val .value { font-weight: 800; font-size: 16px; }
+	.comparison-trend { font-size: 12px; font-weight: 700; }
+	.trend-up { color: var(--green); }
+	.trend-down { color: var(--red); }
+
+	.readiness-meter { height: 12px; background: var(--line); border-radius: 6px; overflow: hidden; margin: 10px 0; }
+	.readiness-fill { height: 100%; background: linear-gradient(90deg, var(--red), var(--orange), var(--green)); transition: width 1s ease-out; }
+
+	.careless-tag { display: inline-flex; align-items: center; gap: 4px; background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; padding: 2px 6px; border-radius: 6px; font-size: 10px; font-weight: 700; }
+
+	.time-tag { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 6px; }
+	.time-tag.vfast { background: #dcfce7; color: #16a34a; }
+	.time-tag.normal { background: #f3f4f6; color: #4b5563; }
+	.time-tag.slow { background: #fef3c7; color: #d97706; }
+	.time-tag.vslow { background: #fee2e2; color: #ef4444; }
+
+	.exam-nav-footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + var(--safe-b)); z-index: 100; max-width: 560px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
+	</style>
 </head>
 <body>
 <div id="app"></div>
@@ -168,7 +283,7 @@ a.link{color:var(--emerald-d); text-decoration:underline;}
 <script>
 'use strict';
 /* ============================================================
-   MY ADMISSION HUB — core app
+   MY ADMISSION HUB - core app
    ============================================================ */
 
 /* ---------------- utils ---------------- */
@@ -282,16 +397,16 @@ window.addEventListener('hashchange',()=>{
 const NAV_TABS=[
   {key:'dashboard', icon:'🏠', label:'Home'},
   {key:'question-bank', icon:'📚', label:'Bank'},
-  {key:'exam/setup', icon:'📝', label:'Exam'},
+  {key:'exam', icon:'📝', label:'Exam'},
   {key:'ai-chat', icon:'🤖', label:'AI Hub'},
   {key:'progress', icon:'📊', label:'Progress'},
 ];
 
 function baseTab(path){
   if(path.startsWith('ai-chat')) return 'ai-chat';
-  if(path.startsWith('exam')) return 'exam/setup';
+  if(path.startsWith('exam')) return 'exam';
   if(path.startsWith('question-bank')||path.startsWith('subject')||path.startsWith('topic')||path.startsWith('question')||path.startsWith('add-question')||path.startsWith('edit-question')) return 'question-bank';
-  if(path.startsWith('history')) return 'history';
+  if(path.startsWith('history')) return 'exam';
   if(path.startsWith('progress')) return 'progress';
   return 'dashboard';
 }
@@ -339,11 +454,14 @@ function render(){
   const p=Router.path;
   if(p==='dashboard') return renderDashboard();
   if(p==='question-bank') return renderQuestionBank();
-  if(p.startsWith('subject/')) return renderSubjectDetail(p.split('/')[1]);
-  if(p.startsWith('topic/')) return renderTopicDetail(p.split('/')[1]);
+  if(p==='question-bank/orphans') return renderOrphanExplorer();
+  if(p.startsWith('question-bank/subject/')) return renderSubjectDetail(p.split('/')[2]);
+  if(p.startsWith('question-bank/topic/')) return renderTopicDetail(p.split('/')[2]);
+  if(p.startsWith('question/')) return renderQuestionDetail(p.split('/')[1]);
   if(p==='add-question') return renderQuestionForm(null);
   if(p.startsWith('edit-question/')) return renderQuestionForm(p.split('/')[1]);
   if(p==='import-questions') return renderImportQuestions();
+  if(p==='exam') return renderExamCenter();
   if(p==='exam/setup') return renderExamSetup();
   if(p==='exam/running') return renderExamRunning();
   if(p==='exam/result') return renderExamResult();
@@ -358,6 +476,55 @@ function render(){
 }
 
 /* ================= DASHBOARD ================= */
+function getStudyTimeToday(){
+  const key=todayKey();
+  let total=0;
+  CACHE.examResults.forEach(r=>{
+    if(todayKey(new Date(r.date))===key) total += (r.timeUsed||0);
+  });
+  return total;
+}
+
+function getSmartFocusTopics(){
+  const topicStats = {};
+  CACHE.examResults.forEach(r => {
+    (r.snapshot || []).forEach(q => {
+      if (!topicStats[q.topicId]) topicStats[q.topicId] = { correct: 0, total: 0, name: topicName(q.topicId) };
+      topicStats[q.topicId].total++;
+      if (q.status === 'correct') topicStats[q.topicId].correct++;
+    });
+  });
+
+  const mistakes = {};
+  CACHE.mistakes.forEach(m => {
+    const q = CACHE.questions.find(x => x.id === m.questionId);
+    if (q) {
+      if (!mistakes[q.topicId]) mistakes[q.topicId] = 0;
+      mistakes[q.topicId] += m.wrongCount;
+    }
+  });
+
+  const results = Object.keys(topicStats).map(tid => {
+    const s = topicStats[tid];
+    const acc = s.total > 0 ? (s.correct / s.total) * 100 : 0;
+    const mCount = mistakes[tid] || 0;
+    let status = 'strong', label = 'Strong', cls = 'strong';
+    if (acc < 60 || mCount > 5) { status = 'revision'; label = 'Needs Revision'; cls = 'revision'; }
+    else if (acc < 85 || mCount > 2) { status = 'improving'; label = 'Improving'; cls = 'improving'; }
+    return { id: tid, name: s.name, acc, mCount, status, label, cls };
+  });
+
+  return results.sort((a, b) => {
+    if (a.status === 'revision' && b.status !== 'revision') return -1;
+    if (a.status !== 'revision' && b.status === 'revision') return 1;
+    return b.mCount - a.mCount;
+  }).slice(0, 3);
+}
+
+async function getUnfinishedExam(){
+  return await checkResumableExam();
+}
+
 function computeLifetimeStats(){
   const results=CACHE.examResults;
   const totalQuestions=CACHE.questions.length;
@@ -404,49 +571,156 @@ function renderDashboard(){
   const stats=computeLifetimeStats();
   const streak=computeStreak();
   const target=CACHE.settings.dailyTarget||100;
-  const todayDS=CACHE.dailyStats.find(d=>d.id===todayKey())||{questions:0};
   const todayCount = todayActivityCount();
   const pct=Math.min(100, Math.round((todayCount/target)*100));
-  const subs=subjectPerformance().slice(0,5);
+  const studyTime = getStudyTimeToday();
+  const unfinished = CACHE.exams.find(e => e.status === 'running');
+  const smartFocus = getSmartFocusTopics();
+  const recentExams = CACHE.examResults.slice(-3).reverse();
+  const subs = subjectPerformance().slice(0, 4);
 
-  const html=`
-  <div class="card">
-    <div class="row between"><div class="muted">🔥 ${streak} day streak</div><div class="muted">${esc(fmtDate(Date.now()))}</div></div>
-  </div>
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
 
-  <div class="card">
-    <div class="row between"><div style="font-weight:700;">🎯 Daily Target</div>
-      <button class="iconbtn" onclick="openTargetModal()">⚙️</button></div>
-    <div class="row between" style="margin-top:8px;"><div class="big">${todayCount} / ${target}</div><div class="muted">${pct}%</div></div>
-    <div class="progbar" style="margin-top:8px;"><div style="width:${pct}%"></div></div>
-  </div>
+  const html = `
+    <div class="fade-in">
+      <div style="margin-bottom: 20px;">
+        <div class="muted">${fmtDate(Date.now())}</div>
+        <h1 style="font-size: 24px; margin: 4px 0;">${greeting}, Scholar 👋</h1>
+      </div>
 
-  <div class="h2">Lifetime Performance</div>
-  <div class="stat-grid">
-    <div class="stat-card"><div class="v">${stats.totalQuestions}</div><div class="l">Total Questions</div></div>
-    <div class="stat-card"><div class="v">${stats.attempted}</div><div class="l">Attempted</div></div>
-    <div class="stat-card"><div class="v">${stats.correct}</div><div class="l">Correct</div></div>
-    <div class="stat-card"><div class="v">${stats.wrong}</div><div class="l">Wrong</div></div>
-    <div class="stat-card"><div class="v">${stats.exams}</div><div class="l">Exams Taken</div></div>
-    <div class="stat-card"><div class="v">${stats.accuracy}%</div><div class="l">Accuracy</div></div>
-    <div class="stat-card"><div class="v">${stats.avgScore}</div><div class="l">Avg Score</div></div>
-    <div class="stat-card"><div class="v">${stats.best}</div><div class="l">Best Score</div></div>
-  </div>
+      <!-- Today's Progress -->
+      <div class="card premium-card fade-in stagger-1">
+        <div class="row between">
+          <div style="font-weight: 700; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px;">Today's Target</div>
+          <button class="iconbtn" style="color:#fff; padding:0;" onclick="openTargetModal()">⚙️</button>
+        </div>
+        <div class="row between" style="margin-top: 12px; align-items: flex-end;">
+          <div style="font-size: 28px; font-weight: 800;">${todayCount} <span style="font-size: 16px; font-weight: 400; opacity: 0.8;">/ ${target} Qs</span></div>
+          <div style="font-weight: 700;">${pct}%</div>
+        </div>
+        <div class="progbar" style="margin-top: 12px; height: 10px;"><div style="width: ${pct}%"></div></div>
+        <div class="grid2" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
+          <div>
+            <div class="stat-value">${stats.accuracy}%</div>
+            <div class="stat-label">Accuracy</div>
+          </div>
+          <div>
+            <div class="stat-value">${fmtTime(studyTime)}</div>
+            <div class="stat-label">Study Time</div>
+          </div>
+        </div>
+      </div>
 
-  <div class="h2">Quick Tools</div>
-  <div class="grid3">
-    ${qt('📚','Bank','question-bank')}${qt('➕','Add Q','add-question')}${qt('📝','Mock','exam/setup')}
-    ${qt('⚡','Flash','exam/setup?flash=1')}${qt('📖','Vocab','vocabulary')}${qt('❌','Mistakes','mistakes')}
-    ${qt('📊','Progress','progress')}${qt('🤖','AI Hub','ai-chat')}${qt('🔖','History','history')}
-  </div>
+      <!-- Quick Stats Row -->
+      <div class="grid2 fade-in stagger-2">
+        <div class="card" style="margin-bottom: 12px; padding: 12px;">
+          <div class="row">
+            <div style="font-size: 20px;">🔥</div>
+            <div>
+              <div style="font-weight: 800; font-size: 18px;">${streak}</div>
+              <div class="muted" style="font-size: 11px;">Day Streak</div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom: 12px; padding: 12px;">
+          <div class="row">
+            <div style="font-size: 20px;">💎</div>
+            <div>
+              <div style="font-weight: 800; font-size: 18px;">${stats.totalQuestions}</div>
+              <div class="muted" style="font-size: 11px;">Lifetime Qs</div>
+            </div>
+          </div>
+        </div>
+      </div>
 
-  ${subs.length? `<div class="h2">Subject Performance</div><div class="card">
-    ${subs.map(s=>`<div class="listitem"><div>${s.icon||'📘'} ${esc(s.name)}</div><div class="row"><div class="progbar" style="width:80px;"><div style="width:${s.acc}%"></div></div><b>${s.acc}%</b></div></div>`).join('')}
-  </div>` : ''}
+      <!-- Continue Learning -->
+      <div class="h2">Continue Learning</div>
+      ${unfinished ? `
+        <div class="card fade-in stagger-2" style="border-left: 4px solid var(--orange);">
+          <div class="row between">
+            <div>
+              <div style="font-weight: 700;">${unfinished.mode === 'mock' ? '📝 Mock Exam' : '⚡ Flash Practice'}</div>
+              <div class="muted" style="margin-top: 2px;">${unfinished.currentIndex + 1} / ${unfinished.questions.length} Questions</div>
+            </div>
+            <button class="btn sm btn-press" onclick="navigate('exam/running')">Continue</button>
+          </div>
+        </div>
+      ` : `
+        <div class="card fade-in stagger-2" style="text-align: center; padding: 20px;">
+          <div class="muted" style="margin-bottom: 12px;">No active session. Ready to start?</div>
+          <button class="btn btn-press" onclick="navigate('exam/setup')">Start Today's Practice</button>
+        </div>
+      `}
+
+      <!-- Smart Focus -->
+      <div class="h2">Today's Smart Focus</div>
+      <div class="card fade-in stagger-3">
+        ${smartFocus.length ? smartFocus.map(f => `
+          <div class="listitem">
+            <div>
+              <div style="font-weight: 600;">${esc(f.name)}</div>
+              <div class="muted">${f.mCount} mistakes · ${round2(f.acc)}% accuracy</div>
+            </div>
+            <div class="focus-tag ${f.cls}">${f.label}</div>
+          </div>
+        `).join('') : '<div class="empty" style="padding: 10px 0;">Start practicing to get smart focus insights.</div>'}
+        <button class="btn secondary btn-press" style="margin-top: 12px;" onclick="navigate('mistakes')">Start Smart Revision</button>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="grid2 fade-in stagger-3">
+        <button class="btn ghost btn-press" onclick="navigate('exam/setup')">⚡ Quick Practice</button>
+        <button class="btn ghost btn-press" onclick="navigate('question-bank')">📚 Browse Bank</button>
+      </div>
+
+      <!-- Performance Preview -->
+      ${recentExams.length ? `
+        <div class="h2">Recent Performance</div>
+        <div class="card fade-in stagger-3">
+          ${recentExams.map(r => `
+            <div class="listitem" onclick="renderResultView(JSON.parse('${JSON.stringify(r).replace(/'/g, "\\'")}'), false)" style="cursor: pointer;">
+              <div>
+                <div style="font-weight: 600;">${r.mode === 'mock' ? 'Mock' : 'Flash'} - ${fmtDate(r.date)}</div>
+                <div class="muted">${r.correct} Correct · ${r.wrong} Wrong</div>
+              </div>
+              <div style="font-weight: 700; color: ${r.score >= 0 ? 'var(--green)' : 'var(--red)'}">${r.score}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      <!-- Subject Performance -->
+      ${subs.length ? `
+        <div class="h2">Subject Mastery</div>
+        <div class="card fade-in stagger-3">
+          ${subs.map(s => `
+            <div class="listitem">
+              <div class="row">
+                <div style="font-size: 18px;">${s.icon || '📘'}</div>
+                <div style="font-weight: 600;">${esc(s.name)}</div>
+              </div>
+              <div class="row">
+                <div class="progbar" style="width: 60px; height: 6px; background: var(--line);"><div style="width: ${s.acc}%"></div></div>
+                <div style="font-weight: 700; min-width: 40px; text-align: right;">${s.acc}%</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+
+      <!-- Lifetime Stats -->
+      <div class="h2">Lifetime Stats</div>
+      <div class="stat-grid fade-in stagger-3" style="margin-bottom: 20px;">
+        <div class="stat-card"><div class="v">${stats.attempted}</div><div class="l">Attempted</div></div>
+        <div class="stat-card"><div class="v">${stats.correct}</div><div class="l">Correct</div></div>
+        <div class="stat-card"><div class="v">${stats.exams}</div><div class="l">Exams</div></div>
+        <div class="stat-card"><div class="v">${stats.best}</div><div class="l">Best Score</div></div>
+      </div>
+    </div>
   `;
-  function qt(ic,label,path){return `<button class="card" style="text-align:center;cursor:pointer;border:1px solid var(--line);" onclick="navigate('${path.split('?')[0]}')"><div style="font-size:22px;">${ic}</div><div style="font-size:12px;margin-top:4px;">${label}</div></button>`;}
 
-  renderShell(html, {title:'🎓 My Admission Hub'});
+  renderShell(html, {title: 'Dashboard', topbar: false});
 }
 function todayActivityCount(){
   const key=todayKey();
@@ -471,51 +745,227 @@ function subjectQCount(subId){return CACHE.questions.filter(q=>q.subjectId===sub
 function topicQCount(topId){return CACHE.questions.filter(q=>q.topicId===topId).length;}
 function topicsOf(subId){return CACHE.topics.filter(t=>t.subjectId===subId).sort((a,b)=>a.order-b.order);}
 
+const ExplorerState={
+  query:'', subjectId:'', topicId:'', status:'all', difficulty:'all',
+  bookmarked:false, mistakes:false, recentlyAdded:false, sort:'newest',
+  visibleCount:40, selected:new Set()
+};
+function explorerStats(q){return q.stats||{attempts:0,correct:0,wrong:0};}
+function explorerMistake(q){
+  const st=explorerStats(q);
+  return st.wrong>0 || CACHE.mistakes.some(m=>m.questionId===q.id && (m.wrongCount||0)>0);
+}
+function explorerMostRecent(q){
+  const m=CACHE.mistakes.find(x=>x.questionId===q.id);
+  return Math.max(q.createdAt||0,q.updatedAt||0,m&&m.lastWrongAt||0);
+}
+function explorerMatchesSearch(q){
+  const term=(ExplorerState.query||'').trim().toLowerCase();
+  if(!term) return true;
+  const hay=[q.question,...(q.options||[]),q.explanation,subjectName(q.subjectId),topicName(q.topicId),...(q.tags||[]),...(q.keywords||[])];
+  return hay.some(v=>String(v||'').toLowerCase().includes(term));
+}
+function explorerFilterAndSort(){
+  const now=Date.now(), recentCutoff=now-30*24*60*60*1000;
+  let rows=CACHE.questions.filter(q=>{
+    const st=explorerStats(q);
+    if(!explorerMatchesSearch(q)) return false;
+    if(ExplorerState.subjectId && q.subjectId!==ExplorerState.subjectId) return false;
+    if(ExplorerState.topicId && q.topicId!==ExplorerState.topicId) return false;
+    if(ExplorerState.status==='correct' && !(st.correct>0)) return false;
+    if(ExplorerState.status==='wrong' && !(st.wrong>0)) return false;
+    if(ExplorerState.status==='unattempted' && (st.attempts>0)) return false;
+    if(ExplorerState.difficulty!=='all' && (q.difficulty||'medium')!==ExplorerState.difficulty) return false;
+    if(ExplorerState.bookmarked && q.bookmarked!==true) return false;
+    if(ExplorerState.mistakes && !explorerMistake(q)) return false;
+    if(ExplorerState.recentlyAdded && (q.createdAt||0)<recentCutoff) return false;
+    return true;
+  });
+  const alpha=(q)=>String(q.question||'').toLocaleLowerCase();
+  rows.sort((a,b)=>{
+    const sa=explorerStats(a), sb=explorerStats(b), ma=explorerMistake(a)?Math.max(sa.wrong||0,CACHE.mistakes.find(m=>m.questionId===a.id)?.wrongCount||0):0, mb=explorerMistake(b)?Math.max(sb.wrong||0,CACHE.mistakes.find(m=>m.questionId===b.id)?.wrongCount||0):0;
+    let n=0;
+    if(ExplorerState.sort==='oldest') n=(a.createdAt||0)-(b.createdAt||0);
+    else if(ExplorerState.sort==='alphabetical') n=alpha(a).localeCompare(alpha(b));
+    else if(ExplorerState.sort==='most-attempted') n=(sb.attempts||0)-(sa.attempts||0);
+    else if(ExplorerState.sort==='least-attempted') n=(sa.attempts||0)-(sb.attempts||0);
+    else if(ExplorerState.sort==='most-mistakes') n=mb-ma;
+    else n=(b.createdAt||0)-(a.createdAt||0);
+    return n || String(a.id).localeCompare(String(b.id));
+  });
+  return rows;
+}
+function explorerHasRefinements(){return !!(ExplorerState.query.trim()||ExplorerState.subjectId||ExplorerState.topicId||ExplorerState.status!=='all'||ExplorerState.difficulty!=='all'||ExplorerState.bookmarked||ExplorerState.mistakes||ExplorerState.recentlyAdded);}
 function renderQuestionBank(){
   const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order);
-  const html = `
-  <div class="searchbar"><span>🔍</span><input type="text" id="bankSearch" placeholder="Search questions, tags, topics..." oninput="onBankSearch(this.value)"></div>
-  <div id="bankSearchResults"></div>
-  <div class="row between" style="margin-bottom:6px;"><div class="h2" style="margin:0;">Subjects</div>
-    <div class="row"><button class="btn ghost sm" onclick="openImportTool()">⬆️ Bulk Import</button>
-    <button class="btn secondary sm" onclick="openSubjectForm(null)">+ Add Subject</button></div></div>
-  ${subs.length===0? emptyState('📚','এখনো কোনো subject নেই','আপনার প্রথম subject যোগ করুন।','+ Subject যোগ করুন','openSubjectForm(null)') :
-   subs.map((s,i)=>`
-    <div class="card" onclick="navigate('subject/${s.id}')">
-      <div class="row between">
-        <div class="row"><div style="font-size:20px;">${s.icon||'📘'}</div><div><b>${esc(s.name)}</b><div class="muted">${subjectQCount(s.id)} questions · ${topicsOf(s.id).length} topics</div></div></div>
-        <div class="row" onclick="event.stopPropagation()">
-          <button class="iconbtn" onclick="moveSubject('${s.id}',-1)" ${i===0?'disabled style="opacity:.3"':''}>↑</button>
-          <button class="iconbtn" onclick="moveSubject('${s.id}',1)" ${i===subs.length-1?'disabled style="opacity:.3"':''}>↓</button>
-          <button class="iconbtn" onclick="openSubjectForm('${s.id}')">✏️</button>
-          <button class="iconbtn" onclick="deleteSubject('${s.id}')">🗑️</button>
+  const orphans = CACHE.questions.filter(q => !q.subjectId || !q.topicId || !CACHE.subjects.some(s => s.id === q.subjectId) || !CACHE.topics.some(t => t.id === q.topicId));
+
+  const html=`
+  <div class="explorer-head fade-in"><div class="explorer-kicker">Emerald Academic</div><div class="explorer-title">Question Bank</div><div class="explorer-subtitle">Browse by subject and topic or use smart search.</div></div>
+
+  <div class="searchbar explorer-search"><span class="search-icon">⌕</span><input type="search" id="bankSearch" value="${esc(ExplorerState.query)}" placeholder="Search across all questions..." oninput="onBankSearch(this.value)"><button class="iconbtn ${ExplorerState.query?'':'hide'}" aria-label="Clear search" onclick="resetExplorerQuery()">×</button></div>
+
+  ${ExplorerState.query ? `
+    <div class="card explorer-filter-card">
+      <div class="row between"><b style="font-size:13px;">Search Filters</b><button class="btn ghost sm" onclick="resetExplorerFilters()">Reset</button></div>
+      <div class="explorer-filter-grid" style="margin-top:10px;">
+        <label><span class="explorer-filter-label">Subject</span><select id="explorerSubject" onchange="setExplorerFilter('subjectId',this.value)"><option value="">All subjects</option>${subs.map(s=>`<option value="${s.id}" ${ExplorerState.subjectId===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></label>
+        <label><span class="explorer-filter-label">Topic</span><select id="explorerTopic" onchange="setExplorerFilter('topicId',this.value)"><option value="">All topics</option>${CACHE.topics.filter(t=>!ExplorerState.subjectId||t.subjectId===ExplorerState.subjectId).sort((a,b)=>a.order-b.order).map(t=>`<option value="${t.id}" ${ExplorerState.topicId===t.id?'selected':''}>${esc(subjectName(t.subjectId))} · ${esc(t.name)}</option>`).join('')}</select></label>
+      </div>
+      <div class="explorer-filter-chips">
+        <button class="chip ${ExplorerState.bookmarked?'active':''}" onclick="toggleExplorerFilter('bookmarked')">☆ Bookmarked</button>
+        <button class="chip ${ExplorerState.mistakes?'active':''}" onclick="toggleExplorerFilter('mistakes')">⚠ Mistakes</button>
+      </div>
+    </div>
+    <div class="explorer-toolbar"><div class="explorer-toolbar-left"><span class="explorer-toolbar-title">Search Results</span><span id="explorerResultCount" class="explorer-count"></span></div><div class="row" style="gap:6px;"><select aria-label="Sort" style="width:auto;padding:7px 9px;font-size:12px;" onchange="setExplorerSort(this.value)"><option value="newest" ${ExplorerState.sort==='newest'?'selected':''}>Newest</option><option value="alphabetical" ${ExplorerState.sort==='alphabetical'?'selected':''}>A–Z</option></select></div></div>
+    <div id="explorerResultsRoot"></div>
+  ` : `
+    <div class="explorer-subjects-head"><div class="h2">Subjects</div><div class="row"><button class="btn ghost sm" onclick="openImportTool()">⬆️ Import</button><button class="btn secondary sm" onclick="openSubjectForm(null)">+ Subject</button></div></div>
+
+    ${orphans.length > 0 ? `
+      <div class="card" style="border-left:4px solid var(--orange);" onclick="navigate('question-bank/orphans')">
+        <div class="row between">
+          <div class="row"><div style="font-size:20px;">⚠</div><div><b>Unorganized Questions</b><div class="muted">${orphans.length} questions need categorization</div></div></div>
+          <span class="ic">→</span>
         </div>
       </div>
-    </div>`).join('')}
+    ` : ''}
+
+    ${subs.length===0?emptyState('📚','No subjects yet','Add a subject to organize your question bank.','+ Add subject','openSubjectForm(null)'):subs.map((s,i)=>`
+      <div class="card" onclick="navigate('question-bank/subject/${s.id}')">
+        <div class="row between">
+          <div class="row"><div style="font-size:20px;">${s.icon||'📘'}</div><div><b>${esc(s.name)}</b><div class="muted">${subjectQCount(s.id)} questions · ${topicsOf(s.id).length} topics</div></div></div>
+          <div class="row" onclick="event.stopPropagation()">
+            <button class="iconbtn" onclick="openSubjectForm('${s.id}')">✏️</button>
+            <button class="iconbtn" onclick="deleteSubject('${s.id}')">🗑️</button>
+          </div>
+        </div>
+      </div>`).join('')}
+  `}
   `;
-  renderShell(html, {title:'Question Bank'});
-}
-function emptyState(icon,title,sub,btnLabel,onclick){
-  return `<div class="empty"><div class="ic">${icon}</div><div><b>${title}</b></div><div class="muted">${sub}</div>
-    ${btnLabel?`<button class="btn" style="width:auto;margin-top:14px;padding:10px 18px;" onclick="${onclick}">${btnLabel}</button>`:''}</div>`;
+  renderShell(html,{title:'Question Bank'});
+  if(ExplorerState.query) renderQuestionExplorerResults();
 }
 
-const onBankSearch = debounce(function(q){
-  const box=document.getElementById('bankSearchResults');
-  if(!q || q.trim().length<2){box.innerHTML=''; return;}
-  const term=q.trim().toLowerCase();
-  const results=CACHE.questions.filter(qq=>{
-    return (qq.question||'').toLowerCase().includes(term) ||
-      (qq.options||[]).some(o=>(o||'').toLowerCase().includes(term)) ||
-      (qq.explanation||'').toLowerCase().includes(term) ||
-      (qq.tags||[]).some(t=>(t||'').toLowerCase().includes(term)) ||
-      (subjectName(qq.subjectId)||'').toLowerCase().includes(term) ||
-      (topicName(qq.topicId)||'').toLowerCase().includes(term);
-  }).slice(0,30);
-  box.innerHTML = results.length ? `<div class="card"><div class="muted" style="margin-bottom:6px;">${results.length} result(s)</div>
-    ${results.map(r=>`<div class="listitem" style="cursor:pointer;" onclick="navigate('edit-question/${r.id}')"><div style="max-width:80%;">${esc(r.question).slice(0,70)}${r.question.length>70?'...':''}<div class="muted">${esc(subjectName(r.subjectId))} · ${esc(topicName(r.topicId))}</div></div><div>›</div></div>`).join('')}
-  </div>` : `<div class="muted" style="padding:8px 4px;">No matches.</div>`;
-});
+function renderOrphanExplorer(){
+  const orphans = CACHE.questions.filter(q => !q.subjectId || !q.topicId || !CACHE.subjects.some(s => s.id === q.subjectId) || !CACHE.topics.some(t => t.id === q.topicId));
+  const html = `
+    <div class="explorer-head fade-in">
+      <div class="explorer-title">Unorganized Questions</div>
+      <div class="explorer-subtitle">${orphans.length} questions are not assigned to a valid subject or topic.</div>
+    </div>
+    <div id="explorerResultsRoot">
+      ${orphans.map((q, i) => explorerQuestionCard(q, i)).join('')}
+    </div>
+  `;
+  renderShell(html, {title:'Orphans', back:"navigate('question-bank')"});
+}
+function emptyState(icon,title,sub,btnLabel,onclick){
+  return `<div class="empty"><div class="ic">${icon}</div><div><b>${title}</b></div><div class="muted">${sub}</div>${btnLabel?`<button class="btn" style="width:auto;margin-top:14px;padding:10px 18px;" onclick="${onclick}">${btnLabel}</button>`:''}</div>`;
+}
+const onBankSearch=debounce(function(q){ExplorerState.query=q||''; ExplorerState.visibleCount=40; renderQuestionExplorerResults();},220);
+function resetExplorerQuery(){ExplorerState.query=''; ExplorerState.visibleCount=40; renderQuestionBank();}
+function setExplorerFilter(key,value){
+  ExplorerState[key]=value;
+  if(key==='subjectId' && ExplorerState.topicId && CACHE.topics.find(t=>t.id===ExplorerState.topicId)?.subjectId!==value) ExplorerState.topicId='';
+  ExplorerState.visibleCount=40; ExplorerState.selected.clear(); renderQuestionBank();
+}
+function toggleExplorerFilter(key){ExplorerState[key]=!ExplorerState[key]; ExplorerState.visibleCount=40; ExplorerState.selected.clear(); renderQuestionBank();}
+function resetExplorerFilters(){Object.assign(ExplorerState,{query:'',subjectId:'',topicId:'',status:'all',difficulty:'all',bookmarked:false,mistakes:false,recentlyAdded:false,sort:'newest',visibleCount:40}); ExplorerState.selected.clear(); renderQuestionBank();}
+function setExplorerSort(value){ExplorerState.sort=value; ExplorerState.visibleCount=40; renderQuestionExplorerResults();}
+function explorerQuestionCard(q,index){
+  const st=explorerStats(q), mistake=explorerMistake(q), attempts=st.attempts||0, wrong=st.wrong||0, accuracy=attempts?Math.round((st.correct||0)/attempts*100):0;
+  const status=attempts?(wrong?'bad':'good'):'neutral', statusText=attempts?(wrong?`${accuracy}%`:`${accuracy}%`):'--';
+  return `<article class="card explorer-card ${ExplorerState.selected.has(q.id)?'is-selected':''}" style="animation-delay:${Math.min(index,10)*.025}s" onclick="navigate('question/${q.id}')"><div class="explorer-card-top"><label class="explorer-check" aria-label="Select" onclick="event.stopPropagation()"><input type="checkbox" ${ExplorerState.selected.has(q.id)?'checked':''} onchange="toggleExplorerSelection('${q.id}',this.checked)"></label><div class="explorer-qbody"><div class="row between" style="align-items:flex-start;gap:6px;"><div class="explorer-qtext"><span class="muted" style="font-weight:800;">#${index+1}</span> ${esc(q.question||'Untitled question')}</div><button class="iconbtn explorer-bookmark ${q.bookmarked?'':'muted'}" aria-label="Bookmark" onclick="event.stopPropagation(); toggleQuestionBookmark('${q.id}')">${q.bookmarked?'★':'☆'}</button></div><div class="explorer-qmeta"><span>📘 ${esc(subjectName(q.subjectId))}</span><span>• ${esc(topicName(q.topicId))}</span><span class="explorer-status ${status}">${statusText}</span>${mistake?`<span class="explorer-status bad">⚠ ${Math.max(wrong,CACHE.mistakes.find(m=>m.questionId===q.id)?.wrongCount||0)}</span>`:''}</div></div></div></article>`;
+}
+function renderQuestionExplorerResults(){
+  const root=document.getElementById('explorerResultsRoot'); if(!root) return;
+  const all=explorerFilterAndSort(), visible=all.slice(0,ExplorerState.visibleCount), hasMore=visible.length<all.length;
+  const count=document.getElementById('explorerResultCount'); if(count) count.textContent=`${all.length.toLocaleString()} match${all.length===1?'':'es'}`;
+  const selectAll=document.getElementById('explorerSelectAll'); if(selectAll) selectAll.checked=all.length>0 && all.every(q=>ExplorerState.selected.has(q.id));
+  const bulk=document.getElementById('explorerBulkRoot'); if(bulk) bulk.innerHTML=ExplorerState.selected.size?`<div class="explorer-bulk"><b style="font-size:12px;align-self:center;">${ExplorerState.selected.size} selected</b><button class="btn secondary" onclick="startQuestionPractice([...ExplorerState.selected])">⚡ Practice</button><button class="btn secondary" onclick="bulkBookmarkExplorer(true)">☆ Bookmark</button><button class="btn secondary" onclick="bulkBookmarkExplorer(false)">★ Unbookmark</button><button class="btn secondary" onclick="openBulkMoveQuestion()">Move</button><button class="btn secondary" onclick="openBulkDifficultyModal()">Difficulty</button><button class="btn secondary" onclick="openBulkTagsModal()">Tags</button><button class="btn danger" onclick="bulkDeleteExplorer()">Delete</button></div>`:'';
+  if(CACHE.questions.length===0){root.innerHTML=emptyState('📝','No questions yet','Add your first question or import a prepared question set.','+ Add question','navigate(\'add-question\')'); return;}
+  if(all.length===0){root.innerHTML=emptyState(explorerHasRefinements()?'🔎':'📝',explorerHasRefinements()?(ExplorerState.query.trim()?'No search results':'No filters matched'):'No questions yet',explorerHasRefinements()?'Try a broader search or reset the filters.':'Add or import questions to begin.','Clear filters','resetExplorerFilters()'); return;}
+  root.innerHTML=visible.map(explorerQuestionCard).join('')+(hasMore?`<button class="btn ghost explorer-load" onclick="loadMoreExplorerResults()">Load more questions</button>`:'');
+}
+function loadMoreExplorerResults(){ExplorerState.visibleCount+=40; renderQuestionExplorerResults();}
+function toggleExplorerSelection(id,checked){if(checked) ExplorerState.selected.add(id); else ExplorerState.selected.delete(id); renderQuestionExplorerResults();}
+function toggleExplorerSelectAll(checked){explorerFilterAndSort().forEach(q=>checked?ExplorerState.selected.add(q.id):ExplorerState.selected.delete(q.id)); renderQuestionExplorerResults();}
+function toggleQuestionBookmark(id){
+  const q=CACHE.questions.find(x=>x.id===id); if(!q) return;
+  q.bookmarked=!q.bookmarked; q.bookmarkUpdatedAt=Date.now();
+  dbPut('questions',q).then(()=>{toast(q.bookmarked?'Question bookmarked':'Bookmark removed'); renderQuestionBank();}).catch(()=>toast('Could not update bookmark'));
+}
+function openQuestionPreview(id){
+  const q=CACHE.questions.find(x=>x.id===id); if(!q) return;
+  const st=explorerStats(q), answer=(q.options||[])[q.answer];
+  openModal(`<div class="row between"><h3 style="margin:0;">Question preview</h3><button class="iconbtn" onclick="closeModal()">×</button></div><div class="muted" style="margin:10px 0 4px;">${esc(subjectName(q.subjectId))} · ${esc(topicName(q.topicId))} · ${(q.difficulty||'medium')}</div><div style="font-weight:700;font-size:15px;line-height:1.45;">${esc(q.question)}</div><div style="margin-top:12px;">${(q.options||[]).map((o,i)=>`<div class="opt ${i===q.answer?'correct':''}"><span class="let">${String.fromCharCode(65+i)}</span><span>${esc(o)}</span></div>`).join('')}</div>${q.explanation?`<div class="card" style="background:var(--mint);margin:8px 0 0;padding:12px;"><b>Explanation</b><div class="muted" style="margin-top:4px;">${esc(q.explanation)}</div></div>`:''}<div class="muted" style="margin-top:10px;">${st.attempts||0} attempts · ${st.wrong||0} mistakes${answer?` · Correct answer: ${esc(answer)}`:''}</div><div class="row" style="margin-top:14px;"><button class="btn ghost" style="flex:1" onclick="closeModal();navigate('edit-question/${q.id}')">Edit</button><button class="btn" style="flex:1" onclick="closeModal();startQuestionPractice('${q.id}')">Practice</button></div>`);
+}
+function moveTopicOptions(subjectId,selectedTopicId){
+  return CACHE.topics.filter(t=>t.subjectId===subjectId).sort((a,b)=>a.order-b.order).map(t=>`<option value="${t.id}" ${t.id===selectedTopicId?'selected':''}>${esc(t.name)}</option>`).join('');
+}
+function refreshMoveTopicSelect(){
+  const sub=document.getElementById('moveSubjectSelect'), top=document.getElementById('moveTopicSelect'); if(!sub||!top) return;
+  top.innerHTML=moveTopicOptions(sub.value,'');
+}
+function openMoveQuestion(id){
+  const q=CACHE.questions.find(x=>x.id===id); if(!q) return;
+  openModal(`<h3>Move question</h3><div class="muted">Choose the destination subject and topic. The question text, history, and bookmark state will be preserved.</div><label class="flabel">Subject</label><select id="moveSubjectSelect" onchange="refreshMoveTopicSelect()">${[...CACHE.subjects].sort((a,b)=>a.order-b.order).map(s=>`<option value="${s.id}" ${s.id===q.subjectId?'selected':''}>${esc(s.name)}</option>`).join('')}</select><label class="flabel">Topic</label><select id="moveTopicSelect">${moveTopicOptions(q.subjectId,q.topicId)}</select><button class="btn" style="margin-top:14px;" onclick="moveQuestionTo('${id}')">Move question</button>`);
+}
+async function moveQuestionTo(id){
+  const q=CACHE.questions.find(x=>x.id===id), subjectId=document.getElementById('moveSubjectSelect')?.value, topicId=document.getElementById('moveTopicSelect')?.value;
+  if(!q||!subjectId||!topicId){toast('Choose a subject and topic'); return;}
+  q.subjectId=subjectId; q.topicId=topicId; q.updatedAt=Date.now(); await dbPut('questions',q); await loadCache(); closeModal(); ExplorerState.selected.delete(id); toast('Question moved'); renderQuestionBank();
+}
+function openBulkMoveQuestion(){
+  if(!ExplorerState.selected.size){toast('Select at least one question'); return;}
+  const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order), first= subs[0];
+  openModal(`<h3>Move ${ExplorerState.selected.size} questions</h3><div class="muted">All selected questions will keep their answers, history, and bookmarks.</div><label class="flabel">Subject</label><select id="moveSubjectSelect" onchange="refreshMoveTopicSelect()">${subs.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select><label class="flabel">Topic</label><select id="moveTopicSelect">${first?moveTopicOptions(first.id,''):''}</select><button class="btn" style="margin-top:14px;" onclick="bulkMoveExplorer()">Move selected</button>`);
+}
+async function bulkMoveExplorer(){
+  const subjectId=document.getElementById('moveSubjectSelect')?.value, topicId=document.getElementById('moveTopicSelect')?.value;
+  if(!subjectId||!topicId){toast('Choose a subject and topic'); return;}
+  const ids=[...ExplorerState.selected];
+  for(const id of ids){const q=CACHE.questions.find(x=>x.id===id); if(q){q.subjectId=subjectId; q.topicId=topicId; q.updatedAt=Date.now(); await dbPut('questions',q);}}
+  await loadCache(); ExplorerState.selected.clear(); closeModal(); toast(`${ids.length} question${ids.length===1?'':'s'} moved`); renderQuestionBank();
+}
+async function bulkBookmarkExplorer(value){
+  const ids=[...ExplorerState.selected]; if(!ids.length){toast('Select at least one question'); return;}
+  for(const id of ids){const q=CACHE.questions.find(x=>x.id===id); if(q){q.bookmarked=value; q.bookmarkUpdatedAt=Date.now(); await dbPut('questions',q);}}
+  await loadCache(); ExplorerState.selected.clear(); toast(value?'Questions bookmarked':'Bookmarks removed'); renderQuestionBank();
+}
+function openBulkDifficultyModal(){
+  if(!ExplorerState.selected.size){toast('Select at least one question'); return;}
+  openModal(`<h3>Set difficulty</h3><div class="muted">Apply one difficulty level to ${ExplorerState.selected.size} selected question${ExplorerState.selected.size===1?'':'s'}.</div><label class="flabel">Difficulty</label><select id="bulkDifficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select><button class="btn" style="margin-top:14px;" onclick="applyBulkDifficulty()">Apply difficulty</button>`);
+}
+async function applyBulkDifficulty(){
+  const value=document.getElementById('bulkDifficulty')?.value; if(!value) return;
+  const ids=[...ExplorerState.selected];
+  for(const id of ids){const q=CACHE.questions.find(x=>x.id===id); if(q){q.difficulty=value; q.updatedAt=Date.now(); await dbPut('questions',q);}}
+  await loadCache(); ExplorerState.selected.clear(); closeModal(); toast('Difficulty updated'); renderQuestionBank();
+}
+function openBulkTagsModal(){
+  if(!ExplorerState.selected.size){toast('Select at least one question'); return;}
+  openModal(`<h3>Set tags</h3><div class="muted">Use comma-separated tags. This replaces the tags on ${ExplorerState.selected.size} selected question${ExplorerState.selected.size===1?'':'s'}.</div><label class="flabel">Tags</label><input type="text" id="bulkTags" placeholder="grammar, revision, admission"><button class="btn" style="margin-top:14px;" onclick="applyBulkTags()">Apply tags</button>`);
+}
+async function applyBulkTags(){
+  const raw=document.getElementById('bulkTags')?.value||'';
+  const tags=[...new Set(raw.split(',').map(x=>x.trim()).filter(Boolean))];
+  const ids=[...ExplorerState.selected];
+  for(const id of ids){const q=CACHE.questions.find(x=>x.id===id); if(q){q.tags=tags; q.updatedAt=Date.now(); await dbPut('questions',q);}}
+  await loadCache(); ExplorerState.selected.clear(); closeModal(); toast(tags.length?'Tags updated':'Tags cleared'); renderQuestionBank();
+}
+function bulkDeleteExplorer(){
+  const ids=[...ExplorerState.selected]; if(!ids.length){toast('Select at least one question'); return;}
+  confirmModal('Delete selected questions',`Delete ${ids.length} selected question${ids.length===1?'':'s'} permanently? Existing exam history and other questions will remain unchanged.`,async()=>{
+    for(const id of ids) await dbDel('questions',id);
+    await loadCache(); ExplorerState.selected.clear(); toast(`${ids.length} question${ids.length===1?'':'s'} deleted`); renderQuestionBank();
+  },'Delete',true);
+}
+function startQuestionPractice(id){
+  if(!CACHE.questions.some(q=>q.id===id)){toast('Question not found'); return;}
+  ExamSetup=freshSetup(); ExamSetup.mode='flash'; ExamSetup.onlyQuestionIds=[id]; ExamSetup.subjectIds=[]; ExamSetup.topicIds=[]; ExamSetup.totalCount=1; ExamSetup.randomizeQ=false; ExamSetup.randomizeOpt=false; navigate('exam/setup');
+}
 function subjectName(id){const s=CACHE.subjects.find(x=>x.id===id); return s?s.name:'—';}
 function topicName(id){const t=CACHE.topics.find(x=>x.id===id); return t?t.name:'—';}
 
@@ -565,25 +1015,33 @@ function renderSubjectDetail(subId){
   if(!s){navigate('question-bank'); return;}
   const topics=topicsOf(subId);
   const html=`
-  <div class="row between" style="margin-bottom:10px;">
-    <div class="row"><div style="font-size:24px;">${s.icon||'📘'}</div><div><b style="font-size:16px;">${esc(s.name)}</b><div class="muted">${subjectQCount(subId)} questions</div></div></div>
-    <button class="btn secondary sm" onclick="openTopicForm('${subId}',null)">+ Topic</button>
+  <div class="explorer-head fade-in">
+    <div class="explorer-kicker">${esc(s.name)}</div>
+    <div class="explorer-title">${s.icon||'📘'} Topics</div>
+    <div class="explorer-subtitle">${subjectQCount(subId)} questions across ${topics.length} topics.</div>
   </div>
-  ${topics.length===0? emptyState('📁','এখনো কোনো topic নেই','প্রথম topic যোগ করুন।','+ Topic যোগ করুন', `openTopicForm('${subId}',null)`) :
+
+  <div class="row" style="margin-bottom:16px; gap:8px;">
+    <button class="btn secondary sm" style="flex:1" onclick="openTopicForm('${subId}',null)">+ Add Topic</button>
+    <button class="btn ghost sm" style="flex:1" onclick="startExamFor(['${subId}'],[])">Subject Exam</button>
+  </div>
+
+  ${topics.length===0? emptyState('📁','No topics yet','Create a topic to start adding questions.', '+ Add Topic', `openTopicForm('${subId}',null)`) :
     topics.map((t,i)=>`
-    <div class="card">
+    <div class="card" onclick="navigate('question-bank/topic/${t.id}')">
       <div class="row between">
-        <div onclick="navigate('topic/${t.id}')" style="flex:1;cursor:pointer;"><b>${esc(t.name)}</b><div class="muted">${topicQCount(t.id)} questions</div></div>
-        <div class="row">
-          <button class="iconbtn" onclick="moveTopic('${t.id}','${subId}',-1)" ${i===0?'disabled style="opacity:.3"':''}>↑</button>
-          <button class="iconbtn" onclick="moveTopic('${t.id}','${subId}',1)" ${i===topics.length-1?'disabled style="opacity:.3"':''}>↓</button>
+        <div style="flex:1;cursor:pointer;">
+          <b style="font-size:16px;">${esc(t.name)}</b>
+          <div class="muted">${topicQCount(t.id)} questions</div>
+        </div>
+        <div class="row" onclick="event.stopPropagation()">
           <button class="iconbtn" onclick="openTopicForm('${subId}','${t.id}')">✏️</button>
           <button class="iconbtn" onclick="deleteTopic('${t.id}')">🗑️</button>
         </div>
       </div>
-      <div class="row" style="margin-top:8px;">
-        <button class="btn ghost sm" onclick="navigate('add-question')">+ Question</button>
-        <button class="btn ghost sm" onclick="startExamFor([],['${t.id}'])">Start Exam</button>
+      <div class="row" style="margin-top:12px; gap:8px;">
+        <button class="btn ghost sm" style="flex:1" onclick="event.stopPropagation(); navigate('add-question?sub=${subId}&top=${t.id}')">+ Question</button>
+        <button class="btn secondary sm" style="flex:1" onclick="event.stopPropagation(); startExamFor([],['${t.id}'])">Start Exam</button>
       </div>
     </div>`).join('')}
   `;
@@ -628,26 +1086,100 @@ function deleteTopic(id){
 function renderTopicDetail(topId){
   const t=CACHE.topics.find(x=>x.id===topId);
   if(!t){navigate('question-bank'); return;}
-  const qs=CACHE.questions.filter(q=>q.topicId===topId);
+
+  // Topic-specific Explorer State
+  ExplorerState.subjectId = t.subjectId;
+  ExplorerState.topicId = t.id;
+
+  const allQs = explorerFilterAndSort();
   const html=`
-  <div class="row between" style="margin-bottom:10px;">
-    <div><b style="font-size:16px;">${esc(t.name)}</b><div class="muted">${subjectName(t.subjectId)} · ${qs.length} questions</div></div>
+  <div class="explorer-head fade-in">
+    <div class="explorer-kicker">${esc(subjectName(t.subjectId))} /</div>
+    <div class="explorer-title">${esc(t.name)}</div>
+    <div class="explorer-subtitle">${allQs.length} questions in this topic.</div>
   </div>
-  <div class="row" style="margin-bottom:10px;">
-    <button class="btn sm" onclick="navigate('add-question')">+ Add Question</button>
-    <button class="btn ghost sm" onclick="openImportToolFor('${t.subjectId}','${t.id}')">⬆️ Bulk Import</button>
-    <button class="btn secondary sm" onclick="startExamFor([],['${t.id}'])">Start Exam</button>
+
+  <div class="row" style="margin-bottom:16px; gap:8px;">
+    <button class="btn sm" style="flex:1" onclick="navigate('add-question?sub=${t.subjectId}&top=${t.id}')">+ Add Question</button>
+    <button class="btn secondary sm" style="flex:1" onclick="startExamFor([],['${t.id}'])">Start Exam</button>
+    <button class="btn ghost sm" style="flex:1" onclick="openImportToolFor('${t.subjectId}','${t.id}')">Import</button>
   </div>
-  ${qs.length===0? emptyState('📝','এখনো কোনো প্রশ্ন নেই','প্রথম প্রশ্ন যোগ করুন।','+ প্রশ্ন যোগ করুন','navigate("add-question")') :
-    qs.map(q=>`<div class="card">
-      <div>${esc(q.question).slice(0,110)}${q.question.length>110?'...':''}</div>
-      <div class="row between" style="margin-top:8px;">
-        <span class="muted">Ans: ${esc((q.options||[])[q.answer]||'')}</span>
-        <div class="row"><button class="iconbtn" onclick="navigate('edit-question/${q.id}')">✏️</button><button class="iconbtn" onclick="deleteQuestion('${q.id}')">🗑️</button></div>
-      </div>
-    </div>`).join('')}
+
+  <div class="card explorer-filter-card">
+    <div class="row between"><b style="font-size:13px;">Topic Filters</b><button class="btn ghost sm" onclick="resetExplorerFilters(); ExplorerState.subjectId='${t.subjectId}'; ExplorerState.topicId='${t.id}'; render()">Reset</button></div>
+    <div class="explorer-filter-chips">
+      <button class="chip ${ExplorerState.status==='wrong'?'active':''}" onclick="setExplorerFilter('status', ExplorerState.status==='wrong'?'all':'wrong')">⚠ Mistakes</button>
+      <button class="chip ${ExplorerState.bookmarked?'active':''}" onclick="toggleExplorerFilter('bookmarked')">☆ Bookmarked</button>
+      <button class="chip ${ExplorerState.status==='unattempted'?'active':''}" onclick="setExplorerFilter('status', ExplorerState.status==='unattempted'?'all':'unattempted')">🧠 Unattempted</button>
+    </div>
+  </div>
+
+  <div id="explorerResultsRoot"></div>
   `;
-  renderShell(html, {title:'Topic', back:"navigate('subject/"+t.subjectId+"')"});
+  renderShell(html, {title:t.name, back:`navigate('question-bank/subject/${t.subjectId}')`});
+  renderQuestionExplorerResults();
+}
+
+function renderQuestionDetail(qid){
+  const q = CACHE.questions.find(x => x.id === qid);
+  if(!q){navigate('question-bank'); return;}
+  const st = explorerStats(q);
+  const attempts = st.attempts || 0;
+  const accuracy = attempts ? Math.round((st.correct/attempts)*100) : 0;
+
+  const html = `
+    <div class="explorer-head fade-in">
+      <div class="explorer-kicker">${esc(subjectName(q.subjectId))} / ${esc(topicName(q.topicId))}</div>
+      <div class="explorer-title">Question Detail</div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:18px; font-weight:700; line-height:1.5; margin-bottom:20px;">${esc(q.question)}</div>
+
+      <div class="options-list">
+        ${(q.options||[]).map((opt, i) => `
+          <div class="opt ${i === q.answer ? 'correct' : ''}">
+            <div class="let">${String.fromCharCode(65+i)}</div>
+            <div class="txt">${esc(opt)}</div>
+          </div>
+        `).join('')}
+      </div>
+
+      ${q.explanation ? `
+        <div style="margin-top:20px; padding:16px; background:var(--mint); border-radius:12px;">
+          <b style="display:block; margin-bottom:4px; font-size:13px; color:var(--emerald-d);">EXPLANATION</b>
+          <div style="font-size:14px; line-height:1.6;">${esc(q.explanation)}</div>
+        </div>
+      ` : ''}
+    </div>
+
+    <div class="grid2">
+      <div class="card" style="text-align:center;">
+        <div class="stat-value">${attempts}</div>
+        <div class="stat-label">Attempts</div>
+      </div>
+      <div class="card" style="text-align:center;">
+        <div class="stat-value">${accuracy}%</div>
+        <div class="stat-label">Accuracy</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="row between">
+        <span class="muted">Difficulty: <b style="color:var(--text);">${(q.difficulty||'medium').toUpperCase()}</b></span>
+        <button class="chip ${q.bookmarked?'active':''}" onclick="toggleQuestionBookmark('${q.id}'); renderQuestionDetail('${q.id}')">${q.bookmarked?'★ Bookmarked':'☆ Bookmark'}</button>
+      </div>
+    </div>
+
+    <div class="row" style="gap:8px; margin-top:12px;">
+      <button class="btn secondary" style="flex:1" onclick="navigate('edit-question/${q.id}')">✏️ Edit</button>
+      <button class="btn secondary" style="flex:1" onclick="openMoveQuestion('${q.id}')">📦 Move</button>
+      <button class="btn danger" style="width:50px;" onclick="deleteQuestion('${q.id}')">🗑️</button>
+    </div>
+
+    <button class="btn" style="margin-top:12px;" onclick="startQuestionPractice('${q.id}')">⚡ Start Flash Test</button>
+  `;
+  renderShell(html, {title:'Question', back:`navigate('question-bank/topic/${q.topicId}')`});
 }
 function deleteQuestion(id){
   confirmModal('Delete Question','Delete this question permanently?', async ()=>{
@@ -662,10 +1194,23 @@ function deleteQuestion(id){
 /* ---------- Question form (manual add/edit) ---------- */
 function renderQuestionForm(qid){
   const q = qid ? CACHE.questions.find(x=>x.id===qid) : null;
+
+  // Context detection from URL
+  const params = new URLSearchParams(window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '');
+  const preSub = params.get('sub');
+  const preTop = params.get('top');
+
   const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order);
-  const defSub = q? q.subjectId : (subs[0]? subs[0].id : '');
-  const opts = q? q.options : ['','','',''];
+  const defSub = q ? q.subjectId : (preSub || (subs[0]? subs[0].id : ''));
+  const defTop = q ? q.topicId : (preTop || null);
+  const opts = q ? q.options : ['','','',''];
+
   const html=`
+  <div class="explorer-head fade-in">
+    <div class="explorer-title">${q?'Edit Question':'Add Question'}</div>
+    <div class="explorer-subtitle">Fill in details to ${q?'update':'add'} a question to the bank.</div>
+  </div>
+
   <div class="card">
     <label class="flabel">Subject</label>
     <select id="qfSubject" onchange="refreshTopicSelect()">
@@ -675,30 +1220,25 @@ function renderQuestionForm(qid){
     <select id="qfTopic"></select>
 
     <label class="flabel">Question</label>
-    <textarea id="qfQuestion" placeholder="Type the question...">${q?esc(q.question):''}</textarea>
+    <textarea id="qfQuestion" style="min-height:80px;" placeholder="Type the question...">${q?esc(q.question):''}</textarea>
 
     <label class="flabel">Options</label>
-    ${[0,1,2,3].map(i=>`<div class="row" style="margin-bottom:6px;"><span style="width:20px;font-weight:700;">${String.fromCharCode(65+i)}</span><input type="text" id="qfOpt${i}" value="${esc(opts[i]||'')}"></div>`).join('')}
-
-    <label class="flabel">Correct Answer</label>
-    <select id="qfAnswer">${[0,1,2,3].map(i=>`<option value="${i}" ${q&&q.answer===i?'selected':''}>${String.fromCharCode(65+i)}</option>`).join('')}</select>
+    ${[0,1,2,3].map(i=>`<div class="row" style="margin-bottom:8px; align-items:center;"><input type="radio" name="qfAnsRadio" value="${i}" ${q&&q.answer===i?'checked':(i===0?'checked':'')} onchange="document.getElementById('qfAnswer').value=this.value"> <input type="text" id="qfOpt${i}" value="${esc(opts[i]||'')}" placeholder="Option ${String.fromCharCode(65+i)}" style="flex:1;"></div>`).join('')}
+    <input type="hidden" id="qfAnswer" value="${q?q.answer:0}">
 
     <label class="flabel">Explanation (optional)</label>
-    <textarea id="qfExplain">${q?esc(q.explanation||''):''}</textarea>
+    <textarea id="qfExplain" placeholder="Why is this answer correct?">${q?esc(q.explanation||''):''}</textarea>
 
-    <label class="flabel">Tags (comma separated)</label>
-    <input type="text" id="qfTags" value="${q?esc((q.tags||[]).join(', ')):''}">
+    <div class="grid2">
+      <label><span class="explorer-filter-label">Difficulty</span><select id="qfDiff">${['easy','medium','hard'].map(d=>`<option value="${d}" ${q&&q.difficulty===d?'selected':''}>${d[0].toUpperCase()+d.slice(1)}</option>`).join('')}</select></label>
+      <label><span class="explorer-filter-label">Tags</span><input type="text" id="qfTags" value="${q?esc((q.tags||[]).join(', ')):''}" placeholder="HSC, BCS"></label>
+    </div>
 
-    <label class="flabel">Difficulty</label>
-    <select id="qfDiff">
-      ${['easy','medium','hard'].map(d=>`<option value="${d}" ${q&&q.difficulty===d?'selected':''}>${d}</option>`).join('')}
-    </select>
-
-    <button class="btn" style="margin-top:16px;" onclick="saveQuestionForm(${q?`'${qid}'`:'null'})">${q?'Update':'Save'} Question</button>
+    <button class="btn" style="margin-top:20px;" onclick="saveQuestionForm(${q?`'${qid}'`:'null'})">${q?'Update':'Save'} Question</button>
   </div>
   `;
-  renderShell(html, {title:q?'Edit Question':'Add Question', back:"navigate('question-bank')"});
-  refreshTopicSelect(q? q.topicId : null);
+  renderShell(html, {title:q?'Edit Question':'Add Question', back: q ? `navigate('question/${qid}')` : "navigate('question-bank')"});
+  refreshTopicSelect(defTop);
 }
 function refreshTopicSelect(selectedTopicId){
   const subId=document.getElementById('qfSubject').value;
@@ -738,9 +1278,9 @@ async function saveQuestionForm(qid){
 let ImportState = {
   screen:'home',            // home | text | json | jsonfile | htmlfile | preview | success
   mode:null,                // 'text' | 'json' | 'html'
-  validated:[],             // [{raw, issues[], infoOnly[], isDuplicate, matchedSubjectId, matchedTopicId, status}]
+  validated:[],             // [{raw, issues[], infoOnly[], isDuplicate, matchedSubjectId, matchedTopicId, status, selected:true}]
   destSubjectId:'', destTopicId:'', useIndividual:false,
-  dupStrategy:'keepFirst',  // 'keepFirst' | 'keepAll'
+  dupStrategy:'skip',       // 'skip' | 'keep' | 'replace'
   visibleCount:20,
   lastSavedCount:0, lastSubjectId:null, lastTopicId:null,
   parseErrorFile:null
@@ -748,7 +1288,7 @@ let ImportState = {
 
 function openImportTool(){
   ImportState = {screen:'home', mode:null, validated:[], destSubjectId:'', destTopicId:'', useIndividual:false,
-    dupStrategy:'keepFirst', visibleCount:20, lastSavedCount:0, lastSubjectId:null, lastTopicId:null};
+    dupStrategy:'skip', visibleCount:20, lastSavedCount:0, lastSkippedCount:0, lastWarningCount:0, lastSubjectId:null, lastTopicId:null};
   navigate('import-questions');
 }
 function openImportToolFor(subjectId, topicId){
@@ -1057,7 +1597,7 @@ function parseHTMLDoc(htmlStr){
 /* ---------- Validation / dedup ---------- */
 function normalizeQ(s){ return (s||'').trim().toLowerCase().replace(/[^\p{L}\p{N}\s]/gu,'').replace(/\s+/g,' ').trim(); }
 function buildValidated(raws){
-  const existingNorm = CACHE.questions.map(q=>normalizeQ(q.question));
+  const existingQuestions = CACHE.questions.map(q=>({norm:normalizeQ(q.question), id:q.id}));
   const seen=[];
   const validated = raws.map(raw=>{
     raw.options=(raw.options||['','','','']).slice(0,4); while(raw.options.length<4) raw.options.push('');
@@ -1069,8 +1609,13 @@ function buildValidated(raws){
     const infoOnly=[];
     if(!raw.explanation || !raw.explanation.trim()) infoOnly.push('Explanation missing');
     const norm=normalizeQ(raw.question||'');
-    let isDuplicate=false;
-    if(norm){ if(seen.includes(norm)||existingNorm.includes(norm)) isDuplicate=true; seen.push(norm); }
+    let isDuplicate=false, duplicateId=null;
+    if(norm){
+      const existing = existingQuestions.find(eq=>eq.norm===norm);
+      if(seen.includes(norm)||existing) isDuplicate=true;
+      if(existing) duplicateId=existing.id;
+      seen.push(norm);
+    }
     let matchedSubjectId=null, matchedTopicId=null;
     if(raw.subjectName){
       const s=CACHE.subjects.find(s=>s.name.trim().toLowerCase()===String(raw.subjectName).trim().toLowerCase());
@@ -1078,7 +1623,7 @@ function buildValidated(raws){
         if(raw.topicName){ const t=CACHE.topics.find(t=>t.subjectId===s.id && t.name.trim().toLowerCase()===String(raw.topicName).trim().toLowerCase()); if(t) matchedTopicId=t.id; }
       }
     }
-    return {raw, issues, infoOnly, isDuplicate, matchedSubjectId, matchedTopicId, status: issues.length?'invalid':'valid'};
+    return {raw, issues, infoOnly, isDuplicate, duplicateId, matchedSubjectId, matchedTopicId, status: issues.length?'invalid':'valid', selected:true};
   });
   ImportState.validated=validated;
   ImportState.visibleCount=20;
@@ -1103,8 +1648,10 @@ function importStats(){
   const validCount=v.filter(x=>x.status==='valid').length;
   const invalidCount=total-validCount;
   const dupCount=v.filter(x=>x.isDuplicate).length;
-  const readyCount=v.filter(x=>x.status==='valid' && (ImportState.dupStrategy==='keepAll' || !x.isDuplicate)).length;
-  return {total,validCount,invalidCount,dupCount,readyCount};
+  const selectedCount=v.filter(x=>x.selected && x.status==='valid').length;
+  let readyCount = selectedCount;
+  if(ImportState.dupStrategy==='skip') readyCount = v.filter(x=>x.selected && x.status==='valid' && !x.isDuplicate).length;
+  return {total,validCount,invalidCount,dupCount,selectedCount,readyCount};
 }
 function renderImportPreview(){
   const st=ImportState;
@@ -1114,6 +1661,7 @@ function renderImportPreview(){
   const hasIndividual = st.validated.some(v=>v.matchedSubjectId);
   const invalidItems = st.validated.map((v,i)=>({v,i})).filter(x=>x.v.status==='invalid');
   const list = st.validated.map((v,i)=>({v,i})).slice(0, st.visibleCount);
+  const allSelected = st.validated.every(v=>!v.selected || v.status!=='valid'); // check logic below
 
   const html=`
   <div class="card">
@@ -1121,22 +1669,26 @@ function renderImportPreview(){
     <div class="stat-grid" style="margin-top:8px;">
       <div class="stat-card"><div class="v">${stats.total}</div><div class="l">Detected</div></div>
       <div class="stat-card"><div class="v">${stats.validCount}</div><div class="l">Valid</div></div>
-      <div class="stat-card"><div class="v">${stats.invalidCount}</div><div class="l">Needs Fixing</div></div>
+      <div class="stat-card"><div class="v">${stats.invalidCount}</div><div class="l">Invalid</div></div>
       <div class="stat-card"><div class="v">${stats.dupCount}</div><div class="l">Duplicates</div></div>
     </div>
-    <div class="muted" style="margin-top:8px;">Ready to save: <b>${stats.readyCount}</b></div>
+    <div class="muted" style="margin-top:8px;">Ready to save: <b>${stats.readyCount}</b> / ${stats.selectedCount} selected</div>
   </div>
 
   ${stats.dupCount>0? `<div class="card">
-    <div class="row between"><b>⚠️ ${stats.dupCount} duplicate question(s) detected</b></div>
+    <div class="row between"><b>⚠️ Duplicate Handling</b></div>
     <div class="row wrap" style="margin-top:8px;">
-      <button class="chip ${st.dupStrategy==='keepFirst'?'active':''}" onclick="ImportState.dupStrategy='keepFirst'; render()">Keep First</button>
-      <button class="chip ${st.dupStrategy==='keepAll'?'active':''}" onclick="ImportState.dupStrategy='keepAll'; render()">Keep All</button>
+      <button class="chip ${st.dupStrategy==='skip'?'active':''}" onclick="ImportState.dupStrategy='skip'; render()">Skip</button>
+      <button class="chip ${st.dupStrategy==='keep'?'active':''}" onclick="ImportState.dupStrategy='keep'; render()">Keep All</button>
+      <button class="chip ${st.dupStrategy==='replace'?'active':''}" onclick="ImportState.dupStrategy='replace'; render()">Replace Existing</button>
+    </div>
+    <div class="muted" style="margin-top:6px; font-size:11px;">
+      ${st.dupStrategy==='skip'?'Duplicates will be ignored.':st.dupStrategy==='keep'?'Duplicates will be imported as new questions.':'Existing questions will be updated with new data.'}
     </div>
   </div>` : ''}
 
   <div class="card">
-    <div class="h2" style="margin-top:0;">Destination</div>
+    <div class="row between"><div class="h2" style="margin:0;">Destination</div><div class="row"><button class="btn secondary sm" onclick="openImportAddSubject()">+ Sub</button><button class="btn secondary sm" onclick="openImportAddTopic()">+ Topic</button></div></div>
     <label class="flabel">Subject</label>
     <select id="impDestSubject" onchange="onImportDestSubjectChange(this.value)">
       ${subs.map(s=>`<option value="${s.id}" ${s.id===st.destSubjectId?'selected':''}>${esc(s.name)}</option>`).join('')}
@@ -1149,31 +1701,77 @@ function renderImportPreview(){
   </div>
 
   ${invalidItems.length>0? `<div class="h2">Needs Fixing (${invalidItems.length})</div>
-    ${invalidItems.slice(0,50).map(({v,i})=>`<div class="card">
+    ${invalidItems.slice(0,50).map(({v,i})=>`<div class="card" style="border-left:4px solid var(--red);">
       <div class="row between"><b>Q${i+1}</b><button class="btn ghost sm" onclick="openFixModal(${i})">Fix</button></div>
       <div class="muted">${esc((v.raw.question||'(no text)').slice(0,80))}</div>
       ${v.issues.map(iss=>`<div class="errbox">⚠️ ${esc(iss)}</div>`).join('')}
     </div>`).join('')}
-    ${invalidItems.length>50? `<div class="muted">+ ${invalidItems.length-50} more…</div>`:''}
   ` : ''}
 
-  <div class="h2">Preview (${st.total===undefined?st.validated.length:st.total})</div>
-  ${list.map(({v,i})=>`<div class="card">
-    <div class="row between"><span class="muted">Q${i+1}</span>
-      <span class="pill ${v.status==='valid'?'':'red'}">${v.status==='valid'?(v.isDuplicate?'Duplicate':'Valid'):'Invalid'}</span></div>
+  <div class="row between" style="margin:16px 0 8px;">
+    <div class="h2" style="margin:0;">Preview</div>
+    <div class="row">
+      <button class="btn ghost sm" onclick="bulkSelectImport(true)">Select All</button>
+      <button class="btn ghost sm" onclick="selectValidImport()">Select Valid Only</button>
+      <button class="btn ghost sm" onclick="bulkSelectImport(false)">Deselect All</button>
+    </div>
+  </div>
+  ${list.map(({v,i})=>`<div class="card ${v.selected?'':'muted'} ${v.status==='valid'?(v.isDuplicate?'import-card-duplicate':'import-card-valid'):'import-card-invalid'}" style="opacity:${v.selected?1:0.6}">
+    <div class="row between">
+      <div class="row"><input type="checkbox" ${v.selected?'checked':''} onchange="ImportState.validated[${i}].selected=this.checked; render()"><b>Q${i+1}</b></div>
+      <span class="pill ${v.status==='valid'?'':'red'}">${v.status==='valid'?(v.isDuplicate?'Duplicate':'Valid'):'Invalid'}</span>
+    </div>
     <div style="margin:4px 0; font-weight:600;">${esc((v.raw.question||'(no text)').slice(0,100))}</div>
     ${v.raw.options.map((o,idx)=>`<div class="muted">${String.fromCharCode(65+idx)}. ${esc(o||'—')} ${idx===v.raw.answerIndex?'✓':''}</div>`).join('')}
-    ${v.infoOnly.length? `<div class="muted" style="margin-top:4px;">${v.infoOnly.map(esc).join(', ')}</div>`:''}
   </div>`).join('')}
   ${st.validated.length>st.visibleCount? `<button class="btn ghost" onclick="ImportState.visibleCount+=20; render()">Load more (${st.validated.length-st.visibleCount} remaining)</button>` : ''}
 
   <div style="height:14px;"></div>
-  <div class="row">
-    <button class="btn ghost" style="flex:1" onclick="cancelImport()">Cancel Import</button>
-    <button class="btn" style="flex:1" onclick="saveImportedQuestions()" ${(!st.destTopicId)?'disabled':''}>Save ${stats.readyCount} Questions</button>
+  <div class="row" style="position:sticky; bottom:calc(74px + var(--safe-b)); background:var(--bg); padding:10px 0; z-index:10;">
+    <button class="btn ghost" style="flex:1" onclick="cancelImport()">Cancel</button>
+    <button class="btn secondary" style="flex:1" onclick="selectValidImport(true)" ${(!st.destTopicId || stats.validCount===0)?'disabled':''}>Import All Valid</button>
+    <button class="btn" style="flex:1" onclick="saveImportedQuestions()" ${(!st.destTopicId || stats.readyCount===0)?'disabled':''}>Import ${stats.readyCount} Selected</button>
   </div>
   `;
   renderShell(html, {title:'Import Preview', back:"importGoHome()"});
+}
+function bulkSelectImport(val){
+  ImportState.validated.forEach(v=>{ if(v.status==='valid') v.selected=val; });
+  render();
+}
+function selectValidImport(andSave=false){
+  ImportState.validated.forEach(v=>{ v.selected=v.status==='valid'; });
+  if(andSave) saveImportedQuestions(); else render();
+}
+function openImportAddSubject(){
+  openModal(`<h3>New Subject</h3>
+    <label class="flabel">Name</label><input type="text" id="newSubName" placeholder="e.g. Physics">
+    <button class="btn" style="margin-top:12px;" onclick="saveImportSubject()">Create Subject</button>`);
+}
+async function saveImportSubject(){
+  const name=document.getElementById('newSubName').value.trim();
+  if(!name){toast('Name required'); return;}
+  const id=uid();
+  await dbPut('subjects',{id, name, icon:'📘', color:'#0f6b4f', order:CACHE.subjects.length, createdAt:Date.now()});
+  CACHE.subjects=await dbGetAll('subjects');
+  ImportState.destSubjectId=id;
+  ImportState.destTopicId='';
+  closeModal(); render();
+}
+function openImportAddTopic(){
+  if(!ImportState.destSubjectId){toast('Select a subject first'); return;}
+  openModal(`<h3>New Topic</h3>
+    <label class="flabel">Name</label><input type="text" id="newTopName" placeholder="e.g. Thermodynamics">
+    <button class="btn" style="margin-top:12px;" onclick="saveImportTopic()">Create Topic</button>`);
+}
+async function saveImportTopic(){
+  const name=document.getElementById('newTopName').value.trim();
+  if(!name){toast('Name required'); return;}
+  const id=uid();
+  await dbPut('topics',{id, subjectId:ImportState.destSubjectId, name, order:topicsOf(ImportState.destSubjectId).length, createdAt:Date.now()});
+  CACHE.topics=await dbGetAll('topics');
+  ImportState.destTopicId=id;
+  closeModal(); render();
 }
 function onImportDestSubjectChange(subId){
   ImportState.destSubjectId=subId;
@@ -1210,9 +1808,9 @@ function saveFixModal(idx){
 /* ---------- Save (chunked, non-blocking) ---------- */
 async function saveImportedQuestions(){
   const st=ImportState;
-  if(!st.destTopicId){ toast('Select a destination topic (or add a topic first)'); return; }
-  const toSave = st.validated.filter(v=> v.status==='valid' && (st.dupStrategy==='keepAll' || !v.isDuplicate));
-  if(toSave.length===0){ toast('No valid questions to save'); return; }
+  if(!st.destTopicId){ toast('Select a destination topic'); return; }
+  const toSave = st.validated.filter(v=> v.selected && v.status==='valid' && (st.dupStrategy!=='skip' || !v.isDuplicate));
+  if(toSave.length===0){ toast('No questions to save'); return; }
   openModal(`<h3>Importing…</h3>
     <div class="progbar"><div id="impProgFill" style="width:0%"></div></div>
     <div class="muted" id="impProgLabel" style="margin-top:8px;">0 / ${toSave.length}</div>`);
@@ -1220,23 +1818,32 @@ async function saveImportedQuestions(){
   for(const v of toSave){
     const subjectId = (st.useIndividual && v.matchedSubjectId) ? v.matchedSubjectId : st.destSubjectId;
     const topicId = (st.useIndividual && v.matchedTopicId) ? v.matchedTopicId : st.destTopicId;
+
+    let targetId = uid();
+    let existing = null;
+    if(v.isDuplicate && st.dupStrategy==='replace' && v.duplicateId){
+      targetId = v.duplicateId;
+      existing = CACHE.questions.find(q=>q.id===targetId);
+    }
+
     const obj={
-      id:uid(), subjectId, topicId,
-      question:v.raw.question.trim(),
-      options:v.raw.options.map(o=>o.trim()),
-      answer:v.raw.answerIndex,
-      explanation:(v.raw.explanation||'').trim(),
-      tags:v.raw.tags||[], difficulty:'medium',
-      source:'import', createdAt:Date.now(), updatedAt:Date.now(),
-      stats:{attempts:0,correct:0,wrong:0}
+      id: targetId, subjectId, topicId,
+      question: v.raw.question.trim(),
+      options: v.raw.options.map(o=>o.trim()),
+      answer: v.raw.answerIndex,
+      explanation: (v.raw.explanation||'').trim(),
+      tags: v.raw.tags||[], difficulty: existing? (existing.difficulty||'medium') : 'medium',
+      source: 'import', createdAt: existing? (existing.createdAt||Date.now()) : Date.now(), updatedAt: Date.now(),
+      stats: existing? (existing.stats||{attempts:0,correct:0,wrong:0}) : {attempts:0,correct:0,wrong:0},
+      bookmarked: existing? !!existing.bookmarked : false
     };
     try{ await dbPut('questions', obj); saved++; }
-    catch(e){ /* skip this one, keep going — never leave a half state the app can't recover from */ }
+    catch(e){ console.error(e); }
     if(saved % 20 === 0 || saved===toSave.length){
       const fill=document.getElementById('impProgFill'); const lbl=document.getElementById('impProgLabel');
       if(fill) fill.style.width = Math.round((saved/toSave.length)*100)+'%';
       if(lbl) lbl.textContent = saved+' / '+toSave.length;
-      await new Promise(r=>setTimeout(r,0)); // yield so UI stays responsive
+      await new Promise(r=>setTimeout(r,0));
     }
   }
   CACHE.questions = await dbGetAll('questions');
@@ -1245,7 +1852,10 @@ async function saveImportedQuestions(){
     CACHE.activityLogs = await dbGetAll('activityLogs');
   }catch(e){}
   closeModal();
-  st.lastSavedCount=saved; st.lastSubjectId=st.destSubjectId; st.lastTopicId=st.destTopicId;
+  st.lastSavedCount=saved;
+  st.lastSkippedCount=st.validated.filter(v=>v.selected && v.status==='valid' && v.isDuplicate && st.dupStrategy==='skip').length;
+  st.lastWarningCount=st.validated.filter(v=>v.infoOnly&&v.infoOnly.length).length;
+  st.lastSubjectId=st.destSubjectId; st.lastTopicId=st.destTopicId;
   importSetScreen('success');
 }
 
@@ -1257,9 +1867,10 @@ function renderImportSuccess(){
     <div style="font-size:34px;">🎉</div>
     <div class="h2" style="margin-top:6px;">Import Complete</div>
     <div class="big">${st.lastSavedCount} Questions Added</div>
+    <div class="stat-grid" style="margin-top:12px;text-align:left;"><div class="stat-card"><div class="v">${st.lastSkippedCount||0}</div><div class="l">Skipped duplicates</div></div><div class="stat-card"><div class="v">${st.lastWarningCount||0}</div><div class="l">Warnings</div></div></div>
     <div class="muted" style="margin-top:6px;">${esc(subjectName(st.lastSubjectId))} · ${esc(topicName(st.lastTopicId))}</div>
   </div>
-  <button class="btn" onclick="navigate('topic/${st.lastTopicId}')">View Questions</button>
+  <button class="btn" onclick="navigate('question-bank/topic/${st.lastTopicId}')">View Questions</button>
   <div style="height:8px;"></div>
   <button class="btn secondary" onclick="openImportTool()">Add More</button>
   <div style="height:8px;"></div>
@@ -1272,74 +1883,257 @@ function renderImportSuccess(){
 let ExamSetup = null;
 function freshSetup(){
   const d=CACHE.settings.examDefaults||{count:20,duration:20,negative:0,mode:'mock'};
-  return {mode:d.mode||'mock', subjectIds:[], topicIds:[], distribution:'auto', customCounts:{},
-    totalCount:d.count||20, duration:d.duration||20, negative:d.negative||0,
-    randomizeQ:CACHE.settings.qPrefs.randomizeQ, randomizeOpt:CACHE.settings.qPrefs.randomizeOpt};
+  return {
+    wizardStep: 0,
+    mode:d.mode||'mock', subjectIds:[], topicIds:[], onlyQuestionIds:[], distribution:'auto', customCounts:{}, selectionMode:'random',
+    totalCount:d.count||20, duration:d.duration||20, negative:d.negative||0, marksPerQ: 1,
+    randomizeQ:CACHE.settings.qPrefs.randomizeQ, randomizeOpt:CACHE.settings.qPrefs.randomizeOpt,
+    layout:'scrolling', showExplanation:true, instantFeedback:false
+  };
 }
-function renderExamSetup(){
+
+function renderExamCenter(){
   if(!ExamSetup) ExamSetup=freshSetup();
-  const st=ExamSetup;
-  const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order);
+  const modes = [
+    {id:'mock', icon:'📝', name:'Mock Test', desc:'Real exam simulation — timed, no feedback.'},
+    {id:'flash', icon:'⚡', name:'Flash Test', desc:'Instant feedback after each question.'},
+    {id:'mistake', icon:'❌', name:'Mistake Test', desc:'Practice only from your Mistake Bank.'},
+    {id:'weak', icon:'🎯', name:'Weak Topic Test', desc:'Focus on topics with lowest accuracy.'},
+    {id:'bookmarked', icon:'🔖', name:'Bookmarked', desc:'Review questions you have saved.'},
+    {id:'unattempted', icon:'🧠', name:'Unattempted', desc:'Explore new questions you haven\'t seen.'},
+    {id:'random', icon:'🎲', name:'Random Challenge', desc:'A surprise mix of questions.'},
+    {id:'subject', icon:'📚', name:'Subject Test', desc:'Focused practice on specific subjects.'},
+    {id:'topic', icon:'📂', name:'Topic Test', desc:'Master specific topics one by one.'}
+  ];
+
+  const html = `
+    <div class="explorer-head">
+      <div class="explorer-kicker">Admission Hub</div>
+      <h2 class="explorer-title">Exam Center</h2>
+      <p class="explorer-subtitle">Choose your practice mode and start mastering.</p>
+    </div>
+
+    <div class="exam-center-grid">
+      ${modes.map(m => `
+        <div class="exam-mode-card ${ExamSetup.mode===m.id?'active':''}" onclick="selectExamCenterMode('${m.id}')">
+          <div class="icon">${m.icon}</div>
+          <div class="name">${m.name}</div>
+          <div class="desc">${m.desc}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div style="margin-top:24px;">
+      <button class="btn" onclick="startExamWizard()">Configure Selected Mode →</button>
+    </div>
+  `;
+  renderShell(html, {title:'Exam Center'});
+}
+
+function selectExamCenterMode(mode){
+  ExamSetup.mode = mode;
+  // Apply specific logic for quick modes
+  if(mode === 'mistake') { ExamSetup.selectionMode = 'wrong'; }
+  else if(mode === 'weak') { ExamSetup.selectionMode = 'weak'; }
+  else if(mode === 'bookmarked') { ExamSetup.selectionMode = 'bookmarked'; }
+  else if(mode === 'unattempted') { ExamSetup.selectionMode = 'unattempted'; }
+  render();
+}
+function setExamMode(mode){
+  ExamSetup.mode = mode;
+  render();
+}
+
+function startExamWizard(){
+  ExamSetup.wizardStep = 1;
+  navigate('exam/setup');
+}
+
+function renderExamSetup(){
+  if(!ExamSetup) { renderExamCenter(); return; }
+  if(ExamSetup.wizardStep === 0) { renderExamCenter(); return; }
+
+  const st = ExamSetup;
+  const step = st.wizardStep;
+  const subs = [...CACHE.subjects].sort((a,b)=>a.order-b.order);
   const availTopics = subs.filter(s=>st.subjectIds.length===0||st.subjectIds.includes(s.id)).flatMap(s=>topicsOf(s.id).map(t=>({...t,subName:s.name})));
   const availQ = countAvailable();
-  const html=`
-  <div class="card">
-    <div class="row wrap">
-      <button class="chip ${st.mode==='mock'?'active':''}" onclick="setExamMode('mock')">📝 Mock Test</button>
-      <button class="chip ${st.mode==='flash'?'active':''}" onclick="setExamMode('flash')">⚡ Flash Test</button>
+
+  const wizardProgress = `
+    <div class="wizard-progress">
+      ${[1,2,3,4,5,6,7,8,9,10,11].map(i=>`<div class="wizard-dot ${i===step?'active':(i<step?'complete':'')}"></div>`).join('')}
     </div>
-    <div class="muted" style="margin-top:6px;">${st.mode==='mock'? 'Real exam simulation — timed, no feedback until submit.' : 'Instant feedback after each question, with explanation.'}</div>
-  </div>
+  `;
 
-  <div class="card">
-    <div class="h2" style="margin-top:0;">Step 1 — Subjects</div>
-    <div class="row wrap">
-      ${subs.map(s=>`<button class="chip ${st.subjectIds.includes(s.id)?'active':''}" onclick="toggleSetupSubject('${s.id}')">${s.icon||''} ${esc(s.name)}</button>`).join('')}
+  let stepHtml = '';
+
+  if(step === 1){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 1 — Choose Exam Type</div>
+      <div class="exam-center-grid">
+        ${[
+          {id:'mock', icon:'📝', name:'Mock Test'},
+          {id:'flash', icon:'⚡', name:'Flash Test'},
+          {id:'mistake', icon:'❌', name:'Mistake Test'},
+          {id:'weak', icon:'🎯', name:'Weak Topic Test'},
+          {id:'custom', icon:'⚙️', name:'Custom Test'}
+        ].map(m => `
+          <div class="exam-mode-card ${st.mode===m.id?'active':''}" onclick="setExamMode('${m.id}')">
+            <div class="icon">${m.icon}</div>
+            <div class="name">${m.name}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } else if(step === 2){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 2 — Choose Subjects</div>
+      <div class="row wrap">
+        ${subs.map(s=>`<button class="chip ${st.subjectIds.includes(s.id)?'active':''}" onclick="toggleSetupSubject('${s.id}')">${s.icon||''} ${esc(s.name)}</button>`).join('')}
+      </div>
+      ${subs.length===0?'<div class="muted">No subjects yet.</div>':''}
+    `;
+  } else if(step === 3){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 3 — Choose Topics</div>
+      <div class="row wrap">
+        <button class="chip ${st.topicIds.length===0?'active':''}" onclick="ExamSetup.topicIds=[]; render()">All Topics</button>
+        ${availTopics.map(t=>`<button class="chip ${st.topicIds.includes(t.id)?'active':''}" onclick="toggleSetupTopic('${t.id}')">${esc(t.subName)} · ${esc(t.name)}</button>`).join('')}
+      </div>
+    `;
+  } else if(step === 4){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 4 — Exam Configuration</div>
+
+      <label class="flabel">Question Selection</label>
+      <div class="row wrap">${[['random','Random'],['unattempted','Unattempted'],['wrong','Wrong'],['bookmarked','Bookmarked'],['weak','Weak'],['newest','Newest'],['mixed','Mixed']].map(([v,l])=>`<button class="chip ${st.selectionMode===v?'active':''}" onclick="setExamSelectionMode('${v}')">${l}</button>`).join('')}</div>
+
+      <label class="flabel">Question Count (Available: ${availQ})</label>
+      <div class="row wrap">${[10,20,30,50,100].map(c=>`<button class="chip ${st.totalCount===c?'active':''}" onclick="ExamSetup.totalCount=${c}; render()">${c}</button>`).join('')}</div>
+      <input type="number" value="${st.totalCount}" min="1" max="${availQ}" oninput="ExamSetup.totalCount=Math.min(availQ, parseInt(this.value)||1)" style="margin-top:8px;">
+
+      <label class="flabel">Question Distribution</label>
+      <div class="row wrap">
+        <button class="chip ${st.distribution==='auto'?'active':''}" onclick="ExamSetup.distribution='auto'; render()">Automatic</button>
+        <button class="chip ${st.distribution==='custom'?'active':''}" onclick="ExamSetup.distribution='custom'; render()">Custom Distribution</button>
+      </div>
+      ${st.distribution==='custom' ? `
+        <div style="margin-top:12px; background:var(--mint); padding:12px; border-radius:12px;">
+          ${availTopics.length?availTopics.map(t=>`<div class="row between" style="margin:8px 0;"><span style="font-size:12px;">${esc(t.name)} (${topicQCount(t.id)})</span><input type="number" min="0" max="${topicQCount(t.id)}" value="${st.customCounts[t.id]||0}" style="width:70px; padding:6px;" oninput="ExamSetup.customCounts['${t.id}']=Math.max(0,parseInt(this.value)||0); document.getElementById('customTotal').innerText=Object.values(ExamSetup.customCounts).reduce((a,b)=>a+(parseInt(b)||0),0)"></div>`).join(''):''}
+          <div class="muted" style="text-align:right;">Total: <b id="customTotal">${Object.values(st.customCounts).reduce((a,b)=>a+(parseInt(b)||0),0)}</b></div>
+        </div>
+      `:''}
+
+      ${st.mode==='mock' || st.mode==='custom' ? `
+        <label class="flabel">Timer (minutes)</label>
+        <div class="row wrap">${[5,10,20,30,60,0].map(m=>`<button class="chip ${st.duration===m?'active':''}" onclick="ExamSetup.duration=${m}; render()">${m===0?'No Time':m+' min'}</button>`).join('')}</div>
+
+        <label class="flabel">Negative Marking</label>
+        <div class="row wrap">${[0,0.25,0.5,1].map(n=>`<button class="chip ${st.negative===n?'active':''}" onclick="ExamSetup.negative=${n}; render()">${n===0?'None':'-'+n}</button>`).join('')}</div>
+
+        <label class="flabel">Marks Per Question</label>
+        <div class="row wrap">${[1,1.5,2,5].map(m=>`<button class="chip ${st.marksPerQ===m?'active':''}" onclick="ExamSetup.marksPerQ=${m}; render()">+${m}</button>`).join('')}</div>
+      `:''}
+    `;
+  } else if(step === 5){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 5 — Time Limit</div>
+      <div class="row wrap">${[5,10,20,30,60,0].map(m=>`<button class="chip ${st.duration===m?'active':''}" onclick="ExamSetup.duration=${m}; render()">${m===0?'No Time':m+' min'}</button>`).join('')}</div>
+      <div class="muted" style="margin-top:10px;">Recommended: 1 min per question.</div>
+    `;
+  } else if(step === 6){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 6 — Scoring</div>
+      <label class="flabel">Marks Per Correct Answer</label>
+      <div class="row wrap">${[1,1.5,2,5].map(m=>`<button class="chip ${st.marksPerQ===m?'active':''}" onclick="ExamSetup.marksPerQ=${m}; render()">+${m}</button>`).join('')}</div>
+      <label class="flabel" style="margin-top:16px;">Negative Marking (per wrong answer)</label>
+      <div class="row wrap">${[0,0.25,0.5,1].map(n=>`<button class="chip ${st.negative===n?'active':''}" onclick="ExamSetup.negative=${n}; render()">${n===0?'None':'-'+n}</button>`).join('')}</div>
+    `;
+  } else if(step === 7){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 7 — Interface</div>
+      <div class="card" onclick="ExamSetup.layout='scrolling'; render()" style="border:2px solid ${st.layout==='scrolling'?'var(--emerald)':'var(--line)'}; cursor:pointer;">
+        <b>Scrolling Feed</b><div class="muted">All questions on one page. Best for review.</div>
+      </div>
+      <div class="card" onclick="ExamSetup.layout='paginated'; render()" style="margin-top:10px; border:2px solid ${st.layout==='paginated'?'var(--emerald)':'var(--line)'}; cursor:pointer;">
+        <b>One by One</b><div class="muted">Focus on one question at a time. Real exam feel.</div>
+      </div>
+    `;
+  } else if(step === 8){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 8 — Options</div>
+      <div class="card">
+        <div class="togglerow"><div>Randomize Question Order</div><div class="toggle ${st.randomizeQ?'on':''}" onclick="ExamSetup.randomizeQ=!ExamSetup.randomizeQ; render()"><div class="dot"></div></div></div>
+        <div class="togglerow" style="border-bottom:none;"><div>Randomize Options</div><div class="toggle ${st.randomizeOpt?'on':''}" onclick="ExamSetup.randomizeOpt=!ExamSetup.randomizeOpt; render()"><div class="dot"></div></div></div>
+      </div>
+    `;
+  } else if(step === 9){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 9 — Review Settings</div>
+      <div class="card">
+        <div class="togglerow"><div>Show Explanation after Exam</div><div class="toggle ${st.showExplanation?'on':''}" onclick="ExamSetup.showExplanation=!ExamSetup.showExplanation; render()"><div class="dot"></div></div></div>
+        <div class="togglerow" style="border-bottom:none;"><div>Instant Feedback (Flash Mode only)</div><div class="toggle ${st.instantFeedback?'on':''}" onclick="ExamSetup.instantFeedback=!ExamSetup.instantFeedback; render()"><div class="dot"></div></div></div>
+      </div>
+    `;
+  } else if(step === 10){
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 10 — Instructions</div>
+      <div style="font-size:14px; line-height:1.6; color:var(--sub);">
+        <p>• <b>Timer Persistence:</b> The timer survives page refreshes.</p>
+        <p>• <b>Auto-Save:</b> Answers are saved as you go.</p>
+        <p>• <b>Auto-Submit:</b> Test ends automatically when time is up.</p>
+        <p>• <b>Review:</b> Use the Navigator to jump between questions.</p>
+      </div>
+    `;
+  } else if(step === 11){
+    const customTotal = st.distribution==='custom' ? Object.values(st.customCounts).reduce((a,b)=>a+(parseInt(b)||0),0) : st.totalCount;
+    stepHtml = `
+      <div class="h2" style="margin-top:0;">Step 11 — Summary</div>
+      <div class="card premium-card">
+        <div class="summary-item"><span class="summary-label">Mode</span><span class="summary-value">${st.mode.toUpperCase()}</span></div>
+        <div class="summary-item"><span class="summary-label">Questions</span><span class="summary-value">${customTotal}</span></div>
+        <div class="summary-item"><span class="summary-label">Duration</span><span class="summary-value">${st.duration ? st.duration+' min' : 'No Limit'}</span></div>
+        <div class="summary-item"><span class="summary-label">Marking</span><span class="summary-value">+${st.marksPerQ} / -${st.negative}</span></div>
+      </div>
+      <div class="muted" style="margin-top:10px; text-align:center;">Ready to start your practice?</div>
+    `;
+  }
+
+  const html = `
+    ${wizardProgress}
+    <div class="wizard-step active">
+      ${stepHtml}
     </div>
-    ${subs.length===0?'<div class="muted">No subjects yet — add one in the Question Bank.</div>':''}
-  </div>
 
-  <div class="card">
-    <div class="h2" style="margin-top:0;">Step 2 — Topics ${st.subjectIds.length===0?'(all subjects)':''}</div>
-    <div class="row wrap">
-      ${availTopics.map(t=>`<button class="chip ${st.topicIds.includes(t.id)?'active':''}" onclick="toggleSetupTopic('${t.id}')">${esc(t.subName)} · ${esc(t.name)} (${topicQCount(t.id)})</button>`).join('')}
+    <div class="row between" style="margin-top:24px;">
+      <button class="btn secondary sm" onclick="wizardBack()">${step===1?'Cancel':'← Back'}</button>
+      <button class="btn sm" onclick="wizardNext()">${step===11?'START EXAM':'Next →'}</button>
     </div>
-    ${availTopics.length===0?'<div class="muted">No topics available.</div>':''}
-  </div>
-
-  <div class="card">
-    <div class="h2" style="margin-top:0;">Question Count</div>
-    <div class="muted">Available: ${availQ} questions</div>
-    <input type="number" id="setupCount" value="${st.totalCount}" min="1" max="${availQ||1}" oninput="ExamSetup.totalCount=parseInt(this.value)||1">
-  </div>
-
-  <div class="row wrap">
-    <button class="chip ${st.randomizeQ?'active':''}" onclick="ExamSetup.randomizeQ=!ExamSetup.randomizeQ; render()">🎲 Randomize Questions</button>
-    <button class="chip ${st.randomizeOpt?'active':''}" onclick="ExamSetup.randomizeOpt=!ExamSetup.randomizeOpt; render()">🔀 Randomize Options</button>
-  </div>
-
-  ${st.mode==='mock'? `
-  <div class="card">
-    <div class="h2" style="margin-top:0;">Timer</div>
-    <div class="row wrap">${[5,10,20,30,45,60].map(m=>`<button class="chip ${st.duration===m?'active':''}" onclick="ExamSetup.duration=${m}; render()">${m} min</button>`).join('')}</div>
-    <label class="flabel">Custom (minutes)</label>
-    <input type="number" id="setupDuration" value="${st.duration}" oninput="ExamSetup.duration=parseInt(this.value)||10">
-  </div>
-
-  <div class="card">
-    <div class="h2" style="margin-top:0;">Negative Marking</div>
-    <div class="row wrap">
-      ${[0,0.25,0.5,1].map(n=>`<button class="chip ${st.negative===n?'active':''}" onclick="ExamSetup.negative=${n}; render()">${n===0?'No Negative':'-'+n}</button>`).join('')}
-    </div>
-    <label class="flabel">Custom</label>
-    <input type="number" step="0.05" id="setupNeg" value="${st.negative}" oninput="ExamSetup.negative=parseFloat(this.value)||0">
-  </div>` : ''}
-
-  <button class="btn" style="margin-top:6px;" onclick="beginExam()">${st.mode==='mock'?'Start Mock Test':'Start Flash Test'} →</button>
   `;
   renderShell(html, {title:'Exam Setup'});
 }
-function setExamMode(m){ExamSetup.mode=m; render();}
+
+function wizardNext(){
+  if(ExamSetup.wizardStep < 11) {
+    if(ExamSetup.wizardStep === 2 && ExamSetup.subjectIds.length === 0) { toast('Please select at least one subject'); return; }
+    ExamSetup.wizardStep++;
+    render();
+  } else {
+    beginExam();
+  }
+}
+
+function wizardBack(){
+  if(ExamSetup.wizardStep > 1) {
+    ExamSetup.wizardStep--;
+    render();
+  } else {
+    navigate('exam');
+  }
+}
+
+function setExamSelectionMode(mode){ExamSetup.selectionMode=mode; ExamSetup.randomizeQ=mode==='random'||mode==='mixed'; render();}
+function examSelectionDescription(mode){return ({random:'Shuffle the selected pool for a fresh mix.',newest:'Prioritize the most recently added questions.',unattempted:'Prioritize questions with no recorded attempts.',wrong:'Prioritize questions previously answered incorrectly.',bookmarked:'Practice only bookmarked questions when available.',weak:'Prioritize topics with the lowest real accuracy.',mixed:'Blend unattempted, wrong, bookmarked, and random questions.'})[mode]||'Choose how questions are selected.';}
 function toggleSetupSubject(id){
   const i=ExamSetup.subjectIds.indexOf(id);
   if(i>-1) ExamSetup.subjectIds.splice(i,1); else ExamSetup.subjectIds.push(id);
@@ -1353,13 +2147,36 @@ function toggleSetupTopic(id){
 function countAvailable(){
   const st=ExamSetup;
   let pool=CACHE.questions;
-  if(st.topicIds.length>0) pool=pool.filter(q=>st.topicIds.includes(q.topicId));
+  if(st.onlyQuestionIds && st.onlyQuestionIds.length) pool=pool.filter(q=>st.onlyQuestionIds.includes(q.id));
+  else if(st.topicIds.length>0) pool=pool.filter(q=>st.topicIds.includes(q.topicId));
   else if(st.subjectIds.length>0) pool=pool.filter(q=>st.subjectIds.includes(q.subjectId));
   return pool.length;
+}
+function weakTopicIds(){
+  const by={};
+  CACHE.questions.forEach(q=>{const st=q.stats||{}; const attempts=st.attempts||0; if(!by[q.topicId]) by[q.topicId]={attempts:0,correct:0}; by[q.topicId].attempts+=attempts; by[q.topicId].correct+=st.correct||0;});
+  return Object.entries(by).filter(([,v])=>v.attempts>0).sort((a,b)=>(a[1].correct/Math.max(1,a[1].attempts))-(b[1].correct/Math.max(1,b[1].attempts))).map(([id])=>id);
+}
+function selectQuestionsByMode(pool,mode,count){
+  const attempts=q=>(q.stats&&q.stats.attempts)||0;
+  const wrong=q=>(q.stats&&q.stats.wrong)||0 || (CACHE.mistakes.find(m=>m.questionId===q.id)?.wrongCount||0);
+  const sortNewest=(a,b)=>(b.createdAt||0)-(a.createdAt||0);
+  let candidates=[...pool];
+  if(mode==='newest') candidates.sort(sortNewest);
+  else if(mode==='unattempted') candidates=candidates.filter(q=>attempts(q)===0).concat(candidates.filter(q=>attempts(q)>0).sort(sortNewest));
+  else if(mode==='wrong') candidates=candidates.filter(q=>wrong(q)>0).concat(candidates.filter(q=>wrong(q)===0).sort(sortNewest));
+  else if(mode==='bookmarked') candidates=candidates.filter(q=>q.bookmarked===true).concat(candidates.filter(q=>!q.bookmarked).sort(sortNewest));
+  else if(mode==='weak') {const weak=new Set(weakTopicIds()); candidates.sort((a,b)=>{const aw=weak.has(a.topicId)?0:1,bw=weak.has(b.topicId)?0:1; return aw-bw||wrong(b)-wrong(a);});}
+  else if(mode==='mixed'){
+    const groups=[candidates.filter(q=>attempts(q)===0),candidates.filter(q=>wrong(q)>0),candidates.filter(q=>q.bookmarked===true),shuffleArr(candidates)];
+    const seen=new Set(); candidates=[]; let round=0; while(candidates.length<pool.length && round<pool.length*2){const g=groups[round%groups.length]; const q=g[Math.floor(round/groups.length)]; if(q&&!seen.has(q.id)){seen.add(q.id); candidates.push(q);} round++;}
+  } else candidates=shuffleArr(candidates);
+  return candidates.slice(0,count);
 }
 function startExamFor(subjectIds, topicIds){
   ExamSetup=freshSetup();
   ExamSetup.subjectIds=subjectIds||[]; ExamSetup.topicIds=topicIds||[];
+  ExamSetup.wizardStep = 1; // Skip center, start at Type
   navigate('exam/setup');
 }
 function shuffleArr(a){const arr=[...a]; for(let i=arr.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1)); [arr[i],arr[j]]=[arr[j],arr[i]];} return arr;}
@@ -1367,11 +2184,30 @@ function shuffleArr(a){const arr=[...a]; for(let i=arr.length-1;i>0;i--){const j
 async function beginExam(){
   const st=ExamSetup;
   let pool=CACHE.questions;
-  if(st.topicIds.length>0) pool=pool.filter(q=>st.topicIds.includes(q.topicId));
+  if(st.onlyQuestionIds && st.onlyQuestionIds.length) pool=pool.filter(q=>st.onlyQuestionIds.includes(q.id));
+  else if(st.mode==='mistake') {
+    const qids=CACHE.mistakes.map(m=>m.questionId);
+    pool=pool.filter(q=>qids.includes(q.id));
+  }
+  else if(st.topicIds.length>0) pool=pool.filter(q=>st.topicIds.includes(q.topicId));
   else if(st.subjectIds.length>0) pool=pool.filter(q=>st.subjectIds.includes(q.subjectId));
   if(pool.length===0){toast('No questions available for this selection'); return;}
-  let selected = st.randomizeQ ? shuffleArr(pool) : pool;
-  selected = selected.slice(0, Math.min(st.totalCount, selected.length));
+  let selected=[];
+  const distributionTopicIds = st.distribution==='custom' ? (st.topicIds.length ? st.topicIds : [...new Set(pool.map(q=>q.topicId))]) : [];
+  const requestedCount = st.distribution==='custom' ? distributionTopicIds.reduce((sum,topicId)=>sum+(parseInt(st.customCounts[topicId])||0),0) : st.totalCount;
+  if(requestedCount<=0){toast('Choose at least one question in the custom distribution'); return;}
+  if(st.distribution==='custom' && distributionTopicIds.length){
+    const used=new Set();
+    distributionTopicIds.forEach(topicId=>{
+      const want=Math.max(0,parseInt(st.customCounts[topicId])||0);
+      const topicPool=pool.filter(q=>q.topicId===topicId && !used.has(q.id));
+      selectQuestionsByMode(topicPool,st.selectionMode||'random',want).forEach(q=>{if(!used.has(q.id)){used.add(q.id); selected.push(q);}});
+    });
+    if(selected.length<requestedCount) selectQuestionsByMode(pool.filter(q=>!used.has(q.id)),st.selectionMode||'random',requestedCount-selected.length).forEach(q=>selected.push(q));
+  } else {
+    selected=selectQuestionsByMode(pool,st.selectionMode|| (st.randomizeQ?'random':'newest'),Math.min(requestedCount,pool.length));
+  }
+  selected = selected.slice(0, Math.min(requestedCount, selected.length));
 
   const questions = selected.map(q=>{
     let optOrder=[0,1,2,3];
@@ -1382,14 +2218,18 @@ async function beginExam(){
   });
 
   const startTime=Date.now();
-  const durationSec = st.mode==='mock' ? st.duration*60 : null;
+  const durationSec = (st.mode==='mock' && st.duration > 0) ? st.duration*60 : null;
   const exam={
     id:uid(), mode:st.mode, questionIds:questions.map(q=>q.id), questions,
     currentIndex:0, selectedAnswers:{}, startTime,
     duration: durationSec,
-    endTime: st.mode==='mock' ? (startTime + durationSec*1000) : null,
-    negative: st.mode==='mock' ? st.negative : 0,
+    endTime: durationSec ? (startTime + durationSec*1000) : null,
+    negative: (st.mode==='mock' || st.mode==='custom') ? st.negative : 0,
     status:'running', isSubmitting:false, configuration:{...st},
+    bookmarks: new Set(),
+    flags: new Set(),
+    timing: {}, // qid -> {ms, startedAt, answeredAt}
+    questionStartedAt:Object.fromEntries(questions.map(q=>[q.id,startTime])),
     flashResults:{} // for flash mode: qid -> {correct:bool}
   };
   await dbPut('exams', exam);
@@ -1458,41 +2298,103 @@ function renderExamRunning(){
 
 function renderMockRunning(){
   const e=ActiveExam;
-  const q=e.questions[e.currentIndex];
-  const sel=e.selectedAnswers[q.id];
-  const answeredCount=Object.keys(e.selectedAnswers).length;
   const remaining=computeRemaining(e);
   const timerCls=timerVisualClass(remaining);
+  const answeredCount=Object.keys(e.selectedAnswers).length;
+  const progress = Math.round((answeredCount / e.questions.length) * 100);
+
   const html=`
-  <div class="row between" style="margin-bottom:10px;">
-    <div class="muted">Question ${e.currentIndex+1} / ${e.questions.length}</div>
-    <div class="timerbox ${timerCls}" id="examTimer">${fmtTime(remaining)}</div>
-  </div>
-  <div class="card">
-    <div style="font-size:15.5px; font-weight:600; margin-bottom:12px;">${esc(q.question)}</div>
-    ${q.options.map((o,i)=>`
-      <div class="opt ${sel===i?'selected':''}" onclick="selectMockAnswer('${q.id}',${i})">
-        <div class="let">${String.fromCharCode(65+i)}</div><div>${esc(o)}</div>
-      </div>`).join('')}
-  </div>
-  <div class="row">
-    <button class="btn ghost" style="flex:1" onclick="mockNav(-1)" ${e.currentIndex===0?'disabled':''}>Previous</button>
-    <button class="btn ghost" style="flex:1" onclick="skipMock()">Skip</button>
-    <button class="btn" style="flex:1" onclick="mockNav(1)">${e.currentIndex===e.questions.length-1?'Review':'Next'}</button>
-  </div>
-  <div class="card" style="margin-top:12px;">
-    <div class="muted">${answeredCount}/${e.questions.length} answered</div>
-    <div class="qnav">
-      ${e.questions.map((qq,i)=>`<button class="qnavbtn ${e.selectedAnswers[qq.id]!==undefined?'answered':''} ${i===e.currentIndex?'current':''}" onclick="jumpMock(${i})">${i+1}</button>`).join('')}
+  <div class="topbar" style="position:fixed; top:0; left:0; right:0; max-width:560px; margin:0 auto; z-index:100; background:var(--card); border-bottom:1px solid var(--line); padding:10px 16px;">
+    <div class="row between" style="width:100%;">
+      <div style="flex:1;">
+        <div class="row between">
+          <b style="font-size:14px;">${e.mode.toUpperCase()} TEST</b>
+          <div class="timerbox ${timerCls}" id="examTimer" style="font-size:16px;">${e.duration ? fmtTime(remaining) : '∞'}</div>
+        </div>
+        <div class="progbar" style="margin-top:6px; height:4px;"><div style="width:${progress}%"></div></div>
+      </div>
+      <button class="btn sm danger" style="margin-left:12px; width:auto;" onclick="confirmSubmitExam()">Submit</button>
     </div>
   </div>
-  <button class="btn danger" style="margin-top:12px;" onclick="confirmSubmitExam()">Submit Exam</button>
+
+  <div id="examScrollContainer" style="padding-top:75px; padding-bottom:140px;">
+    ${e.questions.map((q,idx)=>`
+      <div id="q-row-${idx}" class="card exam-q-card" style="margin-bottom:16px; border-left:4px solid ${e.selectedAnswers[q.id]!==undefined?'var(--emerald)':'transparent'};">
+        <div class="row between" style="margin-bottom:12px;">
+          <span class="pill">Q${idx+1}</span>
+          <div class="row">
+            <button class="iconbtn ${e.bookmarks.has(q.id)?'explorer-bookmark':''}" onclick="toggleExamBookmark('${q.id}')">${e.bookmarks.has(q.id)?'★':'☆'}</button>
+            <button class="iconbtn" style="color:${e.flags.has(q.id)?'var(--red)':'var(--sub)'}" onclick="toggleExamFlag('${q.id}')">🚩</button>
+          </div>
+        </div>
+        <div style="font-size:15px; font-weight:700; line-height:1.5; margin-bottom:16px;">${esc(q.question)}</div>
+        <div class="options-list">
+          ${q.options.map((o,i)=>`
+            <div class="opt ${e.selectedAnswers[q.id]===i?'selected':''}" onclick="selectMockAnswer('${q.id}',${i})">
+              <div class="let">${String.fromCharCode(65+i)}</div><div>${esc(o)}</div>
+            </div>`).join('')}
+        </div>
+        ${e.selectedAnswers[q.id]!==undefined ? `<button class="btn ghost sm" style="margin-top:12px; font-size:11px; padding:4px 8px;" onclick="selectMockAnswer('${q.id}',${e.selectedAnswers[q.id]})">Clear Selection</button>` : ''}
+      </div>
+    `).join('')}
+  </div>
+
+  <div class="exam-nav-footer">
+    <div style="flex:1;">
+      <div class="row between" style="margin-bottom:6px;">
+        <span style="font-size:12px; font-weight:700;">NAVIGATOR</span>
+        <select onchange="window.examNavFilter=this.value; render()" style="width:auto; font-size:11px; padding:4px 8px; border-radius:8px;">
+          <option value="all" ${window.examNavFilter==='all'?'selected':''}>All Questions</option>
+          <option value="unanswered" ${window.examNavFilter==='unanswered'?'selected':''}>Unanswered</option>
+          <option value="answered" ${window.examNavFilter==='answered'?'selected':''}>Answered</option>
+          <option value="flagged" ${window.examNavFilter==='flagged'?'selected':''}>Flagged</option>
+        </select>
+      </div>
+      <div class="qnav" style="grid-template-columns:repeat(8,1fr); max-height:70px; overflow-y:auto; gap:4px;">
+        ${e.questions.map((qq,i)=>{
+          const isAnswered = e.selectedAnswers[qq.id]!==undefined;
+          const isFlagged = e.flags.has(qq.id);
+          const filter = window.examNavFilter || 'all';
+          if(filter==='unanswered' && isAnswered) return '';
+          if(filter==='answered' && !isAnswered) return '';
+          if(filter==='flagged' && !isFlagged) return '';
+
+          return `<button class="qnavbtn ${isAnswered?'answered':''} ${isFlagged?'pill red':''}"
+            style="aspect-ratio:1; padding:0; font-size:10px; ${isFlagged?'border-color:var(--red); color:var(--red);':''}"
+            onclick="scrollToQuestion(${i})">${i+1}</button>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>
   `;
-  renderShell(html, {title:'Mock Test', hideNav:true});
+  renderShell(html, {topbar:false, hideNav:true});
+}
+function scrollToQuestion(idx){
+  const el=document.getElementById('q-row-'+idx);
+  if(el){
+    window.scrollTo({top: el.offsetTop - 80, behavior:'smooth'});
+    document.querySelectorAll('.exam-q-card').forEach(c=>c.style.borderColor='transparent');
+    el.style.borderColor='var(--emerald)';
+  }
+}
+async function toggleExamBookmark(qid){
+  const e=ActiveExam;
+  if(e.bookmarks.has(qid)) e.bookmarks.delete(qid); else e.bookmarks.add(qid);
+  await dbPut('exams',e); render();
+}
+async function toggleExamFlag(qid){
+  const e=ActiveExam;
+  if(e.flags.has(qid)) e.flags.delete(qid); else e.flags.add(qid);
+  await dbPut('exams',e); render();
 }
 async function selectMockAnswer(qid,idx){
-  ActiveExam.selectedAnswers[qid]=idx;
-  await dbPut('exams',ActiveExam);
+  const e=ActiveExam;
+  if(e.selectedAnswers[qid]===idx) delete e.selectedAnswers[qid];
+  else {
+    e.selectedAnswers[qid]=idx;
+    if(!e.timing[qid]) e.timing[qid]={ms:Math.max(0,Date.now()-(e.questionStartedAt&&e.questionStartedAt[qid]||e.startTime)),startedAt:e.questionStartedAt&&e.questionStartedAt[qid]||e.startTime,answeredAt:Date.now()};
+  }
+  await dbPut('exams',e);
   render();
 }
 function mockNav(dir){
@@ -1513,8 +2415,17 @@ function skipMock(){
 }
 function confirmSubmitExam(){
   const e=ActiveExam;
-  const unanswered=e.questions.length-Object.keys(e.selectedAnswers).length;
-  confirmModal('Submit Exam', unanswered>0? `${unanswered} question(s) still unanswered. Submit anyway?` : 'Submit your answers now?', ()=>submitExam(false), 'Submit');
+  const answered=Object.keys(e.selectedAnswers).length;
+  const unanswered=e.questions.length-answered;
+  const flagged=e.flags.size;
+  confirmModal('Submit Exam', `
+    <div style="text-align:center; padding:10px 0;">
+      <div class="row between" style="margin-bottom:8px;"><span>Answered:</span><b>${answered}</b></div>
+      <div class="row between" style="margin-bottom:8px;"><span>Unanswered:</span><b>${unanswered}</b></div>
+      <div class="row between"><span>Flagged for Review:</span><b style="color:var(--red);">${flagged}</b></div>
+    </div>
+    <div class="muted" style="margin-top:10px;">Are you sure you want to submit? This action cannot be undone.</div>
+  `, ()=>submitExam(false), 'Submit Exam');
 }
 
 /* ---- Flash Test ---- */
@@ -1553,6 +2464,7 @@ async function selectFlashAnswer(qid,idx){
   const correct = idx===q.answerIndex;
   e.flashResults[qid]={selected:idx, correct};
   e.selectedAnswers[qid]=idx;
+  if(!e.timing[qid]) e.timing[qid]={ms:Math.max(0,Date.now()-(e.questionStartedAt&&e.questionStartedAt[qid]||e.startTime)),startedAt:e.questionStartedAt&&e.questionStartedAt[qid]||e.startTime,answeredAt:Date.now()};
   await dbPut('exams',e);
   render();
 }
@@ -1565,45 +2477,62 @@ function flashNext(){
 /* ---- submit & scoring (shared) ---- */
 async function submitExam(autoSubmit){
   const e=ActiveExam;
-  if(!e || e.isSubmitting) return; // anti-double-submit: manual + auto-submit racing yields exactly one result
+  if(!e || e.isSubmitting) return;
   e.isSubmitting=true;
   clearInterval(timerHandle);
   const timeUsed = e.mode==='mock' ? (e.duration-computeRemaining(e)) : Math.round((Date.now()-e.startTime)/1000);
   let correct=0, wrong=0, skipped=0;
+
+  const topicBreakdown = {};
+  const subjectBreakdown = {};
   const snapshot=e.questions.map(q=>{
     const sel=e.selectedAnswers[q.id];
     let status;
     if(sel===undefined){status='skipped'; skipped++;}
     else if(sel===q.answerIndex){status='correct'; correct++;}
     else {status='wrong'; wrong++;}
+
+    if(!topicBreakdown[q.topicId]) topicBreakdown[q.topicId] = {id:q.topicId,name:topicName(q.topicId), subName:subjectName(q.subjectId), total:0, correct:0, wrong:0, skipped:0};
+    topicBreakdown[q.topicId].total++;
+    topicBreakdown[q.topicId][status]++;
+    if(!subjectBreakdown[q.subjectId]) subjectBreakdown[q.subjectId] = {id:q.subjectId,name:subjectName(q.subjectId), total:0, correct:0, wrong:0, skipped:0};
+    subjectBreakdown[q.subjectId].total++;
+    subjectBreakdown[q.subjectId][status]++;
+
     return {questionId:q.id, subjectId:q.subjectId, topicId:q.topicId, question:q.question,
-      options:q.options, answerIndex:q.answerIndex, selected: sel===undefined?null:sel, status, explanation:q.explanation};
+      options:q.options, answerIndex:q.answerIndex, selected: sel===undefined?null:sel, status, explanation:q.explanation,
+      timing:e.timing&&e.timing[q.id]?e.timing[q.id]:null, bookmarked:e.bookmarks&&e.bookmarks.has(q.id), flagged:e.flags&&e.flags.has(q.id)};
   });
-  const positive = correct*1;
+
+  const positive = correct * (e.configuration.marksPerQ || 1);
   const negative = round2(wrong*(e.negative||0));
   const score = round2(positive-negative);
   const accuracy = (correct+wrong)>0 ? round2(correct/(correct+wrong)*100) : 0;
+  const attemptRate = e.questions.length ? round2((correct+wrong)/e.questions.length*100) : 0;
+  const timed = snapshot.map(s=>({questionId:s.questionId,status:s.status,ms:s.timing&&s.timing.ms||0})).filter(x=>x.ms>0);
+  const fastest=timed.length?timed.reduce((a,b)=>a.ms<=b.ms?a:b):null;
+  const slowest=timed.length?timed.reduce((a,b)=>a.ms>=b.ms?a:b):null;
+  const timeAnalysis={averageSeconds:round2(timeUsed/Math.max(1,e.questions.length)),fastestQuestionId:fastest&&fastest.questionId||null,fastestSeconds:fastest?round2(fastest.ms/1000):null,slowestQuestionId:slowest&&slowest.questionId||null,slowestSeconds:slowest?round2(slowest.ms/1000):null,classified:timed.map(x=>({questionId:x.questionId,status:x.status,seconds:round2(x.ms/1000),speed:x.ms<=((timeUsed*1000)/Math.max(1,e.questions.length))?'fast':'slow'}))};
 
   const result={
     id:uid(), examId:e.id, date:Date.now(), mode:e.mode,
     subjects:[...new Set(snapshot.map(s=>subjectName(s.subjectId)))],
     topics:[...new Set(snapshot.map(s=>topicName(s.topicId)))],
     questionCount:e.questions.length, correct, wrong, skipped,
-    score, positive, negative, accuracy,
+    score, positive, negative, accuracy, attemptRate,
     duration: e.duration||null, timeUsed, autoSubmit:!!autoSubmit,
-    configuration:e.configuration, snapshot
+    configuration:e.configuration, snapshot, topicBreakdown, subjectBreakdown, timeAnalysis,
+    bookmarks:[...(e.bookmarks||[])], flags:[...(e.flags||[])], timing:Object.fromEntries(snapshot.map(s=>[s.questionId,s.timing||null]))
   };
   await dbPut('examResults', result);
 
-  // mistakes
   for(const s of snapshot){
     if(s.status==='wrong'){
       let m=CACHE.mistakes.find(x=>x.questionId===s.questionId);
       if(!m) m={id:uid(), questionId:s.questionId, wrongCount:0, revisionStatus:'pending'};
-      m.wrongCount=(m.wrongCount||0)+1; m.lastWrongAt=Date.now(); m.examId=result.id;
+      m.wrongCount=(m.wrongCount||0)+1; m.lastWrongAt=Date.now(); m.examId=result.id; m.subjectId=s.subjectId; m.topicId=s.topicId;
       await dbPut('mistakes', m);
     }
-    // update question stats
     const qd=CACHE.questions.find(x=>x.id===s.questionId);
     if(qd){
       qd.stats=qd.stats||{attempts:0,correct:0,wrong:0};
@@ -1613,9 +2542,15 @@ async function submitExam(autoSubmit){
       await dbPut('questions', qd);
     }
   }
-  // activity log for streak
-  await dbPut('activityLogs',{id:uid(), day:todayKey(), examId:result.id, ts:Date.now()});
 
+  if(e.bookmarks && e.bookmarks.size>0){
+    for(const qid of e.bookmarks){
+      const q=CACHE.questions.find(x=>x.id===qid);
+      if(q){ q.bookmarked=true; await dbPut('questions',q); }
+    }
+  }
+
+  await dbPut('activityLogs',{id:uid(), day:todayKey(), examId:result.id, ts:Date.now()});
   e.status='completed';
   await dbPut('exams', e);
   await loadCache();
@@ -1632,40 +2567,170 @@ function renderExamResult(){
   if(!r){navigate('dashboard'); return;}
   renderResultView(r, true);
 }
+function resultSubjectBreakdown(r){
+  if(r.subjectBreakdown) return Object.values(r.subjectBreakdown);
+  const out={}; (r.snapshot||[]).forEach(s=>{const k=s.subjectId||'unknown'; if(!out[k]) out[k]={id:k,name:subjectName(k),total:0,correct:0,wrong:0,skipped:0}; out[k].total++; out[k][s.status]++;}); return Object.values(out);
+}
+function resultTopicBreakdown(r){
+  if(r.topicBreakdown) return Object.values(r.topicBreakdown);
+  const out={}; (r.snapshot||[]).forEach(s=>{const k=s.topicId||'unknown'; if(!out[k]) out[k]={id:k,name:topicName(k),subName:subjectName(s.subjectId),total:0,correct:0,wrong:0,skipped:0}; out[k].total++; out[k][s.status]++;}); return Object.values(out);
+}
+function resultTimeAnalysis(r){
+  return r.timeAnalysis||{averageSeconds:round2((r.timeUsed||0)/Math.max(1,r.questionCount||r.snapshot?.length||1)),fastestSeconds:null,slowestSeconds:null,classified:[]};
+}
+function resultPerformanceMessage(r){const a=Number(r.accuracy||0); if(a>=90) return 'Outstanding work — your accuracy is exam-ready.'; if(a>=75) return 'Strong performance — refine the remaining weak areas.'; if(a>=50) return 'Good foundation — targeted revision can lift your score quickly.'; return 'Use the mistake bank and smart revision to rebuild the weak areas.';}
+function openResultSubject(subjectId){ExplorerState.query=''; ExplorerState.subjectId=subjectId; ExplorerState.topicId=''; ExplorerState.status='all'; ExplorerState.difficulty='all'; ExplorerState.bookmarked=false; ExplorerState.mistakes=false; ExplorerState.recentlyAdded=false; ExplorerState.visibleCount=40; ExplorerState.selected.clear(); navigate('question-bank');}
+function openResultTopic(topicId){ExplorerState.query=''; ExplorerState.subjectId=''; ExplorerState.topicId=topicId; ExplorerState.status='all'; ExplorerState.difficulty='all'; ExplorerState.bookmarked=false; ExplorerState.mistakes=false; ExplorerState.recentlyAdded=false; ExplorerState.visibleCount=40; ExplorerState.selected.clear(); navigate('question-bank');}
+function retryStoredResult(resultId,mode,kind){const r=CACHE.examResults.find(x=>x.id===resultId)||LastResult; if(r) retryResultQuestions(r,mode,kind);}
+function retryResultQuestions(r,mode,kind){
+  let rows=(r.snapshot||[]).filter(s=>kind==='wrong'?s.status==='wrong':kind==='skipped'?s.status==='skipped':true);
+  if(kind==='weak'){const weak=new Set(resultTopicBreakdown(r).filter(t=>t.total&&t.correct/t.total<.7).map(t=>t.id)); rows=(r.snapshot||[]).filter(s=>weak.has(s.topicId));}
+  const ids=[...new Set(rows.map(s=>s.questionId))]; if(!ids.length){toast('No matching questions for this revision set'); return;}
+  ExamSetup=freshSetup(); ExamSetup.mode=mode; ExamSetup.onlyQuestionIds=ids; ExamSetup.totalCount=ids.length; ExamSetup.selectionMode='mixed'; ExamSetup.randomizeQ=true; navigate('exam/setup');
+}
 function renderResultView(r, isFresh){
-  const filtered = r.snapshot.filter(s=> ResultFilter==='all' ? true : s.status===ResultFilter);
+  const filtered = (r.snapshot||[]).filter(s=> ResultFilter==='all' ? true : s.status===ResultFilter);
+  const timePerQ = r.timeUsed / (r.correct + r.wrong + r.skipped || 1);
+  const subjects=resultSubjectBreakdown(r), topics=resultTopicBreakdown(r), timeAnalysis=resultTimeAnalysis(r);
+
+  // Readiness calculation
+  const recentExams = CACHE.examResults.slice(-5);
+  const avgAccuracy = recentExams.length ? recentExams.reduce((a,b)=>a+b.accuracy,0)/recentExams.length : r.accuracy;
+  const readiness = Math.min(100, Math.round((avgAccuracy * 0.6) + (r.attemptRate * 0.2) + (Math.min(100, (60/Math.max(1, timeAnalysis.averageSeconds))*100) * 0.2)));
+
+  // Comparison logic
+  const prevResult = CACHE.examResults.length > 1 ? CACHE.examResults[CACHE.examResults.length-2] : null;
+
   const html=`
-  <div class="card" style="text-align:center;">
-    <div class="muted">${r.mode==='mock'?'Mock Test':'Flash Test'} Result</div>
-    <div class="big" style="font-size:34px; margin:6px 0;">${r.score}</div>
-    <div class="muted">${r.accuracy}% accuracy</div>
+  <div class="card premium-card" style="text-align:center; padding:28px 16px; position:relative; overflow:hidden;">
+    <div style="position:absolute; top:-20px; right:-20px; font-size:120px; opacity:0.1; pointer-events:none;">🎓</div>
+    <div class="muted" style="text-transform:uppercase; letter-spacing:2px; font-size:10px; font-weight:800; color:rgba(255,255,255,0.7);">${r.mode.toUpperCase()} TEST RESULT</div>
+    <div class="row center" style="gap:24px; margin:20px 0; align-items:center; justify-content:center;">
+      <div style="width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,0.15); display:grid; place-items:center; position:relative;">
+        <svg width="110" height="110" viewBox="0 0 100 100" style="position:absolute; transform:rotate(-90deg);">
+          <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="8" />
+          <circle cx="50" cy="50" r="45" fill="none" stroke="#fff" stroke-width="8" stroke-dasharray="${282.7 * (r.accuracy/100)} 282.7" stroke-linecap="round" style="transition: stroke-dasharray 1s ease-out;" />
+        </svg>
+        <div style="font-size:26px; font-weight:900; color:#fff;">${r.accuracy}%</div>
+      </div>
+      <div style="text-align:left;">
+        <div style="font-size:48px; font-weight:900; line-height:1; color:#fff;">${r.score.toFixed(2)}</div>
+        <div style="font-size:12px; font-weight:700; color:rgba(255,255,255,0.8); margin-top:4px;">FINAL SCORE</div>
+      </div>
+    </div>
+    <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:10px; font-size:13px; font-weight:600;">
+      ${resultPerformanceMessage(r)}
+    </div>
   </div>
-  <div class="stat-grid">
-    <div class="stat-card"><div class="v">${r.correct}</div><div class="l">Correct</div></div>
-    <div class="stat-card"><div class="v">${r.wrong}</div><div class="l">Wrong</div></div>
-    <div class="stat-card"><div class="v">${r.skipped}</div><div class="l">Skipped</div></div>
-    <div class="stat-card"><div class="v">${fmtTime(r.timeUsed)}</div><div class="l">Time Used</div></div>
-    <div class="stat-card"><div class="v">+${r.positive}</div><div class="l">Positive</div></div>
-    <div class="stat-card"><div class="v">-${r.negative}</div><div class="l">Negative</div></div>
+
+  <div class="h2">Practice Readiness Score</div>
+  <div class="card">
+    <div class="row between"><span class="muted">Readiness Level</span><b style="color:var(--emerald-d);">${readiness}%</b></div>
+    <div class="readiness-meter"><div class="readiness-fill" style="width:${readiness}%"></div></div>
+    <p class="muted" style="font-size:11px; margin-top:8px;">*Calculated based on recent accuracy, speed, and consistency.</p>
   </div>
-  <div class="tabs" style="margin-top:14px;">
-    ${['all','correct','wrong','skipped'].map(f=>`<div class="tab ${ResultFilter===f?'active':''}" onclick="ResultFilter='${f}'; render();">${f[0].toUpperCase()+f.slice(1)}</div>`).join('')}
-  </div>
-  ${filtered.map((s,i)=>`
+
+  ${prevResult ? `
+    <div class="h2">Comparison with Previous</div>
     <div class="card">
-      <div class="muted">Q${r.snapshot.indexOf(s)+1} · <span class="pill ${s.status==='correct'?'':(s.status==='wrong'?'red':'orange')}">${s.status}</span></div>
-      <div style="margin:6px 0; font-weight:600;">${esc(s.question)}</div>
-      ${s.options.map((o,idx)=>{
-        let cls='';
-        if(idx===s.answerIndex) cls='correct'; else if(idx===s.selected && s.status==='wrong') cls='wrong';
-        return `<div class="opt ${cls}" style="cursor:default;"><div class="let">${String.fromCharCode(65+idx)}</div><div>${esc(o)}</div></div>`;
-      }).join('')}
-      <div class="muted">Your answer: ${s.selected===null?'Not Answered':String.fromCharCode(65+s.selected)}</div>
-      ${s.explanation? `<div class="muted" style="margin-top:6px;"><b>Explanation:</b> ${esc(s.explanation)}</div>`:''}
-    </div>`).join('')}
-  ${isFresh? `<button class="btn secondary" onclick="navigate('dashboard')">Back to Dashboard</button>` : ''}
+      <div class="comparison-grid">
+        <div class="comparison-val"><div class="label">Previous</div><div class="value">${prevResult.score.toFixed(2)}</div></div>
+        <div class="comparison-trend ${r.score >= prevResult.score ? 'trend-up' : 'trend-down'}">${r.score >= prevResult.score ? '▲' : '▼'} ${Math.abs(r.score - prevResult.score).toFixed(2)}</div>
+        <div class="comparison-val"><div class="label">Current</div><div class="value">${r.score.toFixed(2)}</div></div>
+      </div>
+      <div class="divider"></div>
+      <div class="row between" style="font-size:12px;">
+        <span class="muted">Accuracy Change</span>
+        <b class="${r.accuracy >= prevResult.accuracy ? 'trend-up' : 'trend-down'}">${r.accuracy >= prevResult.accuracy ? '+' : ''}${Math.round(r.accuracy - prevResult.accuracy)}%</b>
+      </div>
+    </div>
+  ` : ''}
+
+  <div class="h2">Score Breakdown</div>
+  <div class="card">
+    <div class="summary-item"><span class="summary-label">Total Questions</span><span class="summary-value">${r.questionCount}</span></div>
+    <div class="summary-item"><span class="summary-label">Correct (+${r.configuration?.marksPerQ||1} each)</span><span class="summary-value" style="color:var(--green);">+${r.positive.toFixed(2)}</span></div>
+    <div class="summary-item"><span class="summary-label">Wrong (-${r.negative ? r.configuration?.negative||0 : 0} each)</span><span class="summary-value" style="color:var(--red);">${r.negative > 0 ? '-' : ''}${r.negative.toFixed(2)}</span></div>
+    <div class="summary-item" style="border-top:1px solid var(--line); margin-top:8px; padding-top:12px;"><span class="summary-label" style="font-weight:800; color:var(--text);">Final Marks</span><span class="summary-value" style="font-size:18px; color:var(--emerald-d);">${r.score.toFixed(2)} / ${(r.questionCount * (r.configuration?.marksPerQ||1)).toFixed(2)}</span></div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat-card"><div class="v" style="color:var(--green);">${r.correct}</div><div class="l">Correct</div></div>
+    <div class="stat-card"><div class="v" style="color:var(--red);">${r.wrong}</div><div class="l">Wrong</div></div>
+    <div class="stat-card"><div class="v">${r.skipped}</div><div class="l">Skipped</div></div>
+    <div class="stat-card"><div class="v">${r.attemptRate}%</div><div class="l">Attempt Rate</div></div>
+  </div>
+
+  <div class="h2">Time Analysis</div>
+  <div class="card">
+    <div class="grid2">
+      <div><div class="muted">Total Time</div><div style="font-weight:700;">${fmtTime(r.timeUsed)}</div></div>
+      <div><div class="muted">Avg / Question</div><div style="font-weight:700;">${timeAnalysis.averageSeconds}s</div></div>
+    </div>
+    <div class="divider"></div>
+    <div class="row between">
+      <span class="muted">Answering Speed</span>
+      <span class="time-tag ${timeAnalysis.averageSeconds < 20 ? 'vfast' : timeAnalysis.averageSeconds < 45 ? 'normal' : 'slow'}">
+        ${timeAnalysis.averageSeconds < 20 ? '⚡ Very Fast' : timeAnalysis.averageSeconds < 45 ? '✓ Steady' : '🐢 Cautious'}
+      </span>
+    </div>
+  </div>
+
+  <div class="h2">Performance Analysis</div>
+  <div class="card">
+    <b style="font-size:13px;">Subject mastery</b>
+    ${subjects.map(sb=>{
+      const acc=sb.total?Math.round(sb.correct/sb.total*100):0;
+      return `<div class="card" style="margin:8px 0; padding:12px; background:var(--mint); border:none;">
+        <div class="row between">
+          <span><b>${esc(sb.name)}</b> <span class="muted">(${sb.correct}/${sb.total})</span></span>
+          <b style="color:${acc<50?'var(--red)':acc<80?'var(--orange)':'var(--emerald)'}">${acc}%</b>
+        </div>
+        <div class="progbar" style="height:6px; margin-top:8px;"><div style="width:${acc}%; background:${acc<50?'var(--red)':acc<80?'var(--orange)':'var(--emerald)'}"></div></div>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="h2">Question Review</div>
+  <div class="tabs">
+    ${['all','correct','wrong','skipped'].map(f=>`<div class="tab ${ResultFilter===f?'active':''}" onclick="ResultFilter='${f}'; render()">${f.toUpperCase()} (${f==='all'?r.snapshot.length:r[f]})</div>`).join('')}
+  </div>
+
+  <div id="resultReviewList">
+    ${filtered.map((s,idx)=>{
+      const isCareless = s.status==='wrong' && s.timing && s.timing.ms < 5000;
+      return `
+      <div class="card" style="padding:14px; border-left:4px solid ${s.status==='correct'?'var(--green)':s.status==='wrong'?'var(--red)':'var(--sub)'}">
+        <div class="row between" style="margin-bottom:8px;">
+          <span class="pill">Q${idx+1}</span>
+          <div class="row">
+            ${isCareless ? '<span class="careless-tag">⚠ Possible Careless</span>' : ''}
+            <span class="time-tag normal">${s.timing ? Math.round(s.timing.ms/1000)+'s' : '-'}</span>
+          </div>
+        </div>
+        <div style="font-size:14px; font-weight:700; margin-bottom:12px;">${esc(s.question)}</div>
+        <div style="font-size:13px; margin-bottom:8px;">
+          <div style="color:var(--sub);">Your Answer: <b style="color:${s.status==='correct'?'var(--green)':'var(--red)'}">${s.selected!==null?String.fromCharCode(65+s.selected):'Skipped'}</b></div>
+          <div style="color:var(--sub);">Correct Answer: <b style="color:var(--green);">${String.fromCharCode(65+s.answerIndex)}</b></div>
+        </div>
+        ${s.explanation ? `<div style="font-size:12px; padding:10px; background:var(--bg); border-radius:8px; margin-top:8px;"><b>Explanation:</b> ${esc(s.explanation)}</div>` : ''}
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div class="h2">Smart Revision</div>
+  <div class="grid2">
+    <button class="btn secondary sm" onclick="retryStoredResult('${r.id}','mock','wrong')">🔁 Retry Wrong</button>
+    <button class="btn secondary sm" onclick="retryStoredResult('${r.id}','flash','weak')">🎯 Practice Weak</button>
+    <button class="btn secondary sm" onclick="retryStoredResult('${r.id}','flash','all')">⚡ Flash Review</button>
+    <button class="btn secondary sm" onclick="navigate('question-bank')">📚 Browse Bank</button>
+  </div>
+
+  <div style="margin-top:20px;">
+    <button class="btn" onclick="navigate('dashboard')">Back to Dashboard</button>
+  </div>
   `;
-  renderShell(html, {title:'Result', back: isFresh? "navigate('dashboard')" : "navigate('history')"});
+  renderShell(html, {title:'Exam Result', back:"navigate('dashboard')"});
 }
 
 /* ================= HISTORY ================= */
@@ -1695,20 +2760,28 @@ function renderMistakes(){
     if(!q) return null;
     return {m,q};
   }).filter(Boolean);
-  const html = rows.length===0? emptyState('❌','কোনো ভুল প্রশ্ন নেই','চমৎকার! আপনার mistake bank খালি।') : `
-  <div class="row" style="margin-bottom:12px;">
-    <button class="btn" onclick="startMistakeExam('mock')">📝 Mock Test on Mistakes</button>
+
+  const html = rows.length===0? emptyState('❌','Mistake Bank is Empty','Great job! You have no pending mistakes to revise.') : `
+  <div class="explorer-head">
+    <h2 class="explorer-title">Mistake Bank</h2>
+    <p class="explorer-subtitle">You have ${rows.length} questions to master.</p>
   </div>
-  <div class="row" style="margin-bottom:12px;">
-    <button class="btn secondary" onclick="startMistakeExam('flash')">⚡ Flash Test on Mistakes</button>
+
+  <div class="grid2" style="margin-bottom:20px;">
+    <button class="btn sm" onclick="startMistakeExam('mock')">📝 Mock Revision</button>
+    <button class="btn secondary sm" onclick="startMistakeExam('flash')">⚡ Flash Revision</button>
   </div>
+
   ${rows.map(({m,q})=>`
-    <div class="card">
-      <div>${esc(q.question).slice(0,100)}${q.question.length>100?'...':''}</div>
-      <div class="row between" style="margin-top:8px;"><span class="pill red">Wrong ×${m.wrongCount}</span><span class="muted">${subjectName(q.subjectId)} · ${topicName(q.topicId)}</span></div>
+    <div class="card" onclick="startQuestionPractice(['${q.id}'])" style="cursor:pointer;">
+      <div style="font-size:14px; line-height:1.4;">${esc(q.question).slice(0,120)}${q.question.length>120?'...':''}</div>
+      <div class="row between" style="margin-top:10px;">
+        <span class="pill red" style="font-size:10px;">Failed ${m.wrongCount}x</span>
+        <span class="muted" style="font-size:10px;">${subjectName(q.subjectId)} · ${topicName(q.topicId)}</span>
+      </div>
     </div>`).join('')}
   `;
-  renderShell(html, {title:'Mistake Bank'});
+  renderShell(html, {title:'Mistake Bank', back:"navigate('exam')"});
 }
 async function startMistakeExam(mode){
   const qids=CACHE.mistakes.map(m=>m.questionId);
@@ -1717,10 +2790,8 @@ async function startMistakeExam(mode){
   ExamSetup=freshSetup();
   ExamSetup.mode=mode;
   ExamSetup.totalCount=pool.length;
-  // override beginExam pool by temporarily tagging topic/subject ids covering all mistakes
-  ExamSetup.subjectIds=[]; ExamSetup.topicIds=[];
-  MistakePoolOverride=pool.map(q=>q.id);
-  await beginExamFromPool(pool, mode);
+  ExamSetup.onlyQuestionIds = pool.map(q=>q.id);
+  await beginExam();
 }
 let MistakePoolOverride=null;
 async function beginExamFromPool(pool, mode){
@@ -1731,7 +2802,7 @@ async function beginExamFromPool(pool, mode){
   const mpDuration = mode==='mock'? 20*60 : null;
   const exam={id:uid(), mode, questionIds:questions.map(q=>q.id), questions, currentIndex:0, selectedAnswers:{},
     startTime:mpStart, duration: mpDuration, endTime: mode==='mock' ? (mpStart + mpDuration*1000) : null,
-    negative:0, status:'running', isSubmitting:false, configuration:{mistakeRevision:true}, flashResults:{}};
+    negative:0, status:'running', isSubmitting:false, configuration:{mistakeRevision:true}, bookmarks:new Set(), flags:new Set(), timing:{}, questionStartedAt:Object.fromEntries(questions.map(q=>[q.id,mpStart])), flashResults:{}};
   await dbPut('exams', exam);
   CACHE.exams=await dbGetAll('exams');
   ActiveExam=exam;
