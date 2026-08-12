@@ -273,6 +273,31 @@ label.flabel{font-size:12.5px; color:var(--sub); font-weight:600; margin:10px 0 
 	.time-tag.slow { background: #fef3c7; color: #d97706; }
 	.time-tag.vslow { background: #fee2e2; color: #ef4444; }
 
+	/* Phase 2 — Result & Deep Analysis styles */
+	.result-section-title{font-size:15px; font-weight:800; margin:20px 0 9px; color:var(--text);}
+	.result-mini-grid{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
+	.result-mini-card{background:var(--mint); border-radius:12px; padding:11px 12px;}
+	.result-mini-card .rmv{font-size:18px; font-weight:800; color:var(--emerald-d);}
+	.result-mini-card .rml{font-size:11px; color:var(--sub); margin-top:2px; line-height:1.35;}
+	.result-meta-chips{display:flex; flex-wrap:wrap; gap:5px; margin:8px 0 4px;}
+	.result-meta-chips .chip{font-size:10.5px; padding:5px 9px; margin:0;}
+	.insight-card{background:linear-gradient(135deg, var(--mint), color-mix(in srgb, var(--emerald) 10%, var(--mint))); border:1px solid color-mix(in srgb, var(--emerald) 22%, var(--line)); border-radius:14px; padding:14px; margin-bottom:16px;}
+	.insight-card .insight-icon{font-size:18px; margin-right:6px;}
+	.time-bars{display:flex; flex-direction:column; gap:7px; margin-top:10px;}
+	.time-bar-row{display:flex; align-items:center; gap:8px; font-size:11.5px;}
+	.time-bar-row .tqnum{width:30px; font-weight:800; color:var(--sub); flex-shrink:0;}
+	.time-bar-row .tqbar{flex:1; height:10px; background:var(--mint); border-radius:6px; overflow:hidden;}
+	.time-bar-row .tqbar>div{height:100%; border-radius:6px; background:var(--emerald);}
+	.time-bar-row .tqbar>div.slow{background:var(--red);}
+	.time-bar-row .tqbar>div.mid{background:var(--orange);}
+	.time-bar-row .tqsec{width:38px; text-align:right; font-weight:700; font-variant-numeric:tabular-nums; flex-shrink:0;}
+	.topic-level{font-size:10.5px; font-weight:800; padding:3px 8px; border-radius:8px; white-space:nowrap;}
+	.topic-level.strong{background:#dcfce7; color:#16a34a;}
+	.topic-level.medium{background:#fef3c7; color:#d97706;}
+	.topic-level.weak{background:#fee2e2; color:#ef4444;}
+	.mistake-mini{border-left:4px solid var(--red);}
+	.revision-note{font-size:11px; color:var(--sub); text-align:center; margin:8px 0 0;}
+
 	.exam-nav-footer { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + var(--safe-b)); z-index: 100; max-width: 560px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
 	</style>
 
@@ -371,6 +396,10 @@ function normalizeExamResult(r){
     negative:Number(r.negative??r.negativeMarks??0),
     accuracy:Number(r.accuracy??((correct+wrong)?correct/(correct+wrong)*100:0)),
     subjects:Array.isArray(r.subjects)?r.subjects:[], topics:Array.isArray(r.topics)?r.topics:[],
+    snapshot:Array.isArray(r.snapshot)?r.snapshot:[],
+    subjectBreakdown:r.subjectBreakdown||null, topicBreakdown:r.topicBreakdown||null,
+    timeAnalysis:r.timeAnalysis||null,
+    positive:Number(r.positive??0), score:Number(r.score??0), attemptRate:Number(r.attemptRate??0),
     testType:r.testType||((r.configuration&&r.configuration.testType)||((r.configuration&&r.configuration.mistakeRevision)?'mistake':(r.mode==='mock'?'mock':'flash')))
   };
 }
@@ -2591,6 +2620,8 @@ async function submitExam(autoSubmit){
 
 let LastResult=null;
 let ResultFilter='all';
+let ResultSubjectFilter='';
+let ResultTopicFilter='';
 function renderExamResult(){
   const r=LastResult || CACHE.examResults[CACHE.examResults.length-1];
   if(!r){navigate('dashboard'); return;}
@@ -2614,13 +2645,137 @@ function retryStoredResult(resultId,mode,kind){const r=CACHE.examResults.find(x=
 function retryResultQuestions(r,mode,kind){
   let rows=(r.snapshot||[]).filter(s=>kind==='wrong'?s.status==='wrong':kind==='skipped'?s.status==='skipped':true);
   if(kind==='weak'){const weak=new Set(resultTopicBreakdown(r).filter(t=>t.total&&t.correct/t.total<.7).map(t=>t.id)); rows=(r.snapshot||[]).filter(s=>weak.has(s.topicId));}
-  const ids=[...new Set(rows.map(s=>s.questionId))]; if(!ids.length){toast('No matching questions for this revision set'); return;}
-  ExamSetup=freshSetup(); ExamSetup.mode=mode; ExamSetup.revisionKind=kind==='weak'?'weak':kind==='wrong'?'mistake':''; ExamSetup.onlyQuestionIds=ids; ExamSetup.totalCount=ids.length; ExamSetup.selectionMode='mixed'; ExamSetup.randomizeQ=true; navigate('exam/setup');
+  const ids=[...new Set(rows.map(s=>s.questionId))];
+  if(!ids.length){ toast(kind==='weak'?'এই পরীক্ষায় দুর্বল topic-এর প্রশ্ন পাওয়া যায়নি — Lifetime Weak Topic Test ব্যবহার করো':(kind==='wrong'?'কোনো ভুল প্রশ্ন নেই — মাশাআল্লাহ!':'এই পরীক্ষার প্রশ্নগুলোই revision-এ নেওয়া হচ্ছে')); return; }
+  ExamSetup=freshSetup();
+  ExamSetup.mode=mode;
+  ExamSetup.revisionKind=kind==='weak'?'weak':kind==='wrong'?'mistake':kind==='all'?'flash':'';
+  ExamSetup.selectionMode=(mode==='flash'&&kind==='wrong')?'wrong':'mixed';
+  ExamSetup.onlyQuestionIds=ids; ExamSetup.totalCount=ids.length; ExamSetup.randomizeQ=kind!=='all'; ExamSetup.randomizeOpt=false;
+  navigate('exam/setup');
 }
+/* Lifetime-level weak topics (for Practice Weak button) — real attempt data only */
+function lifetimeWeakTopicIds(limit){
+  const by={};
+  CACHE.examResults.forEach(r=>{(r.snapshot||[]).forEach(s=>{if(!by[s.topicId]) by[s.topicId]={attempts:0,correct:0}; by[s.topicId].attempts++; if(s.status==='correct') by[s.topicId].correct++;});});
+  const sorted=Object.entries(by).filter(([,v])=>v.attempts>=2).sort((a,b)=>(a[1].correct/a[1].attempts)-(b[1].correct/b[1].attempts));
+  const ids=sorted.map(([id])=>id);
+  const weak=ids.filter(id=>{const v=by[id]; return v.attempts>0&&(v.correct/v.attempts)<0.7;});
+  return (limit?weak.slice(0,limit):weak);
+}
+function lifetimeWeakTopicPool(){
+  const weakIds=new Set(lifetimeWeakTopicIds());
+  if(!weakIds.size) return [];
+  return CACHE.questions.filter(q=>weakIds.has(q.topicId));
+}
+async function startResultWeakPractice(r){if(typeof r==='string') r=(CACHE.examResults.find(x=>x.id===r)||LastResult); if(!r){toast('পরীক্ষার ফলাফল পাওয়া যায়নি'); return;}
+  let pool=lifetimeWeakTopicPool();
+  if(!pool.length){
+    const weak=new Set(resultTopicBreakdown(r).filter(t=>t.total&&(t.correct/(t.correct+t.wrong))<0.7).map(t=>t.id));
+    pool=CACHE.questions.filter(q=>weak.has(q.topicId));
+  }
+  if(!pool.length){ toast('দুর্বল topic-এ পর্যাপ্ত প্রশ্ন পাওয়া যায়নি'); return; }
+  ExamSetup=freshSetup(); ExamSetup.mode='flash'; ExamSetup.revisionKind='weak'; ExamSetup.selectionMode='weak';
+  ExamSetup.onlyQuestionIds=pool.map(q=>q.id); ExamSetup.totalCount=pool.length; ExamSetup.randomizeQ=true;
+  await beginExam();
+}
+/* Flash Review: start a flash exam with only the wrong questions of this result */
+async function startResultFlashReview(r){if(typeof r==='string') r=(CACHE.examResults.find(x=>x.id===r)||LastResult); if(!r){toast('পরীক্ষার ফলাফল পাওয়া যায়নি'); return;}
+  const ids=[...new Set((r.snapshot||[]).filter(s=>s.status==='wrong').map(s=>s.questionId))];
+  if(!ids.length){ toast('কোনো ভুল প্রশ্ন নেই — flash review-এর জন্য আগে পরীক্ষায় ভুল করো'); return; }
+  ExamSetup=freshSetup(); ExamSetup.mode='flash'; ExamSetup.revisionKind='flash'; ExamSetup.selectionMode='wrong';
+  ExamSetup.onlyQuestionIds=ids; ExamSetup.totalCount=ids.length; ExamSetup.randomizeQ=true; ExamSetup.randomizeOpt=false;
+  await beginExam();
+}
+
+/* ---- Phase 2: Deep Analysis helpers (real exam data only) ---- */
+function resultWrongRows(r){ return (r.snapshot||[]).filter(s=>s.status==='wrong'); }
+function resultWeaknessLevel(acc){ if(!acc && acc!==0) return {label:'—', cls:''}; if(acc>=75) return {label:'শক্তিশালী', cls:'strong'}; if(acc>=50) return {label:'মাঝারি', cls:'medium'}; return {label:'দুর্বল', cls:'weak'}; }
+function resultTopStats(r){
+  const sn=r.snapshot||[];
+  const att=r.correct+r.wrong+r.skipped;
+  const accAtt=(r.correct+r.wrong)>0? Math.round(r.correct/(r.correct+r.wrong)*100):0;
+  const ta=r.timeAnalysis||{};
+  const timed=(sn||[]).filter(s=>s.timing&&s.timing.ms>0);
+  return {attempted:att, accAtt, avgMs:(sn.length&&ta.averageSeconds)?ta.averageSeconds:0, fastestMs:ta.fastestSeconds?ta.fastestSeconds*1000:null, slowestMs:ta.slowestSeconds?ta.slowestSeconds*1000:null, fastestQ:ta.fastestQuestionId||null, slowestQ:ta.slowestQuestionId||null};
+}
+/* Dynamic Bangla insight from actual result data */
+function resultBanglaInsight(r){
+  const parts=[];
+  const sb=resultSubjectBreakdown(r);
+  const tb=resultTopicBreakdown(r);
+  const acc=Number(r.accuracy||0);
+  const total=r.questionCount||0;
+  const skipped=r.skipped||0;
+  const wrong=(r.wrong||0), correct=(r.correct||0);
+  // overall
+  if(acc>=80) parts.push('এই পরীক্ষায় accuracy চমৎকার ('+Math.round(acc)+'%) — বেসিক কনসেপ্ট বহুটাই মজবুত, এই ধারা ধরে রাখো।');
+  else if(acc>=60) parts.push('তোমার বেসিক ভালো, কিন্তু কিছু জায়গায় ভুলের হার এখনো বেশি — টার্গেটেড রিভিশনে দ্রুত উন্নতি হবে।');
+  else if(total>0) parts.push('এই পরীক্ষায় ভুলের হার বেশি ('+Math.round(acc)+'% accuracy) — mistake bank ও smart revision ব্যবহার করে দুর্বল জায়গা থেকে শুরু করো।');
+  else parts.push('পরীক্ষা সম্পূর্ণ হয়েছে। নিচের বিশ্লেষণ থেকে তোমার শক্তি-দুর্বলতা জানে নেও।');
+  // subject best / worst
+  const withAtt=sb.filter(x=>(x.correct+x.wrong)>0);
+  if(withAtt.length>1){
+    const sorted=[...withAtt].sort((a,b)=>(b.correct/b.total)-(a.correct/a.total));
+    const best=sorted[0], worst=sorted[sorted.length-1];
+    const bAcc=Math.round(best.correct/best.total*100), wAcc=Math.round(worst.correct/worst.total*100);
+    parts.push('সাবজেক্ট অনুযায়ী সেরা অংশ: '+esc(best.name)+' ('+bAcc+'% accuracy), সবচেয়ে দুর্বল: '+esc(worst.name)+' ('+wAcc+'%)।');
+  } else if(withAtt.length===1){
+    parts.push('এই পরীক্ষায় শুধু '+esc(withAtt[0].name)+' সাবজেক্ট ছিল। accuracy: '+Math.round(withAtt[0].correct/withAtt[0].total*100)+'%।');
+  }
+  // skipped
+  if(skipped>=Math.max(1,Math.round(total*0.2))) parts.push('অনেকগুলো প্রশ্ন ('+skipped+') উত্তর দেওয়া হয়নি — সময় ব্যবস্থাপনা বা concept gap থাকতে পারে; পরবর্তী পরীক্ষায় skip কমানোর চেষ্টা করো।');
+  // weak topics
+  const weakTb=tb.filter(t=>t.total>0&&(t.correct+t.wrong)>0).map(t=>({t, acc:Math.round(t.correct/(t.correct+t.wrong)*100)})).filter(x=>x.acc<60).sort((a,b)=>a.acc-b.acc);
+  if(weakTb.length){
+    parts.push('রিভিশনে priority: '+weakTb.slice(0,3).map(x=>esc(x.t.name)+' ('+x.acc+'%)').join(', ')+weakTb.length>3?' সহ আরো কয়েকটি topic।':'।');
+  }
+  // speed
+  const st=resultTopStats(r);
+  if(st.avgMs>0){
+    if(st.avgMs<25) parts.push('তোমার answering speed দ্রুত ('+st.avgMs+'s/question) — কিন্তু careless ভুল এড়াতে একটু ভেবে উত্তর দেও।');
+    else if(st.avgMs<55) parts.push('তোমার answering speed স্বাভাবিক ('+st.avgMs+'s/question) — real exam-এ এই গতি বজায় রাখো।');
+    else parts.push('প্রতিটি প্রশ্নে অনেক সময় লাগছে ('+Math.round(st.avgMs)+'s) — shortcut technique প্র্যাকটিস করো।');
+  }
+  if(st.slowestQ){
+    const slowSnap=(r.snapshot||[]).find(s=>s.questionId===st.slowestQ);
+    if(slowSnap&&slowSnap.timing) parts.push('সবচেয়ে ধীর উত্তর: '+esc((slowSnap.question||'').slice(0,45))+'… — এই ধরনের প্রশ্নে সময় বেশি লেগেছে।');
+  }
+  return parts.join(' ');
+}
+function resultFilterRows(r){
+  const sn=r.snapshot||[];
+  const sf=ResultSubjectFilter, tf=ResultTopicFilter;
+  return sn.filter(s=>{
+    if(ResultFilter!=='all' && s.status!==ResultFilter) return false;
+    if(sf && s.subjectId!==sf) return false;
+    if(tf && s.topicId!==tf) return false;
+    return true;
+  });
+}
+function resultSubjectFilterOptions(r){
+  const sn=r.snapshot||[];
+  const ids=[...new Set(sn.map(s=>s.subjectId))].filter(Boolean);
+  return ids.map(id=>({id, name:subjectName(id), count:sn.filter(s=>s.subjectId===id).length})).sort((a,b)=>b.count-a.count);
+}
+function resultTopicFilterOptions(r){
+  const sn=r.snapshot||[];
+  const sf=ResultSubjectFilter;
+  const ids=[...new Set(sn.filter(s=>!sf||s.subjectId===sf).map(s=>s.topicId))].filter(Boolean);
+  return ids.map(id=>({id, name:topicName(id), subName:subjectName((sn.find(x=>x.topicId===id)||{}).subjectId||''), count:sn.filter(s=>s.topicId===id).length})).sort((a,b)=>b.count-a.count);
+}
+
 function renderResultView(r, isFresh){
-  const filtered = (r.snapshot||[]).filter(s=> ResultFilter==='all' ? true : s.status===ResultFilter);
-  const timePerQ = r.timeUsed / (r.correct + r.wrong + r.skipped || 1);
+  const filtered=resultFilterRows(r);
   const subjects=resultSubjectBreakdown(r), topics=resultTopicBreakdown(r), timeAnalysis=resultTimeAnalysis(r);
+  const wrongRows=resultWrongRows(r);
+  const sn=r.snapshot||[];
+  const attempted=(r.correct||0)+(r.wrong||0)+(r.skipped||0);
+  const attemptedQ=(r.correct||0)+(r.wrong||0);
+  const accAtt=attemptedQ>0? Math.round((r.correct||0)/attemptedQ*100):0;
+  const avgQ=r.questionCount? round2((r.timeUsed||0)/r.questionCount):0;
+  const maxPossible=r.questionCount*(r.configuration?.marksPerQ||1);
+  const negRate=(r.configuration&&Number(r.configuration.negative))||0;
 
   // Readiness calculation
   const recentExams = CACHE.examResults.slice(-5);
@@ -2631,9 +2786,9 @@ function renderResultView(r, isFresh){
   const prevResult = CACHE.examResults.length > 1 ? CACHE.examResults[CACHE.examResults.length-2] : null;
 
   const html=`
-  <div class="card premium-card" style="text-align:center; padding:28px 16px; position:relative; overflow:hidden;">
+  <div class="card premium-card" style="text-align:center; padding:26px 16px; position:relative; overflow:hidden;">
     <div style="position:absolute; top:-20px; right:-20px; font-size:120px; opacity:0.1; pointer-events:none;">🎓</div>
-    <div class="muted" style="text-transform:uppercase; letter-spacing:2px; font-size:10px; font-weight:800; color:rgba(255,255,255,0.7);">${r.mode.toUpperCase()} TEST RESULT</div>
+    <div class="muted" style="text-transform:uppercase; letter-spacing:2px; font-size:10px; font-weight:800; color:rgba(255,255,255,0.7);">${(r.mode==='mock'?'মক':'প্র্যাকটিস') + ' ' + (r.mode==='mock'?'টেস্ট':'সেশন') + ' — ফলাফল'}</div>
     <div class="row center" style="gap:24px; margin:20px 0; align-items:center; justify-content:center;">
       <div style="width:110px; height:110px; border-radius:50%; background:rgba(255,255,255,0.15); display:grid; place-items:center; position:relative;">
         <svg width="110" height="110" viewBox="0 0 100 100" style="position:absolute; transform:rotate(-90deg);">
@@ -2644,7 +2799,7 @@ function renderResultView(r, isFresh){
       </div>
       <div style="text-align:left;">
         <div style="font-size:48px; font-weight:900; line-height:1; color:#fff;">${r.score.toFixed(2)}</div>
-        <div style="font-size:12px; font-weight:700; color:rgba(255,255,255,0.8); margin-top:4px;">FINAL SCORE</div>
+        <div style="font-size:12px; font-weight:700; color:rgba(255,255,255,0.8); margin-top:4px;">প্রাপ্ত নম্বর (Accuracy: ${r.accuracy}%)</div>
       </div>
     </div>
     <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:10px; font-size:13px; font-weight:600;">
@@ -2652,49 +2807,98 @@ function renderResultView(r, isFresh){
     </div>
   </div>
 
-  <div class="h2">Practice Readiness Score</div>
-  <div class="card">
-    <div class="row between"><span class="muted">Readiness Level</span><b style="color:var(--emerald-d);">${readiness}%</b></div>
-    <div class="readiness-meter"><div class="readiness-fill" style="width:${readiness}%"></div></div>
-    <p class="muted" style="font-size:11px; margin-top:8px;">*Calculated based on recent accuracy, speed, and consistency.</p>
+  <div class="h2" style="margin-top:4px;">পরীক্ষার ফলাফল — সংক্ষিপ্ত</div>
+  <div class="result-mini-grid">
+    <div class="result-mini-card"><div class="rmv">${r.questionCount||0}</div><div class="rml">মোট প্রশ্ন</div></div>
+    <div class="result-mini-card"><div class="rmv">${attempted}</div><div class="rml">উত্তর দেওয়া</div></div>
+    <div class="result-mini-card"><div class="rmv" style="color:var(--green);">${r.correct||0}</div><div class="rml">সঠিক</div></div>
+    <div class="result-mini-card"><div class="rmv" style="color:var(--red);">${r.wrong||0}</div><div class="rml">ভুল</div></div>
+    <div class="result-mini-card"><div class="rmv">${r.skipped||0}</div><div class="rml">উত্তর দেওয়া হয়নি</div></div>
+    <div class="result-mini-card"><div class="rmv">${accAtt}%</div><div class="rml">Accuracy</div></div>
+    <div class="result-mini-card"><div class="rmv" style="color:var(--emerald-d);">${r.score.toFixed(2)} / ${maxPossible.toFixed(2)}</div><div class="rml">প্রাপ্ত নম্বর</div></div>
+    <div class="result-mini-card"><div class="rmv">${fmtTime(r.timeUsed||0)}</div><div class="rml">মোট সময়</div></div>
+  </div>
+  <div class="card" style="margin-top:-6px;">
+    <div class="summary-item"><span class="summary-label">Positive marks</span><span class="summary-value" style="color:var(--green);">+${(r.positive||0).toFixed(2)}</span></div>
+    <div class="summary-item"><span class="summary-label">Negative marks${negRate?' (−'+negRate+'/প্রতি ভুল)':': 0'}</span><span class="summary-value" style="color:var(--red);">${(r.negative||0)>0?'−'+(r.negative||0).toFixed(2):'0.00'}</span></div>
+    <div class="summary-item"><span class="summary-label">গড় প্রশ্নের সময়</span><span class="summary-value">${avgQ}s</span></div>
+    <div class="summary-item"><span class="summary-label">Attempt Rate</span><span class="summary-value">${r.attemptRate}%</span></div>
+  </div>
+
+  <div class="insight-card">
+    <div><span class="insight-icon">💡</span><b style="font-size:13px;">পারফরম্যান্স বিশ্লেষণ (dynamic)</b></div>
+    <p style="font-size:12.5px; line-height:1.6; margin:8px 0 0; color:var(--text);">${resultBanglaInsight(r)}</p>
   </div>
 
   ${prevResult ? `
-    <div class="h2">Comparison with Previous</div>
+    <div class="h2">আগের পরীক্ষার সাথে তুলনা</div>
     <div class="card">
       <div class="comparison-grid">
-        <div class="comparison-val"><div class="label">Previous</div><div class="value">${prevResult.score.toFixed(2)}</div></div>
+        <div class="comparison-val"><div class="label">আগের</div><div class="value">${prevResult.score.toFixed(2)}</div></div>
         <div class="comparison-trend ${r.score >= prevResult.score ? 'trend-up' : 'trend-down'}">${r.score >= prevResult.score ? '▲' : '▼'} ${Math.abs(r.score - prevResult.score).toFixed(2)}</div>
-        <div class="comparison-val"><div class="label">Current</div><div class="value">${r.score.toFixed(2)}</div></div>
+        <div class="comparison-val"><div class="label">এবার</div><div class="value">${r.score.toFixed(2)}</div></div>
       </div>
       <div class="divider"></div>
       <div class="row between" style="font-size:12px;">
-        <span class="muted">Accuracy Change</span>
+        <span class="muted">Accuracy পরিবর্তন</span>
         <b class="${r.accuracy >= prevResult.accuracy ? 'trend-up' : 'trend-down'}">${r.accuracy >= prevResult.accuracy ? '+' : ''}${Math.round(r.accuracy - prevResult.accuracy)}%</b>
       </div>
     </div>
   ` : ''}
 
-  <div class="h2">Score Breakdown</div>
+  <div class="h2">বিষয়ভিত্তিক বিশ্লেষণ (Subject)</div>
   <div class="card">
-    <div class="summary-item"><span class="summary-label">Total Questions</span><span class="summary-value">${r.questionCount}</span></div>
-    <div class="summary-item"><span class="summary-label">Correct (+${r.configuration?.marksPerQ||1} each)</span><span class="summary-value" style="color:var(--green);">+${r.positive.toFixed(2)}</span></div>
-    <div class="summary-item"><span class="summary-label">Wrong (-${r.negative ? r.configuration?.negative||0 : 0} each)</span><span class="summary-value" style="color:var(--red);">${r.negative > 0 ? '-' : ''}${r.negative.toFixed(2)}</span></div>
-    <div class="summary-item" style="border-top:1px solid var(--line); margin-top:8px; padding-top:12px;"><span class="summary-label" style="font-weight:800; color:var(--text);">Final Marks</span><span class="summary-value" style="font-size:18px; color:var(--emerald-d);">${r.score.toFixed(2)} / ${(r.questionCount * (r.configuration?.marksPerQ||1)).toFixed(2)}</span></div>
+    ${subjects.length===0 ? '<div class="muted">এই পরীক্ষায় কোনো subject data পাওয়া যায়নি।</div>' : ''}
+    ${subjects.map(sb=>{
+      const att=sb.correct+sb.wrong;
+      const acc=sb.total?Math.round(sb.correct/sb.total*100):0;
+      const accAtt=att>0?Math.round(sb.correct/att*100):0;
+      const scorePts=round2(sb.correct*(r.configuration?.marksPerQ||1) - sb.wrong*(negRate||0));
+      return `<div class="card" style="margin:8px 0; padding:12px; background:var(--mint); border:none;">
+        <div class="row between">
+          <span><b>${esc(sb.name)}</b></span>
+          <b style="color:${acc<50?'var(--red)':acc<80?'var(--orange)':'var(--emerald)'}">${accAtt}%</b>
+        </div>
+        <div class="progbar" style="height:6px; margin-top:8px;"><div style="width:${accAtt}%; background:${accAtt<50?'var(--red)':accAtt<80?'var(--orange)':'var(--emerald)'}"></div></div>
+        <div class="result-meta-chips">
+          <span class="chip">প্রশ্ন: ${sb.total}</span>
+          <span class="chip">সঠিক: ${sb.correct}</span>
+          <span class="chip">ভুল: ${sb.wrong}</span>
+          <span class="chip">Skip: ${sb.skipped}</span>
+          <span class="chip">Score: ${scorePts}</span>
+        </div>
+      </div>`;
+    }).join('')}
   </div>
 
-  <div class="stat-grid">
-    <div class="stat-card"><div class="v" style="color:var(--green);">${r.correct}</div><div class="l">Correct</div></div>
-    <div class="stat-card"><div class="v" style="color:var(--red);">${r.wrong}</div><div class="l">Wrong</div></div>
-    <div class="stat-card"><div class="v">${r.skipped}</div><div class="l">Skipped</div></div>
-    <div class="stat-card"><div class="v">${r.attemptRate}%</div><div class="l">Attempt Rate</div></div>
+  <div class="h2">টপিকভিত্তিক বিশ্লেষণ (Topic)</div>
+  <div class="card">
+    ${topics.length===0 ? '<div class="muted">এই পরীক্ষায় কোনো topic data পাওয়া যায়নি।</div>' : ''}
+    ${topics.map(t=>{
+      const att=t.correct+t.wrong;
+      const acc=att>0?Math.round(t.correct/att*100):0;
+      const lvl=resultWeaknessLevel(acc);
+      return `<div class="card" style="margin:8px 0; padding:11px 12px; background:var(--mint); border:none;">
+        <div class="row between" style="margin-bottom:5px;">
+          <span><b>${esc(t.name)}</b> <span class="muted">(${esc(t.subName)})</span></span>
+          ${lvl.cls?`<span class="topic-level ${lvl.cls}">${lvl.label}</span>`:''}
+        </div>
+        <div class="result-meta-chips">
+          <span class="chip">Attempt: ${att}</span>
+          <span class="chip">সঠিক: ${t.correct}</span>
+          <span class="chip">ভুল: ${t.wrong}</span>
+          <span class="chip">Skip: ${t.skipped}</span>
+          <span class="chip">Accuracy: ${acc}%</span>
+        </div>
+      </div>`;
+    }).join('')}
   </div>
 
-  <div class="h2">Time Analysis</div>
+  <div class="h2">সময় বিশ্লেষণ (Time)</div>
   <div class="card">
     <div class="grid2">
-      <div><div class="muted">Total Time</div><div style="font-weight:700;">${fmtTime(r.timeUsed)}</div></div>
-      <div><div class="muted">Avg / Question</div><div style="font-weight:700;">${timeAnalysis.averageSeconds}s</div></div>
+      <div><div class="muted">মোট পরীক্ষার সময়</div><div style="font-weight:700;">${fmtTime(r.timeUsed||0)}</div></div>
+      <div><div class="muted">গড় প্রশ্নের সময়</div><div style="font-weight:700;">${timeAnalysis.averageSeconds}s</div></div>
     </div>
     <div class="divider"></div>
     <div class="row between">
@@ -2703,38 +2907,86 @@ function renderResultView(r, isFresh){
         ${timeAnalysis.averageSeconds < 20 ? '⚡ Very Fast' : timeAnalysis.averageSeconds < 45 ? '✓ Steady' : '🐢 Cautious'}
       </span>
     </div>
+    <div class="divider"></div>
+    <div class="row between" style="font-size:12px;">
+      <span class="muted">সবচেয়ে দ্রুত উত্তর</span>
+      <b>${timeAnalysis.fastestSeconds!=null?timeAnalysis.fastestSeconds+'s':'—'}</b>
+    </div>
+    <div class="row between" style="font-size:12px; margin-top:6px;">
+      <span class="muted">সবচেয়ে ধীর উত্তর</span>
+      <b>${timeAnalysis.slowestSeconds!=null?timeAnalysis.slowestSeconds+'s':'—'}</b>
+    </div>
+    ${(timeAnalysis.classified&&timeAnalysis.classified.length)?`
+      <div class="divider"></div>
+      <div class="muted" style="margin-bottom:6px;">প্রতিটি প্রশ্নের সময় (সবচেয়ে বেশি সময় লাগা প্রশ্ন লাল)</div>
+      <div class="time-bars">
+        ${timeAnalysis.classified.sort((a,b)=>b.seconds-a.seconds).map(x=>{
+          const s=sn.find(y=>y.questionId===x.questionId)||{};
+          const ms=(s.timing&&s.timing.ms)||(x.seconds*1000);
+          const qnum=sn.findIndex(y=>y.questionId===x.questionId)+1;
+          const ratio=timeAnalysis.averageSeconds>0? ms/1000/timeAnalysis.averageSeconds:1;
+          const cls=ratio>1.5?'slow':ratio>1?'mid':'';
+          const maxMs=(sn.filter(y=>y.timing&&y.timing.ms).reduce((a,y)=>Math.max(a,y.timing.ms),0))||ms||1;
+          return `<div class="time-bar-row"><span class="tqnum">Q${qnum}</span><div class="tqbar"><div class="${cls}" style="width:${Math.max(2,ms/maxMs*100)}%"></div></div><span class="tqsec">${(ms/1000).toFixed(1)}s</span></div>`;
+        }).join('')}
+      </div>`:''}
   </div>
 
-  <div class="h2">Performance Analysis</div>
+  <div class="h2">ভুল প্রশ্ন বিশ্লেষণ (Mistake Analysis)</div>
   <div class="card">
-    <b style="font-size:13px;">Subject mastery</b>
-    ${subjects.map(sb=>{
-      const acc=sb.total?Math.round(sb.correct/sb.total*100):0;
-      return `<div class="card" style="margin:8px 0; padding:12px; background:var(--mint); border:none;">
-        <div class="row between">
-          <span><b>${esc(sb.name)}</b> <span class="muted">(${sb.correct}/${sb.total})</span></span>
-          <b style="color:${acc<50?'var(--red)':acc<80?'var(--orange)':'var(--emerald)'}">${acc}%</b>
+    ${wrongRows.length===0 ? '<div style="text-align:center; padding:10px;"><b style="color:var(--green);">✅ এই পরীক্ষায় কোনো ভুল নেই!</b></div>' : ''}
+    ${wrongRows.map(s=>{
+      const qIdx=sn.findIndex(x=>x.questionId===s.questionId)+1;
+      return `<div class="card mistake-mini" style="margin:10px 0; padding:14px; background:var(--bg); border:1px solid var(--line);">
+        <div class="row between" style="margin-bottom:8px;">
+          <span class="pill">Q${qIdx}</span>
+          <span class="time-tag normal">${s.timing?Math.round(s.timing.ms/1000)+'s':'—'}</span>
         </div>
-        <div class="progbar" style="height:6px; margin-top:8px;"><div style="width:${acc}%; background:${acc<50?'var(--red)':acc<80?'var(--orange)':'var(--emerald)'}"></div></div>
+        <div style="font-size:14.5px; font-weight:700; line-height:1.5; margin-bottom:10px;">${esc(s.question)}</div>
+        <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:10px;">
+          ${(s.options||[]).map((opt,oi)=>{
+            const sel=s.selected===oi, cor=s.answerIndex===oi;
+            return '<div class="opt '+(cor?'correct':(sel?'wrong':''))+'" style="cursor:default; margin-bottom:0;"><div class="let">'+String.fromCharCode(65+oi)+'</div><div style="flex:1">'+esc(opt)+'</div>'+(sel?'<span style="font-size:10px;font-weight:700;color:var(--red)">তোমার উত্তর</span>':'')+(cor?'<span style="font-size:10px;font-weight:700;color:var(--green)">সঠিক উত্তর</span>':'')+'</div>';
+          }).join('')}
+        </div>
+        <div class="result-meta-chips">
+          <span class="chip">সাবজেক্ট: ${esc(subjectName(s.subjectId))}</span>
+          <span class="chip">টপিক: ${esc(topicName(s.topicId))}</span>
+          <span class="chip" style="background:color-mix(in srgb, var(--red) 12%, var(--card)); color:var(--red); font-weight:800;">❌ ভুল</span>
+        </div>
+        ${s.explanation ? '<div style="font-size:12.5px; padding:10px; background:var(--mint); border-radius:8px; margin-top:8px; line-height:1.55;"><b>💡 ব্যাখ্যা:</b> '+esc(s.explanation)+'</div>' : ''}
       </div>`;
     }).join('')}
   </div>
 
-  <div class="h2">Question Review</div>
-  <div class="tabs">
-    ${['all','correct','wrong','skipped'].map(f=>`<div class="tab ${ResultFilter===f?'active':''}" onclick="ResultFilter='${f}'; render()">${f.toUpperCase()} (${f==='all'?r.snapshot.length:r[f]})</div>`).join('')}
+  <div class="h2">প্রশ্ন রিভিউ</div>
+  <div class="result-meta-chips" style="margin-bottom:6px;">
+    ${['all','correct','wrong','skipped'].map(f=>`<span class="chip ${ResultFilter===f?'active':''}" onclick="ResultFilter='${f}'; ResultSubjectFilter=''; ResultTopicFilter=''; render()">${f==='all'?'সব ('+sn.length+')':f==='correct'?'✓ সঠিক ('+r.correct+')':f==='wrong'?'✕ ভুল ('+r.wrong+')':'— উত্তর দেওয়া হয়নি ('+r.skipped+')'}</span>`).join('')}
   </div>
+  ${(()=>{
+    const subjOpts=resultSubjectFilterOptions(r), topOpts=resultTopicFilterOptions(r);
+    if(subjOpts.length>1||topOpts.length>1){
+      return `<div class="result-meta-chips">
+        ${subjOpts.length>1?`<span class="chip ${ResultSubjectFilter===''?'active':''}" onclick="ResultSubjectFilter=''; ResultTopicFilter=''; render()">সব সাবজেক্ট</span>`+subjOpts.map(o=>`<span class="chip ${ResultSubjectFilter===o.id?'active':''}" onclick="ResultSubjectFilter='${o.id}'; render()">${esc(o.name)} (${o.count})</span>`).join(''):''}
+        ${topOpts.length>1?topOpts.map(o=>`<span class="chip ${ResultTopicFilter===o.id?'active':''}" onclick="ResultTopicFilter='${o.id}'; render()">${esc(o.name)} (${o.count})</span>`).join(''):''}
+      </div>`;
+    }
+    return '';
+  })()}
 
   <div id="resultReviewList">
-    ${filtered.map((s,idx)=>{
+    ${filtered.length===0 ? '<div class="empty">এই filter-এ কোনো প্রশ্ন নেই।</div>' : ''}
+    ${filtered.map(s=>{
+      const qIdx=sn.findIndex(x=>x.questionId===s.questionId)+1;
       const isCareless = s.status==='wrong' && s.timing && s.timing.ms < 5000;
+      const statusTxt = s.status==='correct'?'✅ সঠিক':s.status==='wrong'?'❌ ভুল':'➖ উত্তর দেওয়া হয়নি';
       return `
       <div class="card" style="padding:16px; border-left:4px solid ${s.status==='correct'?'var(--green)':s.status==='wrong'?'var(--red)':'var(--sub)'}">
         <div class="row between" style="margin-bottom:10px;">
-          <span class="pill">Q${idx+1}</span>
+          <span class="pill">Q${qIdx}</span>
           <div class="row">
-            ${isCareless ? '<span class="careless-tag">⚠ Possible Careless</span>' : ''}
-            <span class="time-tag normal">${s.timing ? Math.round(s.timing.ms/1000)+'s' : '-'}</span>
+            ${isCareless ? '<span class="careless-tag">⚠ Careless সম্ভাবনা</span>' : ''}
+            <span class="time-tag normal">${s.timing ? Math.round(s.timing.ms/1000)+'s' : '—'}</span>
           </div>
         </div>
         <div style="font-size:15px; font-weight:700; margin-bottom:14px; line-height:1.5;">${esc(s.question)}</div>
@@ -2742,16 +2994,15 @@ function renderResultView(r, isFresh){
           ${(s.options||[]).map((opt,oi)=>{
             const isSelected = s.selected===oi;
             const isCorrect = s.answerIndex===oi;
-            let optClass = '';
-            if(isCorrect) optClass = 'correct';
-            if(isSelected && !isCorrect) optClass = 'wrong';
-            return '<div class="opt '+optClass+'" style="cursor:default;"><div class="let">'+String.fromCharCode(65+oi)+'</div><div style="flex:1">'+esc(opt)+'</div>'+(isSelected?'<span style="font-size:10px;font-weight:700;color:'+(isCorrect?'var(--green)':'var(--red)')+'">তোমার উত্তর</span>':'')+(isCorrect&&!isSelected?'<span style="font-size:10px;font-weight:700;color:var(--green)">সঠিক উত্তর</span>':'')+'</div>';
+            return '<div class="opt '+(isCorrect?'correct':(isSelected?'wrong':''))+'" style="cursor:default;"><div class="let">'+String.fromCharCode(65+oi)+'</div><div style="flex:1">'+esc(opt)+'</div>'+(isSelected?'<span style="font-size:10px;font-weight:700;color:'+(isCorrect?'var(--green)':'var(--red)')+'">তোমার উত্তর</span>':'')+(isCorrect&&!isSelected?'<span style="font-size:10px;font-weight:700;color:var(--green)">সঠিক উত্তর</span>':'')+'</div>';
           }).join('')}
         </div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-          <span style="font-size:13px; font-weight:600; color:${s.status==='correct'?'var(--green)':s.status==='wrong'?'var(--red)':'var(--sub)'}">${s.status==='correct'?'✅ সঠিক':s.status==='wrong'?'❌ ভুল':'➖ উত্তর দেওয়া হয়নি'}</span>
+        <div class="result-meta-chips" style="margin-bottom:8px;">
+          <span class="chip">সাবজেক্ট: ${esc(subjectName(s.subjectId))}</span>
+          <span class="chip">টপিক: ${esc(topicName(s.topicId))}</span>
+          <span class="chip" style="font-weight:800; background:${s.status==='correct'?'#dcfce7':s.status==='wrong'?'#fee2e2':'var(--mint)'}; color:${s.status==='correct'?'#16a34a':s.status==='wrong'?'#ef4444':'var(--sub)'};">${statusTxt}</span>
         </div>
-        ${s.explanation ? '<div style="font-size:12px; padding:10px; background:var(--bg); border-radius:8px; margin-top:8px;"><b>💡 ব্যাখ্যা:</b> '+esc(s.explanation)+'</div>' : ''}
+        ${s.explanation ? '<div style="font-size:12.5px; padding:10px; background:var(--bg); border-radius:8px; margin-top:8px; line-height:1.55;"><b>💡 ব্যাখ্যা:</b> '+esc(s.explanation)+'</div>' : ''}
       </div>`;
     }).join('')}
   </div>
@@ -2759,13 +3010,14 @@ function renderResultView(r, isFresh){
   <div class="h2">Smart Revision</div>
   <div class="grid2">
     <button class="btn secondary sm" onclick="retryStoredResult('${r.id}','mock','wrong')">🔁 Retry Wrong</button>
-    <button class="btn secondary sm" onclick="retryStoredResult('${r.id}','flash','weak')">🎯 Practice Weak</button>
-    <button class="btn secondary sm" onclick="retryStoredResult('${r.id}','flash','all')">⚡ Flash Review</button>
+    <button class="btn secondary sm" onclick="startResultWeakPractice('${r.id}')">🎯 Practice Weak</button>
+    <button class="btn secondary sm" onclick="startResultFlashReview('${r.id}')">⚡ Flash Review</button>
     <button class="btn secondary sm" onclick="navigate('question-bank')">📚 Browse Bank</button>
   </div>
+  <div class="revision-note">*Revision নতুন session হিসেবে track করা হবে — original result অপরিবর্তিত থাকবে।</div>
 
   <div style="margin-top:20px;">
-    <button class="btn" onclick="navigate('dashboard')">Back to Dashboard</button>
+    <button class="btn" onclick="navigate('dashboard')">ড্যাশবোর্ডে ফিরে যাও</button>
   </div>
   `;
   renderShell(html, {title:'Exam Result', back:"navigate('dashboard')"});
@@ -2816,7 +3068,7 @@ function renderHistory(){
     ${rows.length?rows.map(historyRecordHtml).join(''):emptyState('📋','No matching exam records','Completed exams will appear here without replacing or deleting existing data.')}`;
   renderShell(html,{title:'Exam History'});
 }
-function renderHistoryDetail(id){const r=CACHE.examResults.find(x=>x.id===id);if(!r){navigate('history');return;}ResultFilter='all';renderResultView(normalizeExamResult(r),false);}
+function renderHistoryDetail(id){const r=CACHE.examResults.find(x=>x.id===id);if(!r){navigate('history');return;}ResultFilter='all';ResultSubjectFilter='';ResultTopicFilter='';renderResultView(normalizeExamResult(r),false);}
 
 /* ================= MISTAKES ================= */
 function renderMistakes(){
