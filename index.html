@@ -1,10 +1,13 @@
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>My Admission Hub</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0f6b4f">
+<meta name="description" content="A privacy-first admission preparation hub with smart importing and real progress tracking.">
 <style>
 :root{
   --emerald:#0f6b4f;
@@ -361,6 +364,18 @@ body.no-motion *,body.no-motion *::before,body.no-motion *::after{animation:none
   @media (prefers-reduced-motion: reduce) {
     .keyboard-open .bottomnav { transition: none; }
   }
+</style>
+
+<style id="phase5-feature-styles">
+  .phase5-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.phase5-grid.three{grid-template-columns:repeat(3,1fr)}
+  .phase5-panel{border-left:4px solid var(--emerald)}.phase5-panel.warn{border-left-color:var(--orange)}.phase5-panel.danger{border-left-color:var(--red)}
+  .phase5-kpi{background:var(--mint);border-radius:12px;padding:11px}.phase5-kpi b{display:block;font-size:20px;color:var(--emerald-d)}.phase5-kpi span{font-size:11px;color:var(--sub)}
+  .phase5-news{padding:10px 0;border-bottom:1px solid var(--line)}.phase5-news:last-child{border-bottom:0}.phase5-news a{color:var(--emerald-d);font-weight:700;text-decoration:none}.phase5-news small{display:block;color:var(--sub);margin-top:4px;line-height:1.4}
+  .confidence-high{color:var(--green)}.confidence-medium{color:var(--orange)}.confidence-low{color:var(--red)}
+  .formatter-step{display:flex;gap:9px;align-items:flex-start;padding:8px 0}.formatter-step b{min-width:22px;height:22px;border-radius:50%;background:var(--mint);color:var(--emerald-d);display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+  .phase5-calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.phase5-calendar div{min-height:32px;padding:5px 3px;border-radius:7px;background:var(--mint);font-size:10px;text-align:center}.phase5-calendar .today{background:var(--emerald);color:#fff}.phase5-calendar .event{outline:2px solid var(--orange)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  @media(max-width:390px){.phase5-grid,.phase5-grid.three{grid-template-columns:1fr 1fr}.phase5-grid.three .phase5-kpi:last-child{grid-column:1/-1}}
 </style>
 </head>
 <body>
@@ -4258,6 +4273,107 @@ boot();
   const oldLoad=loadCache; loadCache=async function(){await oldLoad();await refreshPlans();};
 })();
 
+
+/* ================= PHASE 5 + DAILY INTELLIGENCE ADDITIVE MODULE ================= */
+(function(){
+  const ORIGINAL = {renderDashboard:renderDashboard, renderImportHome:renderImportHome, render:render, baseTab:baseTab};
+  const FEATURE = {screen:'home',items:[],format:'unknown',sourceText:'',subjectId:'',topicId:'',destStrategy:'single',dupStrategy:'skip',progress:0,aiBusy:false};
+  window.Phase5State=FEATURE;
+
+  function esc5(v){return esc(v==null?'':v)}
+  function stripNumbering(s){return String(s||'').replace(/^\s*(?:Q(?:uestion)?\s*\d+|প্রশ্ন\s*[০-৯\d]+|\d+)\s*[.)।:-]?\s*/iu,'').trim()}
+  function detectFormat(raw){
+    const text=String(raw||'').trim(); if(!text) return 'unknown';
+    try{const x=JSON.parse(text); if(Array.isArray(x)||(x&&Array.isArray(x.questions))) return 'json'}catch(_){ }
+    if(/<\s*(?:html|body|div|p|ol|li|table|section)\b/i.test(text)) return 'html';
+    if(/(?:^|\n)\s*(?:Q(?:uestion)?\s*\d+|প্রশ্ন\s*[০-৯\d]+|\d+)\s*[.)।:-]/iu.test(text)) return 'plain';
+    return 'plain';
+  }
+  function confidence(item){
+    const filled=(item.options||[]).filter(Boolean).length; const hasAnswer=item.answerIndex>=0; const q=!!String(item.question||'').trim();
+    if(q&&filled===4&&hasAnswer) return 'high'; if(q&&filled>=2) return 'medium'; return 'low';
+  }
+  function nearDuplicate(a,b){
+    const x=normalizeQ(a),y=normalizeQ(b); if(!x||!y) return false; if(x===y) return true;
+    const ax=new Set(x.split(' ')), by=new Set(y.split(' ')); const inter=[...ax].filter(t=>by.has(t)).length; const union=new Set([...ax,...by]).size; return union>8 && inter/union>=.82;
+  }
+  function smartParse(raw,format){
+    const f=format||detectFormat(raw); let rows=[];
+    if(f==='json'){const p=parseJSONText(raw); if(p.error) throw new Error(p.error); rows=p.items}
+    else if(f==='html'){rows=parseHTMLDoc(raw)} else {rows=parseBulkText(raw)}
+    return rows.map((r,i)=>{r.question=stripNumbering(r.question); r.internalId='fmt-'+Date.now().toString(36)+'-'+i+'-'+Math.random().toString(36).slice(2,6); r.confidence=confidence(r); r.number=i+1; return r})
+  }
+  function featureValidation(rows){
+    const existing=CACHE.questions||[]; const seen=[];
+    return rows.map((r,i)=>{
+      const errors=[],warnings=[]; const opts=(r.options||[]).slice(0,4); while(opts.length<4)opts.push('');
+      if(!r.question) errors.push('Question text is missing'); opts.forEach((o,j)=>{if(!String(o||'').trim())errors.push('Option '+String.fromCharCode(65+j)+' is missing')});
+      if(!(r.answerIndex>=0&&r.answerIndex<4))errors.push('Correct answer is missing or invalid');
+      if(!r.explanation)warnings.push('Explanation is missing'); if(r.confidence==='low')errors.push('Low confidence — manual review required');
+      const exact=existing.find(q=>normalizeQ(q.question)===normalizeQ(r.question)); const near=!exact&&existing.find(q=>nearDuplicate(q.question,r.question)); const internal=seen.find(x=>nearDuplicate(x.question,r.question));
+      const duplicate=exact||near||internal; seen.push(r);
+      return {raw:r,index:i,errors,warnings,duplicate:duplicate?{id:duplicate.id||null,type:exact?'exact':'near',question:duplicate.question}:null,action:'skip',selected:!errors.length,confidence:r.confidence}
+    })
+  }
+  function formatterStats(){const a=FEATURE.items;return {total:a.length,formatted:a.filter(x=>!x.errors.length).length,review:a.filter(x=>x.confidence!=='high'||x.warnings.length).length,failed:a.filter(x=>x.errors.length).length,duplicates:a.filter(x=>x.duplicate).length}}
+  function updateFormatterProgress(){const el=document.getElementById('p5Progress');if(el)el.textContent=FEATURE.progress+'% processed'}
+  function p5Start(){const text=document.getElementById('p5Raw')?.value||'';if(!text.trim()){toast('Paste questions first');return} FEATURE.sourceText=text;FEATURE.format=detectFormat(text); try{const rows=smartParse(text,FEATURE.format);FEATURE.items=featureValidation(rows);FEATURE.screen='preview';FEATURE.progress=100;render()}catch(e){toast(String(e.message||e))}}
+  function p5SelectSubject(v){FEATURE.subjectId=v;FEATURE.topicId=topicsOf(v)[0]?.id||'';render()}
+  function p5Fix(i){const x=FEATURE.items[i];openModal(`<h3>Manual correction · Question ${i+1}</h3><label class="flabel">Question</label><textarea id="p5q">${esc5(x.raw.question)}</textarea>${[0,1,2,3].map(j=>`<label class="flabel">Option ${String.fromCharCode(65+j)}</label><input id="p5o${j}" value="${esc5(x.raw.options[j]||'')}">`).join('')}<label class="flabel">Correct answer</label><select id="p5a">${[0,1,2,3].map(j=>`<option value="${j}" ${x.raw.answerIndex===j?'selected':''}>${String.fromCharCode(65+j)}</option>`).join('')}</select><label class="flabel">Explanation</label><textarea id="p5e">${esc5(x.raw.explanation||'')}</textarea><button class="btn" style="margin-top:12px" onclick="p5SaveFix(${i})">Save correction</button>`)}
+  function p5SaveFix(i){const x=FEATURE.items[i].raw;x.question=document.getElementById('p5q').value.trim();x.options=[0,1,2,3].map(j=>document.getElementById('p5o'+j).value.trim());x.answerIndex=Number(document.getElementById('p5a').value);x.explanation=document.getElementById('p5e').value.trim();x.confidence=confidence(x);FEATURE.items=featureValidation(FEATURE.items.map(v=>v.raw));closeModal();render()}
+  async function p5Save(){const ready=FEATURE.items.filter(x=>x.selected&&!x.errors.length&&(FEATURE.dupStrategy!=='skip'||!x.duplicate));if(!ready.length){toast('No safe questions selected');return}const sub=FEATURE.subjectId||CACHE.subjects[0]?.id,top=FEATURE.topicId||topicsOf(sub)[0]?.id;if(!sub||!top){toast('Create/select a destination subject and topic');return}const total=ready.length;let done=0;openModal(`<h3>Saving safely…</h3><div class="progbar"><div id="p5SaveFill" style="width:0%"></div></div><div id="p5SaveLabel" class="muted" style="margin-top:8px">0 / ${total}</div>`);for(let n=0;n<ready.length;n+=25){const chunk=ready.slice(n,n+25);await Promise.all(chunk.map(async x=>{let id=uid();if(x.duplicate&&FEATURE.dupStrategy==='replace'&&x.duplicate.id)id=x.duplicate.id;await dbPut('questions',{id,subjectId:sub,topicId:top,question:x.raw.question.trim(),options:x.raw.options.map(o=>String(o||'').trim()),answer:x.raw.answerIndex,explanation:x.raw.explanation||'',tags:x.raw.tags||[],difficulty:'medium',source:'smart-formatter',createdAt:Date.now(),updatedAt:Date.now(),stats:{attempts:0,correct:0,wrong:0},bookmarked:false});done++}));const f=document.getElementById('p5SaveFill');const l=document.getElementById('p5SaveLabel');if(f)f.style.width=Math.round(done/total*100)+'%';if(l)l.textContent=done+' / '+total;await new Promise(r=>setTimeout(r,0))}await loadCache();closeModal();toast(done+' questions saved safely');FEATURE.screen='success';FEATURE.saved=done;render()}
+  function renderFormatter(){const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order), topics=topicsOf(FEATURE.subjectId||subs[0]?.id||'');if(FEATURE.screen==='home')return renderShell(`<div class="card phase5-panel"><div class="explorer-kicker">Phase 5 · deterministic preprocessing</div><div class="explorer-title">Smart Formatter 2.0</div><div class="explorer-subtitle">Raw Questions → layered detection → safe standard output → existing parser/storage. AI is optional and never required.</div><div class="formatter-step"><b>1</b><span>Numbering, option, answer, explanation, and boundary detection.</span></div><div class="formatter-step"><b>2</b><span>Preserves option order and answer mapping; low confidence never auto-saves.</span></div><div class="formatter-step"><b>3</b><span>Preview, duplicate decisions, manual correction, and chunked IndexedDB save.</span></div></div><div class="card"><label class="flabel" for="p5Raw">Paste raw questions</label><textarea id="p5Raw" style="min-height:280px" placeholder="Q1. Question text\nA. First option\nB. Second option\nC. Third option\nD. Fourth option\nAnswer: B\nExplanation: Why B is correct"></textarea><div class="row between" style="margin-top:10px"><span id="p5Progress" class="muted">Auto-detects JSON, plain text, or HTML-like input.</span><button class="btn sm" onclick="p5Start()">Detect & format</button></div></div>`,{title:'Smart Formatter',back:"navigate('import-questions')"});if(FEATURE.screen==='success')return renderShell(`<div class="card phase5-panel" style="text-align:center"><div style="font-size:36px">✓</div><div class="big">${FEATURE.saved||0} questions saved</div><div class="muted" style="margin-top:6px">Existing Question Bank and exam behavior were preserved.</div></div><button class="btn" onclick="FEATURE.screen='home';render()">Format more</button>`,{title:'Formatter complete',back:"navigate('question-bank')"});const st=formatterStats();return renderShell(`<div class="card"><div class="row between"><div><div class="explorer-kicker">Detected format</div><b>${FEATURE.format.toUpperCase()}</b></div><span class="pill">${st.total} items</span></div><div class="phase5-grid three" style="margin-top:12px"><div class="phase5-kpi"><b>${st.formatted}</b><span>Formatted</span></div><div class="phase5-kpi"><b>${st.review}</b><span>Needs review</span></div><div class="phase5-kpi"><b>${st.failed}</b><span>Failed</span></div></div><div class="muted" style="margin-top:8px">${st.duplicates} exact/near duplicates detected · ${esc5(FEATURE.format)} detection is rule-based.</div></div><div class="card"><label class="flabel">Smart destination</label><select onchange="p5SelectSubject(this.value)">${subs.map(s=>`<option value="${s.id}" ${(FEATURE.subjectId||subs[0]?.id)===s.id?'selected':''}>${esc5(s.name)}</option>`).join('')}</select><label class="flabel">Topic</label><select onchange="FEATURE.topicId=this.value">${topics.map(t=>`<option value="${t.id}" ${FEATURE.topicId===t.id?'selected':''}>${esc5(t.name)}</option>`).join('')}</select><div class="row wrap" style="margin-top:10px"><button class="chip ${FEATURE.dupStrategy==='skip'?'active':''}" onclick="FEATURE.dupStrategy='skip';render()">Skip duplicates</button><button class="chip ${FEATURE.dupStrategy==='replace'?'active':''}" onclick="FEATURE.dupStrategy='replace';render()">Replace exact</button><button class="chip ${FEATURE.dupStrategy==='keep'?'active':''}" onclick="FEATURE.dupStrategy='keep';render()">Keep both</button></div></div><div class="h2">Review before save</div>${FEATURE.items.slice(0,80).map((x,i)=>`<article class="card ${x.errors.length?'phase5-panel danger':x.duplicate?'phase5-panel warn':'phase5-panel'}"><div class="row between"><label><input type="checkbox" ${x.selected?'checked':''} onchange="FEATURE.items[${i}].selected=this.checked"> Q${i+1}</label><span class="${x.confidence==='high'?'confidence-high':x.confidence==='medium'?'confidence-medium':'confidence-low'}">${x.confidence} confidence</span></div><div style="font-weight:700;margin-top:6px">${esc5(x.raw.question||'(missing)')}</div><div class="muted" style="margin-top:5px">${x.raw.options.map((o,j)=>String.fromCharCode(65+j)+'. '+esc5(o||'—')+(j===x.raw.answerIndex?' ✓':'')).join(' · ')}</div>${x.errors.map(e=>`<div class="errbox">${esc5(e)}</div>`).join('')}${x.warnings.map(w=>`<div class="muted" style="margin-top:4px">Warning: ${esc5(w)}</div>`).join('')}${x.duplicate?`<div class="muted" style="margin-top:4px">Duplicate (${x.duplicate.type}) of: ${esc5(x.duplicate.question)}</div>`:''}<button class="btn ghost sm" style="margin-top:8px" onclick="p5Fix(${i})">Manual correction</button></article>`).join('')}${FEATURE.items.length>80?`<div class="muted">Showing first 80 of ${FEATURE.items.length}; all items are included in validation/save.</div>`:''}<div class="row" style="position:sticky;bottom:calc(74px + var(--safe-b));background:var(--bg);padding:10px 0"><button class="btn ghost" style="flex:1" onclick="FEATURE.screen='home';render()">Back</button><button class="btn" style="flex:1" onclick="p5Save()">Save safe items</button></div>`,{title:'Formatter preview',back:"navigate('import-questions')"})}
+  window.p5Start=p5Start;window.p5Save=p5Save;window.p5SaveFix=p5SaveFix;window.p5Fix=p5Fix;window.p5SelectSubject=p5SelectSubject;window.FEATURE=FEATURE;
+  renderImportHome=function(){ORIGINAL.renderImportHome();const page=document.querySelector('#app .page');if(page&&!page.querySelector('[data-smart-formatter]'))page.insertAdjacentHTML('afterbegin',`<div class="card phase5-panel" data-smart-formatter><div class="row between"><div><b>Smart Formatter 2.0</b><div class="muted">Detect and safely normalize 1000+ raw questions before the existing parser.</div></div><button class="btn sm" onclick="FEATURE.screen='home';navigate('smart-formatter')">Open</button></div></div>`)};
+
+  const INTEL={news:[],gk:[],events:[],loaded:false,lastError:''}; window.DailyIntel=INTEL;
+  async function fetchNews(){const urls=['https://www.thedailystar.net/rss.xml','https://www.educationboard.gov.bd/rss.xml'];const out=[];for(const u of urls){try{const r=await fetch('https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(u));const j=await r.json();(j.items||[]).slice(0,5).forEach(x=>out.push({title:x.title,summary:(x.description||'').replace(/<[^>]+>/g,'').slice(0,140),source:j.feed?.title||u,date:x.pubDate,url:x.link}))}catch(_){}}INTEL.news=out.filter((x,i,a)=>i===a.findIndex(y=>y.title===x.title)).slice(0,6);INTEL.loaded=true;render()}
+  function events(){return Array.isArray(CACHE.settings.admissionEvents)?CACHE.settings.admissionEvents.filter(e=>e.date>=todayKey()):[]}
+  function addEvent(){openModal(`<h3>Add admission event</h3><label class="flabel">Title</label><input id="evtTitle"><label class="flabel">Date</label><input id="evtDate" type="date" value="${todayKey()}"><label class="flabel">Type</label><select id="evtType"><option value="urgent">Urgent</option><option value="approaching">Approaching</option><option value="open">Open</option></select><button class="btn" style="margin-top:12px" onclick="saveEvent()">Save event</button>`)}
+  async function saveEvent(){const title=document.getElementById('evtTitle').value.trim(),date=document.getElementById('evtDate').value,type=document.getElementById('evtType').value;if(!title||!date){toast('Title and date are required');return}CACHE.settings.admissionEvents=[...(CACHE.settings.admissionEvents||[]),{id:uid(),title,date,type}];await dbPut('settings',CACHE.settings);closeModal();render()}
+  function urgency(e){const diff=Math.ceil((new Date(e.date+'T23:59:59')-new Date())/86400000);return diff<=2?'urgent':diff<=7?'approaching':'open'}
+  function dashboardAdditions(){const ev=events().sort((a,b)=>a.date.localeCompare(b.date)), upcoming=ev.slice(0,7),today=todayKey();return `<div data-phase5-dashboard><div class="h2">Daily Admission Intelligence</div><section class="card phase5-panel"><div class="row between"><div><b>Today’s Admission News</b><div class="muted">Live feed only; headlines appear when trusted sources respond.</div></div><button class="btn secondary sm" onclick="fetchNews()">Refresh</button></div>${INTEL.news.length?INTEL.news.map(n=>`<div class="phase5-news"><a href="${esc5(n.url)}" target="_blank" rel="noopener">${esc5(n.title)}</a><small>${esc5(n.summary)} · ${esc5(n.source)} · ${esc5(n.date||'')}</small></div>`).join(''):`<div class="empty" style="padding:18px 8px"><div class="ic">📰</div><div>No live headlines available right now.</div><div class="muted">No stories are fabricated or cached as current news.</div></div>`}</section><section class="card phase5-panel warn"><div class="row between"><div><b>Admission Alerts</b><div class="muted">Stored user events; expired events auto-hide.</div></div><button class="btn secondary sm" onclick="addEvent()">+ Add</button></div>${ev.length?ev.map(e=>`<div class="listitem"><div><b>${esc5(e.title)}</b><div class="muted">${esc5(e.date)}</div></div><span class="pill ${urgency(e)==='urgent'?'red':urgency(e)==='approaching'?'orange':''}">${urgency(e)}</span></div>`).join(''):`<div class="empty" style="padding:18px 8px">No active admission events stored.</div>`}</section><section class="card phase5-panel"><div class="row between"><div><b>Next 7 Days</b><div class="muted">Timezone-safe local dates from your stored events.</div></div><span class="pill">${upcoming.length} events</span></div>${upcoming.length?upcoming.map(e=>`<div class="phase5-news"><b>${esc5(e.date)}</b> · ${esc5(e.title)}</div>`).join(''):`<div class="empty" style="padding:18px 8px">Add an event to see the next seven days.</div>`}</section><section class="card phase5-panel"><b>Today’s Admission Focus</b><div style="font-size:18px;font-weight:800;margin-top:8px">${CACHE.topics.length?esc5(CACHE.topics[0].name):'Build your first topic'}</div><div class="muted" style="margin-top:5px">Based on your stored Question Bank; no progress statistics are fabricated.</div><button class="btn secondary sm" style="margin-top:10px" onclick="navigate('question-bank')">Quick practice</button></section><section class="card phase5-panel"><div class="row between"><div><b>Today’s Study Brief</b><div class="muted">${CACHE.examResults.length?`Review ${CACHE.mistakes.length} stored mistake records and your weakest topics.`:'Complete a practice set to generate real recommendations.'}</div></div><button class="btn secondary sm" onclick="navigate('progress')">View</button></div></section><section class="card phase5-panel"><div class="row between"><div><b>Daily Current GK</b><div class="muted">Practice from your saved Question Bank without affecting XP.</div></div><button class="btn secondary sm" onclick="navigate('question-bank')">Open bank</button></div></section></div>`}
+  const oldDashboard=renderDashboard; renderDashboard=function(){oldDashboard();const page=document.querySelector('#app .page');if(page&&!page.querySelector('[data-phase5-dashboard]'))page.insertAdjacentHTML('beforeend',dashboardAdditions())};
+
+  function renderCalendar(){const ev=events(),d=new Date(),start=new Date(d.getFullYear(),d.getMonth(),1),days=new Date(d.getFullYear(),d.getMonth()+1,0).getDate(),cells=[];for(let i=0;i<start.getDay();i++)cells.push('<div></div>');for(let n=1;n<=days;n++){const key=todayKey(new Date(d.getFullYear(),d.getMonth(),n));const has=ev.some(e=>e.date===key);cells.push(`<div class="${key===todayKey()?'today ':''}${has?'event':''}">${n}${has?' •':''}</div>`)}return renderShell(`<div class="explorer-head"><div class="explorer-kicker">Planning</div><div class="explorer-title">Admission Calendar</div><div class="explorer-subtitle">Your stored deadlines and exam events. Nothing is invented.</div></div><div class="card"><div class="row between"><b>${d.toLocaleString('en',{month:'long',year:'numeric'})}</b><button class="btn secondary sm" onclick="addEvent()">+ Event</button></div><div class="phase5-calendar" style="margin-top:10px">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(x=>`<div style="font-weight:800;background:transparent">${x}</div>`).join('')}${cells.join('')}</div></div><div class="h2">Upcoming</div>${ev.length?ev.map(e=>`<div class="card"><div class="row between"><b>${esc5(e.title)}</b><span class="pill">${esc5(e.date)}</span></div><div class="muted" style="margin-top:6px">${urgency(e)} · <button class="iconbtn" onclick="deleteEvent('${e.id}')" aria-label="Delete event">×</button></div></div>`).join(''):'<div class="empty">No events saved.</div>'}`,{title:'Admission Calendar',back:"navigate('dashboard')"})}
+  async function deleteEvent(id){CACHE.settings.admissionEvents=(CACHE.settings.admissionEvents||[]).filter(e=>e.id!==id);await dbPut('settings',CACHE.settings);render()}
+  function renderAnalytics(){const rows=CACHE.examResults||[],a=aggregateResults(rows),bySubject={};rows.forEach(r=>(r.snapshot||[]).forEach(q=>{const name=subjectName(q.subjectId);bySubject[name]??={n:0,c:0};bySubject[name].n++;if(q.status==='correct')bySubject[name].c++}));return renderShell(`<div class="explorer-head"><div class="explorer-kicker">Insights</div><div class="explorer-title">Analytics</div><div class="explorer-subtitle">Computed only from your stored exam results.</div></div><div class="phase5-grid three"><div class="phase5-kpi"><b>${a.questions}</b><span>Answered</span></div><div class="phase5-kpi"><b>${accuracyOf(a)}%</b><span>Accuracy</span></div><div class="phase5-kpi"><b>${a.exams}</b><span>Exams</span></div></div><div class="h2">Subject performance</div>${Object.keys(bySubject).length?Object.entries(bySubject).map(([n,v])=>`<div class="card"><div class="row between"><b>${esc5(n)}</b><span class="pill">${Math.round(v.c/v.n*100)}%</span></div><div class="progbar" style="margin-top:8px"><div style="width:${Math.round(v.c/v.n*100)}%"></div></div><div class="muted" style="margin-top:5px">${v.c} correct of ${v.n} recorded answers</div></div>`).join(''):'<div class="empty">Complete an exam to unlock stored analytics.</div>'}<button class="btn secondary" onclick="exportAnalytics()">Export analytics CSV</button>`,{title:'Analytics',back:"navigate('dashboard')"})}
+  function exportAnalytics(){const rows=[['Subject','Answered','Correct','Accuracy'],...Object.entries((CACHE.examResults||[]).reduce((a,r)=>{(r.snapshot||[]).forEach(q=>{const n=subjectName(q.subjectId);a[n]??={n:0,c:0};a[n].n++;if(q.status==='correct')a[n].c++});return a},{})).map(([n,v])=>[n,v.n,v.c,Math.round(v.c/v.n*100)+'%'])];const csv=rows.map(r=>r.map(x=>'"'+String(x).replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='admission-analytics-'+todayKey()+'.csv';a.click();toast('Analytics exported')}
+  window.fetchNews=fetchNews;window.addEvent=addEvent;window.saveEvent=saveEvent;window.deleteEvent=deleteEvent;window.exportAnalytics=exportAnalytics;
+  const oldRender=render;render=function(){if(Router.path==='smart-formatter')return renderFormatter();if(Router.path==='calendar')return renderCalendar();if(Router.path==='analytics')return renderAnalytics();return oldRender()};
+  baseTab=function(path){if(path==='calendar'||path==='analytics')return 'dashboard';return ORIGINAL.baseTab(path)};
+  const oldBoot=boot;boot=async function(){await oldBoot(); if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});};
+  const oldRenderShell=renderShell;renderShell=function(inner,opts){oldRenderShell(inner,opts);if(Router.path==='dashboard'){const page=document.querySelector('#app .page');if(page&&!page.querySelector('[data-phase5-quicklinks]'))page.insertAdjacentHTML('afterbegin',`<div class="card phase5-panel" data-phase5-quicklinks><div class="row wrap"><button class="chip" onclick="navigate('smart-formatter')">Smart Formatter</button><button class="chip" onclick="navigate('calendar')">Calendar</button><button class="chip" onclick="navigate('analytics')">Analytics</button></div></div>`);}};
+  window.openPhase5Formatter=()=>{FEATURE.screen='home';navigate('smart-formatter')};
+})();
+
+/* ================= DASHBOARD ORDER FIX ================= */
+(function(){
+  const previousShell = renderShell;
+  function arrangeDashboard(){
+    if(Router.path!=='dashboard') return;
+    const page=document.querySelector('#app .page'); if(!page) return;
+    const comparisonTitle=Array.from(page.children).find(el=>el.classList?.contains('h2') && el.textContent.trim()==='Today vs Yesterday');
+    if(comparisonTitle && !page.querySelector('[data-dashboard-comparison]')){
+      const comparisonCard=comparisonTitle.nextElementSibling;
+      const wrapper=document.createElement('section'); wrapper.className='dashboard-comparison'; wrapper.dataset.dashboardComparison='true';
+      page.insertBefore(wrapper,page.firstChild); wrapper.appendChild(comparisonTitle); if(comparisonCard) wrapper.appendChild(comparisonCard);
+    }
+    const comparison=page.querySelector('[data-dashboard-comparison]');
+    const main=Array.from(page.children).find(el=>el.classList?.contains('fade-in') && !el.dataset.phase5Dashboard);
+    const xp=Array.from(page.children).find(el=>el.getAttribute?.('onclick')?.includes("navigate('rewards')") || (el.textContent||'').includes('✦ XP Reward Shop'));
+    const plan=page.querySelector('[data-phase34-dashboard]');
+    const quick=page.querySelector('[data-phase5-quicklinks]');
+    const intel=page.querySelector('[data-phase5-dashboard]');
+    if(comparison) page.appendChild(comparison);
+    if(main) page.appendChild(main);
+    if(xp) page.appendChild(xp);
+    if(plan) page.appendChild(plan);
+    if(quick) page.appendChild(quick);
+    if(intel) page.appendChild(intel);
+  }
+  renderShell=function(inner,opts){previousShell(inner,opts); arrangeDashboard();};
+})();
 </script>
 </body>
 </html>

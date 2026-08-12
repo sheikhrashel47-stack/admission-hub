@@ -1,0 +1,10 @@
+{
+  "name":"My Admission Hub",
+  "short_name":"Admission Hub",
+  "start_url":"./#dashboard",
+  "display":"standalone",
+  "background_color":"#faf9f6",
+  "theme_color":"#0f6b4f",
+  "description":"Privacy-first admission preparation hub",
+  "icons":[]
+}
