@@ -603,6 +603,9 @@ function confirmModal(title, body, onYes, yesLabel, danger){
 /* ================= RENDER DISPATCH ================= */
 function render(){
   const p=Router.path;
+  if(p==='web-chat' && window.renderWebChatV2) return window.renderWebChatV2();
+  if(p==='dictionary' && window.renderDictionaryV2) return window.renderDictionaryV2();
+  if((p==='question-bank'||p.startsWith('question-bank/')) && window.renderQuestionBankV2) return window.renderQuestionBankV2();
   if(p==='dashboard') return renderDashboard();
   if(p==='question-bank') return renderQuestionBank();
   if(p==='question-bank/orphans') return renderOrphanExplorer();
@@ -974,18 +977,31 @@ function bankQuestionCard(q,i){
   return `<article class="card question-card fade-in" id="bank-q-${q.id}"><div class="question-card-head"><div class="row" style="align-items:flex-start"><span class="question-number">Q${i+1}</span><div><div class="muted">${esc(subjectName(q.subjectId))} · ${esc(topicName(q.topicId))}</div><div class="question-text">${esc(q.question)}</div></div></div><button class="iconbtn" aria-label="Bookmark question" onclick="event.stopPropagation();toggleQuestionBookmark('${q.id}');renderQuestionBank()">${q.bookmarked?'★':'☆'}</button></div><div style="margin-top:14px">${(q.options||[]).map((o,j)=>{let cls='';if(state){if(j===correct)cls='correct';else if(j===state.selected)cls='wrong';}return `<button class="opt bank-option ${cls}" ${state?'disabled':''} onclick="selectBankAnswer('${q.id}',${j})"><span class="let">${String.fromCharCode(65+j)}</span><span style="text-align:left">${esc(o)}</span></button>`}).join('')}</div>${state?`<div class="answer-reveal ${state.correct?'':'wrong'}"><b>${state.correct?'✓ Correct':'✕ Wrong'}</b>${state.correct?'':`<div class="muted" style="margin-top:4px">Correct answer: ${esc((q.options||[])[correct]||'')}</div>`}${q.explanation?`<div class="muted" style="margin-top:5px"><b>Why:</b> ${esc(q.explanation)}</div>`:''}</div>`:''}<div class="row between" style="margin-top:12px"><span class="muted">${q.bookmarked?'Bookmarked':'Save for later'}</span><button class="btn ghost sm" onclick="event.stopPropagation();startQuestionPractice(['${q.id}'])">Practice</button></div></article>`;
 }
 var BankAnswers=window.BankAnswers||{};
-async function selectBankAnswer(qid,idx){
+var PendingBankAnswers=window.PendingBankAnswers||{};
+window.BankAnswers=BankAnswers;window.PendingBankAnswers=PendingBankAnswers;
+function selectBankAnswer(qid,idx){
   if(BankAnswers[qid])return;
   const q=CACHE.questions.find(x=>x.id===qid);if(!q)return;
-  const correct=Number(q.answerIndex??q.answer??0),now=Date.now(),isCorrect=idx===correct;
+  const correct=Number(q.answerIndex??q.answer??0),isCorrect=idx===correct;
   BankAnswers[qid]={selected:idx,correct:isCorrect};
-  q.stats=q.stats||{attempts:0,correct:0,wrong:0};q.stats.attempts++;q.stats[isCorrect?'correct':'wrong']++;q.updatedAt=q.updatedAt||now;await dbPut('questions',q);
-  if(!isCorrect){
-    let m=CACHE.mistakes.find(x=>x.questionId===qid);if(!m)m={id:uid(),questionId:qid,wrongCount:0,revisionStatus:'pending',mastered:false};
-    m.question=q.question;m.options=q.options||[];m.subjectId=q.subjectId;m.topicId=q.topicId;m.correctAnswerIndex=correct;m.correctAnswer=(q.options||[])[correct]||'';m.wrongAnswer=(q.options||[])[idx]||'';m.selectedAnswer=m.wrongAnswer;m.explanation=q.explanation||'';m.wrongCount=Number(m.wrongCount||0)+1;m.lastWrongAt=now;m.time=now;m.status='needs-review';m.revisionStatus='pending';m.mastered=false;await dbPut('mistakes',m);
-  }
-  await loadCache();renderQuestionBank();
+  PendingBankAnswers[qid]={qid,idx,correct,isCorrect};
+  renderQuestionBank();
 }
+async function commitPendingBankAnswers(){
+  const rows=Object.values(PendingBankAnswers);if(!rows.length)return;
+  const now=Date.now();
+  for(const row of rows){
+    const q=CACHE.questions.find(x=>x.id===row.qid);if(!q)continue;
+    q.stats=q.stats||{attempts:0,correct:0,wrong:0};q.stats.attempts++;q.stats[row.isCorrect?'correct':'wrong']++;q.updatedAt=now;await dbPut('questions',q);
+    if(!row.isCorrect){
+      let m=CACHE.mistakes.find(x=>x.questionId===row.qid);if(!m)m={id:uid(),questionId:row.qid,wrongCount:0,revisionStatus:'pending',mastered:false};
+      m.question=q.question;m.options=q.options||[];m.subjectId=q.subjectId;m.topicId=q.topicId;m.correctAnswerIndex=row.correct;m.correctAnswer=(q.options||[])[row.correct]||'';m.wrongAnswer=(q.options||[])[row.idx]||'';m.selectedAnswer=m.wrongAnswer;m.explanation=q.explanation||'';m.wrongCount=Number(m.wrongCount||0)+1;m.lastWrongAt=now;m.time=now;m.status='needs-review';m.revisionStatus='pending';m.mastered=false;await dbPut('mistakes',m);
+    }
+  }
+  Object.keys(PendingBankAnswers).forEach(k=>delete PendingBankAnswers[k]);
+  await loadCache();
+}
+window.leaveQuestionTopic=async function(){await commitPendingBankAnswers();Object.keys(BankAnswers).forEach(k=>delete BankAnswers[k]);ExplorerState.topicId='';ExplorerState.status='all';Router.path='question-bank';location.hash='question-bank';window.renderQuestionBankV2?window.renderQuestionBankV2():renderQuestionBank();};
 
 
 function renderOrphanExplorer(){
@@ -4486,8 +4502,9 @@ boot();
 })();
 </script>
 <script src="phase345.patch.js"></script>
-<script src="qbank-redesign.js"></script>
+<script src="qbank-redesign.js?v=final8"></script>
 <script src="urgent-fix.js"></script>
-<script src="phase12-ui.js"></script>
+<script src="phase12-ui.js?v=final3"></script>
+<script src="phase23-ui.js?v=final6"></script>
 </body>
 </html>
