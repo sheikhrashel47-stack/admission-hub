@@ -1,26 +1,23 @@
 # Admission Hub MCQ Generation Resume State
 
-## Current emergency checkpoint
+## কাজ সম্পূর্ণ
+`mcq_final.json` আপডেট সম্পন্ন হয়েছে। বিদ্যমান **৯৯৪টি MCQ অপরিবর্তিত রেখে** Photo(3).pdf-এর উৎসভিত্তিক **৫২টি নতুন MCQ** যোগ করা হয়েছে। নতুন সংযোজনের মধ্যে রেইনকোটে ৩৬টি এবং মাসি-পিসিতে ১৬টি প্রশ্ন রয়েছে। ফলে মোট MCQ এখন **১,০৪৬টি**।
 
-The repository currently contains **994 MCQs** in `mcq_final.json`. All existing questions were preserved, including topics above 200. Three completed shortfall batch files available at the time of the emergency checkpoint were appended without waiting for further generation. **Six MCQs remain** to reach the overall target of 1,000.
+| বিষয় | আপডেটের আগে | নতুন সংযোজন | বর্তমান সংখ্যা | ন্যূনতম লক্ষ্য | অবস্থা |
+|---|---:|---:|---:|---:|---|
+| গন্তব্য কাবুল | ২০৯ | ০ | ২০৯ | ২০০ | সম্পূর্ণ |
+| কপিলদাস মুর্মুর শেষ কাজ | ২১৯ | ০ | ২১৯ | ২০০ | সম্পূর্ণ |
+| নেকলেস | ২১৮ | ০ | ২১৮ | ২০০ | সম্পূর্ণ |
+| রেইনকোট | ১৬৪ | ৩৬ | ২০০ | ২০০ | সম্পূর্ণ |
+| মাসি-পিসি | ১৮৪ | ১৬ | ২০০ | ২০০ | সম্পূর্ণ |
+| **মোট** | **৯৯৪** | **৫২** | **১,০৪৬** | **১,০০০+** | **সম্পূর্ণ** |
 
-| Topic | Current MCQs | Requested target | Remaining to overall topic target |
-|---|---:|---:|---:|
-| গন্তব্য কাবুল | 209 | 200 | 0 |
-| কপিলদাস মুর্মুর শেষ কাজ | 219 | 200 | 0 |
-| নেকলেস | 218 | 200 | 0 |
-| রেইনকোট | 164 | 200 | 36 |
-| মাসি-পিসি | 184 | 200 | 16 |
-| **Total** | **994** | **1000** | **6** |
+## উৎস ও যাচাই
+রেইনকোটের নতুন প্রশ্নগুলো Photo(3).pdf-এর রেইনকোট অংশের দৃশ্যমান/পাঠযোগ্য উৎসতথ্য থেকে তৈরি করা হয়েছে এবং মাসি-পিসির নতুন প্রশ্নগুলো একই PDF-এর ২১–২৬ নম্বর পৃষ্ঠার উৎসতথ্য থেকে তৈরি করা হয়েছে। PDF-টি স্ক্যান করা হওয়ায় OCR-ভিত্তিক পাঠের সঙ্গে দৃশ্যমান শিরোনাম মিলিয়ে নেওয়া হয়েছে; অস্পষ্ট বা ভিন্ন পাঠের তথ্য অনুমান করে ব্যবহার করা হয়নি।
 
-The two original above-target topics were not reduced or altered. The appended completed shortfall batches were `নেকলেস_01.json`, `রেইনকোট_02.json`, and `রেইনকোট_03.json`. Because the instruction changed to an immediate emergency push, these completed batches were merged as-is; no further generation was awaited.
+নতুন রেকর্ডগুলোতে চারটি অপশন, ০–৩ ভিত্তিক সঠিক অপশন সূচক (`answer`), উৎস পৃষ্ঠা, ব্যাখ্যা এবং `Photo(3).pdf` source metadata রাখা হয়েছে—এটি রিপোর বিদ্যমান `mcq_final.json` schema অনুসরণ করে। নতুন প্রশ্নগুলোর মধ্যে exact duplicate নেই, baseline-এর সঙ্গে exact question duplicate নেই, প্রতিটি নতুন প্রশ্নের চারটি অপশন স্বতন্ত্র, এবং `answer` index বৈধ। Baseline-এর সব ৯৯৪টি রেকর্ড preserve করা হয়েছে।
 
-## Source mapping
-
-- **গন্তব্য কাবুল:** PDF/Image pages 1–3.
-- **কপিলদাস মুর্মুর শেষ কাজ:** PDF/Image pages 4–7.
-- **নেকলেস:** PDF/Image pages 8–12.
-- **রেইনকোট:** PDF/Image pages 13–20.
-- **মাসি-পিসি:** PDF/Image pages 21–26.
-
-The final export remains a standalone JSON checkpoint. The app's IndexedDB Question Bank import has not been performed. The remaining continuation is six additional source-based MCQs overall, with the topic-level shortfalls shown above.
+## ফাইল অবস্থা
+- `mcq_final.json`: ১,০৪৬টি MCQ-সহ চূড়ান্ত আপডেটেড ফাইল।
+- `RESUME_STATE.md`: কাজ সম্পূর্ণ হিসেবে আপডেট করা হয়েছে।
+- বিষয়ভিত্তিক ন্যূনতম ২০০ MCQ শর্ত পূরণ হয়েছে।
