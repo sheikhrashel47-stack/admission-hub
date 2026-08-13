@@ -211,21 +211,7 @@
         </div>
       </article>
 
-      <section class="p3-card-v3 p3-command-section-v3">
-        <div class="p3-section-head-v3">
-          <b>Your Command Center</b>
-          <span class="p3-swipe-hint-v3">Swipe to explore · 12 tools</span>
-        </div>
-        <div class="command-carousel" aria-label="Quick access study tools">
-          <div class="command-track" id="commandTrack">
-            ${commandPages.map((page,index)=>`<div class="command-slide" data-command-page="${index}">${page}</div>`).join('')}
-          </div>
-        </div>
-        <div class="command-dots" role="tablist" aria-label="Command Center pages">
-          <button class="command-dot active" type="button" role="tab" aria-label="Page 1" aria-selected="true" onclick="goCommandPage(0)"></button>
-          <button class="command-dot" type="button" role="tab" aria-label="Page 2" aria-selected="false" onclick="goCommandPage(1)"></button>
-        </div>
-      </section>
+
 
       <section class="p3-card-v3 p3-recommend-v3">
         <div class="p3-recommend-content">
@@ -263,6 +249,22 @@
               <div class="p3-book-3"></div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section class="p3-card-v3 p3-command-section-v3">
+        <div class="p3-section-head-v3">
+          <b>Your Command Center</b>
+          <span class="p3-swipe-hint-v3">Swipe to explore · 12 tools</span>
+        </div>
+        <div class="command-carousel" aria-label="Quick access study tools">
+          <div class="command-track" id="commandTrack">
+            ${commandPages.map((page,index)=>`<div class="command-slide" data-command-page="${index}">${page}</div>`).join('')}
+          </div>
+        </div>
+        <div class="command-dots" role="tablist" aria-label="Command Center pages">
+          <button class="command-dot active" type="button" role="tab" aria-label="Page 1" aria-selected="true" onclick="goCommandPage(0)"></button>
+          <button class="command-dot" type="button" role="tab" aria-label="Page 2" aria-selected="false" onclick="goCommandPage(1)"></button>
         </div>
       </section>
 
@@ -560,7 +562,7 @@
 
     .command-carousel{position:relative;display:block;overflow:hidden;width:100%;max-width:100%;touch-action:pan-y;overscroll-behavior-x:contain}
     .command-track{display:flex;width:200%;transition:transform 0.28s cubic-bezier(0.23, 1, 0.32, 1);will-change:transform}
-    .command-slide{width:50%;flex:0 0 50%;display:grid;grid-template-columns:repeat(3, 1fr);grid-template-rows:repeat(2, 1fr);gap:10px;padding:0 16px}
+    .command-slide{width:50%;flex:0 0 50%;display:grid;grid-template-columns:repeat(3, 1fr) !important;grid-template-rows:repeat(2, 1fr);gap:10px;padding:0 16px}
     .command-dots{display:flex;justify-content:center;gap:8px;margin-top:8px}
     .command-dot{width:7px;height:7px;border:0;border-radius:50%;background:#e2e8f0;cursor:pointer;transition:all 0.2s ease}
     .command-dot.active{width:20px;border-radius:10px;background:#10b981}
