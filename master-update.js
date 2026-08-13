@@ -29,22 +29,33 @@
   };
   const validateSet=raw=>{
     const rows=Array.isArray(raw)?raw:(Array.isArray(raw?.items)?raw.items:[]), seen=new Set(), out=[];
-    rows.forEach((x,i)=>{const q=normalizeItem(x,i),k=q?.question.toLowerCase();if(q&&k&&!seen.has(k)){seen.add(k);out.push(q)}});
-    if(out.length!==50)return null;
-    const counts=Object.fromEntries(CATEGORY_PLAN.map(([c])=>[c,0]));
-    out.forEach(x=>{if(counts[x.category]!=null)counts[x.category]++});
-    if(CATEGORY_PLAN.some(([c,n])=>counts[c]!==n))return null;
-    return out;
+    rows.forEach((x,i)=>{const q=normalizeItem(x,i),k=q?.question?.toLowerCase();if(q&&k&&!seen.has(k)){seen.add(k);out.push(q)}});
+    if(out.length<50)return null;
+    return out.slice(0,50);
   };
-  async function requestLiveSet(){
+  async function requestBatch(categories,batchNum){
     if(!GROQ_API_KEY||GROQ_API_KEY.includes('REPLACE'))throw Error('Groq API key is not configured.');
-    const plan=CATEGORY_PLAN.map(([c,n])=>`${c}: ${n}`).join(', ');
-    const prompt=`আজ ${new Date().toISOString().slice(0,10)}। বাংলাদেশি admission/BCS পরীক্ষার্থীদের জন্য ঠিক ৫০টি সাম্প্রতিক, যাচাইযোগ্য current-affairs MCQ তৈরি করো। Category allocation অবশ্যই হবে: ${plan}। গত ৩০-৯০ দিনের গুরুত্বপূর্ণ ঘটনা অগ্রাধিকার দাও; evergreen fact কেবল সাম্প্রতিক context ছাড়া ব্যবহার করবে না। প্রতিটি প্রশ্নের sourceUrl অবশ্যই প্রকাশিত নির্ভরযোগ্য সংবাদমাধ্যম/সরকারি/আন্তর্জাতিক প্রতিষ্ঠানের https URL হবে এবং sourceTitle, publishedDate, collectedAt দেবে। প্রশ্ন, চারটি option, explanation সম্পূর্ণ বাংলায় হবে; options-এ কোনো hint, 'উপরের কোনটি নয়', duplicate, বা অস্পষ্টতা থাকবে না। শুধু এই JSON object ফেরত দাও: {"items":[{"question":"...","options":["...","...","...","..."],"correctAnswer":0,"explanation":"...","category":"...","sourceTitle":"...","sourceUrl":"https://...","publishedDate":"YYYY-MM-DD","collectedAt":"ISO-8601"}]}`;
-    const r=await fetch(GROQ_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${GROQ_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:GROQ_MODEL,messages:[{role:'system',content:'তুমি নির্ভুল, source-aware Bengali current-affairs question generator। তথ্য বানিয়ে লিখবে না।'}, {role:'user',content:prompt}],temperature:.7,max_tokens:12000,response_format:{type:'json_object'}})});
+    const plan=categories.map(([c,n])=>`${c}: ${n}`).join(', ');
+    const total=categories.reduce((s,[,n])=>s+n,0);
+    const prompt=`আজ ${new Date().toISOString().slice(0,10)}। বাংলাদেশি admission/BCS পরীক্ষার্থীদের জন্য ঠিক ${total}টি সাম্প্রতিক, যাচাইযোগ্য current-affairs MCQ তৈরি করো। Category allocation অবশ্যই হবে: ${plan}। গত ৩০-৯০ দিনের গুরুত্বপূর্ণ ঘটনা অগ্রাধিকার দাও; evergreen fact কেবল সাম্প্রতিক context ছাড়া ব্যবহার করবে না। প্রতিটি প্রশ্নের sourceUrl অবশ্যই প্রকাশিত নির্ভরযোগ্য সংবাদমাধ্যম/সরকারি/আন্তর্জাতিক প্রতিষ্ঠানের https URL হবে এবং sourceTitle, publishedDate, collectedAt দেবে। প্রশ্ন, চারটি option, explanation সম্পূর্ণ বাংলায় হবে; options-এ কোনো hint, 'উপরের কোনটি নয়', duplicate, বা অস্পষ্টতা থাকবে না। শুধু এই JSON object ফেরত দাও: {"items":[{"question":"...","options":["...","...","...","..."],"correctAnswer":0,"explanation":"...","category":"...","sourceTitle":"...","sourceUrl":"https://...","publishedDate":"YYYY-MM-DD","collectedAt":"ISO-8601"}]}`;
+    const r=await fetch(GROQ_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${GROQ_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:GROQ_MODEL,messages:[{role:'system',content:'তুমি নির্ভুল, source-aware Bengali current-affairs question generator। তথ্য বানিয়ে লিখবে না।'}, {role:'user',content:prompt}],temperature:.7,max_tokens:6000,response_format:{type:'json_object'}})});
     if(!r.ok){let msg='Groq request failed';try{const e=await r.json();msg=e?.error?.message||msg}catch(_){}throw Error(`${msg} (${r.status})`)}
-    const body=await r.json(), content=body?.choices?.[0]?.message?.content; const set=validateSet(extractJson(content));
-    if(!set)throw Error('Groq returned an incomplete, duplicated, or invalid 50-question set.');
-    return set;
+    const body=await r.json(), content=body?.choices?.[0]?.message?.content;
+    const parsed=extractJson(content);
+    const rows=Array.isArray(parsed)?parsed:(Array.isArray(parsed?.items)?parsed.items:[]);
+    return rows;
+  }
+  async function requestLiveSet(){
+    const batch1Cats=[['Bangladesh',5],['International',4],['Science & Technology',4],['Economy',3],['Environment',3],['Sports',3],['Awards/Organizations',2],['Other current affairs',1]];
+    const batch2Cats=[['Bangladesh',5],['International',4],['Science & Technology',3],['Economy',2],['Environment',2],['Sports',2],['Awards/Organizations',3],['Other current affairs',4]];
+    const rows1=await requestBatch(batch1Cats,1);
+    await new Promise(r=>setTimeout(r,5000));
+    const rows2=await requestBatch(batch2Cats,2);
+    const allRows=[...rows1,...rows2];
+    const seen=new Set(), out=[];
+    allRows.forEach((x,i)=>{const q=normalizeItem(x,i),k=q?.question?.toLowerCase();if(q&&k&&!seen.has(k)){seen.add(k);out.push({...q,id:`daily-gk-${today()}-${out.length+1}`})}});
+    if(out.length<50)throw Error(`মাত্র ${out.length}টি valid প্রশ্ন পাওয়া গেছে, ৫০টি দরকার। পুনরায় চেষ্টা করুন।`);
+    return out.slice(0,50);
   }
   const fresh=async()=>{const previous=readCache();const set=await requestLiveSet();const cache={updatedAt:now(),expiresAt:now()+GK_TTL,items:set,viewed:previous?.viewed&&previous.items?.length===50?previous.viewed:{}};writeCache(cache);return cache};
   const cacheState=()=>{const c=readCache();return c&&c.items.length===50?c:null};
