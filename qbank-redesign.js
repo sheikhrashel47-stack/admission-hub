@@ -58,8 +58,8 @@
     ExplorerState.subjectId = id;
     ExplorerState.topicId = '';
     ExplorerState.query = '';
-    Router.path = 'question-bank/subject/' + id;
-    render();
+    // Use hash navigation for consistency with original app behavior
+    location.hash = 'question-bank/subject/' + id;
   };
 
   window.openRedesignedTopic = id => {
@@ -68,16 +68,14 @@
     ExplorerState.topicId = id;
     ExplorerState.status = 'all';
     ExplorerState.query = '';
-    Router.path = 'question-bank/topic/' + id;
+    location.hash = 'question-bank/topic/' + id;
     window.BankAnswers = window.BankAnswers || {};
-    render();
   };
 
   window.leaveTopic = () => {
     // Reset temporary highlights
     window.BankAnswers = {};
-    Router.path = 'question-bank/subject/' + ExplorerState.subjectId;
-    render();
+    location.hash = 'question-bank/subject/' + ExplorerState.subjectId;
   };
 
   function renderSubjectList() {
@@ -121,7 +119,7 @@
         <header class="q-bank-header">
           <div class="row between">
             <div class="row">
-              <button class="q-back-btn" onclick="navigate('question-bank')">‹</button>
+              <button class="q-back-btn" onclick="location.hash='question-bank'">‹</button>
               <div>
                 <h1>${qEsc(sub.name)}</h1>
                 <p>${topics.length} Topics</p>
@@ -244,8 +242,25 @@
 
   window.renderQuestionBankV2 = () => {
     const p = Router.path;
-    if (p.startsWith('question-bank/topic/')) return renderFeed();
-    if (p.startsWith('question-bank/subject/')) return renderTopicList();
+    if (p.startsWith('question-bank/topic/')) {
+      const tid = p.split('/')[2];
+      if (tid) {
+        ExplorerState.topicId = tid;
+        const t = CACHE.topics.find(x => x.id === tid);
+        ExplorerState.subjectId = t?.subjectId || '';
+        return renderFeed();
+      }
+    }
+    if (p.startsWith('question-bank/subject/')) {
+      const sid = p.split('/')[2];
+      if (sid) {
+        ExplorerState.subjectId = sid;
+        ExplorerState.topicId = '';
+        return renderTopicList();
+      }
+    }
+    ExplorerState.subjectId = '';
+    ExplorerState.topicId = '';
     return renderSubjectList();
   };
 

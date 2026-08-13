@@ -343,7 +343,182 @@
 
   window.renderTelegram = renderTelegram;
   window.renderDictionary = renderDictionary;
+  /* ================= CALCULATOR SYSTEM ================= */
+  const CALC_MODES = [
+    { id: 'percentage', name: 'Percentage', bn: 'শতকরা' },
+    { id: 'average', name: 'Average', bn: 'গড়' },
+    { id: 'ratio', name: 'Ratio', bn: 'অনুপাত' },
+    { id: 'fraction', name: 'Fraction', bn: 'ভগ্নাংশ' },
+    { id: 'marks', name: 'Marks', bn: 'নম্বর' },
+    { id: 'negative', name: 'Negative Marking', bn: 'নেগেটিভ মার্কিং' },
+    { id: 'accuracy', name: 'MCQ Accuracy', bn: 'নির্ভুলতা' },
+    { id: 'required', name: 'Required Score', bn: 'প্রয়োজনীয় নম্বর' },
+    { id: 'gpa', name: 'GPA/Grade', bn: 'জিপিএ/গ্রেড' },
+    { id: 'date', name: 'Date Diff', bn: 'তারিখের পার্থক্য' },
+    { id: 'studytime', name: 'Study Time', bn: 'পড়ার সময়' },
+    { id: 'target', name: 'Study Target', bn: 'স্টাডি টার্গেট' }
+  ];
+
+  let CalcState = { mode: safeJson(LS.calc, {active:'percentage'}).active, inputs: {}, result: null };
+
+  window.setCalcMode = function(m) {
+    CalcState.mode = m;
+    CalcState.result = null;
+    saveJson(LS.calc, {active:m});
+    renderCalculator();
+  };
+
+  window.runCalculation = function() {
+    const m = CalcState.mode;
+    const get = (id) => parseFloat(document.getElementById(id)?.value || 0);
+    const getS = (id) => document.getElementById(id)?.value || '';
+    let res = '';
+
+    if (m === 'percentage') {
+      const v = get('c1'), t = get('c2');
+      res = `শতকরা: <b>${((v/t)*100).toFixed(2)}%</b>`;
+    } else if (m === 'average') {
+      const vals = getS('c1').split(',').map(x => parseFloat(x.trim())).filter(x => !isNaN(x));
+      const avg = vals.reduce((a,b)=>a+b,0) / (vals.length || 1);
+      res = `গড়: <b>${avg.toFixed(2)}</b> (মোট সংখ্যা: ${vals.length})`;
+    } else if (m === 'ratio') {
+      const a = get('c1'), b = get('c2');
+      const gcd = (x,y) => y ? gcd(y, x%y) : x;
+      const common = gcd(a, b) || 1;
+      res = `অনুপাত: <b>${a/common} : ${b/common}</b>`;
+    } else if (m === 'fraction') {
+      const n = get('c1'), d = get('c2');
+      res = `দশমিক: <b>${(n/d).toFixed(4)}</b><br>শতকরা: <b>${((n/d)*100).toFixed(2)}%</b>`;
+    } else if (m === 'marks') {
+      const o = get('c1'), t = get('c2'), p = get('c3');
+      const pct = (o/t)*100;
+      res = `শতকরা: <b>${pct.toFixed(2)}%</b><br>ফলাফল: <b style="color:${pct>=p?'var(--green)':'var(--red)'}">${pct>=p?'Pass':'Fail'}</b>`;
+    } else if (m === 'negative') {
+      const q = get('c1'), c = get('c2'), w = get('c3'), mc = get('c4'), mw = get('c5');
+      const net = (c * mc) - (w * mw);
+      res = `মোট নম্বর: <b>${net.toFixed(2)}</b><br>শতকরা: <b>${((net/(q*mc))*100).toFixed(2)}%</b>`;
+    } else if (m === 'accuracy') {
+      const a = get('c1'), c = get('c2');
+      res = `নির্ভুলতা: <b>${((c/a)*100).toFixed(2)}%</b>`;
+    } else if (m === 'required') {
+      const tp = get('c1'), tm = get('c2');
+      res = `প্রয়োজনীয় নম্বর: <b>${((tp/100)*tm).toFixed(2)}</b>`;
+    } else if (m === 'gpa') {
+      const m = get('c1');
+      let g = 'F', gp = 0.00;
+      if(m>=80){g='A+';gp=5.00}else if(m>=70){g='A';gp=4.00}else if(m>=60){g='A-';gp=3.50}else if(m>=50){g='B';gp=3.00}else if(m>=40){g='C';gp=2.00}else if(m>=33){g='D';gp=1.00}
+      res = `গ্রেড: <b>${g}</b><br>জিপিএ: <b>${gp.toFixed(2)}</b>`;
+    } else if (m === 'date') {
+      const d1 = new Date(getS('c1')), d2 = new Date(getS('c2'));
+      const diff = Math.abs(d2 - d1) / (1000 * 60 * 60 * 24);
+      res = `পার্থক্য: <b>${Math.floor(diff)} দিন</b>`;
+    } else if (m === 'studytime') {
+      const topics = get('c1'), per = get('c2');
+      const total = topics * per;
+      res = `মোট সময়: <b>${Math.floor(total/60)} ঘণ্টা ${total%60} মিনিট</b>`;
+    } else if (m === 'target') {
+      const q = get('c1'), d = get('c2'), h = get('c3');
+      const daily = Math.ceil(q / d), weekly = daily * 7;
+      const qph = (daily / h).toFixed(1);
+      const rev = Math.floor(d * 0.2), mock = Math.floor(d * 0.1);
+      res = `
+        <div class="calc-res-item">দৈনিক লক্ষ্য: <b>${daily} টি প্রশ্ন</b></div>
+        <div class="calc-res-item">সাপ্তাহিক লক্ষ্য: <b>${weekly} টি প্রশ্ন</b></div>
+        <div class="calc-res-item">ঘণ্টায় সমাধান: <b>${qph} টি</b></div>
+        <div class="calc-res-item">রিভিশন সময়: <b>${rev} দিন</b></div>
+        <div class="calc-res-item">মক টেস্ট সময়: <b>${mock} দিন</b></div>
+      `;
+    }
+
+    CalcState.result = res;
+    renderCalculator();
+  };
+
+  function renderCalculator() {
+    const m = CalcState.mode;
+    const tabs = CALC_MODES.map(x => `<button class="calc-tab ${m===x.id?'active':''}" onclick="setCalcMode('${x.id}')"><span>${x.bn}</span><small>${x.name}</small></button>`).join('');
+    
+    let fields = '';
+    if(m==='percentage') fields = input('c1','প্রাপ্ত নম্বর') + input('c2','মোট নম্বর');
+    else if(m==='average') fields = `<label class="flabel">সংখ্যাগুলো লিখুন (কমা দিয়ে আলাদা করুন)</label><textarea id="c1" placeholder="10, 20, 30..."></textarea>`;
+    else if(m==='ratio') fields = input('c1','প্রথম সংখ্যা') + input('c2','দ্বিতীয় সংখ্যা');
+    else if(m==='fraction') fields = input('c1','লব (Numerator)') + input('c2','হর (Denominator)');
+    else if(m==='marks') fields = input('c1','প্রাপ্ত নম্বর') + input('c2','মোট নম্বর') + input('c3','পাস নম্বর (%)', 'number', 33);
+    else if(m==='negative') fields = input('c1','মোট প্রশ্ন') + input('c2','সঠিক উত্তর') + input('c3','ভুল উত্তর') + input('c4','প্রতি সঠিক নম্বরে', 'number', 1) + input('c5','প্রতি ভুল কর্তন', 'number', 0.25);
+    else if(m==='accuracy') fields = input('c1','মোট সমাধানকৃত') + input('c2','সঠিক উত্তর');
+    else if(m==='required') fields = input('c1','টার্গেট শতকরা (%)') + input('c2','মোট নম্বর');
+    else if(m==='gpa') fields = input('c1','প্রাপ্ত নম্বর (০-১০০)');
+    else if(m==='date') fields = input('c1','শুরুর তারিখ', 'date') + input('c2','শেষ তারিখ', 'date');
+    else if(m==='studytime') fields = input('c1','মোট টপিক') + input('c2','টপিক প্রতি সময় (মিনিট)');
+    else if(m==='target') fields = input('c1','মোট MCQ লক্ষ্য') + input('c2','মোট সময় (দিন)') + input('c3','দৈনিক পড়ার সময় (ঘণ্টা)');
+
+    shell(`
+      <div class="explorer-head">
+        <div class="explorer-kicker">All-in-one Utility</div>
+        <div class="explorer-title">Advanced Study Calculator</div>
+        <p class="explorer-subtitle">ভর্তি প্রস্তুতির জন্য প্রয়োজনীয় সকল ক্যালকুলেশন।</p>
+      </div>
+      <div class="calc-tabs-v2">${tabs}</div>
+      <div class="card">
+        <div class="calc-fields">${fields}</div>
+        <button class="btn" style="margin-top:16px" onclick="runCalculation()">Calculate</button>
+      </div>
+      ${CalcState.result ? `<div class="card calc-result-v2"><strong>Result</strong><div style="margin-top:8px">${CalcState.result}</div></div>` : ''}
+    `, { title: 'Study Calculator', back: "navigate('dashboard')" });
+  }
+
+  function addStyles(){ 
+    if (document.getElementById('admission-upgrade-styles')) return; 
+    const s=document.createElement('style'); 
+    s.id='admission-upgrade-styles'; 
+    s.textContent=`
+      .upgrade-hero{background:linear-gradient(135deg,#0f6b4f,#084b38);color:#fff;border:0;padding:20px;border-radius:18px;margin-bottom:16px}
+      .tg-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
+      .tg-row:last-child{border-bottom:0}
+      
+      .dict-result-v2{margin-top:16px;animation:fadeUp 0.3s ease;}
+      .dict-card-v2{background:#fff;border-radius:20px;padding:20px;border:1px solid var(--line);box-shadow:var(--shadow);}
+      .dict-word{font-size:32px;font-weight:800;margin:0;color:var(--emerald-d);}
+      .dict-phonetic{color:var(--sub);font-size:14px;margin-top:4px;}
+      .dict-bn-meaning{font-size:20px;font-weight:700;color:var(--text);margin:16px 0 8px;}
+      .dict-en-meaning{font-size:15px;color:var(--sub);line-height:1.5;margin-bottom:16px;}
+      .dict-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
+      .dict-item{background:var(--mint);padding:12px;border-radius:12px;}
+      .dict-item strong{display:block;font-size:11px;text-transform:uppercase;color:var(--emerald-d);margin-bottom:4px;}
+      .dict-item p{margin:0;font-size:14px;font-weight:600;}
+      .dict-example{margin-top:16px;padding:14px;background:#f8fafc;border-radius:12px;border-left:4px solid var(--emerald);}
+      
+      .web-chat-v2{display:flex;flex-direction:column;gap:16px;}
+      .web-message{padding:14px 18px;border-radius:18px;max-width:90%;line-height:1.6;}
+      .web-message.user{align-self:flex-end;background:var(--emerald);color:#fff;border-bottom-right-radius:4px;}
+      .web-message.assistant{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px;box-shadow:var(--shadow);}
+      .web-main-answer{font-size:16px;font-weight:500;color:var(--text);}
+      .web-sources-v2{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;}
+      .web-sources-v2 a{color:var(--emerald);margin-left:8px;text-decoration:none;font-weight:600;}
+      
+      .web-search-box-v2{position:sticky;bottom:0;background:var(--bg);padding:12px 0;display:flex;gap:8px;}
+      .web-search-box-v2 textarea{flex:1;padding:12px 16px;border-radius:14px;border:1px solid var(--line);resize:none;height:48px;font-family:inherit;}
+      .web-search-box-v2 button{width:48px;height:48px;border-radius:14px;background:var(--emerald);color:#fff;border:0;cursor:pointer;display:grid;place-items:center;}
+      
+      .calc-tabs-v2{display:flex;gap:8px;overflow-x:auto;padding-bottom:12px;margin-bottom:4px;}
+      .calc-tab{flex-shrink:0;background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px 14px;text-align:left;cursor:pointer;min-width:100px;}
+      .calc-tab.active{background:var(--emerald);border-color:var(--emerald);color:#fff;}
+      .calc-tab span{display:block;font-weight:700;font-size:14px;}
+      .calc-tab small{font-size:10px;opacity:0.7;text-transform:uppercase;}
+      .calc-tab.active small{color:#fff;}
+      .calc-fields textarea{width:100%;height:80px;border-radius:12px;border:1px solid var(--line);padding:12px;font-family:inherit;}
+      .calc-result-v2{border-left:5px solid var(--emerald);animation:fadeUp 0.2s ease;}
+      .calc-res-item{margin-bottom:6px;font-size:15px;}
+      
+      @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    `; 
+    document.head.appendChild(s); 
+  }
+
+  window.renderTelegram = renderTelegram;
+  window.renderDictionary = renderDictionary;
   window.renderWebChat = renderWebChat;
+  window.renderCalculator = renderCalculator;
   window.toggleTelegramCategory = function(id){ TG.categories[id]=!TG.categories[id]; tgSave(); renderTelegram(); };
 
   const oldRender=window.render; 
@@ -352,6 +527,7 @@
     if(p==='telegram') return renderTelegram();
     if(p==='web-chat') return renderWebChat();
     if(p==='dictionary') return renderDictionary();
+    if(p==='calculator') return renderCalculator();
     return oldRender();
   };
 })();
