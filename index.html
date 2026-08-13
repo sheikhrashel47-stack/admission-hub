@@ -399,6 +399,51 @@ body.no-motion *,body.no-motion *::before,body.no-motion *::after{animation:none
   .phase5-calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.phase5-calendar div{min-height:32px;padding:5px 3px;border-radius:7px;background:var(--mint);font-size:10px;text-align:center}.phase5-calendar .today{background:var(--emerald);color:#fff}.phase5-calendar .event{outline:2px solid var(--orange)}
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   @media(max-width:390px){.phase5-grid,.phase5-grid.three{grid-template-columns:1fr 1fr}.phase5-grid.three .phase5-kpi:last-child{grid-column:1/-1}}
+  /* Flash Test Redesign - Light Theme */
+  .flash-container { padding: 10px 16px 40px; background: var(--bg); min-height: 100vh; }
+  .flash-header { margin-bottom: 20px; }
+  .flash-title { font-size: 18px; font-weight: 800; margin: 0; }
+  .flash-subtitle { font-size: 12px; color: var(--emerald); font-weight: 600; }
+  .flash-progress-section { margin-bottom: 24px; }
+  .flash-meta { font-size: 12px; color: var(--sub); margin-bottom: 8px; }
+  .flash-prog { height: 6px; background: var(--mint); }
+  .flash-q-card { padding: 20px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.04); }
+  .flash-badge { background: #e8f5e9; color: #2e7d32; padding: 4px 10px; border-radius: 8px; font-size: 11px; font-weight: 800; }
+  .flash-points { font-size: 12px; color: var(--sub); font-weight: 600; }
+  .flash-q-text { font-size: 19px; font-weight: 800; line-height: 1.5; margin: 16px 0 24px; }
+  .flash-options { display: flex; flex-direction: column; gap: 12px; }
+  .flash-opt { display: flex; align-items: center; gap: 14px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); cursor: pointer; text-align: left; width: 100%; transition: all 0.2s; position: relative; }
+  .flash-opt-let { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-size: 14px; font-weight: 800; color: var(--sub); flex-shrink: 0; }
+  .flash-opt-text { font-size: 16px; font-weight: 600; color: var(--text); flex: 1; }
+  .flash-opt-icon { font-size: 18px; font-weight: 800; }
+  
+  .flash-opt.correct { border-color: var(--green); background: #f1fbf5; }
+  .flash-opt.correct .flash-opt-let { background: var(--green); color: #fff; border-color: var(--green); }
+  .flash-opt.correct .flash-opt-text { color: #1b5e20; }
+  .flash-opt.correct .flash-opt-icon { color: var(--green); }
+  
+  .flash-opt.wrong { border-color: var(--red); background: #fff5f5; }
+  .flash-opt.wrong .flash-opt-let { background: var(--red); color: #fff; border-color: var(--red); }
+  .flash-opt.wrong .flash-opt-text { color: #b71c1c; }
+  .flash-opt.wrong .flash-opt-icon { color: var(--red); }
+  
+  .flash-feedback { margin-top: 24px; padding: 16px; border-radius: 16px; }
+  .flash-feedback.correct { background: #f1fbf5; border: 1px solid #c8e6c9; }
+  .flash-feedback.wrong { background: #fff5f5; border: 1px solid #ffcdd2; }
+  .flash-feedback-title { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+  .flash-explanation { font-size: 14px; line-height: 1.6; color: var(--text); margin-bottom: 12px; }
+  .flash-explain-link { background: none; border: 0; color: var(--emerald-d); font-size: 13px; font-weight: 700; padding: 0; cursor: pointer; text-decoration: underline; }
+  
+  .flash-stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 24px 0; }
+  .flash-stat-box { background: var(--card); padding: 12px 8px; border-radius: 16px; text-align: center; border: 1px solid var(--line); }
+  .flash-stat-val { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+  .flash-stat-val.correct { color: var(--green); }
+  .flash-stat-val.wrong { color: var(--red); }
+  .flash-stat-val.streak { color: #f57c00; }
+  .flash-stat-lab { font-size: 10px; text-transform: uppercase; color: var(--sub); font-weight: 800; letter-spacing: 0.05em; }
+  
+  .flash-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  .flash-footer { text-align: center; font-size: 12px; color: var(--sub); opacity: 0.8; padding: 20px 0; }
 </style>
 </head>
 <body>
@@ -2554,9 +2599,121 @@ function confirmSubmitExam(){
 
 /* ---- Flash Test ---- */
 function renderFlashRunning(){
-  const e=ActiveExam,q=e.questions[e.currentIndex],answered=e.flashResults[q.id];
-  const html=`<div class="row between" style="margin-bottom:12px"><div class="muted">Flash ${e.currentIndex+1} / ${e.questions.length}</div><div class="pill">✓ ${Object.values(e.flashResults).filter(r=>r.correct).length} · ✕ ${Object.values(e.flashResults).filter(r=>!r.correct).length}</div></div><article class="card question-card ${answered?'flash-answered':''}"><div class="question-text" style="margin-top:0">${esc(q.question)}</div><div style="margin-top:14px">${q.options.map((o,i)=>{let cls='';if(answered){if(i===q.answerIndex)cls='correct';else if(i===answered.selected)cls='wrong';}return `<button class="opt bank-option ${cls}" ${answered?'disabled':''} onclick="${answered?'':`selectFlashAnswer('${q.id}',${i})`}"><span class="let">${String.fromCharCode(65+i)}</span><span style="text-align:left">${esc(o)}</span></button>`}).join('')}</div>${answered?`<div class="answer-reveal ${answered.correct?'':'wrong'}"><b>${answered.correct?'✓ Correct':'✕ Wrong'}</b>${answered.correct?'':`<div class="muted" style="margin-top:4px">Correct answer: ${esc(q.options[q.answerIndex]||'')}</div>`}${q.explanation?`<div class="muted" style="margin-top:5px"><b>Why:</b> ${esc(q.explanation)}</div>`:''}</div>`:''}</article>${answered?`<button class="btn start-exam-btn" onclick="flashNext()">${e.currentIndex===e.questions.length-1?'Finish':'Next Question →'}</button>`:''}`;
-  renderShell(html,{title:'Flash Test',hideNav:true});
+  const e=ActiveExam, q=e.questions[e.currentIndex], answered=e.flashResults[q.id];
+  const total = e.questions.length, current = e.currentIndex + 1;
+  const progress = Math.round((current / total) * 100);
+  
+  // Calculate stats
+  const results = Object.values(e.flashResults);
+  const correctCount = results.filter(r=>r.correct).length;
+  const wrongCount = results.filter(r=>!r.correct).length;
+  const accuracy = results.length ? Math.round((correctCount / results.length) * 100) : 0;
+  
+  // Calculate streak
+  let streak = 0;
+  for(let i=e.currentIndex; i>=0; i--){
+    const res = e.flashResults[e.questions[i].id];
+    if(res && res.correct) streak++; else if(res && !res.correct) break;
+  }
+
+  const html = `
+    <div class="flash-container">
+      <header class="flash-header">
+        <div class="row between">
+          <div class="row">
+            <button class="backbtn" onclick="confirmSubmitExam()">←</button>
+            <div>
+              <h1 class="flash-title">Flash Test</h1>
+              <div class="flash-subtitle">⚡ Instant Feedback Mode</div>
+            </div>
+          </div>
+          <div class="row">
+            <button class="iconbtn">${e.bookmarks.has(q.id)?'★':'☆'}</button>
+            <button class="iconbtn">⋮</button>
+          </div>
+        </div>
+      </header>
+
+      <div class="flash-progress-section">
+        <div class="row between flash-meta">
+          <span><b>${current}/${total}</b> Question</span>
+          <span><b>${progress}%</b> Complete</span>
+          <span class="row"><span class="ic">⏱</span> <b>18:45</b> Time Left</span>
+        </div>
+        <div class="progbar flash-prog"><div style="width:${progress}%"></div></div>
+      </div>
+
+      <article class="card flash-q-card">
+        <div class="row between" style="margin-bottom:12px;">
+          <span class="flash-badge">MCQ</span>
+          <span class="flash-points">1 Point</span>
+        </div>
+        <div class="flash-q-text">${esc(q.question)}</div>
+        
+        <div class="flash-options">
+          ${q.options.map((o,i)=>{
+            let cls = '';
+            let icon = '';
+            if(answered){
+              if(i === q.answerIndex) { cls = 'correct'; icon = '✓'; }
+              else if(i === answered.selected) { cls = 'wrong'; icon = '✕'; }
+            }
+            return `
+              <button class="flash-opt ${cls}" ${answered?'disabled':''} onclick="selectFlashAnswer('${q.id}',${i})">
+                <div class="flash-opt-let">${String.fromCharCode(65+i)}</div>
+                <div class="flash-opt-text">${esc(o)}</div>
+                ${icon ? `<div class="flash-opt-icon">${icon}</div>` : ''}
+              </button>
+            `;
+          }).join('')}
+        </div>
+
+        ${answered ? `
+          <div class="flash-feedback ${answered.correct?'correct':'wrong'}">
+            <div class="flash-feedback-title">
+              ${answered.correct ? '✅ Correct! 🎉' : '❌ Wrong!'}
+            </div>
+            <p class="flash-explanation">${esc(q.explanation || 'No explanation available.')}</p>
+            <button class="flash-explain-link">📖 Explanation</button>
+          </div>
+        ` : ''}
+      </article>
+
+      <div class="flash-stats-bar">
+        <div class="flash-stat-box">
+          <div class="flash-stat-val correct">${correctCount}</div>
+          <div class="flash-stat-lab">Correct</div>
+        </div>
+        <div class="flash-stat-box">
+          <div class="flash-stat-val wrong">${wrongCount}</div>
+          <div class="flash-stat-lab">Wrong</div>
+        </div>
+        <div class="flash-stat-box">
+          <div class="flash-stat-val">${accuracy}%</div>
+          <div class="flash-stat-lab">Accuracy</div>
+        </div>
+        <div class="flash-stat-box">
+          <div class="flash-stat-val streak">${streak}</div>
+          <div class="flash-stat-lab">Streak</div>
+        </div>
+      </div>
+
+      <div class="flash-nav">
+        <button class="btn secondary" onclick="flashPrev()" ${e.currentIndex===0?'disabled':''}>&lt; Previous</button>
+        <button class="btn" onclick="flashNext()">${e.currentIndex===total-1?'Finish':'Next Question &gt;'}</button>
+      </div>
+
+      <footer class="flash-footer">
+        💡 Flash Test এ প্রতিটি প্রশ্নের সাথে সাথে উত্তর দেখানো হয়
+      </footer>
+    </div>
+  `;
+  renderShell(html, {topbar:false, hideNav:false});
+}
+
+function flashPrev(){
+  const e=ActiveExam;
+  if(e.currentIndex>0){ e.currentIndex--; dbPut('exams',e); render(); }
 }
 
 async function selectFlashAnswer(qid,idx){

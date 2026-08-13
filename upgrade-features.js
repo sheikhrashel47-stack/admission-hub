@@ -31,7 +31,25 @@
 
   function renderTelegram(){ const rows=TG_CATEGORIES.map(([id,en,bn])=>`<div class="tg-row"><div><b>${bn}</b><div class="upgrade-muted">${en}</div></div><button class="chip ${TG.categories[id]!==false?'active':''}" onclick="toggleTelegramCategory('${id}')">${TG.categories[id]!==false?'ON':'OFF'}</button></div>`).join(''); shell(`<div class="explorer-head"><div class="explorer-kicker">Direct Bot API Integration</div><div class="explorer-title">Telegram Notifications</div><div class="explorer-subtitle">Telegram Bot API ব্যবহার করে সরাসরি নোটিফিকেশন। পার্সোনাল অ্যাপের জন্য Bot Token ফ্রন্টএন্ডে রাখা হয়েছে।</div></div><section class="card upgrade-hero"><div class="row between"><div><b>${TG.connected?'Connected':'Not connected'}</b><div style="opacity:.82;font-size:12px;margin-top:4px">${TG.chatId?'Chat ID: '+escX(TG.chatId):'Bot তথ্য দিয়ে Connect করুন'}</div></div><span style="font-size:28px">✈</span></div></section><div class="card">${input('tgToken','Bot Token','text',TG.botToken)}${input('tgChat','Telegram Chat ID','text',TG.chatId)}<div class="row wrap" style="gap:8px;margin-top:12px"><button class="btn" onclick="connectTelegram()">Save & Connect</button><button class="btn secondary sm" onclick="testTelegram()">Test Notification</button><button class="btn danger sm" onclick="disconnectTelegram()">Disconnect</button></div></div><div class="card"><h3 style="margin-top:0">Notification categories</h3>${rows}</div>`,{title:'Telegram',back:"navigate('settings')"}); }
   window.toggleTelegramCategory = function(id){ TG.categories[id]=!TG.categories[id]; tgSave(); renderTelegram(); };
-  window.connectTelegram = async function(){ const token=document.getElementById('tgToken')?.value.trim(), chat=document.getElementById('tgChat')?.value.trim(); if(!token||!chat){notify('Bot Token এবং Chat ID প্রয়োজন');return;} TG.botToken=token; TG.chatId=chat; notify('Testing connection...'); const ok=await tgSend('system','Admission Hub Connected','আপনার Telegram Notification System সফলভাবে চালু হয়েছে।', 'connect-'+now()); if(ok){ TG.connected=true; tgSave(); notify('Telegram connected successfully!'); } else { notify('Connection failed! Bot Token বা Chat ID চেক করুন।'); } renderTelegram(); };
+  window.connectTelegram = async function(){ 
+    const token=document.getElementById('tgToken')?.value.trim(), chat=document.getElementById('tgChat')?.value.trim(); 
+    if(!token||!chat){notify('Bot Token এবং Chat ID প্রয়োজন');return;} 
+    TG.botToken=token; TG.chatId=chat; 
+    // Temporarily set connected to true to allow tgSend to work for the test
+    const wasConnected = TG.connected;
+    TG.connected = true;
+    notify('Testing connection...'); 
+    const ok=await tgSend('system','Admission Hub Connected','আপনার Telegram Notification System সফলভাবে চালু হয়েছে।', 'connect-'+now()); 
+    if(ok){ 
+      TG.connected=true; 
+      tgSave(); 
+      notify('Telegram connected successfully!'); 
+    } else { 
+      TG.connected = wasConnected;
+      notify('Connection failed! Bot Token বা Chat ID চেক করুন।'); 
+    } 
+    renderTelegram(); 
+  };
   window.testTelegram = async function(){ if(!TG.connected){notify('আগে Connect করুন');return;} notify('Sending test notification...'); const ok=await tgSend('system','Test Notification','This is a test notification from Admission Hub.', 'test-'+now()); notify(ok?'Test notification sent!':'Failed to send test notification. Check console/relay.'); };
   window.disconnectTelegram = function(){TG=tgDefault();tgSave();notify('Telegram disconnected');renderTelegram();};
 
