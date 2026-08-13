@@ -1,14 +1,18 @@
 {
-  "base_kept": 854,
-  "replacement_input": 80,
-  "final_unique": 934,
-  "removed_during_final_merge": 0,
+  "previous_count": 934,
+  "appended_count": 60,
+  "final_count": 994,
+  "remaining_to_1000": 6,
   "topic_counts": {
-    "গন্তব্য কাবুল": 209,
     "কপিলদাস মুর্মুর শেষ কাজ": 219,
-    "নেকলেস": 198,
-    "রেইনকোট": 124,
-    "মাসি-পিসি": 184
+    "নেকলেস": 218,
+    "রেইনকোট": 164,
+    "মাসি-পিসি": 184,
+    "গন্তব্য কাবুল": 209
   },
-  "remaining_to_target": 66
+  "completed_shortfall_files": [
+    "নেকলেস_01.json",
+    "রেইনকোট_02.json",
+    "রেইনকোট_03.json"
+  ]
 }

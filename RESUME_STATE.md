@@ -1,19 +1,19 @@
 # Admission Hub MCQ Generation Resume State
 
-## Current status
+## Current emergency checkpoint
 
-A final repository JSON has been created at `mcq_final.json`. It contains **934 unique source-based Bengali literature MCQs** compiled from `Photo(1).pdf`. The target remains **1,000 MCQs**, so **66 MCQs remain** for a later continuation. The current JSON is a partial but deduplicated checkpoint and is intentionally being pushed now so no completed work is lost.
+The repository currently contains **994 MCQs** in `mcq_final.json`. All existing questions were preserved, including topics above 200. Three completed shortfall batch files available at the time of the emergency checkpoint were appended without waiting for further generation. **Six MCQs remain** to reach the overall target of 1,000.
 
-| Topic | Current unique MCQs | Target | Remaining |
+| Topic | Current MCQs | Requested target | Remaining to overall topic target |
 |---|---:|---:|---:|
-| গন্তব্য কাবুল | 209 | 200 | 0* |
-| কপিলদাস মুর্মুর শেষ কাজ | 219 | 200 | 0* |
-| নেকলেস | 198 | 200 | 2 |
-| রেইনকোট | 124 | 200 | 76 |
+| গন্তব্য কাবুল | 209 | 200 | 0 |
+| কপিলদাস মুর্মুর শেষ কাজ | 219 | 200 | 0 |
+| নেকলেস | 218 | 200 | 0 |
+| রেইনকোট | 164 | 200 | 36 |
 | মাসি-পিসি | 184 | 200 | 16 |
-| **Total** | **934** | **1000** | **66** |
+| **Total** | **994** | **1000** | **6** |
 
-`*` The first two topics currently exceed the nominal 200-question topic target because completed replacement batches were merged without deleting otherwise valid unique items. No valid unique questions were removed solely to force a per-topic cap in this emergency checkpoint.
+The two original above-target topics were not reduced or altered. The appended completed shortfall batches were `নেকলেস_01.json`, `রেইনকোট_02.json`, and `রেইনকোট_03.json`. Because the instruction changed to an immediate emergency push, these completed batches were merged as-is; no further generation was awaited.
 
 ## Source mapping
 
@@ -23,16 +23,4 @@ A final repository JSON has been created at `mcq_final.json`. It contains **934 
 - **রেইনকোট:** PDF/Image pages 13–20.
 - **মাসি-পিসি:** PDF/Image pages 21–26.
 
-Only source-grounded content from the assigned pages was used. Page 20 is a low-contrast review-question scan; faint backside OCR overflow was excluded from the usable source prefix.
-
-## Generation and QA checkpoint
-
-The original generation produced 1,000 raw records in 50 complete batch files. Programmatic duplicate screening retained 854 records. Completed replacement output contributed 80 additional records at merge time, resulting in 934 unique final records. A final merge-level exact/near-duplicate check removed 0 further records.
-
-The final JSON uses stable IDs (`lit-mcq-0001` onward), preserves the question, four options, zero-based answer index, explanation, topic, source page, difficulty, source, and tags. The JSON is a standalone export and has not yet been imported into the app's IndexedDB Question Bank. That app import and the remaining 66 source-based MCQs are the next continuation tasks.
-
-## Repository files added or updated in this checkpoint
-
-- `mcq_final.json` — final 934-item unique MCQ export with metadata and topic counts.
-- `final_merge_report.json` — machine-readable merge summary.
-- `RESUME_STATE.md` — this updated continuation state.
+The final export remains a standalone JSON checkpoint. The app's IndexedDB Question Bank import has not been performed. The remaining continuation is six additional source-based MCQs overall, with the topic-level shortfalls shown above.
