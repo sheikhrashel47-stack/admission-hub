@@ -78,6 +78,11 @@
     const targetPct = Math.min(100, Math.round(d.done/Math.max(1,d.target)*100));
     const tasksPct = Math.min(100, Math.round(done/Math.max(1,t.length||1)*100));
     const unread = notifications().filter(n=>!n.read).length;
+    
+    // Original data points
+    const unfinished = typeof CACHE !== 'undefined' && Array.isArray(CACHE.exams) ? CACHE.exams.find((exam) => exam.status === 'running') : null;
+    const smartFocus = typeof getSmartFocusTopics === 'function' ? getSmartFocusTopics() : [];
+    const stats = typeof computeLifetimeStats === 'function' ? computeLifetimeStats() : {totalQuestions: 0};
 
     const commandTools = [
       ['📚', 'Bank', 'প্রশ্নভাণ্ডার', 'question-bank'],
@@ -107,6 +112,17 @@
       ['📖', 'Dictionary', 'শব্দের অর্থ ও Vocabulary', 'dictionary'],
       ['🧩', 'Memorizing', 'Smart memorization tools', 'memorizing']
     ];
+
+    const focusMarkup = smartFocus.length
+      ? smartFocus.map((item) => `
+          <div class="p3-focus-row-v3">
+            <div class="p3-focus-info-v3">
+              <strong>${esc3(item.name)}</strong>
+              <small>${item.mCount} mistakes · ${typeof round2 === 'function' ? round2(item.acc) : item.acc}% accuracy</small>
+            </div>
+            <em class="p3-focus-tag-v3 ${item.cls}">${item.label}</em>
+          </div>`).join('')
+      : '<p class="p3-muted-v3">অনুশীলন শুরু করলে আপনার দুর্বল topic এখানে দেখা যাবে।</p>';
 
     return `
     <section class="p3-dashboard-v3" data-p3-command>
@@ -364,6 +380,35 @@
           `).join('')}
         </div>
       </section>
+
+      ${unfinished ? `
+        <section class="p3-card-v3 p3-resume-card-v3">
+          <div class="p3-resume-info-v3">
+            <strong>${unfinished.mode === 'mock' ? '📝 Mock Exam' : '⚡ Flash Practice'}</strong>
+            <p>${unfinished.currentIndex + 1} / ${unfinished.questions.length} Questions</p>
+          </div>
+          <button class="p3-resume-btn-v3" onclick="navigate('exam/running')">Continue</button>
+        </section>
+      ` : `
+        <section class="p3-card-v3 p3-start-card-v3">
+          <div class="p3-start-info-v3">
+            <strong>আজকের প্রস্তুতি শুরু করুন</strong>
+            <p>আপনার admission journey-তে আরেকটি focused session যোগ করুন।</p>
+          </div>
+          <button class="p3-resume-btn-v3" onclick="navigate('exam/setup')">Start Practice</button>
+        </section>
+      `}
+
+      <section class="p3-card-v3 p3-focus-section-v3">
+        <div class="p3-section-head-v3">
+          <b>Today's Smart Focus</b>
+          <span class="p3-focus-count-v3">${stats.totalQuestions} questions</span>
+        </div>
+        <div class="p3-focus-list-v3">
+          ${focusMarkup}
+          <button class="p3-btn-v3 p3-btn-secondary-v3" onclick="navigate('mistakes')">Start Smart Revision</button>
+        </div>
+      </section>
     </section>`;
   }
 
@@ -460,6 +505,26 @@
     .p3-special-info-v3 small{display:block;font-size:12px;color:#64748b;margin-top:2px}
     .p3-special-arrow-v3{color:#10b981}
     .p3-dashboard-only-v3{font-size:11px;color:#94a3b8}
+
+    .p3-resume-card-v3, .p3-start-card-v3{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fffaf1;border:1px solid rgba(201,138,44,0.2)}
+    .p3-resume-info-v3 strong, .p3-start-info-v3 strong{display:block;font-size:15px;color:#0f172a}
+    .p3-resume-info-v3 p, .p3-start-info-v3 p{margin:4px 0 0;font-size:12px;color:#64748b}
+    .p3-resume-btn-v3{background:#10b981;color:#fff;border:0;padding:8px 16px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer}
+
+    .p3-focus-section-v3{margin-top:20px}
+    .p3-focus-count-v3{font-size:11px;color:#94a3b8}
+    .p3-focus-list-v3{margin-top:10px}
+    .p3-focus-row-v3{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f1f5f9}
+    .p3-focus-row-v3:last-of-type{border-bottom:0}
+    .p3-focus-info-v3 strong{display:block;font-size:14px;color:#0f172a}
+    .p3-focus-info-v3 small{display:block;font-size:12px;color:#64748b;margin-top:2px}
+    .p3-focus-tag-v3{font-size:10px;font-weight:800;text-transform:uppercase;padding:4px 8px;border-radius:6px;font-style:normal}
+    .p3-focus-tag-v3.revision{background:#fee2e2;color:#ef4444}
+    .p3-focus-tag-v3.improving{background:#fef3c7;color:#d97706}
+    .p3-focus-tag-v3.strong{background:#dcfce7;color:#16a34a}
+    .p3-btn-v3{width:100%;padding:12px;border-radius:12px;font-weight:700;font-size:14px;cursor:pointer;border:0;margin-top:15px}
+    .p3-btn-secondary-v3{background:#f1f5f9;color:#0f172a}
+    .p3-muted-v3{font-size:13px;color:#94a3b8;text-align:center;padding:20px 0}
     .p3-task-list-v3{display:grid;gap:8px}
     .p3-task-item-v3{display:flex;gap:10px;align-items:center;padding:10px;background:#f8fafc;border-radius:12px;font-size:13px}
     .p3-task-item-v3 input{accent-color:#10b981}
