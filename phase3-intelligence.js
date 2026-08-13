@@ -48,7 +48,27 @@
   function settings(){const s=read(LS.notificationSettings,{});return Object.fromEntries(CATEGORIES.map(c=>[c,s[c]!==false]))}
   function saveSettings(v){write(LS.notificationSettings,v)}
   function notifications(){const v=read(LS.notifications,[]);return Array.isArray(v)?v:[]}
-  function addNotification(category,title,body,dedupe){if(!settings()[category])return;let ns=notifications();if(ns.some(n=>n.dedupeKey===dedupe))return;const item={id:'n-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),category,title,body,dedupeKey:dedupe,read:false,createdAt:Date.now()};ns=[item,...ns].slice(0,100);write(LS.notifications,ns);try{window.dispatchEvent(new CustomEvent('admission:notify',{detail:{category,title,body,dedupeKey:dedupe}}))}catch(_){} }
+  function addNotification(category,title,body,dedupe){
+    if(!settings()[category])return;
+    let ns=notifications();
+    if(ns.some(n=>n.dedupeKey===dedupe))return;
+    const item={id:'n-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),category,title,body,dedupeKey:dedupe,read:false,createdAt:Date.now()};
+    ns=[item,...ns].slice(0,100);
+    write(LS.notifications,ns);
+    
+    // Dispatch event for UI and Telegram integration
+    try {
+      window.dispatchEvent(new CustomEvent('admission:notify',{detail:{category,title,body,dedupeKey:dedupe}}));
+      
+      // Map Intelligence categories to Telegram categories
+      const tgMap = { 'Study':'study', 'Revision':'revision', 'Exam':'exam', 'Result':'exam', 'Streak':'progress', 'Progress':'progress', 'Achievement':'progress', 'System':'system' };
+      const tgCat = tgMap[category] || 'system';
+      
+      if (typeof window.admissionNotify === 'function') {
+        window.admissionNotify(tgCat, title, body, dedupe);
+      }
+    } catch(e) { console.warn('Notification dispatch failed', e); }
+  }
   function derive(){const z=summary(),bySubject=aggregate(z.s,'subjectId'),byTopic=aggregate(z.s,'topicId');const weakTopics=byTopic.filter(x=>x.answered>0).sort((a,b)=>a.accuracy-b.accuracy||b.wrong-a.wrong);const weakSubjects=bySubject.filter(x=>x.answered>0).sort((a,b)=>a.accuracy-b.accuracy);const mistakeMap={};(CACHE.mistakes||[]).forEach(m=>{const id=m.topicId||m.questionId;mistakeMap[id]=(mistakeMap[id]||0)+Number(m.wrongCount||1)});const repeated=Object.entries(mistakeMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({name:topicLabel(id),count,id}));const target=Number(CACHE.settings?.dailyTarget||read('dailyTarget',20))||20;const done=z.todayAnswered;const pending=Math.max(0,target-done);const recent=z.recent.map(r=>({date:keyOf(r.date||r.createdAt),score:Number(r.score)||0,accuracy:Number(r.accuracy)||0}));const todayActivity=z.todayItems.reduce((acc,item)=>{const sub=subjectLabel(item.subjectId);if(!acc[sub])acc[sub]={correct:0,total:0};if(item.status==='correct')acc[sub].correct++;if(item.status!=='skipped')acc[sub].total++;return acc},{});const activityText=Object.entries(todayActivity).map(([name,stats])=>`${name}: ${stats.correct}/${stats.total}`).join(', ')||'No activity yet';const last=recent.at(-1),prev=recent.at(-2);let recommendation='প্রথমে একটি ছোট practice set সম্পূর্ণ করুন।',action="navigate('exam/setup')";if(repeated[0]){recommendation=`${repeated[0].name}-এ ${repeated[0].count}টি stored mistake আছে। আগে এই topic revise করুন।`;action=`startPhase3Topic('${String(repeated[0].id).replace(/'/g,"\\'")}')`}else if(weakTopics[0]){recommendation=`${weakTopics[0].name}-এর accuracy ${weakTopics[0].accuracy}%। focused revision দিয়ে শুরু করুন।`;action=`startPhase3Topic('${String(weakTopics[0].id).replace(/'/g,"\\'")}')`}else if(pending>0){recommendation=`আজকের target পূরণে আরও ${pending}টি প্রশ্ন বাকি।`;action="navigate('exam/setup')"}else if(last&&prev&&last.score>prev.score){recommendation='সাম্প্রতিক score বেড়েছে। এই momentum ধরে একটি revision করুন।';action="navigate('progress')"}return {z,bySubject,byTopic,weakTopics,weakSubjects,repeated,target,done,pending,recent,recommendation,action,activityText}};
   function streak(){return summary().streak}
   function motivation(){const d=derive(),z=d.z;let idx=0;if(z.s.length===0)idx=16;else if(z.scores.at(-1)>=80)idx=0;else if(z.accuracy<60)idx=5;else if(d.repeated[0])idx=6;else if(z.recent.length<2)idx=3;else if(z.recent.at(-1).score>z.recent.at(-2).score)idx=4;else if(streak()>=3)idx=7;else if(d.weakTopics[0])idx=18;const state=read(LS.motivation,{last:-1});if(idx===state.last)idx=(idx+1)%MOTIVATIONS.length;write(LS.motivation,{last:idx,updatedAt:Date.now()});return MOTIVATIONS[idx]}
