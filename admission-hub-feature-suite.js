@@ -1,0 +1,111 @@
+/* Admission Hub additive feature suite
+ * Keeps original question records immutable during exam sessions and adds safe tools.
+ */
+(function () {
+  'use strict';
+  const escA = (v) => typeof esc === 'function' ? esc(v == null ? '' : String(v)) : String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const uidA = () => typeof uid === 'function' ? uid() : `ah-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+  const refresh = async () => { if (typeof loadCache === 'function') await loadCache(); if (typeof render === 'function') render(); };
+  const put = (table, value) => dbPut(table, value);
+  const state = { format: 'text', text: '', fileName: '', rows: [], rejected: [], parserMode: false };
+
+  function cleanLabel(s) { return String(s || '').replace(/^\s*(question|প্রশ্ন|q)\s*\d*\s*[:.)-]?\s*/i, '').trim(); }
+  function answerIndex(value, options) {
+    if (Number.isInteger(value)) return value >= 0 && value < 4 ? value : -1;
+    const x = String(value || '').trim();
+    const letter = x.match(/\b([ABCD])\b/i)?.[1];
+    if (letter) return 'ABCD'.indexOf(letter.toUpperCase());
+    const n = Number(x); if (Number.isInteger(n) && n >= 1 && n <= 4) return n - 1;
+    const hit = options.findIndex(o => o.toLowerCase() === x.toLowerCase());
+    return hit;
+  }
+  function normalizeItem(item) {
+    const raw = item || {};
+    const options = raw.options || raw.choices || raw.answers || [raw.A, raw.B, raw.C, raw.D];
+    const opts = Array.from({ length: 4 }, (_, i) => String(options?.[i] ?? '').replace(/^\s*[A-D][.)\-:]\s*/i, '').trim());
+    const q = cleanLabel(raw.question || raw.prompt || raw.text || raw.Question || '');
+    const answer = answerIndex(raw.answer ?? raw.correctAnswer ?? raw.correct ?? raw.Answer, opts);
+    return { question: q, options: opts, answer, explanation: String(raw.explanation || raw.reason || raw.Explanation || '').trim(), subject: String(raw.subject || raw.Subject || 'Imported').trim(), topic: String(raw.topic || raw.Topic || 'General').trim() };
+  }
+  function parseJson(text) {
+    const parsed = JSON.parse(text);
+    const arr = Array.isArray(parsed) ? parsed : (parsed.questions || parsed.data || parsed.items || []);
+    return arr.map(normalizeItem);
+  }
+  function parseHtml(text) {
+    const doc = new DOMParser().parseFromString(text, 'text/html');
+    const blocks = [...doc.querySelectorAll('article, section, li, .question, .mcq, .card, p')].filter(x => /[?؟]/.test(x.textContent) || /\b[ABCD][.)]/i.test(x.textContent));
+    return (blocks.length ? blocks : [doc.body]).map(block => parseText(block.textContent || '')).flat();
+  }
+  function parseText(text) {
+    const lines = String(text || '').replace(/\r/g, '').split('\n').map(x => x.trim()).filter(Boolean);
+    const starts = []; lines.forEach((line, i) => { if (/^(?:q(?:uestion)?\s*\d*|প্রশ্ন\s*\d+|\d+\s*[.)])\s*/i.test(line) || (/[?؟]$/.test(line) && !/^[A-D][.)]/i.test(line))) starts.push(i); });
+    const chunks = starts.length ? starts.map((s, i) => lines.slice(s, starts[i + 1] ?? lines.length)) : [lines];
+    return chunks.map(chunk => {
+      const item = { question: '', options: ['', '', '', ''], answer: -1, explanation: '', subject: 'Imported', topic: 'General' };
+      const qLines = []; let field = '';
+      chunk.forEach(line => {
+        const om = line.match(/^\s*([A-D])\s*[.)\-:]\s*(.*)$/i);
+        const fm = line.match(/^\s*(answer|correct answer|উত্তর|explanation|ব্যাখ্যা|subject|বিষয়|topic|টপিক)\s*[:：-]\s*(.*)$/i);
+        if (om) { item.options['ABCD'.indexOf(om[1].toUpperCase())] = om[2].trim(); field = ''; return; }
+        if (fm) { field = fm[1].toLowerCase(); const val = fm[2].trim(); if (/answer|উত্তর/.test(field)) item.answer = answerIndex(val, item.options); else if (/explanation|ব্যাখ্যা/.test(field)) item.explanation = val; else if (/subject|বিষয়/.test(field)) item.subject = val; else item.topic = val; return; }
+        if (field === 'explanation' || field === 'ব্যাখ্যা') item.explanation += (item.explanation ? ' ' : '') + line;
+        else if (!item.question) qLines.push(line);
+      });
+      item.question = cleanLabel(qLines.join(' '));
+      return normalizeItem(item);
+    });
+  }
+  function parseSource(format, text) {
+    if (format === 'json') return parseJson(text);
+    if (format === 'html') return parseHtml(text);
+    return parseText(text);
+  }
+  function validRows(rows) {
+    const accepted = [], rejected = [];
+    rows.forEach((row, i) => {
+      const missing = []; if (!row.question) missing.push('question'); if (row.options.filter(Boolean).length < 4) missing.push('A-D options'); if (row.answer < 0) missing.push('answer');
+      (missing.length ? rejected : accepted).push({ ...row, row: i + 1, reason: missing.join(', ') });
+    }); return { accepted, rejected };
+  }
+  function parserView() {
+    const preview = state.rows.length ? `<section class="card"><div class="row between"><b>Preview</b><span class="pill">Total Questions: ${state.rows.length}</span></div><p class="muted">Valid: ${state.rows.filter(x => x.answer >= 0 && x.options.filter(Boolean).length === 4).length} · Needs Review: ${state.rejected.length}</p>${state.rows.slice(0, 5).map((r, i) => `<article class="card" style="margin:10px 0"><b>Q${i + 1}. ${escA(r.question)}</b><div class="muted" style="margin-top:6px">A. ${escA(r.options[0])} · B. ${escA(r.options[1])} · C. ${escA(r.options[2])} · D. ${escA(r.options[3])}</div><small>Answer: ${'ABCD'[r.answer] || 'Needs Review'} · ${escA(r.subject)} / ${escA(r.topic)}</small></article>`).join('')}<div class="row wrap"><button class="btn" onclick="ahConfirmImport()">Confirm Import (${state.rows.filter(x=>x.answer >= 0 && x.options.filter(Boolean).length === 4).length})</button><button class="btn ghost sm" onclick="ahResetParser()">Discard Preview</button></div></section>` : '';
+    return `<div class="page"><div class="explorer-kicker">SAFE QUESTION IMPORT</div><h1 class="explorer-title">Question Parser</h1><p class="explorer-subtitle">HTML, TXT, Plain Text এবং JSON থেকে MCQ detect করুন। Existing questions overwrite হবে না।</p><section class="card"><label class="flabel">Format</label><select id="ahFormat" onchange="ahSetFormat(this.value)"><option value="html" ${state.format === 'html' ? 'selected' : ''}>HTML File</option><option value="txt" ${state.format === 'txt' ? 'selected' : ''}>TXT File</option><option value="text" ${state.format === 'text' ? 'selected' : ''}>Plain Text</option><option value="json" ${state.format === 'json' ? 'selected' : ''}>JSON File</option></select><label class="flabel">Upload file (optional)</label><input id="ahFile" type="file" accept=".html,.htm,.txt,.json,text/plain,text/html,application/json" onchange="ahReadFile(this)"><label class="flabel">Paste content</label><textarea id="ahInput" rows="12" placeholder="Q1. Question text\nA. First option\nB. Second option\nC. Third option\nD. Fourth option\nAnswer: B\nExplanation: Why B is correct\nSubject: বাংলা\nTopic: সাহিত্য">${escA(state.text)}</textarea><div class="row wrap" style="margin-top:10px"><button class="btn sm" onclick="ahDetect()">Detect & Preview</button><button class="btn ghost sm" onclick="navigate('question-bank')">Open Question Bank</button></div></section>${preview}</div>`;
+  }
+  window.ahSetFormat = v => { state.format = v; state.rows = []; state.rejected = []; render(); };
+  window.ahReadFile = input => { const f = input.files?.[0]; if (!f) return; state.fileName = f.name; state.format = /json$/i.test(f.name) ? 'json' : /html?$/i.test(f.name) ? 'html' : 'txt'; const reader = new FileReader(); reader.onload = () => { state.text = String(reader.result || ''); render(); }; reader.readAsText(f); };
+  window.ahDetect = () => { state.text = document.getElementById('ahInput')?.value || state.text; try { const result = validRows(parseSource(state.format, state.text)); state.rows = result.accepted.concat(result.rejected); state.rejected = result.rejected; if (!state.rows.length) throw Error('No questions detected'); render(); } catch (e) { toast?.(`Parser error: ${e.message}`); } };
+  window.ahResetParser = () => { state.rows = []; state.rejected = []; state.text = ''; render(); };
+  window.ahConfirmImport = async () => { const rows = state.rows.filter(x => x.answer >= 0 && x.options.filter(Boolean).length === 4); if (!rows.length) return toast?.('No valid questions to import'); const existing = new Set((CACHE.questions || []).map(q => `${String(q.question).trim().toLowerCase()}|${(q.options || []).join('|').toLowerCase()}`)); let added = 0;
+    for (const row of rows) { let subject = CACHE.subjects.find(s => s.name.toLowerCase() === row.subject.toLowerCase()); if (!subject) { subject = { id: uidA(), name: row.subject, icon: '📘', color: '#0f6b4f', order: CACHE.subjects.length, createdAt: Date.now() }; await put('subjects', subject); }
+      let topic = CACHE.topics.find(t => t.subjectId === subject.id && t.name.toLowerCase() === row.topic.toLowerCase()); if (!topic) { topic = { id: uidA(), subjectId: subject.id, name: row.topic, order: CACHE.topics.filter(t => t.subjectId === subject.id).length, createdAt: Date.now(), updatedAt: Date.now() }; await put('topics', topic); }
+      const key = `${row.question.trim().toLowerCase()}|${row.options.join('|').toLowerCase()}`; if (existing.has(key)) continue; await put('questions', { id: uidA(), subjectId: subject.id, topicId: topic.id, question: row.question, options: row.options, answer: row.answer, explanation: row.explanation, stats: { attempts: 0, correct: 0, wrong: 0 }, bookmarked: false, createdAt: Date.now(), updatedAt: Date.now(), source: 'question-parser' }); existing.add(key); added++; }
+    await refresh(); toast?.(`${added} questions imported; existing data preserved`); state.rows = []; state.rejected = []; state.text = ''; navigate('question-bank');
+  };
+
+  function subjectRows() { return [...(CACHE.subjects || [])].sort((a, b) => (a.order || 0) - (b.order || 0)); }
+  function bankView() { const subs = subjectRows(); const query = (window.ahBankQuery || '').toLowerCase(); const qs = (CACHE.questions || []).filter(q => !query || `${q.question} ${q.subjectId} ${q.topicId}`.toLowerCase().includes(query)); return `<div class="page"><div class="explorer-kicker">CONTENT MANAGEMENT</div><div class="row between"><h1 class="explorer-title">Question Bank</h1><button class="btn sm" onclick="ahAddSubject()">+ Subject</button></div><p class="explorer-subtitle">Subject → Topic → Question hierarchy. Rename keeps stable IDs; delete requires confirmation.</p><input class="card" style="width:100%;padding:12px" placeholder="Search question, subject or topic" value="${escA(window.ahBankQuery || '')}" oninput="window.ahBankQuery=this.value;render()"><div class="row wrap"><button class="btn secondary sm" onclick="navigate('question-parser')">Import Parser</button><button class="btn ghost sm" onclick="ahAddQuestion()">+ Question</button></div>${subs.map(s => { const topics = (CACHE.topics || []).filter(t => t.subjectId === s.id); return `<section class="card"><div class="row between"><div><h3 style="margin:0">${escA(s.icon || '📘')} ${escA(s.name)}</h3><small>${topics.length} topics · ${(CACHE.questions || []).filter(q => q.subjectId === s.id).length} questions</small></div><div class="row"><button class="btn ghost sm" onclick="ahRenameSubject('${s.id}')">Rename</button><button class="btn danger sm" onclick="ahDeleteSubject('${s.id}')">Delete</button></div></div>${topics.map(t => { const rows = qs.filter(q => q.topicId === t.id); return `<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px"><div class="row between"><b>▸ ${escA(t.name)}</b><span><button class="btn ghost sm" onclick="ahRenameTopic('${t.id}')">Rename</button><button class="btn danger sm" onclick="ahDeleteTopic('${t.id}')">Delete</button></span></div>${rows.slice(0, 20).map(q => `<div class="listitem"><span>${escA(q.question)}</span><span class="row"><button class="btn ghost sm" onclick="ahEditQuestion('${q.id}')">Edit</button><button class="btn danger sm" onclick="ahDeleteQuestion('${q.id}')">Delete</button></span></div>`).join('') || '<small class="muted">No matching questions</small>'}</div>`; }).join('')}</section>`; }).join('') || '<div class="empty">No subjects yet. Add a subject or import questions.</div>'}</div>`; }
+  function askText(title, initial, callback) { const value = prompt(title, initial || ''); if (value?.trim()) callback(value.trim()); }
+  window.ahAddSubject = () => askText('Subject name', '', async name => { await put('subjects', { id: uidA(), name, icon: '📘', color: '#0f6b4f', order: CACHE.subjects.length, createdAt: Date.now() }); await refresh(); });
+  window.ahRenameSubject = id => { const s = CACHE.subjects.find(x => x.id === id); askText('Rename subject', s?.name, async name => { if (!s) return; s.name = name; s.updatedAt = Date.now(); await put('subjects', s); await refresh(); }); };
+  window.ahDeleteSubject = id => { const s = CACHE.subjects.find(x => x.id === id); const count = (CACHE.questions || []).filter(q => q.subjectId === id).length + (CACHE.topics || []).filter(t => t.subjectId === id).length; if (!confirm(`Delete ${s?.name}? ${count} related records exist.`)) return; Promise.all((CACHE.topics || []).filter(t => t.subjectId === id).map(t => dbDel('topics', t.id))).then(() => dbDel('subjects', id)).then(refresh); };
+  window.ahRenameTopic = id => { const t = CACHE.topics.find(x => x.id === id); askText('Rename topic', t?.name, async name => { if (!t) return; t.name = name; t.updatedAt = Date.now(); await put('topics', t); await refresh(); }); };
+  window.ahDeleteTopic = id => { const t = CACHE.topics.find(x => x.id === id); const count = (CACHE.questions || []).filter(q => q.topicId === id).length; if (!confirm(`Delete ${t?.name}? ${count} questions will be moved to review.`)) return; const fallback = { ...t, id: uidA(), name: 'Needs Review', createdAt: Date.now() }; Promise.all([put('topics', fallback), ...(CACHE.questions || []).filter(q => q.topicId === id).map(q => put('questions', { ...q, topicId: fallback.id, updatedAt: Date.now() })), dbDel('topics', id)]).then(refresh); };
+  function questionForm(q) { const subs = subjectRows(); const subjectId = q?.subjectId || subs[0]?.id || ''; const topics = (CACHE.topics || []).filter(t => t.subjectId === subjectId); const raw = prompt('Question text', q?.question || ''); if (!raw?.trim()) return; const opts = ['A','B','C','D'].map((l, i) => prompt(`${l} option`, q?.options?.[i] || '') || ''); const ans = prompt('Correct answer (A/B/C/D)', q ? 'ABCD'[q.answer] : 'A') || 'A'; const topic = topics[0] || { id: uidA(), subjectId, name: 'General', order: 0, createdAt: Date.now() }; return { ...(q || {}), id: q?.id || uidA(), subjectId, topicId: topic.id, question: raw.trim(), options: opts, answer: Math.max(0, 'ABCD'.indexOf(ans.toUpperCase())), explanation: q?.explanation || '', createdAt: q?.createdAt || Date.now(), updatedAt: Date.now() }; }
+  window.ahAddQuestion = async () => { const q = questionForm(); if (q) { await put('questions', q); await refresh(); } };
+  window.ahEditQuestion = async id => { const q = CACHE.questions.find(x => x.id === id); const next = questionForm(q); if (next) { await put('questions', next); await refresh(); } };
+  window.ahDeleteQuestion = id => { if (!confirm('Delete this question?')) return; dbDel('questions', id).then(refresh); };
+
+  const rewardsA = [{ id: 'xp-boost', name: 'XP Boost', icon: '⚡', type: 'xpMultiplier', price: 150, description: 'Active study sessions earn 1.5× XP.' }, { id: 'streak-shield', name: 'Streak Shield', icon: '🛡️', type: 'streakShield', price: 250, description: 'Protects one missed day.' }, { id: 'theme-mint', name: 'Mint Theme', icon: '🎨', type: 'theme', price: 300, description: 'Unlocks a selectable mint theme.' }, { id: 'hint-token', name: 'Hint Token', icon: '💡', type: 'hint', price: 100, description: 'One hint token for supported practice.' }];
+  function rewardState() { const s = CACHE.settings || {}; return { owned: Array.isArray(s.rewardInventory) ? s.rewardInventory : [], active: s.activeRewards || {}, remaining: s.rewardRemaining || {} }; }
+  window.ahRewardAction = async id => { const s = CACHE.settings || {}, r = rewardsA.find(x => x.id === id), st = rewardState(), xp = Number(s.xpBalance || 0); if (!r) return; if (!st.owned.includes(id)) { if (xp < r.price) return toast?.('Not enough XP'); s.xpBalance = xp - r.price; st.owned.push(id); s.rewardInventory = st.owned; } else { st.active[id] = !st.active[id]; s.activeRewards = st.active; if (r.type === 'theme' && st.active[id]) { document.documentElement.dataset.theme = 'pink'; s.selectedRewardTheme = id; } } await put('settings', s); CACHE.settings = s; render(); };
+  function rewardsView() { const s = CACHE.settings || {}, st = rewardState(), xp = Number(s.xpBalance || 0); return `<div class="page"><div class="explorer-kicker">REWARDS · INVENTORY</div><h1 class="explorer-title">Reward Shop</h1><p class="explorer-subtitle">Buy, activate এবং ব্যবহার করুন। Ownership refresh-এর পরেও থাকবে।</p><section class="card premium-card"><b>Available XP</b><div class="big">${xp.toLocaleString()} XP</div></section><h2 class="h2">My Rewards</h2><div class="grid2">${rewardsA.map(r => { const owned = st.owned.includes(r.id), active = !!st.active[r.id]; return `<article class="card"><div style="font-size:28px">${r.icon}</div><b>${r.name}</b><p class="muted">${r.description}</p><small>${owned ? (active ? 'Active' : 'Owned') : `${r.price} XP`}</small><button class="btn ${owned ? 'secondary' : ''}" style="margin-top:10px" onclick="ahRewardAction('${r.id}')">${owned ? (active ? 'Deactivate' : 'Use / Activate') : 'Buy'}</button></article>`; }).join('')}</div><p class="muted">XP Boost and streak metadata are stored in settings and can be consumed by later study results without changing answer correctness.</p></div>`; }
+
+  function patchExam() {
+    if (window.__ahExamPatched || typeof window.beginExam !== 'function') return; window.__ahExamPatched = true; const original = window.beginExam;
+    window.beginExam = async function () { await original.apply(this, arguments); const exam = (CACHE.exams || []).at(-1); if (exam && (exam.mode === 'mock' || exam.mode === 'flash')) { exam.sessionLocked = true; exam.optionOrderLocked = true; exam.configuration = { ...(exam.configuration || {}), shuffleAnswerOptions: !!exam.configuration?.randomizeOpt }; await dbPut('exams', exam); CACHE.exams = await dbGetAll('exams'); } };
+  }
+  function hook() { const old = window.render; if (!old || window.__ahFeatureRender) return; window.__ahFeatureRender = true; window.render = function () { const p = Router.path; if (p === 'question-parser' || p === 'smart-formatter') return renderShell(parserView(), { title: 'Question Parser', back: "navigate('dashboard')" }); if (p === 'question-bank' || p.startsWith('question-bank/')) return renderShell(bankView(), { title: 'Question Bank' }); if (p === 'rewards' || p === 'reward-shop') return rewardsView(); return old.apply(this, arguments); }; patchExam(); }
+  const boot = () => { hook(); if (CACHE?.settings?.selectedRewardTheme) document.documentElement.dataset.theme = 'pink'; };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true }); else setTimeout(boot, 0);
+})();
