@@ -73,6 +73,12 @@
   function streak(){return summary().streak}
   function motivation(){const d=derive(),z=d.z;let idx=0;if(z.s.length===0)idx=16;else if(z.scores.at(-1)>=80)idx=0;else if(z.accuracy<60)idx=5;else if(d.repeated[0])idx=6;else if(z.recent.length<2)idx=3;else if(z.recent.at(-1).score>z.recent.at(-2).score)idx=4;else if(streak()>=3)idx=7;else if(d.weakTopics[0])idx=18;const state=read(LS.motivation,{last:-1});if(idx===state.last)idx=(idx+1)%MOTIVATIONS.length;write(LS.motivation,{last:idx,updatedAt:Date.now()});return MOTIVATIONS[idx]}
   function fmtTime(ms){const n=Math.round(Number(ms||0)/60000);return n?`${n} min`:'0 min'}
+  function fmtTimeClock(ms){
+    const totalSeconds = Math.floor(Number(ms||0) / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  }
   function bars(items,label){if(!items.length)return '<div class="p3-empty">এই সময়সীমায় কোনো stored data নেই।</div>';return items.map(x=>`<div class="p3-bar-row"><div class="p3-bar-label"><span>${esc3(x.name)}</span><b>${x.accuracy}%</b></div><div class="p3-bar"><i style="width:${Math.min(100,Math.max(0,x.accuracy))}%"></i></div><small>${x.answered||0} answered · ${x.wrong||0} wrong</small></div>`).join('')}
   const ICONS = {
     crown: `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"></path></svg>`,
@@ -89,7 +95,8 @@
     clock: `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
     trophy: `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"></path><path d="M18 4H6v7a6 6 0 0 0 12 0V4z"></path></svg>`,
     arrow: `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`,
-    trend: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`
+    trend: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`,
+    pencil: `<svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>`
   };
 
   function widgetHTML(){
@@ -144,15 +151,20 @@
           </div>`).join('')
       : '<p class="p3-muted-v3">অনুশীলন শুরু করলে আপনার দুর্বল topic এখানে দেখা যাবে।</p>';
 
+    const todayCorrect = z.todayCorrect || 0;
+    const todayWrong = Math.max(0, z.todayAnswered - todayCorrect);
+    const todayAccuracy = z.todayAnswered ? pct(todayCorrect, z.todayAnswered) : (z.accuracy || 0);
+    const studyClock = fmtTimeClock(study);
+
     return `
     <section class="p3-dashboard-v3" data-p3-command>
       <header class="p3-header-v3">
         <div class="p3-header-left">
           <div class="p3-crown-circle">${ICONS.crown}</div>
           <div class="p3-header-text">
-            <div class="p3-kicker-v3">SMART STUDY COMMAND CENTER</div>
-            <h2>আজকের পড়াশোনার ছবি</h2>
-            <p>তোমার stored activity থেকেই এই summary তৈরি হয়েছে।</p>
+            <div class="p3-kicker-v3">EMERALD ACADEMIC</div>
+            <h2>সুপ্রভাত, Scholar</h2>
+            <p>"আজকের পরিশ্রমই তোমার আগামীকালের সাফল্য!"</p>
           </div>
         </div>
         <div class="p3-header-right">
@@ -160,51 +172,44 @@
             <span>Inbox</span>
             ${unread ? `<i class="p3-badge">${unread}</i>` : ''}
           </button>
-          <span class="p3-live-badge">REAL DATA</span>
         </div>
       </header>
 
-      <div class="p3-grid-v3">
-        <article class="p3-card-v3 p3-card-target">
-          <div class="p3-card-icon-row">
-            <div class="p3-icon-box target">${ICONS.target}</div>
-            <div class="p3-card-label">Today's Target</div>
+      <article class="p3-card-v3 p3-today-hero-card">
+        <div class="p3-hero-top-row">
+          <div>
+            <div class="p3-hero-kicker">TODAY COMMAND CENTER</div>
+            <h3 class="p3-hero-title">${d.target} MCQ Goal</h3>
+            <div class="p3-hero-num"><strong>${d.done}</strong> <small>/ ${d.target}</small></div>
           </div>
-          <div class="p3-card-value"><strong>${d.done} / ${d.target}</strong></div>
-          <div class="p3-card-sub">${d.pending?d.pending+' remaining':'Target complete'}</div>
-          <div class="p3-card-progress"><i style="width:${targetPct}%"></i></div>
-        </article>
-
-        <article class="p3-card-v3 p3-card-tasks">
-          <div class="p3-card-icon-row">
-            <div class="p3-icon-box tasks">${ICONS.tasks}</div>
-            <div class="p3-card-label">Tasks</div>
+          <div class="p3-hero-illustration">
+            <div class="p3-target-graphic">
+              <div class="p3-target-rings"></div>
+              <div class="p3-target-dart"></div>
+            </div>
+            <span class="p3-hero-pct-tag">${targetPct}%</span>
           </div>
-          <div class="p3-card-value"><strong>${done} / ${t.length}</strong></div>
-          <div class="p3-card-sub">${pending} pending</div>
-          <div class="p3-card-progress"><i style="width:${tasksPct}%"></i></div>
-        </article>
-
-        <article class="p3-card-v3 p3-card-accuracy">
-          <div class="p3-card-icon-row">
-            <div class="p3-icon-box accuracy">${ICONS.accuracy}</div>
-            <div class="p3-card-label">Accuracy</div>
+        </div>
+        <div class="p3-card-progress" style="height:10px; margin:16px 0"><i style="width:${targetPct}%"></i></div>
+        <div class="p3-hero-stats-row">
+          <div class="p3-hero-stat-item">
+            <span class="p3-stat-badge green">${ICONS.check}</span>
+            <div><b>${todayCorrect}</b><small>Correct</small></div>
           </div>
-          <div class="p3-card-value"><strong>${z.accuracy||0}%</strong></div>
-          <div class="p3-card-sub p3-activity-text">${esc3(d.activityText||'No activity yet')}</div>
-          <div class="p3-card-progress"><i style="width:${z.accuracy||0}%"></i></div>
-        </article>
-
-        <article class="p3-card-v3 p3-card-streak">
-          <div class="p3-card-icon-row">
-            <div class="p3-icon-box streak">${ICONS.streak}</div>
-            <div class="p3-card-label">Streak</div>
+          <div class="p3-hero-stat-item">
+            <span class="p3-stat-badge red">${ICONS.x}</span>
+            <div><b>${todayWrong}</b><small>Wrong</small></div>
           </div>
-          <div class="p3-card-value"><strong>${st} day${st===1?'':'s'}</strong></div>
-          <div class="p3-card-sub">stored active days</div>
-          <div class="p3-card-progress"><i style="width:${Math.min(100, st * 10)}%"></i></div>
-        </article>
-      </div>
+          <div class="p3-hero-stat-item">
+            <span class="p3-stat-badge blue">${ICONS.trend}</span>
+            <div><b>${todayAccuracy}%</b><small>Accuracy</small></div>
+          </div>
+          <div class="p3-hero-stat-item">
+            <span class="p3-stat-badge purple">${ICONS.clock}</span>
+            <div><b>${studyClock}</b><small>Study Time</small></div>
+          </div>
+        </div>
+      </article>
 
       <section class="p3-card-v3 p3-command-section-v3">
         <div class="p3-section-head-v3">
@@ -522,6 +527,29 @@
     .p3-swipe-hint-v3{font-size:11px;color:#94a3b8;font-weight:500}
     .p3-add-task-btn{color:#10b981;background:none;border:0;font-weight:800;font-size:13px;cursor:pointer}
 
+    .p3-today-hero-card{background:#fff;border:1px solid #f1f5f9;border-radius:22px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,0.04)}
+    .p3-hero-top-row{display:flex;justify-content:space-between;align-items:flex-start}
+    .p3-hero-kicker{font-size:10px;font-weight:800;letter-spacing:0.12em;color:#10b981;text-transform:uppercase;margin-bottom:4px}
+    .p3-hero-title{font-size:17px;font-weight:800;color:#0f172a;margin:0 0 6px}
+    .p3-hero-num{font-size:36px;font-weight:900;color:#0f172a;letter-spacing:-0.03em;line-height:1}
+    .p3-hero-num strong{color:#10b981}
+    .p3-hero-num small{font-size:16px;color:#94a3b8;font-weight:600}
+    .p3-hero-illustration{display:flex;flex-direction:column;align-items:center;position:relative}
+    .p3-target-graphic{width:64px;height:64px;background:radial-gradient(circle, #dcfce7 0%, #bbf7d0 100%);border-radius:50%;position:relative;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(16,185,129,0.15)}
+    .p3-target-rings{width:44px;height:44px;border:3px solid #10b981;border-radius:50%;position:relative}
+    .p3-target-rings::after{content:'';position:absolute;inset:8px;border:2px solid #10b981;border-radius:50%}
+    .p3-target-dart{position:absolute;top:10px;right:10px;width:14px;height:14px;background:#ef4444;transform:rotate(45deg);clip-path:polygon(0 0, 100% 0, 0 100%)}
+    .p3-hero-pct-tag{font-size:12px;font-weight:800;color:#10b981;margin-top:4px}
+    .p3-hero-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding-top:4px}
+    .p3-hero-stat-item{display:flex;align-items:center;gap:8px}
+    .p3-stat-badge{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+    .p3-stat-badge.green{background:#dcfce7;color:#16a34a}
+    .p3-stat-badge.red{background:#fee2e2;color:#ef4444}
+    .p3-stat-badge.blue{background:#eff6ff;color:#3b82f6}
+    .p3-stat-badge.purple{background:#f3e8ff;color:#9333ea}
+    .p3-hero-stat-item b{display:block;font-size:13px;color:#0f172a;line-height:1.2}
+    .p3-hero-stat-item small{display:block;font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase}
+
     .p3-command-section-v3{padding:16px 0;overflow:hidden}
     .p3-command-section-v3 .p3-section-head-v3{padding:0 16px}
     .p3-command-card-v3{background:#fff;border:1px solid #f1f5f9;border-radius:15px;padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;box-shadow:0 2px 10px rgba(0,0,0,0.02);cursor:pointer;text-align:left;transition:transform 0.1s ease;min-height:96px}
@@ -532,10 +560,14 @@
 
     .command-carousel{position:relative;display:block;overflow:hidden;width:100%;max-width:100%;touch-action:pan-y;overscroll-behavior-x:contain}
     .command-track{display:flex;width:200%;transition:transform 0.28s cubic-bezier(0.23, 1, 0.32, 1);will-change:transform}
-    .command-slide{width:50%;flex:0 0 50%;display:grid;grid-template-columns:repeat(3, 1fr);grid-template-rows:repeat(2, 1fr);gap:10px;padding:16px}
-    .command-dots{display:flex;justify-content:center;gap:8px;margin-top:5px}
+    .command-slide{width:50%;flex:0 0 50%;display:grid;grid-template-columns:repeat(3, 1fr);grid-template-rows:repeat(2, 1fr);gap:10px;padding:0 16px}
+    .command-dots{display:flex;justify-content:center;gap:8px;margin-top:8px}
     .command-dot{width:7px;height:7px;border:0;border-radius:50%;background:#e2e8f0;cursor:pointer;transition:all 0.2s ease}
     .command-dot.active{width:20px;border-radius:10px;background:#10b981}
+
+    @media(max-width:480px){
+      .p3-hero-stats-row{grid-template-columns:repeat(2,1fr);gap:12px}
+    }
 
     .p3-special-section-v3{margin-top:20px}
     .p3-special-grid-v3{display:grid;gap:10px}
