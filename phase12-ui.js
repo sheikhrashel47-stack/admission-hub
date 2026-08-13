@@ -39,7 +39,7 @@
     ['⚡', 'Quick', 'দ্রুত অনুশীলন', 'exam/setup'],
     ['❌', 'Mistakes', 'ভুলের খাতা', 'mistakes'],
     ['📊', 'Progress', 'অগ্রগতি দেখুন', 'progress'],
-    ['🎯', 'Goals', 'দৈনিক লক্ষ্য', 'progress/plan'],
+    ['📅', '90 Days', '৯০ দিনের রুটিন', 'progress/plan'],
     ['🔄', 'Revision', 'স্মার্ট রিভিশন', 'mistakes'],
     ['📖', 'Vocab', 'ভোকাবুলারি', 'vocabulary'],
     ['🕐', 'History', 'পরীক্ষার ইতিহাস', 'history'],
