@@ -435,8 +435,22 @@
   function injectDashboard(){
     if(Router.path!=='dashboard')return;
     const page=document.querySelector('#app .page');
-    if(!page||page.querySelector('[data-p3-command]'))return;
-    page.innerHTML = widgetHTML();
+    if(!page)return;
+    
+    // Hide original dashboard elements to avoid duplicates
+    const oldDash = page.querySelector('.dashboard-v2');
+    if(oldDash) oldDash.style.display = 'none';
+    
+    // Inject or update our super dashboard
+    let dash = page.querySelector('[data-p3-command]');
+    if(!dash){
+      page.insertAdjacentHTML('afterbegin', widgetHTML());
+    } else {
+      dash.outerHTML = widgetHTML();
+    }
+    
+    // Re-initialize carousel if needed
+    if(typeof installCarousel === 'function') installCarousel(page);
   }
   let analyticsRange=7;window.phase3SetAnalyticsRange=function(n){analyticsRange=Number(n)||7;render()};function analyticsHTML(){const d=derive(),z=d.z,bySubject=d.bySubject,byTopic=d.byTopic;const daily=Array.from({length:analyticsRange},(_,i)=>{const dt=new Date();dt.setDate(dt.getDate()-(analyticsRange-1-i));const k=keyOf(dt);const s=z.s.filter(x=>keyOf(x.examDate)===k);return {name:k.slice(5),accuracy:pct(s.filter(x=>x.status==='correct').length,s.filter(x=>x.status!=='skipped').length),answered:s.filter(x=>x.status!=='skipped').length}});const weekly=(CACHE.dailyStats||[]).slice(-7).reduce((a,x)=>a+Number(x.timeMs||0),0);const monthly=(CACHE.dailyStats||[]).slice(-30).reduce((a,x)=>a+Number(x.timeMs||0),0);const best=z.scores.length?Math.max(...z.scores):0,low=z.scores.length?Math.min(...z.scores):0;return `<div class="explorer-head"><div class="explorer-kicker">Stored Learning Intelligence</div><div class="explorer-title">Advanced Analytics</div><div class="explorer-subtitle">শুধু তোমার IndexedDB ও localStorage-এর বাস্তব record থেকে গণনা করা হয়েছে।</div></div><div class="p3-analytics-tabs"><button class="chip ${analyticsRange===7?'active':''}" onclick="phase3SetAnalyticsRange(7)">Last 7 days</button><button class="chip ${analyticsRange===30?'active':''}" onclick="phase3SetAnalyticsRange(30)">Last 30 days</button><button class="chip ${analyticsRange===90?'active':''}" onclick="phase3SetAnalyticsRange(90)">Last 90 days</button></div><div class="phase5-grid three"><div class="phase5-kpi"><b>${z.rs.length}</b><span>Mock tests</span></div><div class="phase5-kpi"><b>${z.accuracy}%</b><span>Average accuracy</span></div><div class="phase5-kpi"><b>${best||0}</b><span>Best score</span></div><div class="phase5-kpi"><b>${low||0}</b><span>Lowest score</span></div><div class="phase5-kpi"><b>${z.correct.length}</b><span>Correct</span></div><div class="phase5-kpi"><b>${z.wrong.length}</b><span>Wrong · ${z.skipped.length} skipped</span></div></div><div class="p3-analytics-grid"><section class="card"><div class="p3-section-head"><b>Accuracy trend</b><span>${z.s.length?'Last 7 stored days':'Zero state'}</span></div>${bars(daily,'accuracy')}</section><section class="card"><div class="p3-section-head"><b>Time analysis</b><span>${fmtTime(weekly)} / ${fmtTime(monthly)}</span></div><div class="p3-time-cards"><span><b>${fmtTime(weekly)}</b>Last 7 days</span><span><b>${fmtTime(monthly)}</b>Last 30 days</span><span><b>${z.days.size}</b>Active days</span><span><b>${z.rs.length?Math.round(z.rs.reduce((a,r)=>a+Number(r.duration||0),0)/z.rs.length/60000):0} min</b>Avg session</span></div></section><section class="card"><div class="p3-section-head"><b>Subject performance</b><span>${bySubject.length} subjects</span></div>${bars(bySubject,'accuracy')}</section><section class="card"><div class="p3-section-head"><b>Topic performance & mistakes</b><span>${byTopic.length} topics</span></div>${bars(byTopic.slice(0,10),'accuracy')}${!byTopic.length?'<div class="p3-empty">Practice data জমা হলে topic insight দেখা যাবে।</div>':''}</section></div><div class="card"><div class="p3-section-head"><b>Recent performance</b><span>${z.recent.length} stored results</span></div>${z.recent.length?`<div class="p3-result-list">${z.recent.slice().reverse().map(r=>`<span><b>${r.score}</b><small>${r.date} · ${r.accuracy||0}% accuracy</small></span>`).join('')}</div>`:'<div class="p3-empty">কোনো mock result নেই। প্রথম real result submit হলে এখানে trend তৈরি হবে।</div>'}</div><button class="btn secondary" onclick="exportAnalytics()">Export analytics CSV</button>`}
   function notificationsHTML(){const ns=notifications(),unread=ns.filter(n=>!n.read).length,s=settings();return `<div class="explorer-head"><div class="explorer-kicker">Unified Inbox</div><div class="explorer-title">Notification Center</div><div class="explorer-subtitle">Study, revision, exam, result, streak, progress, achievement ও system alerts এক জায়গায়।</div></div><div class="p3-notify-toolbar"><span>${unread} unread · ${ns.length} history</span><button class="btn secondary sm" onclick="phase3MarkAllRead()">Mark all as read</button></div><section class="card p3-settings-card"><div class="p3-section-head"><b>Category settings</b><span>Persisted</span></div><div class="p3-category-grid">${CATEGORIES.map(c=>`<label><span>${c}</span><input type="checkbox" ${s[c]?'checked':''} onchange="phase3ToggleCategory('${c}',this.checked)"></label>`).join('')}</div></section>${ns.length?`<div class="p3-notification-list">${ns.map(n=>`<article class="card ${n.read?'':'is-unread'}"><div class="row between"><span class="pill ${n.category==='Revision'?'orange':n.category==='Achievement'?'green':''}">${esc3(n.category)}</span><small>${new Date(n.createdAt).toLocaleString()}</small></div><b>${esc3(n.title)}</b><p>${esc3(n.body)}</p><button class="linkbtn" onclick="phase3MarkRead('${n.id}')">${n.read?'Read':'Mark read'}</button></article>`).join('')}</div>`:'<div class="card p3-empty">এখনও কোনো notification তৈরি হয়নি। নতুন stored activity হলে এখানে history তৈরি হবে।</div>'}`}
@@ -451,7 +465,7 @@
   function observeResult(){if(window.__phase3Observed)return;window.__phase3Observed=true;const old=window.navigate;window.navigate=function(path){const before=Router.path;const r=old.apply(this,arguments);if(before==='exam/result'||path==='exam/result')setTimeout(()=>{const d=derive(),z=d.z;if(z.rs.length){addNotification('Result','নতুন result সংরক্ষিত হয়েছে',`Score ${z.rs.at(-1).score||0}; accuracy ${z.rs.at(-1).accuracy||0}%`,'result-'+z.rs.at(-1).id);if(d.repeated[0])addNotification('Revision','Revision priority শনাক্ত হয়েছে',`${d.repeated[0].name}-এ repeated mistake বেশি।`,'revision-'+d.repeated[0].id+'-'+keyOf(Date.now()))}},200);return r};}
   function init(){hookRender();observeResult();try{const d=derive();if(d.z.s.length){if(d.z.todayAnswered>0)addNotification('Progress','আজকের progress update',`${d.z.todayAnswered}টি প্রশ্নের stored activity পাওয়া গেছে।`,'progress-'+keyOf(Date.now()));if(d.repeated[0])addNotification('Revision','Weak area ready for revision',`${d.repeated[0].name} আগে revise করা ভালো।`,'weak-'+d.repeated[0].id+'-'+keyOf(Date.now()))}}catch(e){console.warn('Phase 3 intelligence init failed',e)}}
   const style=document.createElement('style');style.textContent=`
-    .p3-dashboard-v3{padding:10px 0;color:#1e293b}
+    .p3-dashboard-v3{padding:10px 0;color:#1e293b;max-width:600px;margin:0 auto}
     .p3-header-v3{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding:0 5px}
     .p3-header-left{display:flex;gap:15px;align-items:center}
     .p3-crown-circle{width:45px;height:45px;background:#10b981;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(16,185,129,0.3)}
@@ -508,13 +522,20 @@
     .p3-swipe-hint-v3{font-size:11px;color:#94a3b8;font-weight:500}
     .p3-add-task-btn{color:#10b981;background:none;border:0;font-weight:800;font-size:13px;cursor:pointer}
 
-    .p3-command-section-v3{padding:16px 0}
+    .p3-command-section-v3{padding:16px 0;overflow:hidden}
     .p3-command-section-v3 .p3-section-head-v3{padding:0 16px}
-    .p3-command-card-v3{background:#fff;border:1px solid #f1f5f9;border-radius:15px;padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;box-shadow:0 2px 10px rgba(0,0,0,0.02);cursor:pointer;text-align:left;transition:transform 0.1s ease}
+    .p3-command-card-v3{background:#fff;border:1px solid #f1f5f9;border-radius:15px;padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;box-shadow:0 2px 10px rgba(0,0,0,0.02);cursor:pointer;text-align:left;transition:transform 0.1s ease;min-height:96px}
     .p3-command-card-v3:active{transform:scale(0.96)}
     .p3-command-icon-v3{font-size:24px;margin-bottom:4px}
     .p3-command-title-v3{font-weight:800;font-size:13px;color:#0f172a}
     .p3-command-subtitle-v3{font-size:10px;color:#64748b}
+
+    .command-carousel{position:relative;display:block;overflow:hidden;width:100%;max-width:100%;touch-action:pan-y;overscroll-behavior-x:contain}
+    .command-track{display:flex;width:200%;transition:transform 0.28s cubic-bezier(0.23, 1, 0.32, 1);will-change:transform}
+    .command-slide{width:50%;flex:0 0 50%;display:grid;grid-template-columns:repeat(3, 1fr);grid-template-rows:repeat(2, 1fr);gap:10px;padding:16px}
+    .command-dots{display:flex;justify-content:center;gap:8px;margin-top:5px}
+    .command-dot{width:7px;height:7px;border:0;border-radius:50%;background:#e2e8f0;cursor:pointer;transition:all 0.2s ease}
+    .command-dot.active{width:20px;border-radius:10px;background:#10b981}
 
     .p3-special-section-v3{margin-top:20px}
     .p3-special-grid-v3{display:grid;gap:10px}
@@ -589,7 +610,7 @@
     .p3-bottom-sub{font-size:10px;color:#94a3b8}
 
     @media(max-width:620px){
-      .p3-grid-v3, .p3-two-col-v3, .p3-bottom-row-v3{grid-template-columns:1fr 1fr}
+      .p3-grid-v3, .p3-two-col-v3{grid-template-columns:1fr 1fr}
       .p3-bottom-row-v3{grid-template-columns:1fr}
       .p3-recommend-illustration{display:none}
     }
