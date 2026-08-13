@@ -2988,7 +2988,7 @@ function renderResultView(r, isFresh){
   const prevResult = CACHE.examResults.length > 1 ? CACHE.examResults[CACHE.examResults.length-2] : null;
 
   const html=`
-  <div class="card premium-card" style="text-align:center; padding:26px 16px; position:relative; overflow:hidden;">
+  <div class="card premium-card" style="text-align:center; padding:26px 16px; position:relative; overflow:hidden; background: linear-gradient(135deg, #0f6b4f, #084b38) !important; color: #fff !important; border: none;">
     <div style="position:absolute; top:-20px; right:-20px; font-size:120px; opacity:0.1; pointer-events:none;">🎓</div>
     <div class="muted" style="text-transform:uppercase; letter-spacing:2px; font-size:10px; font-weight:800; color:rgba(255,255,255,0.7);">${(r.mode==='mock'?'মক':'প্র্যাকটিস') + ' ' + (r.mode==='mock'?'টেস্ট':'সেশন') + ' — ফলাফল'}</div>
     <div class="row center" style="gap:24px; margin:20px 0; align-items:center; justify-content:center;">

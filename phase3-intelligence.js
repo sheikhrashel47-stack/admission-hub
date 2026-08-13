@@ -200,9 +200,13 @@
             <span class="p3-stat-badge red">${ICONS.x}</span>
             <div><b>${todayWrong}</b><small>Wrong</small></div>
           </div>
-          <div class="p3-hero-stat-item">
+          <div class="p3-hero-stat-item p3-accuracy-stat" title="${esc3(d.activityText)}">
             <span class="p3-stat-badge blue">${ICONS.trend}</span>
-            <div><b>${todayAccuracy}%</b><small>Accuracy</small></div>
+            <div>
+              <b>${todayAccuracy}%</b>
+              <small>Accuracy</small>
+            </div>
+            <div class="p3-accuracy-popup">${esc3(d.activityText)}</div>
           </div>
           <div class="p3-hero-stat-item">
             <span class="p3-stat-badge purple">${ICONS.clock}</span>
@@ -551,6 +555,9 @@
     .p3-stat-badge.purple{background:#f3e8ff;color:#9333ea}
     .p3-hero-stat-item b{display:block;font-size:13px;color:#0f172a;line-height:1.2}
     .p3-hero-stat-item small{display:block;font-size:9px;color:#94a3b8;font-weight:700;text-transform:uppercase}
+    .p3-accuracy-stat{position:relative}
+    .p3-accuracy-popup{display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #e2e8f0;padding:8px;border-radius:8px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:10;width:150px;font-size:11px;color:#475569}
+    .p3-accuracy-stat:hover .p3-accuracy-popup{display:block}
 
     .p3-command-section-v3{padding:16px 0;overflow:hidden}
     .p3-command-section-v3 .p3-section-head-v3{padding:0 16px}

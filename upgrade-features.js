@@ -1,4 +1,3 @@
-/* Admission Hub additive upgrade layer. No secrets belong in this file. */
 (function () {
   'use strict';
   const LS = { tg: 'admission_tg_v1', mem: 'admission_memorizing_v1', calc: 'admission_calc_v1', search: 'admission_search_v1', dict: 'admission_dict_v1' };
@@ -9,90 +8,350 @@
   const notify = (m) => typeof toast === 'function' ? toast(m) : window.alert(m);
   const now = () => Date.now();
 
+  /* ================= TELEGRAM SYSTEM ================= */
   const TG_CATEGORIES = [
     ['study','Study reminder','পড়াশোনার রিমাইন্ডার'], ['important','Important notification','গুরুত্বপূর্ণ নোটিফিকেশন'],
     ['exam','Exam/result','পরীক্ষা ও ফলাফল'], ['revision','Revision reminder','রিভিশন রিমাইন্ডার'],
     ['progress','Progress/achievement','অগ্রগতি ও অর্জন'], ['system','System','সিস্টেম']
   ];
-  const tgDefault = () => ({ botToken:'8763547052:AAFrSKqUfLslaLCA_eYnE8PYeTmbOt6eMBY', chatId:'8160600900', connected:false, categories:Object.fromEntries(TG_CATEGORIES.map(x => [x[0], true])), sent:{} });
-  const tgLoad = () => { const x = {...tgDefault(), ...safeJson(LS.tg, {})}; x.categories = {...tgDefault().categories, ...(x.categories || {})}; x.sent = x.sent || {}; return x; };
+  const tgDefault = () => ({ 
+    botToken:'8763547052:AAFrSKqUfLslaLCA_eYnE8PYeTmbOt6eMBY', 
+    chatId:'8160600900', 
+    connected:false, 
+    categories:Object.fromEntries(TG_CATEGORIES.map(x => [x[0], true])), 
+    sent:{} 
+  });
+  const tgLoad = () => { 
+    const x = {...tgDefault(), ...safeJson(LS.tg, {})}; 
+    x.categories = {...tgDefault().categories, ...(x.categories || {})}; 
+    x.sent = x.sent || {}; 
+    return x; 
+  };
   let TG = tgLoad();
   function tgSave(){ saveJson(LS.tg, TG); }
-  function tgCanSend(category, dedupeKey){ if (!TG.connected || TG.categories[category] === false || !TG.botToken || !TG.chatId) return false; const key = `${category}:${dedupeKey}`; if (TG.sent[key]) return false; TG.sent[key] = now(); const keys = Object.keys(TG.sent); if (keys.length > 300) delete TG.sent[keys.sort((a,b)=>TG.sent[a]-TG.sent[b])[0]]; tgSave(); return true; }
-  async function tgSend(category, title, body, dedupeKey){ if (!tgCanSend(category, dedupeKey)) return false; try { const text = `<b>${escX(title)}</b>\n\n${escX(body)}\n\n#${category}`; const url = `https://api.telegram.org/bot${TG.botToken}/sendMessage`; const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({chat_id:TG.chatId, text, parse_mode:'HTML'})}); const d=await r.json().catch(()=>({})); if (!r.ok || d.ok===false) throw Error(d.description || 'telegram'); return true; } catch (e) { console.warn('Telegram send failed:', e); delete TG.sent[`${category}:${dedupeKey}`]; tgSave(); return false; } }
+
+  async function tgSend(category, title, body, dedupeKey, force = false){ 
+    if (!force && (!TG.connected || TG.categories[category] === false)) return false; 
+    if (!TG.botToken || !TG.chatId) return false;
+    
+    const key = `${category}:${dedupeKey}`; 
+    if (!force && TG.sent[key]) return false; 
+
+    try { 
+      const text = `<b>${escX(title)}</b>\n\n${escX(body)}\n\n#${category}`; 
+      const url = `https://api.telegram.org/bot${TG.botToken}/sendMessage`; 
+      const r = await fetch(url, {
+        method:'POST', 
+        headers:{'Content-Type':'application/json'}, 
+        body:JSON.stringify({chat_id:TG.chatId, text: text, parse_mode:'HTML'})
+      }); 
+      const d = await r.json().catch(()=>({})); 
+      if (!r.ok || d.ok===false) throw Error(d.description || 'telegram'); 
+      
+      if (!force) {
+        TG.sent[key] = now(); 
+        const keys = Object.keys(TG.sent); 
+        if (keys.length > 300) delete TG.sent[keys.sort((a,b)=>TG.sent[a]-TG.sent[b])[0]]; 
+        tgSave();
+      }
+      return true; 
+    } catch (e) { 
+      console.warn('Telegram send failed:', e); 
+      return false; 
+    } 
+  }
   window.admissionNotify = tgSend;
 
-  function addStyles(){ if (document.getElementById('admission-upgrade-styles')) return; const s=document.createElement('style'); s.id='admission-upgrade-styles'; s.textContent=`
-    .upgrade-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.upgrade-card{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--card)}
-    .upgrade-card h3{font-size:15px;margin:0 0 7px}.upgrade-card p{font-size:12px;color:var(--sub);line-height:1.45;margin:4px 0}.upgrade-chip{display:inline-flex;align-items:center;padding:6px 9px;border-radius:18px;background:var(--mint);color:var(--emerald-d);font-size:12px;margin:3px}.upgrade-chip.active{background:var(--emerald);color:#fff}.upgrade-result{border-left:4px solid var(--emerald);overflow-wrap:anywhere}.upgrade-result .source{font-size:11px;color:var(--sub);display:flex;align-items:center;gap:6px}.upgrade-result a{color:var(--emerald-d);font-weight:700;text-decoration:none}.upgrade-muted{font-size:12px;color:var(--sub);line-height:1.55}.upgrade-option{width:100%;text-align:left;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:10px;margin:4px 0;cursor:pointer}.upgrade-option.correct{border-color:var(--green);background:color-mix(in srgb,var(--green) 14%,var(--card))}.upgrade-option.wrong{border-color:var(--red);background:color-mix(in srgb,var(--red) 14%,var(--card))}.upgrade-hero{background:linear-gradient(135deg,var(--emerald),var(--emerald-d));color:#fff;border:0}.calc-tabs{display:flex;gap:6px;overflow:auto;padding-bottom:5px}.calc-tabs button{white-space:nowrap}.tg-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}.tg-row:last-child{border-bottom:0}@media(max-width:390px){.upgrade-grid{grid-template-columns:1fr}}
-  `; document.head.appendChild(s); }
-  function shell(html, opts){ addStyles(); if (typeof renderShell === 'function') renderShell(html, opts || {}); else document.getElementById('app').innerHTML=html; }
-  function input(id,label,type='text',value=''){ return `<label class="flabel">${label}</label><input id="${id}" type="${type}" value="${escX(value)}">`; }
-
-  function renderTelegram(){ const rows=TG_CATEGORIES.map(([id,en,bn])=>`<div class="tg-row"><div><b>${bn}</b><div class="upgrade-muted">${en}</div></div><button class="chip ${TG.categories[id]!==false?'active':''}" onclick="toggleTelegramCategory('${id}')">${TG.categories[id]!==false?'ON':'OFF'}</button></div>`).join(''); shell(`<div class="explorer-head"><div class="explorer-kicker">Direct Bot API Integration</div><div class="explorer-title">Telegram Notifications</div><div class="explorer-subtitle">Telegram Bot API ব্যবহার করে সরাসরি নোটিফিকেশন। পার্সোনাল অ্যাপের জন্য Bot Token ফ্রন্টএন্ডে রাখা হয়েছে।</div></div><section class="card upgrade-hero"><div class="row between"><div><b>${TG.connected?'Connected':'Not connected'}</b><div style="opacity:.82;font-size:12px;margin-top:4px">${TG.chatId?'Chat ID: '+escX(TG.chatId):'Bot তথ্য দিয়ে Connect করুন'}</div></div><span style="font-size:28px">✈</span></div></section><div class="card">${input('tgToken','Bot Token','text',TG.botToken)}${input('tgChat','Telegram Chat ID','text',TG.chatId)}<div class="row wrap" style="gap:8px;margin-top:12px"><button class="btn" onclick="connectTelegram()">Save & Connect</button><button class="btn secondary sm" onclick="testTelegram()">Test Notification</button><button class="btn danger sm" onclick="disconnectTelegram()">Disconnect</button></div></div><div class="card"><h3 style="margin-top:0">Notification categories</h3>${rows}</div>`,{title:'Telegram',back:"navigate('settings')"}); }
-  window.toggleTelegramCategory = function(id){ TG.categories[id]=!TG.categories[id]; tgSave(); renderTelegram(); };
   window.connectTelegram = async function(){ 
     const token=document.getElementById('tgToken')?.value.trim(), chat=document.getElementById('tgChat')?.value.trim(); 
     if(!token||!chat){notify('Bot Token এবং Chat ID প্রয়োজন');return;} 
     TG.botToken=token; TG.chatId=chat; 
-    // Temporarily set connected to true to allow tgSend to work for the test
-    const wasConnected = TG.connected;
-    TG.connected = true;
+    tgSave();
     notify('Testing connection...'); 
-    const ok=await tgSend('system','Admission Hub Connected','আপনার Telegram Notification System সফলভাবে চালু হয়েছে।', 'connect-'+now()); 
+    const ok = await tgSend('system', 'Admission Hub Connected', 'আপনার Telegram Notification System সফলভাবে চালু হয়েছে।', 'connect-' + Date.now(), true); 
     if(ok){ 
       TG.connected=true; 
       tgSave(); 
-      notify('Telegram connected successfully!'); 
+      notify('✓ Connected successfully!'); 
     } else { 
-      TG.connected = wasConnected;
-      notify('Connection failed! Bot Token বা Chat ID চেক করুন।'); 
+      notify('✖ Connection failed! Check Bot Token/Chat ID.'); 
     } 
     renderTelegram(); 
   };
-  window.testTelegram = async function(){ if(!TG.connected){notify('আগে Connect করুন');return;} notify('Sending test notification...'); const ok=await tgSend('system','Test Notification','This is a test notification from Admission Hub.', 'test-'+now()); notify(ok?'Test notification sent!':'Failed to send test notification. Check console/relay.'); };
-  window.disconnectTelegram = function(){TG=tgDefault();tgSave();notify('Telegram disconnected');renderTelegram();};
 
-  function renderHelper(){ shell(`<div class="explorer-head"><div class="explorer-kicker">Deterministic Study Tool</div><div class="explorer-title">Question Explanation Helper</div><div class="explorer-subtitle">This helper uses only the data you enter or select from the existing question bank. It never invents an explanation.</div></div><div class="card">${input('ehQuestion','Question')}<label class="flabel">Options (one per line)</label><textarea id="ehOptions" rows="5" placeholder="Option A\nOption B\nOption C\nOption D"></textarea>${input('ehCorrect','Correct answer')} ${input('ehExisting','Existing explanation')}<div class="grid2">${input('ehSubject','Subject')}${input('ehTopic','Topic')}</div><button class="btn" style="margin-top:12px" onclick="buildExplanation()">Build explanation</button></div><div id="ehOut"></div>`,{title:'Study Helper',back:"navigate('dashboard')"}); }
-  window.buildExplanation=function(){ const q=document.getElementById('ehQuestion')?.value.trim(), opts=(document.getElementById('ehOptions')?.value||'').split(/\n/).map(x=>x.trim()).filter(Boolean), correct=document.getElementById('ehCorrect')?.value.trim(), existing=document.getElementById('ehExisting')?.value.trim(), subject=document.getElementById('ehSubject')?.value.trim(), topic=document.getElementById('ehTopic')?.value.trim(); const out=document.getElementById('ehOut'); if(!q||!correct){out.innerHTML='<div class="card upgrade-result"><b>তথ্য অসম্পূর্ণ</b><p class="upgrade-muted">Question এবং Correct answer দিন। কোনো তথ্য না থাকলে helper অনুমান করবে না।</p></div>';return;} const others=opts.filter(x=>x!==correct); out.innerHTML=`<article class="card upgrade-result"><h3 style="margin-top:0">Explanation card</h3><p><b>Correct answer:</b> ${escX(correct)}</p><p><b>Why correct:</b> ${existing?escX(existing):'Existing explanation দেওয়া হয়নি; source data থেকে এর বেশি নির্ভরযোগ্য ব্যাখ্যা তৈরি করা যাচ্ছে না।'}</p><p><b>Why others are wrong:</b> ${others.length?others.map(x=>`<span class="upgrade-chip">${escX(x)} — source explanation নেই</span>`).join(' '):'Options দেওয়া হয়নি।'}</p><p><b>Easy explanation:</b> ${existing?escX(existing):'Easy explanation available নয় কারণ existing explanation নেই।'}</p><p><b>Relevant rule/concept:</b> ${subject||topic?`${escX(subject||'')} ${topic?'· '+escX(topic):''}`:'Rule/concept supplied হয়নি।'}</p></article>`; };
-  window.explainExistingQuestion=function(id){ const q=(typeof CACHE!=='undefined'?CACHE.questions||[]:[]).find(x=>x.id===id); if(!q)return; go('study-helper'); setTimeout(()=>{document.getElementById('ehQuestion').value=q.question||'';document.getElementById('ehOptions').value=(q.options||[]).join('\n');document.getElementById('ehCorrect').value=(q.options||[])[Number(q.answer??q.answerIndex??0)]||'';document.getElementById('ehExisting').value=q.explanation||'';document.getElementById('ehSubject').value=typeof subjectName==='function'?subjectName(q.subjectId):'';document.getElementById('ehTopic').value=typeof topicName==='function'?topicName(q.topicId):'';buildExplanation();},30); };
+  window.testTelegram = async function(){
+    if(!TG.connected){notify('আগে Connect করুন');return;}
+    notify('Sending test message...');
+    const ok = await tgSend('system','Test Notification','This is a test notification from Admission Hub.', 'test-'+Date.now(), true);
+    if(ok) notify('✓ Message sent!');
+    else notify('✖ Failed to send message.');
+  };
 
-  const CALCS=['Percentage','Average','Ratio','Fraction','Marks','Negative marking','MCQ accuracy','Required score','GPA / grade','Date difference','Study time','Target completion','Unit / time'];
-  function renderCalculator(){ const c=safeJson(LS.calc,{mode:'Percentage'}); shell(`<div class="explorer-head"><div class="explorer-kicker">All-in-one utility</div><div class="explorer-title">Advanced Study Calculator</div><div class="explorer-subtitle">Select one compact calculation mode. Inputs and last mode are saved only on this device.</div></div><div class="card"><div class="calc-tabs">${CALCS.map(x=>`<button class="chip ${c.mode===x?'active':''}" onclick="setCalcMode('${x}')">${x}</button>`).join('')}</div><div id="calcForm" style="margin-top:12px"></div><div id="calcOut" style="margin-top:12px"></div></div>`,{title:'Calculator',back:"navigate('dashboard')"}); renderCalcForm(c.mode); }
-  function renderCalcForm(mode){ const f=document.getElementById('calcForm'); if(!f)return; const specs={Percentage:[['a','Obtained','number'],['b','Total','number']],Average:[['a','Numbers (comma separated)','text']],Ratio:[['a','First value','number'],['b','Second value','number']],Fraction:[['a','Numerator','number'],['b','Denominator','number']],Marks:[['a','Correct','number'],['b','Wrong','number'],['c','Skipped','number'],['d','Marks per correct','number'],['e','Negative per wrong','number']], 'Negative marking':[['a','Correct','number'],['b','Wrong','number'],['c','Marks per correct','number'],['d','Negative per wrong','number']], 'MCQ accuracy':[['a','Correct','number'],['b','Attempted','number']], 'Required score':[['a','Target percentage','number'],['b','Total marks','number'],['c','Current marks','number']], 'GPA / grade':[['a','Marks percentage','number']], 'Date difference':[['a','Start date','date'],['b','End date','date']], 'Study time':[['a','Total minutes','number'],['b','Sessions','number']], 'Target completion':[['a','Remaining questions','number'],['b','Questions per day','number']], 'Unit / time':[['a','Value','number'],['b','Unit multiplier','number']]}[mode]||[]; f.innerHTML=specs.map(([id,l,t])=>input('calc_'+id,l,t, '')).join('')+`<button class="btn" style="margin-top:12px" onclick="calculateStudy()">Calculate</button>`; }
-  window.setCalcMode=function(mode){saveJson(LS.calc,{mode}); renderCalculator();};
-  window.calculateStudy=function(){ const mode=safeJson(LS.calc,{mode:'Percentage'}).mode, v=id=>Number(document.getElementById('calc_'+id)?.value||0), raw=id=>document.getElementById('calc_'+id)?.value||'', pct=(a,b)=>b? a/b*100:0; let result=''; if(mode==='Percentage')result=`${pct(v('a'),v('b')).toFixed(2)}%`; else if(mode==='Average'){const a=raw('a').split(',').map(Number).filter(Number.isFinite);result=a.length?(a.reduce((x,y)=>x+y,0)/a.length).toFixed(2):'Valid numbers দিন';} else if(mode==='Ratio'){const g=(a,b)=>b?g(b,a%b):Math.abs(a);const a=v('a'),b=v('b'),d=g(a,b)||1;result=`${a/d}:${b/d}`;} else if(mode==='Fraction'){const d=v('b');result=d?`${v('a')}/${d} = ${(v('a')/d).toFixed(4)}`:'Denominator শূন্য হতে পারে না';} else if(mode==='Marks'){result=`Positive ${v('a')*v('d')} − negative ${v('b')*v('e')} = ${(v('a')*v('d')-v('b')*v('e')).toFixed(2)}; accuracy ${pct(v('a'),v('a')+v('b')).toFixed(2)}%`;} else if(mode==='Negative marking')result=`${(v('a')*v('c')-v('b')*v('d')).toFixed(2)} marks`; else if(mode==='MCQ accuracy')result=`${pct(v('a'),v('b')).toFixed(2)}%`; else if(mode==='Required score')result=`Need at least ${Math.max(0,v('a')/100*v('b')-v('c')).toFixed(2)} more marks`; else if(mode==='GPA / grade'){const x=v('a');result=x>=80?'A+ / 5.00':x>=70?'A / 4.00':x>=60?'A- / 3.50':x>=50?'B / 3.00':x>=40?'C / 2.00':x>=33?'D / 1.00':'F / 0.00';} else if(mode==='Date difference'){const a=new Date(raw('a')),b=new Date(raw('b'));result=(!isNaN(a)&&!isNaN(b))?`${Math.abs(Math.round((b-a)/86400000))} days`:'Valid dates দিন';} else if(mode==='Study time')result=`${(v('a')/60).toFixed(2)} hours total; ${(v('b')?v('a')/v('b'):0).toFixed(2)} minutes/session`; else if(mode==='Target completion')result=v('b')?`${Math.ceil(v('a')/v('b'))} days`:'Daily target শূন্য হতে পারে না'; else if(mode==='Unit / time')result=`${(v('a')*v('b')).toFixed(2)} converted units`; document.getElementById('calcOut').innerHTML=`<div class="card upgrade-result"><b>Result</b><div class="big" style="margin-top:7px">${escX(result)}</div></div>`; };
+  window.disconnectTelegram = function(){
+    if(confirm('Disconnect Telegram?')){
+      TG.connected=false;
+      tgSave();
+      renderTelegram();
+      notify('Disconnected');
+    }
+  };
 
-  function normalizeSearch(row){ return {source:row.source||row.engine||'Web',title:row.title||row.name||'',snippet:row.snippet||row.content||row.description||'',url:row.url||row.link||'',date:row.date||''}; }
-  async function searchWeb(q){ const urls=[`https://api.duckduckgo.com/?q=${encodeURIComponent(q)}&format=json&no_html=1&skip_disambig=1`,`https://search.bus-hit.me/search?q=${encodeURIComponent(q)}&format=json`,`https://searx.be/search?q=${encodeURIComponent(q)}&format=json`]; for(const u of urls){try{const r=await fetch(u,{headers:{Accept:'application/json'}});if(!r.ok)continue;const d=await r.json();let rows=[];(d.RelatedTopics||[]).forEach(x=>{if(x.Text&&x.FirstURL)rows.push({source:'DuckDuckGo',title:x.Text.split(' - ')[0],snippet:x.Text,url:x.FirstURL})});(d.results||[]).forEach(x=>rows.push(normalizeSearch({...x,source:x.engine||'SearXNG'})));if(rows.length)return rows.slice(0,12);}catch(_){}} throw Error('search-failed'); }
-  function renderSearch(){ const s=safeJson(LS.search,{q:'',rows:[],error:''}); shell(`<div class="explorer-head"><div class="explorer-kicker">Real web results · No AI</div><div class="explorer-title">Web Search</div><div class="explorer-subtitle">Results come from public search endpoints and are rendered with source links. Bengali, English, and mixed queries are supported.</div></div><div class="card"><div class="searchbar"><input id="webQ" value="${escX(s.q)}" placeholder="Search the web"><button class="btn sm" onclick="runWebSearch()">Search</button></div>${s.error?`<div class="card upgrade-result"><b>Search failed</b><p class="upgrade-muted">Public endpoint unavailable. Retry or try a shorter query.</p><button class="btn secondary sm" onclick="runWebSearch()">Retry</button></div>`:''}</div><div id="webRows">${s.rows?.length?s.rows.map(searchCard).join(''):s.q&&!s.error?'<div class="card empty">No indexed results returned. Try another query.</div>':''}</div>`,{title:'Web Search',back:"navigate('dashboard')"}); }
-  function searchCard(x){ return `<article class="card upgrade-result"><div class="source"><span>${escX(x.source)}</span>${x.date?`· ${escX(x.date)}`:''}</div><h3><a href="${escX(x.url)}" target="_blank" rel="noopener">${escX(x.title||'Untitled result')}</a></h3><p class="upgrade-muted">${escX(x.snippet||'No snippet supplied by source.')}</p><a class="btn secondary sm" href="${escX(x.url)}" target="_blank" rel="noopener">Open source</a></article>`; }
-  window.runWebSearch=async function(){ const q=document.getElementById('webQ')?.value.trim();if(!q){notify('Search query দিন');return;}saveJson(LS.search,{q,rows:[],error:''});renderSearch();try{const rows=await searchWeb(q);saveJson(LS.search,{q,rows,error:''});renderSearch();}catch(_){saveJson(LS.search,{q,rows:[],error:'failed'});renderSearch();} };
+  /* ================= DICTIONARY SYSTEM ================= */
+  let DictState = { word: '', result: null, loading: false, suggestions: [] };
 
-  async function dictFetch(word){const r=await fetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(word));if(!r.ok)throw Error('not-found');return r.json();}
-  async function dictSuggest(q){try{const r=await fetch('https://api.datamuse.com/sug?s='+encodeURIComponent(q));return (await r.json()).slice(0,8).map(x=>x.word);}catch(_){return[];}}
-  function renderDictionary(){const d=safeJson(LS.dict,{q:'',data:null,suggestions:[],error:''});shell(`<div class="explorer-head"><div class="explorer-kicker">Source-backed language tool</div><div class="explorer-title">Smart Dictionary</div><div class="explorer-subtitle">Definitions are shown only when supplied by the Free Dictionary API. Bengali meaning is not fabricated.</div></div><div class="card"><div class="searchbar"><input id="dictQ" value="${escX(d.q)}" placeholder="English word" oninput="suggestDictionary(this.value)"><button class="btn sm" onclick="runDictionary()">Lookup</button></div><div id="dictSug">${(d.suggestions||[]).map(x=>`<button class="chip" onclick="document.getElementById('dictQ').value='${escX(x)}';runDictionary()">${escX(x)}</button>`).join('')}</div></div><div id="dictOut">${d.error?`<div class="card upgrade-result"><b>Word not found</b><p class="upgrade-muted">No source result was returned. Try a suggestion or another spelling.</p></div>`:d.data?dictCard(d.data):''}</div>`,{title:'Dictionary',back:"navigate('dashboard')"});}
-  function dictCard(x){return `<article class="card upgrade-result"><div class="source">Free Dictionary API · <a href="https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(x.word)}" target="_blank" rel="noopener">Source</a></div><h2 style="margin:8px 0">${escX(x.word)} <span class="muted">${escX(x.phonetic||'')}</span></h2><p><b>বাংলা অর্থ:</b> Source did not provide a Bengali meaning.</p><p><b>English definition:</b> ${escX(x.definition||'Not provided')}</p><p><b>Explanation:</b> ${escX(x.definition||'Not provided')}</p><p><b>Synonyms:</b> ${escX(x.synonyms?.join(', ')||'Not provided')}</p><p><b>Antonyms:</b> ${escX(x.antonyms?.join(', ')||'Not provided')}</p><p><b>Example:</b> ${escX(x.example||'Not provided')}</p><p><b>Word type:</b> ${escX(x.partOfSpeech||'Not provided')}</p></article>`;}
-  window.suggestDictionary=async function(q){if(q.trim().length<2)return;const rows=await dictSuggest(q.trim());const el=document.getElementById('dictSug');if(el)el.innerHTML=rows.map(x=>`<button class="chip" onclick="document.getElementById('dictQ').value='${escX(x)}';runDictionary()">${escX(x)}</button>`).join('');};
-  window.runDictionary=async function(){const q=document.getElementById('dictQ')?.value.trim();if(!q){notify('Word দিন');return;}saveJson(LS.dict,{q,data:null,suggestions:[],error:''});renderDictionary();try{const d=(await dictFetch(q))[0], defs=(d.meanings||[]).flatMap(m=>(m.definitions||[]).map(z=>({...z,partOfSpeech:m.partOfSpeech,synonyms:[...(z.synonyms||[]),...(m.synonyms||[])],antonyms:[...(z.antonyms||[]),...(m.antonyms||[])]})));saveJson(LS.dict,{q,data:{word:d.word,phonetic:d.phonetic||d.phonetics?.find(x=>x.text)?.text,definition:defs[0]?.definition,example:defs.find(x=>x.example)?.example,partOfSpeech:defs[0]?.partOfSpeech,synonyms:[...new Set(defs.flatMap(x=>x.synonyms||[]))].slice(0,8),antonyms:[...new Set(defs.flatMap(x=>x.antonyms||[]))].slice(0,8)},error:''});renderDictionary();}catch(_){const suggestions=await dictSuggest(q);saveJson(LS.dict,{q,data:null,suggestions,error:'not-found'});renderDictionary();}};
+  async function translateText(text, target = 'bn') {
+    try {
+      const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${target}&dt=t&q=${encodeURIComponent(text)}`);
+      const d = await r.json();
+      return d?.[0]?.[0]?.[0] || text;
+    } catch (_) { return text; }
+  }
 
-  const EN=['Vocabulary','Synonym','Antonym','Correct Spelling','Confused Words','One Word Substitution','Idioms & Phrases','Phrasal Verbs','Preposition','Appropriate Word/Usage','Foreign Expressions','Literary Terms'];
-  const BN=['শব্দার্থ','সমার্থক','বিপরীতার্থক','এক কথায় প্রকাশ','বাগধারা','প্রবাদ-প্রবচন','শুদ্ধ বানান','পারিভাষিক শব্দ','বিদেশি শব্দ','তৎসম-তদ্ভব-দেশি-বিদেশি','সন্ধি','সমাস','কারক-বিভক্তি','ধাতু','পুরুষ/বচন/লিঙ্গ','লেখক-কবি-সাহিত্যকর্ম','সাহিত্যিক উপাধি','চরিত্র-সাহিত্যকর্ম','ছদ্মনাম','উক্তি','ভাষা ও সাহিত্য ইতিহাস'];
-  const MEM_CATS=[...EN,...BN]; let MEM=safeJson(LS.mem,{items:[],stats:{},active:MEM_CATS[0]}); if(!MEM.items)MEM.items=[]; if(!MEM.stats)MEM.stats={};
-  const memRows=()=>MEM.items.filter(x=>x.category===MEM.active); function memSave(){saveJson(LS.mem,MEM);}
-  function renderMem(){const count=memRows().length,st=MEM.stats[MEM.active]||{attempts:0,correct:0};shell(`<div class="explorer-head"><div class="explorer-kicker">33-category practice</div><div class="explorer-title">Memorizing System</div><div class="explorer-subtitle">Every category has separate custom MCQs and progress. Existing question data is untouched.</div></div><div class="card"><label class="flabel">Category</label><select id="memCat" onchange="setMemCategory(this.value)">${MEM_CATS.map(x=>`<option ${x===MEM.active?'selected':''}>${escX(x)}</option>`).join('')}</select><div class="grid2" style="margin-top:10px"><div class="upgrade-card"><b>${count}</b><div class="upgrade-muted">Custom questions</div></div><div class="upgrade-card"><b>${st.attempts?Math.round(st.correct/st.attempts*100):0}%</b><div class="upgrade-muted">Category accuracy</div></div></div></div><div class="row wrap"><button class="btn sm" onclick="openMemForm()">+ Add question</button><button class="btn secondary sm" onclick="startMemPractice()">Practice category</button></div><div id="memList">${memRows().map(memItem).join('')||'<div class="card empty">এই category-তে custom question নেই।</div>'}</div>`,{title:'Memorizing',back:"navigate('dashboard')"});}
-  function memItem(x){return `<article class="card"><div class="row between"><b>${escX(x.question)}</b><span class="pill">${(MEM.stats[x.category]?.correct||0)}/${MEM.stats[x.category]?.attempts||0}</span></div><p class="upgrade-muted">${(x.options||[]).map((o,i)=>`${String.fromCharCode(65+i)}. ${escX(o)}`).join(' · ')}</p><div class="row" style="gap:8px"><button class="btn ghost sm" onclick="openMemForm('${x.id}')">Edit</button><button class="btn danger sm" onclick="deleteMemQuestion('${x.id}')">Delete</button></div></article>`;}
-  window.setMemCategory=function(v){MEM.active=v;memSave();renderMem();}; window.openMemForm=function(id){const x=MEM.items.find(q=>q.id===id)||{question:'',options:['','','',''],answer:0,explanation:''};openModal(`<h3>${id?'Edit':'Add'} MCQ · ${escX(MEM.active)}</h3>${input('mQ','Question','text',x.question)}<label class="flabel">Options (one per line)</label><textarea id="mOpts" rows="5">${escX((x.options||[]).join('\n'))}</textarea>${input('mAns','Correct option number (1–4)','number',Number(x.answer)+1)}<label class="flabel">Explanation (optional)</label><textarea id="mExp" rows="3">${escX(x.explanation||'')}</textarea><button class="btn" onclick="saveMemQuestion('${id||''}')">Save question</button>`);};
-  window.saveMemQuestion=function(id){const question=document.getElementById('mQ')?.value.trim(),options=(document.getElementById('mOpts')?.value||'').split(/\n/).map(x=>x.trim()).filter(Boolean),answer=Math.max(0,Number(document.getElementById('mAns')?.value||1)-1);if(!question||options.length<2||answer>=options.length){notify('Question, at least 2 options, and valid answer দিন');return;}let x=MEM.items.find(q=>q.id===id);if(!x){x={id:(typeof uid==='function'?uid():'m-'+now()),category:MEM.active};MEM.items.push(x);}Object.assign(x,{question,options,answer,explanation:document.getElementById('mExp')?.value.trim()||''});memSave();closeModal();renderMem();};
-  window.deleteMemQuestion=function(id){if(!confirm('এই custom question মুছবেন?'))return;MEM.items=MEM.items.filter(x=>x.id!==id);memSave();renderMem();};
-  window.startMemPractice=function(){const rows=memRows();if(!rows.length){notify('এই category-তে practice question নেই');return;}let i=0;const show=()=>{const x=rows[i];shell(`<div class="explorer-head"><div class="explorer-kicker">${escX(MEM.active)} · ${i+1}/${rows.length}</div><div class="explorer-title">Practice</div></div><article class="card"><h3>${escX(x.question)}</h3>${x.options.map((o,j)=>`<button class="upgrade-option" onclick="answerMem('${x.id}',${j},this)">${String.fromCharCode(65+j)}. ${escX(o)}</button>`).join('')}<div id="memFeedback" class="upgrade-muted" style="margin-top:10px"></div></article>` ,{title:'Memorizing Practice',back:"navigate('memorizing')"});}; window.answerMem=function(id,j,el){const x=MEM.items.find(q=>q.id===id),st=MEM.stats[x.category]||{attempts:0,correct:0};st.attempts++;const ok=j===Number(x.answer);if(ok)st.correct++;MEM.stats[x.category]=st;memSave();document.querySelectorAll('.upgrade-option').forEach((b,k)=>{b.disabled=true;if(k===Number(x.answer))b.classList.add('correct');if(k===j&&!ok)b.classList.add('wrong');});document.getElementById('memFeedback').innerHTML=(ok?'Correct':'Wrong')+` — ${escX(x.explanation||'Explanation not provided.')}`+`<br><button class="btn" style="margin-top:10px" onclick="${i+1<rows.length?'window.__nextMem()':'navigate(\'memorizing\')'}">${i+1<rows.length?'Next':'Done'}</button>`;window.__nextMem=()=>{i++;show();};};show();};
+  async function fetchDictionary(word) {
+    DictState.loading = true;
+    DictState.word = word;
+    renderDictionary();
+    try {
+      const r = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+      if (!r.ok) throw Error('Not found');
+      const data = await r.json();
+      const entry = data[0];
+      
+      const result = {
+        word: entry.word,
+        phonetic: entry.phonetic || entry.phonetics?.[0]?.text || '',
+        pos: entry.meanings?.[0]?.partOfSpeech || '',
+        definition: entry.meanings?.[0]?.definitions?.[0]?.definition || '',
+        example: entry.meanings?.[0]?.definitions?.[0]?.example || '',
+        synonyms: entry.meanings?.[0]?.synonyms?.slice(0, 5) || [],
+        antonyms: entry.meanings?.[0]?.antonyms?.slice(0, 5) || []
+      };
 
-  function examPool(mode){const qs=typeof CACHE!=='undefined'?CACHE.questions||[]:[];if(mode==='mistake')return qs.filter(q=>(typeof CACHE!=='undefined'?CACHE.mistakes||[]:[]).some(m=>m.questionId===q.id&&!m.mastered));if(mode==='weak'){const scores=qs.map(q=>({q,s:Number(q.stats?.wrong||0)-Number(q.stats?.correct||0)})).sort((a,b)=>b.s-a.s);return scores.filter(x=>x.s>0).map(x=>x.q);}if(mode==='bookmarked')return qs.filter(q=>q.bookmarked);if(mode==='unattempted')return qs.filter(q=>!q.stats?.attempts);return qs;}
-  function renderExamModes(){const modes=[['mock','Mock Test','No instant feedback; existing timed engine'],['flash','Flash Test','Immediate green/red feedback'],['mistake','Mistake Test','Mistake Bank only'],['weak','Weak Topic Test','Weakness from real stats'],['bookmarked','Bookmarked Test','Bookmarked questions'],['unattempted','Unattempted Test','Never attempted'],['random','Random Challenge','Mixed random pool'],['subject','Subject Test','Choose a subject'],['topic','Topic Test','Choose a topic']];shell(`<div class="explorer-head"><div class="explorer-kicker">Nine exam modes</div><div class="explorer-title">Exam Mode Launcher</div><div class="explorer-subtitle">Mock Test delegates to the unchanged engine. Flash Test alone enables immediate feedback.</div></div><div class="upgrade-grid">${modes.map(([id,n,d])=>`<button class="upgrade-card" style="text-align:left;cursor:pointer;color:var(--text)" onclick="launchExamMode('${id}')"><h3>${n}</h3><p>${d}</p></button>`).join('')}</div>`,{title:'Exam Modes',back:"navigate('dashboard')"});}
-  window.launchExamMode=function(mode){let pool=examPool(mode);if(mode==='random')pool=[...pool].sort(()=>Math.random()-.5);if(mode==='subject'){const s=prompt('Subject name (exact or partial)')||'';pool=pool.filter(q=>(typeof subjectName==='function'?subjectName(q.subjectId):'').toLowerCase().includes(s.toLowerCase()));}if(mode==='topic'){const s=prompt('Topic name (exact or partial)')||'';pool=pool.filter(q=>(typeof topicName==='function'?topicName(q.topicId):'').toLowerCase().includes(s.toLowerCase()));}if(!pool.length){notify('এই mode-এর জন্য কোনো real question নেই');return;}if(typeof beginExamFromPool==='function'&&mode!=='mock')return beginExamFromPool(pool,mode==='random'?'flash':mode);if(mode==='mock'&&typeof beginExam==='function'){if(typeof ExamSetup!=='undefined'){ExamSetup.mode='mock';ExamSetup.onlyQuestionIds=pool.map(q=>q.id);ExamSetup.totalCount=Math.min(ExamSetup.totalCount||20,pool.length);}return beginExam();}notify('Exam engine unavailable');};
+      // Get Bengali translations
+      result.bnMeaning = await translateText(result.word, 'bn');
+      result.bnDefinition = await translateText(result.definition, 'bn');
+      if (result.example) result.bnExample = await translateText(result.example, 'bn');
 
-  const oldRender=window.render; if(typeof oldRender!=='function')return; function injectEntries(p){const page=document.querySelector('#app .page');if(!page)return;if(p==='dashboard'&&!page.querySelector('[data-upgrade-tools]')){page.insertAdjacentHTML('beforeend',`<section class="card" data-upgrade-tools><div class="row between"><div><b>🧰 New Study Tools</b><div class="upgrade-muted">Telegram, calculator, real search, source-backed dictionary, 33-category memorizing and nine exam modes.</div></div><button class="btn secondary sm" onclick="openUpgradeTools()">Open</button></div></section>`);}if(p==='settings'&&!page.querySelector('[data-telegram-entry]')){page.insertAdjacentHTML('afterbegin',`<section class="card" data-telegram-entry><div class="row between"><div><b>✈ Telegram Notifications</b><div class="upgrade-muted">${TG.connected?'Connected':'Not connected'} · category controls and secure relay</div></div><button class="btn secondary sm" onclick="navigate('telegram')">Manage</button></div></section>`);}} window.render=function(){const p=(typeof Router!=='undefined'?Router.path:location.hash.slice(1))||'dashboard';if(p==='telegram')return renderTelegram();if(p==='study-helper')return renderHelper();if(p==='calculator')return renderCalculator();if(p==='web-search'||p==='web-chat')return renderSearch();if(p==='dictionary-source'||p==='dictionary')return renderDictionary();if(p==='memorizing-33'||p==='memorizing')return renderMem();if(p==='exam-modes')return renderExamModes();const result=oldRender();setTimeout(()=>injectEntries(p),0);setTimeout(()=>injectEntries(p),250);setTimeout(()=>injectEntries(p),1000);return result;};
-  window.openUpgradeTools=function(){shell(`<div class="explorer-head"><div class="explorer-kicker">Admission Hub Upgrade</div><div class="explorer-title">Study Tools</div><div class="explorer-subtitle">All new utilities are additive and preserve the original database and Mock Test flow.</div></div><div class="upgrade-grid">${[['telegram','Telegram','Notification controls'],['study-helper','Study Helper','Source-only explanations'],['calculator','Calculator','Unified calculations'],['web-search','Web Search','Real public search'],['dictionary-source','Dictionary','Free Dictionary API'],['memorizing-33','Memorizing 33','Category practice'],['exam-modes','Exam Modes','Nine modes']].map(([p,n,d])=>`<button class="upgrade-card" style="text-align:left;cursor:pointer;color:var(--text)" onclick="navigate('${p}')"><h3>${n}</h3><p>${d}</p></button>`).join('')}</div>`,{title:'Study Tools',back:"navigate('dashboard')"});};
-  window.addEventListener('admission:notify',e=>{const d=e.detail||{};tgSend(d.category||'system',d.title||'Admission Hub',d.body||'',d.dedupeKey||String(now()));});
-  addStyles();
+      DictState.result = result;
+    } catch (e) {
+      DictState.result = { error: 'শব্দটি পাওয়া যায়নি।' };
+    } finally {
+      DictState.loading = false;
+      renderDictionary();
+    }
+  }
+
+  /* ================= WEB CHAT SYSTEM ================= */
+  let WebState = { messages: [], loading: false };
+
+  async function fetchGoogleSearch(query) {
+    // Simulate Google Search via DuckDuckGo + Translation for reliability
+    const isBn = /[\u0980-\u09FF]/.test(query);
+    const searchQ = isBn ? await translateText(query, 'en') : query;
+    
+    try {
+      const r = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(searchQ)}&format=json&no_html=1&skip_disambig=1`);
+      const d = await r.json();
+      
+      let answer = d.AbstractText;
+      let sources = [];
+      
+      if (d.AbstractURL) sources.push({ title: d.AbstractSource || 'Source', url: d.AbstractURL });
+      
+      if (!answer && d.RelatedTopics?.length) {
+        answer = d.RelatedTopics[0].Text;
+        if (d.RelatedTopics[0].FirstURL) sources.push({ title: 'Related Source', url: d.RelatedTopics[0].FirstURL });
+      }
+
+      if (answer && isBn) {
+        answer = await translateText(answer, 'bn');
+      }
+
+      return { answer: answer || 'Google Search-এ নির্ভরযোগ্য পর্যাপ্ত তথ্য পাওয়া যায়নি।', sources };
+    } catch (e) {
+      return { answer: 'Search failed. Please try again.', sources: [] };
+    }
+  }
+
+  window.askWebChat = async function(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const input = document.getElementById('webChatInput'), q = (input?.value || '').trim();
+    if (!q || WebState.loading) return;
+    
+    WebState.messages.push({ role: 'user', text: q });
+    WebState.loading = 'তথ্য সংগ্রহ করছি…';
+    renderWebChat();
+    
+    const result = await fetchGoogleSearch(q);
+    
+    let html = `
+      <div class="web-answer-v2">
+        <div class="web-main-answer">${escX(result.answer)}</div>
+        ${result.sources.length ? `
+          <div class="web-sources-v2">
+            <strong>Sources:</strong>
+            ${result.sources.map(s => `<a href="${s.url}" target="_blank">${escX(s.title)} ↗</a>`).join('')}
+          </div>
+        ` : ''}
+      </div>`;
+      
+    WebState.messages.push({ role: 'assistant', html: html });
+    WebState.loading = false;
+    renderWebChat();
+    if (input) input.value = '';
+  };
+
+  /* ================= RENDERING ================= */
+  function addStyles(){ 
+    if (document.getElementById('admission-upgrade-styles')) return; 
+    const s=document.createElement('style'); 
+    s.id='admission-upgrade-styles'; 
+    s.textContent=`
+      .upgrade-hero{background:linear-gradient(135deg,#0f6b4f,#084b38);color:#fff;border:0;padding:20px;border-radius:18px;margin-bottom:16px}
+      .tg-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 0;border-bottom:1px solid var(--line)}
+      .tg-row:last-child{border-bottom:0}
+      
+      .dict-result-v2{margin-top:16px;animation:fadeUp 0.3s ease;}
+      .dict-card-v2{background:#fff;border-radius:20px;padding:20px;border:1px solid var(--line);box-shadow:var(--shadow);}
+      .dict-word{font-size:32px;font-weight:800;margin:0;color:var(--emerald-d);}
+      .dict-phonetic{color:var(--sub);font-size:14px;margin-top:4px;}
+      .dict-bn-meaning{font-size:20px;font-weight:700;color:var(--text);margin:16px 0 8px;}
+      .dict-en-meaning{font-size:15px;color:var(--sub);line-height:1.5;margin-bottom:16px;}
+      .dict-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;}
+      .dict-item{background:var(--mint);padding:12px;border-radius:12px;}
+      .dict-item strong{display:block;font-size:11px;text-transform:uppercase;color:var(--emerald-d);margin-bottom:4px;}
+      .dict-item p{margin:0;font-size:14px;font-weight:600;}
+      .dict-example{margin-top:16px;padding:14px;background:#f8fafc;border-radius:12px;border-left:4px solid var(--emerald);}
+      
+      .web-chat-v2{display:flex;flex-direction:column;gap:16px;}
+      .web-message{padding:14px 18px;border-radius:18px;max-width:90%;line-height:1.6;}
+      .web-message.user{align-self:flex-end;background:var(--emerald);color:#fff;border-bottom-right-radius:4px;}
+      .web-message.assistant{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px;box-shadow:var(--shadow);}
+      .web-main-answer{font-size:16px;font-weight:500;color:var(--text);}
+      .web-sources-v2{margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:12px;}
+      .web-sources-v2 a{color:var(--emerald);margin-left:8px;text-decoration:none;font-weight:600;}
+      
+      .web-search-box-v2{position:sticky;bottom:0;background:var(--bg);padding:12px 0;display:flex;gap:8px;}
+      .web-search-box-v2 textarea{flex:1;padding:12px 16px;border-radius:14px;border:1px solid var(--line);resize:none;height:48px;font-family:inherit;}
+      .web-search-box-v2 button{width:48px;height:48px;border-radius:14px;background:var(--emerald);color:#fff;border:0;cursor:pointer;display:grid;place-items:center;}
+    `; 
+    document.head.appendChild(s); 
+  }
+
+  function renderTelegram(){ 
+    const rows=TG_CATEGORIES.map(([id,en,bn])=>`<div class="tg-row"><div><b>${bn}</b><div class="upgrade-muted">${en}</div></div><button class="chip ${TG.categories[id]!==false?'active':''}" onclick="toggleTelegramCategory('${id}')">${TG.categories[id]!==false?'ON':'OFF'}</button></div>`).join(''); 
+    shell(`
+      <div class="explorer-head">
+        <div class="explorer-title">Telegram Notifications</div>
+        <p class="explorer-subtitle">সরাসরি Telegram Bot API ব্যবহার করে নোটিফিকেশন।</p>
+      </div>
+      <section class="upgrade-hero">
+        <div class="row between">
+          <div>
+            <b>${TG.connected?'✓ Connected':'Not connected'}</b>
+            <div style="opacity:.82;font-size:12px;margin-top:4px">${TG.chatId?'Chat ID: '+escX(TG.chatId):'Bot তথ্য দিয়ে Connect করুন'}</div>
+          </div>
+          <span style="font-size:28px">✈</span>
+        </div>
+      </section>
+      <div class="card">
+        ${input('tgToken','Bot Token','text',TG.botToken)}
+        ${input('tgChat','Telegram Chat ID','text',TG.chatId)}
+        <div class="row wrap" style="gap:8px;margin-top:16px">
+          <button class="btn" onclick="connectTelegram()">Save & Connect</button>
+          <button class="btn secondary sm" onclick="testTelegram()">Test Notification</button>
+          <button class="btn danger sm" onclick="disconnectTelegram()">Disconnect</button>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 12px">Notification categories</h3>
+        ${rows}
+      </div>`,{title:'Telegram',back:"navigate('settings')"}); 
+  }
+
+  function renderDictionary(){
+    shell(`
+      <div class="explorer-head">
+        <div class="explorer-title">Smart Dictionary</div>
+        <p class="explorer-subtitle">Google ও Oxford Dictionary থেকে নির্ভরযোগ্য তথ্য।</p>
+      </div>
+      <div class="card">
+        <div class="row" style="gap:8px">
+          <input type="text" id="dictInput" placeholder="Enter English word..." value="${escX(DictState.word)}" style="flex:1">
+          <button class="btn sm" onclick="fetchDictionary(document.getElementById('dictInput').value)" ${DictState.loading?'disabled':''}>
+            ${DictState.loading?'...':'Search'}
+          </button>
+        </div>
+      </div>
+      ${DictState.result ? `
+        <div class="dict-result-v2">
+          ${DictState.result.error ? `<div class="card" style="color:var(--red)">${DictState.result.error}</div>` : `
+            <div class="dict-card-v2">
+              <h2 class="dict-word">${escX(DictState.result.word)}</h2>
+              <div class="dict-phonetic">${escX(DictState.result.phonetic)} • ${escX(DictState.result.pos)}</div>
+              
+              <div class="dict-bn-meaning">${escX(DictState.result.bnMeaning)}</div>
+              <div class="dict-en-meaning">${escX(DictState.result.definition)}</div>
+              
+              <div class="dict-grid">
+                <div class="dict-item"><strong>Synonyms</strong><p>${DictState.result.synonyms.join(', ') || '—'}</p></div>
+                <div class="dict-item"><strong>Antonyms</strong><p>${DictState.result.antonyms.join(', ') || '—'}</p></div>
+              </div>
+              
+              ${DictState.result.example ? `
+                <div class="dict-example">
+                  <strong>Example</strong>
+                  <p>"${escX(DictState.result.example)}"</p>
+                  <small style="display:block;margin-top:4px;color:var(--sub)">${escX(DictState.result.bnExample)}</small>
+                </div>
+              ` : ''}
+            </div>
+          `}
+        </div>
+      ` : ''}
+    `, { title: 'Dictionary', back: "navigate('dashboard')" });
+  }
+
+  function renderWebChat(){
+    const msgs = WebState.messages.map(m => `
+      <div class="web-message ${m.role}">
+        ${m.role === 'user' ? escX(m.text) : m.html}
+      </div>
+    `).join('');
+    
+    shell(`
+      <div class="explorer-head">
+        <div class="explorer-title">Web Chat</div>
+        <p class="explorer-subtitle">Google Search থেকে সরাসরি তথ্য সংগ্রহ।</p>
+      </div>
+      <div class="web-chat-v2" id="webChatLog">
+        ${msgs}
+        ${WebState.loading ? `<div class="web-message assistant"><em>${escX(WebState.loading)}</em></div>` : ''}
+      </div>
+      <form class="web-search-box-v2" onsubmit="askWebChat(event)">
+        <textarea id="webChatInput" placeholder="Ask anything..."></textarea>
+        <button type="submit">${ICONS.arrow || '→'}</button>
+      </form>
+    `, { title: 'Web Chat', back: "navigate('dashboard')" });
+    
+    const log = document.getElementById('webChatLog');
+    if (log) log.scrollTop = log.scrollHeight;
+  }
+
+  function shell(html, opts){ addStyles(); if (typeof renderShell === 'function') renderShell(html, opts || {}); else document.getElementById('app').innerHTML=html; }
+  function input(id,label,type='text',value=''){ return `<label class="flabel">${label}</label><input id="${id}" type="${type}" value="${escX(value)}">`; }
+
+  window.renderTelegram = renderTelegram;
+  window.renderDictionary = renderDictionary;
+  window.renderWebChat = renderWebChat;
+  window.toggleTelegramCategory = function(id){ TG.categories[id]=!TG.categories[id]; tgSave(); renderTelegram(); };
+
+  const oldRender=window.render; 
+  window.render=function(){
+    const p=(typeof Router!=='undefined'?Router.path:location.hash.slice(1))||'dashboard';
+    if(p==='telegram') return renderTelegram();
+    if(p==='web-chat') return renderWebChat();
+    if(p==='dictionary') return renderDictionary();
+    return oldRender();
+  };
 })();

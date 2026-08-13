@@ -1,72 +1,306 @@
 (() => {
-  const qEsc=s=>{const d=document.createElement('div');d.textContent=String(s??'');return d.innerHTML};
-  const qStats=q=>q.stats||{attempts:0,correct:0,wrong:0};
-  const sourceQuestions=()=>{const tid=ExplorerState.topicId, sid=ExplorerState.subjectId; if(tid)return CACHE.questions.filter(q=>q.topicId===tid); if(sid)return CACHE.questions.filter(q=>q.subjectId===sid); return CACHE.questions.slice()};
-  const qSourceLabel=()=>{const t=CACHE.topics.find(x=>x.id===ExplorerState.topicId),s=CACHE.subjects.find(x=>x.id===ExplorerState.subjectId);return t?`${s?.name||'Subject'} • ${t.name}`:s?.name||'All subjects'};
-  const qTopicFilter=(q)=>{const st=qStats(q), filter=ExplorerState.status||'all';if(filter==='unattempted'&&st.attempts)return false;if(filter==='wrong'&&!((st.wrong||0)>0||CACHE.mistakes.some(m=>m.questionId===q.id)))return false;if(filter==='bookmarked'&&!q.bookmarked)return false;if(filter==='recent'&&!(q.updatedAt||q.createdAt||0> Date.now()-30*86400000))return false;return true};
-  function qSubjectLabel(s){const n=(s.name||'').toLowerCase();const map=[['bangla 1','Bangla 1st'],['english','English 2nd'],['gk','GK'],['general','GK'],['bangla 2','Bangla 2nd'],['iq','IQ'],['memor','Memorizing'],['বিরচন','বিরচন'],['ইতিহাস','ইতিহাস'],['বিজ্ঞান','বিজ্ঞান']];const hit=map.find(([k])=>n.includes(k));return hit?hit[1]:s.name}
-  function subjectRow(s){const qs=CACHE.questions.filter(q=>q.subjectId===s.id),topics=CACHE.topics.filter(t=>t.subjectId===s.id),attempted=qs.filter(q=>(qStats(q).attempts||0)>0).length,pct=qs.length?Math.round(attempted/qs.length*100):0;return `<button class="q-subject-row card" onclick="openRedesignedSubject('${s.id}')"><span class="q-subject-icon">${qEsc(s.icon||'📘')}</span><span class="q-subject-main"><b>${qEsc(qSubjectLabel(s))}</b><span>${qEsc(s.description||'Admission practice and revision')}</span><small>${qs.length} questions · ${topics.length} topics</small><span class="q-progress"><i style="width:${pct}%"></i></span></span><strong>›</strong></button>`}
-  window.openRedesignedSubject=id=>{
-    ExplorerState.subjectId=id;
-    ExplorerState.topicId='';
-    ExplorerState.status='all';
-    ExplorerState.query='';
-    Router.path='question-bank/subject/'+id;
+  const qEsc = s => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
+  const qStats = q => q.stats || { attempts: 0, correct: 0, wrong: 0 };
+  
+  function getAbbr(name) {
+    const n = (name || '').toLowerCase();
+    if (n.includes('bangla 1')) return 'বা';
+    if (n.includes('bangla 2')) return 'বা';
+    if (n.includes('english')) return 'En';
+    if (n.includes('gk') || n.includes('general')) return 'GK';
+    if (n.includes('math') || n.includes('iba')) return 'M';
+    if (n.includes('iq')) return 'IQ';
+    if (n.includes('ict') || n.includes('computer')) return 'CS';
+    return name.trim().slice(0, 2).toUpperCase();
+  }
+
+  function getBadgeColor(name) {
+    const n = (name || '').toLowerCase();
+    if (n.includes('bangla')) return '#10b981';
+    if (n.includes('english')) return '#3b82f6';
+    if (n.includes('gk')) return '#8b5cf6';
+    if (n.includes('math') || n.includes('iba')) return '#f59e0b';
+    if (n.includes('iq')) return '#06b6d4';
+    if (n.includes('ict')) return '#64748b';
+    return '#0f6b4f';
+  }
+
+  function subjectRow(s) {
+    const qs = CACHE.questions.filter(q => q.subjectId === s.id);
+    const topics = CACHE.topics.filter(t => t.subjectId === s.id);
+    const color = getBadgeColor(s.name);
+    const abbr = getAbbr(s.name);
+    return `
+      <button class="q-nav-card" onclick="openRedesignedSubject('${s.id}')">
+        <div class="q-nav-badge" style="background:${color}">${qEsc(abbr)}</div>
+        <div class="q-nav-info">
+          <strong>${qEsc(s.name)}</strong>
+          <span>${topics.length} Topics • ${qs.length} Questions</span>
+        </div>
+        <span class="q-nav-arrow">›</span>
+      </button>`;
+  }
+
+  function topicRow(t) {
+    const qs = CACHE.questions.filter(q => q.topicId === t.id);
+    return `
+      <button class="q-nav-card" onclick="openRedesignedTopic('${t.id}')">
+        <span class="q-topic-icon">📄</span>
+        <div class="q-nav-info">
+          <strong>${qEsc(t.name)}</strong>
+        </div>
+        <div class="q-topic-count">${qs.length} Questions</div>
+        <span class="q-nav-arrow">›</span>
+      </button>`;
+  }
+
+  window.openRedesignedSubject = id => {
+    ExplorerState.subjectId = id;
+    ExplorerState.topicId = '';
+    ExplorerState.query = '';
+    Router.path = 'question-bank/subject/' + id;
     render();
   };
-  window.openRedesignedTopic=id=>{
-    const t=CACHE.topics.find(x=>x.id===id);
-    ExplorerState.subjectId=t?.subjectId||'';
-    ExplorerState.topicId=id;
-    ExplorerState.status='all';
-    ExplorerState.query='';
-    Router.path='question-bank/topic/'+id;
-    // Reset temporary states when entering a topic
+
+  window.openRedesignedTopic = id => {
+    const t = CACHE.topics.find(x => x.id === id);
+    ExplorerState.subjectId = t?.subjectId || '';
+    ExplorerState.topicId = id;
+    ExplorerState.status = 'all';
+    ExplorerState.query = '';
+    Router.path = 'question-bank/topic/' + id;
     window.BankAnswers = window.BankAnswers || {};
     render();
   };
-  window.setRedesignedFilter=f=>{ExplorerState.status=f;renderQuestionBank()};
-  window.showQuestionMenu=id=>openModal(`<h3>Question actions</h3><p class="muted">Use the existing actions without changing the source question.</p><div class="row"><button class="btn secondary" onclick="closeModal();startQuestionPractice(['${id}'])">Practice</button><button class="btn ghost" onclick="closeModal()">Close</button></div>`);
-  function renderSubjectList(){
-    const subs=[...CACHE.subjects].sort((a,b)=>(a.order||0)-(b.order||0));
-    const search=(ExplorerState.query||'').toLowerCase();
-    const shown=subs.filter(s=>!search||qSubjectLabel(s).toLowerCase().includes(search)||String(s.name).toLowerCase().includes(search));
-    const html=`<div class="qbank-head"><div class="explorer-kicker">Question Bank</div><h1>Question Bank</h1><p>Browse subjects and start practicing</p></div><div class="qbank-toolbar"><div class="searchbar"><span>⌕</span><input class="q-input" value="${qEsc(ExplorerState.query||'')}" placeholder="Search subjects" oninput="ExplorerState.query=this.value;renderQuestionBank()"></div><button class="iconbtn" onclick="toast('List view active')">▦</button></div><div class="q-subject-list">${shown.map(subjectRow).join('')||`<div class="empty">No matching subjects.</div>`}</div>`;
-    renderShell(html,{title:'Question Bank',back:"navigate('dashboard')"});
-  }
-  function renderTopicList(){
-    const sel=CACHE.subjects.find(s=>s.id===ExplorerState.subjectId);
-    if(!sel){ navigate('question-bank'); return; }
-    const topics=CACHE.topics.filter(t=>t.subjectId===ExplorerState.subjectId).sort((a,b)=>(a.order||0)-(b.order||0));
-    const html=`<div class="qbank-head"><div class="explorer-kicker">Topics</div><h1>${qEsc(qSubjectLabel(sel))}</h1><p>Select a topic to Master</p></div><div class="q-topic-list">${topics.map(t=>`<button class="q-subject-row card" onclick="openRedesignedTopic('${t.id}')"><span class="q-subject-icon">📂</span><span class="q-subject-main"><b>${qEsc(t.name)}</b><small>${CACHE.questions.filter(q=>q.topicId===t.id).length} questions</small></span><strong>›</strong></button>`).join('')||`<div class="empty">No topics found.</div>`}</div>`;
-    renderShell(html,{title:'Topics',back:"navigate('question-bank')"});
-  }
-  window.leaveQuestionTopic=()=>{
-    // Reset correct/wrong state when leaving topic
-    const qs = sourceQuestions();
-    qs.forEach(q => { if(window.BankAnswers) delete window.BankAnswers[q.id]; });
-    ExplorerState.topicId='';
+
+  window.leaveTopic = () => {
+    // Reset temporary highlights
+    window.BankAnswers = {};
+    Router.path = 'question-bank/subject/' + ExplorerState.subjectId;
     render();
   };
-  function qCard(q,i){const st=qStats(q),state=BankAnswers[q.id],correct=Number(q.answerIndex??q.answer??0),answerText=(q.options||[])[correct]||'';const opts=(q.options||[]).map((o,j)=>{let cls='';if(state){if(j===correct)cls='correct';else if(j===state.selected)cls='wrong'}return '<button type="button" class="q-option '+cls+'" '+(state?'disabled':'')+' onclick="event.stopPropagation();selectBankAnswer(\''+q.id+'\','+j+')"><span>'+String.fromCharCode(65+j)+'</span><strong>'+qEsc(o)+'</strong></button>'}).join('');let result='';if(state){result='<div class="q-result '+(state.correct?'q-correct':'q-wrong')+'"><b>'+(state.correct?'Correct Answer':'Wrong Answer')+'</b>'+(state.correct?'<div>Your Answer: '+qEsc(answerText)+'</div>':'<div>Your Answer: '+qEsc((q.options||[])[state.selected]||'—')+'</div><div>Correct Answer: '+qEsc(answerText)+'</div>')+(q.explanation?'<div class="q-explain">Explanation: '+qEsc(q.explanation)+'</div>':'')+'</div>'}return '<article class="q-premium-card" id="bank-q-'+qEsc(q.id)+'" onclick="event.stopPropagation()"><div class="q-card-top"><div><span class="q-badge">Q '+String(i+1).padStart(2,'0')+'</span><span class="q-source">'+qEsc(qSourceLabel())+'</span><span class="q-status '+(state?'answered':'unattempted')+'">'+(state?'Answered':'Unattempted')+'</span></div><div><button class="q-icon" onclick="event.stopPropagation();toggleQuestionBookmark(\''+q.id+'\');renderQuestionBank()">'+(q.bookmarked?'★':'☆')+'</button><button class="q-icon" onclick="showQuestionMenu(\''+q.id+'\')">⋮</button></div></div><div class="q-large-text">'+qEsc(q.question)+'</div><div class="qfeed-options">'+opts+'</div>'+result+'<div class="q-footer"><span>Accuracy '+(st.attempts?Math.round((st.correct||0)/st.attempts*100):0)+'% · Mistakes '+(st.wrong||0)+'</span><button class="btn ghost sm" onclick="toggleQuestionBookmark(\''+q.id+'\');renderQuestionBank()">'+(q.bookmarked?'★ Bookmarked':'☆ Bookmark')+'</button><button class="btn secondary sm" onclick="openQuestionDetail(\''+q.id+'\')">Show Answer</button></div></article>'}
-  window.openQuestionDetail=id=>{const q=CACHE.questions.find(x=>x.id===id);if(!q)return;const ans=qEsc((q.options||[])[Number(q.answerIndex??q.answer??0)]||'—');const exp=q.explanation?`<p class="muted">${qEsc(q.explanation)}</p>`:'';openModal('<h3>Answer</h3><p>'+ans+'</p>'+exp+'<button class="btn" onclick="closeModal()">Close</button>') };
-  function renderFeed(){let qs=sourceQuestions().filter(qTopicFilter);const term=(ExplorerState.query||'').toLowerCase();if(term)qs=qs.filter(q=>[q.question,...(q.options||[]),q.explanation].join(' ').toLowerCase().includes(term));const topic=CACHE.topics.find(x=>x.id===ExplorerState.topicId),subject=CACHE.subjects.find(x=>x.id===ExplorerState.subjectId);const tabs=[['all','All'],['unattempted','Unattempted'],['wrong','Mistakes'],['bookmarked','Bookmarked'],['recent','Recent']];const html=`<div class="qbank-head"><div class="explorer-kicker">Question Bank</div><h1>Question Bank</h1><p>Practice directly in a calm, continuous feed</p></div><div class="row between qfeed-source"><div><b>${qEsc(subject?.name||'Subject')} ${topic?'• '+qEsc(topic.name):''}</b><div class="muted">${qs.length} questions from this exact source</div></div><button class="btn ghost sm" onclick="leaveQuestionTopic()">← Subjects</button></div><div class="q-filter-tabs">${tabs.map(([k,l])=>`<button class="${ExplorerState.status===k?'active':''}" onclick="setRedesignedFilter('${k}')">${l}${k==='all'?` (${sourceQuestions().length})`:''}</button>`).join('')}</div><div class="q-feed">${qs.length?qs.map(qCard).join(''):`<div class="empty card">No questions in this exact source/filter.</div>`}</div>`;renderShell(html,{title:'Question Bank',back:"leaveQuestionTopic()"})}
-  window.renderQuestionBankV2=()=>{
-    const p=Router.path;
-    if(p.startsWith('question-bank/topic/')){
-      ExplorerState.topicId=p.split('/')[2];
-      ExplorerState.subjectId=CACHE.topics.find(t=>t.id===ExplorerState.topicId)?.subjectId||'';
-      return renderFeed();
-    }else if(p.startsWith('question-bank/subject/')){
-      ExplorerState.subjectId=p.split('/')[2];
-      ExplorerState.topicId='';
-      return renderTopicList();
+
+  function renderSubjectList() {
+    const subs = [...CACHE.subjects].sort((a, b) => (a.order || 0) - (b.order || 0));
+    const search = (ExplorerState.query || '').toLowerCase();
+    const filtered = subs.filter(s => !search || s.name.toLowerCase().includes(search));
+    
+    const html = `
+      <div class="q-bank-container">
+        <header class="q-bank-header">
+          <div class="row between">
+            <div>
+              <h1>প্রশ্ন ব্যাংক</h1>
+              <p>সব Subject</p>
+            </div>
+            <div class="row">
+              <button class="q-header-icon" onclick="toggleQSearch()">${ICONS.search || '🔍'}</button>
+              <button class="q-header-icon" onclick="openSubjectForm(null)">+</button>
+            </div>
+          </div>
+          <div id="qSearchBox" class="q-search-box ${ExplorerState.query ? '' : 'hide'}">
+            <input type="text" placeholder="Search subjects..." value="${qEsc(ExplorerState.query)}" oninput="ExplorerState.query=this.value;renderQuestionBank()">
+          </div>
+        </header>
+        <div class="q-list-body">
+          ${filtered.map(subjectRow).join('') || '<div class="empty">No subjects found.</div>'}
+        </div>
+      </div>`;
+    renderShell(html, { title: 'Question Bank', back: "navigate('dashboard')" });
+  }
+
+  function renderTopicList() {
+    const sub = CACHE.subjects.find(s => s.id === ExplorerState.subjectId);
+    if (!sub) { navigate('question-bank'); return; }
+    const topics = CACHE.topics.filter(t => t.subjectId === sub.id).sort((a, b) => (a.order || 0) - (b.order || 0));
+    const search = (ExplorerState.query || '').toLowerCase();
+    const filtered = topics.filter(t => !search || t.name.toLowerCase().includes(search));
+
+    const html = `
+      <div class="q-bank-container">
+        <header class="q-bank-header">
+          <div class="row between">
+            <div class="row">
+              <button class="q-back-btn" onclick="navigate('question-bank')">‹</button>
+              <div>
+                <h1>${qEsc(sub.name)}</h1>
+                <p>${topics.length} Topics</p>
+              </div>
+            </div>
+            <div class="row">
+              <button class="q-header-icon" onclick="toggleQSearch()">${ICONS.search || '🔍'}</button>
+              <button class="q-header-icon" onclick="openTopicForm('${sub.id}', null)">+</button>
+            </div>
+          </div>
+          <div id="qSearchBox" class="q-search-box ${ExplorerState.query ? '' : 'hide'}">
+            <input type="text" placeholder="Search topics..." value="${qEsc(ExplorerState.query)}" oninput="ExplorerState.query=this.value;renderQuestionBank()">
+          </div>
+        </header>
+        <div class="q-list-body">
+          ${filtered.map(topicRow).join('') || '<div class="empty">No topics found.</div>'}
+        </div>
+      </div>`;
+    renderShell(html, { title: sub.name, back: "navigate('question-bank')" });
+  }
+
+  function renderFeed() {
+    const topic = CACHE.topics.find(t => t.id === ExplorerState.topicId);
+    const sub = CACHE.subjects.find(s => s.id === ExplorerState.subjectId);
+    if (!topic) { navigate('question-bank'); return; }
+    
+    let qs = CACHE.questions.filter(q => q.topicId === topic.id);
+    const totalCount = qs.length;
+    
+    const filter = ExplorerState.status || 'all';
+    if (filter === 'unattempted') qs = qs.filter(q => !qStats(q).attempts);
+    else if (filter === 'wrong') qs = qs.filter(q => qStats(q).wrong > 0);
+    else if (filter === 'bookmarked') qs = qs.filter(q => q.bookmarked);
+
+    const tabs = [
+      ['all', `All (${totalCount})`],
+      ['unattempted', 'Unattempted'],
+      ['wrong', 'Wrong'],
+      ['bookmarked', 'Bookmarked']
+    ];
+
+    const html = `
+      <div class="q-bank-container">
+        <header class="q-bank-header">
+          <div class="row between">
+            <div class="row">
+              <button class="q-back-btn" onclick="leaveTopic()">‹</button>
+              <div>
+                <h1>${qEsc(topic.name)}</h1>
+                <p>${qEsc(sub?.name || '')}</p>
+              </div>
+            </div>
+            <div class="row">
+              <button class="q-header-icon">${ICONS.search || '🔍'}</button>
+              <button class="q-header-icon">${ICONS.filter || '▽'}</button>
+            </div>
+          </div>
+        </header>
+        <div class="q-filter-tabs-v2">
+          ${tabs.map(([k, l]) => `<button class="${filter === k ? 'active' : ''}" onclick="ExplorerState.status='${k}';renderQuestionBank()">${l}</button>`).join('')}
+        </div>
+        <div class="q-feed-body">
+          ${qs.map((q, i) => qCard(q, i)).join('') || '<div class="empty card">No questions found.</div>'}
+        </div>
+      </div>`;
+    renderShell(html, { title: topic.name, back: "leaveTopic()" });
+  }
+
+  function qCard(q, i) {
+    const st = qStats(q);
+    const state = BankAnswers[q.id];
+    const correct = Number(q.answerIndex ?? q.answer ?? 0);
+    
+    const opts = (q.options || []).map((o, j) => {
+      let cls = '';
+      let icon = '';
+      if (state) {
+        if (j === correct) {
+          cls = 'correct';
+          icon = '✓';
+        } else if (j === state.selected) {
+          cls = 'wrong';
+          icon = '✕';
+        }
+      }
+      return `
+        <button class="q-opt-v2 ${cls}" ${state ? 'disabled' : ''} onclick="selectBankAnswer('${q.id}', ${j})">
+          <span class="q-opt-letter">${String.fromCharCode(65 + j)}</span>
+          <span class="q-opt-text">${qEsc(o)}</span>
+          ${icon ? `<span class="q-opt-icon">${icon}</span>` : ''}
+        </button>`;
+    }).join('');
+
+    return `
+      <article class="q-card-v2 card">
+        <div class="row between">
+          <div class="q-card-num">Question ${i + 1}</div>
+          <button class="q-bookmark-btn ${q.bookmarked ? 'active' : ''}" onclick="toggleQuestionBookmark('${q.id}')">
+            ${q.bookmarked ? '★' : '☆'}
+          </button>
+        </div>
+        <div class="q-text-v2">${qEsc(q.question)}</div>
+        <div class="q-options-v2">${opts}</div>
+        ${state ? `
+          <div class="q-explanation-v2 ${state.correct ? 'correct' : 'wrong'}">
+            <strong>${state.correct ? '✓ Correct' : '✕ Wrong'}</strong>
+            ${q.explanation ? `<p>${qEsc(q.explanation)}</p>` : `<p>সঠিক উত্তর: ${qEsc((q.options || [])[correct])}</p>`}
+          </div>
+        ` : ''}
+      </article>`;
+  }
+
+  window.toggleQSearch = () => {
+    const box = document.getElementById('qSearchBox');
+    if (box) {
+      box.classList.toggle('hide');
+      if (!box.classList.contains('hide')) box.querySelector('input').focus();
     }
-    ExplorerState.subjectId='';
-    ExplorerState.topicId='';
+  };
+
+  window.renderQuestionBankV2 = () => {
+    const p = Router.path;
+    if (p.startsWith('question-bank/topic/')) return renderFeed();
+    if (p.startsWith('question-bank/subject/')) return renderTopicList();
     return renderSubjectList();
   };
-  window.renderQuestionBank=window.renderQuestionBankV2;
-  const prior=render;render=function(){if(Router.path==='question-bank'||Router.path.startsWith('question-bank/subject/'))return window.renderQuestionBankV2();if(Router.path.startsWith('question-bank/topic/'))return window.renderQuestionBankV2();return prior()};
-  const css=document.createElement('style');css.textContent=`.qbank-head{padding:18px 0 10px}.qbank-head h1{font-size:28px;margin:4px 0}.qbank-head p{color:var(--muted);margin:0}.qbank-toolbar{display:flex;gap:8px;align-items:center;margin:14px 0}.qbank-toolbar .searchbar{flex:1;min-height:58px;padding:10px 14px;border-radius:18px;box-shadow:0 10px 24px rgba(15,107,79,.10);border:1px solid rgba(15,107,79,.20);background:rgba(255,255,255,.88)}.qbank-toolbar .searchbar span{font-size:22px;color:var(--emerald)}.q-input{width:100%;border:0;outline:0;background:transparent;padding:12px 8px;font-size:17px;line-height:1.4;min-height:36px}.q-subject-list{display:flex;flex-direction:column;gap:10px}.q-subject-row{width:100%;display:flex;align-items:center;gap:13px;text-align:left;padding:15px;border:1px solid var(--border);box-shadow:0 4px 15px rgba(20,40,30,.05);cursor:pointer}.q-subject-icon{font-size:28px}.q-subject-main{display:flex;flex-direction:column;gap:3px;flex:1}.q-subject-main b{font-size:16px}.q-subject-main span{font-size:12px;color:var(--muted)}.q-subject-main small{color:var(--muted)}.q-progress{height:6px;background:var(--line);border-radius:8px;overflow:hidden;margin-top:6px}.q-progress i{display:block;height:100%;background:var(--green);border-radius:8px}.q-selected{margin:10px 0}.topic-chip-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}.topic-chip{border:1px solid var(--border);border-radius:999px;padding:8px 11px;background:var(--bg);cursor:pointer}.topic-chip span{color:var(--muted);font-size:11px}.qfeed-source{margin:10px 0 12px}.q-filter-tabs{display:flex;gap:6px;overflow:auto;margin:8px 0 14px}.q-filter-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;padding:9px 10px;white-space:nowrap;color:var(--muted)}.q-filter-tabs button.active{color:var(--primary);border-color:var(--primary);font-weight:700}.q-feed{display:flex;flex-direction:column;gap:14px}.q-premium-card{background:var(--card);border:1px solid var(--border);border-radius:17px;padding:16px;box-shadow:0 7px 22px rgba(20,40,30,.08)}.q-card-top{display:flex;justify-content:space-between;gap:8px;align-items:center}.q-badge{background:var(--green);color:white;border-radius:7px;padding:5px 8px;font-size:12px;font-weight:800}.q-source{font-size:12px;color:var(--muted);margin-left:8px}.q-status{font-size:11px;border-radius:99px;padding:4px 7px;margin-left:7px}.q-status.unattempted{background:#fff3cd;color:#8a6500}.q-status.answered{background:#dff5e9;color:#197044}.q-icon{border:0;background:transparent;font-size:22px;cursor:pointer;color:var(--muted)}.q-large-text{font-size:21px;line-height:1.55;font-weight:800;margin:17px 0}.qfeed-options{display:flex;flex-direction:column;gap:9px}.q-option{display:flex;align-items:flex-start;gap:11px;text-align:left;width:100%;padding:13px;border:1px solid var(--border);border-radius:12px;background:var(--bg);cursor:pointer;font-size:16px;line-height:1.45}.q-option span{min-width:27px;height:27px;border-radius:50%;display:grid;place-items:center;background:var(--line);font-size:13px;font-weight:800}.q-option.correct{border-color:#36a269;background:#e8f7ee}.q-option.wrong{border-color:#d95c5c;background:#fff0f0}.q-result{margin-top:12px;padding:12px;border-radius:11px;line-height:1.55}.q-correct{background:#e8f7ee;color:#17633c}.q-wrong{background:#fff0f0;color:#942f2f}.q-explain{border:0;background:transparent;text-decoration:underline;color:inherit;padding:6px 0;cursor:pointer}.q-footer{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--muted)}.q-footer span{flex:1;min-width:150px}@media(max-width:620px){.q-large-text{font-size:20px}.q-footer{align-items:stretch}.q-footer .btn{flex:1}}.q-topic-list{display:flex;flex-direction:column;gap:10px}}`;document.head.appendChild(css);render();
+
+  const css = `
+    .q-bank-container { padding-bottom: 20px; }
+    .q-bank-header { margin-bottom: 16px; }
+    .q-bank-header h1 { font-size: 24px; font-weight: 800; margin: 0; color: var(--text); }
+    .q-bank-header p { font-size: 13px; color: var(--sub); margin: 2px 0 0; }
+    .q-header-icon { background: none; border: none; font-size: 20px; padding: 8px; cursor: pointer; color: var(--emerald); }
+    .q-back-btn { background: none; border: none; font-size: 32px; padding: 0 12px 0 0; cursor: pointer; color: var(--emerald); line-height: 1; }
+    .q-search-box { margin-top: 12px; animation: fadeDown 0.2s ease; }
+    .q-search-box input { width: 100%; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--line); background: #fff; }
+    
+    .q-nav-card { width: 100%; display: flex; align-items:center; gap: 14px; padding: 16px; background: #fff; border: 1px solid var(--line); border-radius: 16px; margin-bottom: 10px; text-align: left; cursor: pointer; box-shadow: var(--shadow); transition: transform 0.1s; }
+    .q-nav-card:active { transform: scale(0.98); }
+    .q-nav-badge { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+    .q-nav-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+    .q-nav-info strong { font-size: 16px; color: var(--text); }
+    .q-nav-info span { font-size: 12px; color: var(--sub); }
+    .q-nav-arrow { font-size: 20px; color: var(--line); font-weight: 300; }
+    
+    .q-topic-icon { font-size: 20px; opacity: 0.7; }
+    .q-topic-count { font-size: 12px; color: var(--sub); margin-right: 4px; }
+    
+    .q-filter-tabs-v2 { display: flex; gap: 8px; overflow-x: auto; margin-bottom: 16px; padding-bottom: 4px; }
+    .q-filter-tabs-v2 button { flex-shrink: 0; padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 600; background: #fff; border: 1px solid var(--line); color: var(--sub); cursor: pointer; }
+    .q-filter-tabs-v2 button.active { background: var(--emerald); color: #fff; border-color: var(--emerald); }
+    
+    .q-card-v2 { padding: 18px; margin-bottom: 14px; }
+    .q-card-num { font-size: 12px; font-weight: 800; color: var(--emerald); text-transform: uppercase; letter-spacing: 0.5px; }
+    .q-bookmark-btn { background: none; border: none; font-size: 20px; color: var(--sub); cursor: pointer; }
+    .q-bookmark-btn.active { color: var(--orange); }
+    .q-text-v2 { font-size: 18px; font-weight: 700; line-height: 1.5; margin: 12px 0 18px; color: var(--text); }
+    .q-options-v2 { display: flex; flex-direction: column; gap: 10px; }
+    .q-opt-v2 { display: flex; align-items: center; gap: 12px; padding: 14px; border-radius: 12px; border: 1px solid var(--line); background: #fcfcfc; text-align: left; cursor: pointer; font-size: 15px; transition: all 0.2s; }
+    .q-opt-letter { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-size: 12px; font-weight: 700; color: var(--sub); flex-shrink: 0; }
+    .q-opt-text { flex: 1; }
+    .q-opt-icon { font-weight: 800; font-size: 16px; }
+    .q-opt-v2.correct { background: #ecfdf5; border-color: #10b981; color: #065f46; }
+    .q-opt-v2.correct .q-opt-letter { background: #10b981; border-color: #10b981; color: #fff; }
+    .q-opt-v2.wrong { background: #fef2f2; border-color: #ef4444; color: #991b1b; }
+    .q-opt-v2.wrong .q-opt-letter { background: #ef4444; border-color: #ef4444; color: #fff; }
+    
+    .q-explanation-v2 { margin-top: 16px; padding: 14px; border-radius: 12px; font-size: 14px; line-height: 1.5; }
+    .q-explanation-v2.correct { background: #f0fdf4; color: #166534; border-left: 4px solid #10b981; }
+    .q-explanation-v2.wrong { background: #fffaf0; color: #9a3412; border-left: 4px solid #f59e0b; }
+    .q-explanation-v2 strong { display: block; margin-bottom: 4px; font-size: 15px; }
+    
+    @keyframes fadeDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+  `;
+  
+  if (!document.getElementById('qbank-redesign-style')) {
+    const s = document.createElement('style');
+    s.id = 'qbank-redesign-style';
+    s.textContent = css;
+    document.head.appendChild(s);
+  }
 })();

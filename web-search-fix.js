@@ -32,11 +32,46 @@
   function resultCard(r){const host=hostOf(r.url);return `<article class="web-result-card"><div class="web-result-source"><img src="${esc(r.icon||favicon(r.url))}" alt="" width="18" height="18" loading="lazy" onerror="this.style.visibility='hidden'"><span>${esc(r.source||host)}</span><span>·</span><span>${esc(r.date||'Date unavailable')}</span></div><a class="web-result-title" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(r.title)}</a><div class="web-result-url">${esc(r.url)}</div><p class="web-result-snippet">${esc(r.snippet)}</p><div class="web-result-actions"><a class="btn sm" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">Open Result ↗</a><a class="web-result-source-link" href="${esc(r.url)}" target="_blank" rel="noopener noreferrer">${esc(host||'Source link')}</a></div></article>`}
   function fallbackCards(q){const e=encodeURIComponent(q);return [{source:'Google Search',title:`Search “${q}” on Google`,snippet:'Open the live Google result page to see the latest indexed web results.',url:'https://www.google.com/search?q='+e,date:'Live search',icon:favicon('https://www.google.com')},{source:'Bing Search',title:`Search “${q}” on Bing`,snippet:'Alternative live web search for the same query.',url:'https://www.bing.com/search?q='+e,date:'Live search',icon:favicon('https://www.bing.com')},{source:'DuckDuckGo',title:`Search “${q}” on DuckDuckGo`,snippet:'Privacy-friendly live search fallback.',url:'https://duckduckgo.com/?q='+e,date:'Live search',icon:favicon('https://duckduckgo.com')}];}
   function render(){const log=state.messages.length?state.messages.map(m=>m.role==='user'?`<div class="web-message user">${esc(m.text)}</div>`:`<div class="web-message assistant ${m.error?'web-error':''}">${m.html}</div>`).join(''):`<div class="web-welcome"><div class="web-welcome-icon">🌐</div><h2>Real Web Search</h2><p>বাংলা, English বা mixed query লিখুন। এটি AI chatbot নয়—public web sources থেকে result cards দেখায়।</p><div class="web-suggestion-row"><button class="web-suggestion" onclick="webQuickAsk('বাংলাদেশের রাজধানী')">বাংলাদেশের রাজধানী</button><button class="web-suggestion" onclick="webQuickAsk('admission test 2024')">admission test 2024</button><button class="web-suggestion" onclick="webQuickAsk('বাংলাদেশ admission test')">Mixed query</button></div></div>`;const loading=state.loading?`<div class="web-message assistant"><div class="web-status"><span class="web-dot"></span>${esc(state.loading)}</div></div>`:'';renderShell(`<div class="phase23-page web-chat-v2"><div class="phase23-head"><button class="phase23-back" onclick="navigate('dashboard')">← <span>Web Search</span></button><h1 class="phase23-title">Real Web Search</h1><p class="phase23-subtitle">DuckDuckGo, Wikipedia এবং public search fallbacks থেকে live result cards। কোনো AI API ব্যবহার করা হয় না।</p></div><div id="webChatLog" class="web-chat-log">${log}${loading}</div><form class="web-search-card" onsubmit="askWebChat(event)"><textarea id="webChatInput" placeholder="বাংলা বা English query লিখুন…" required></textarea><button id="webSearchButton" class="btn" type="submit" ${state.loading?'disabled':''}>${state.loading?'Searching…':'Search Web'}</button></form></div>`,{topbar:false})}
-  function resultHtml(q,rows){const usable=rows.length?rows:fallbackCards(q);const note=rows.length?`<div class="web-result-summary"><strong>${rows.length}টি real result</strong> · Sources collected and filtered for “${esc(q)}”</div>`:`<div class="web-result-summary"><strong>Direct live-search options</strong><br>API responses were unavailable, so use one of these live result pages instead of an empty state.</div>`;const chips=suggestions(q).map(s=>`<button class="web-suggestion" onclick="webQuickAsk(${JSON.stringify(s).replace(/</g,'\\u003c')})">${esc(s)}</button>`).join('');return `${note}<div class="web-results">${usable.map(resultCard).join('')}</div><div class="web-retry-row"><button class="btn secondary sm" onclick="retryWebSearch(${JSON.stringify(q).replace(/</g,'\\u003c')})">Retry search</button><span class="muted">Try a more specific query:</span>${chips}</div>`}
+  async function synthesizeAnswer(q, rows){
+    if(!rows.length) return null;
+    const isBn = /[\u0980-\u09FF]/.test(q);
+    const best = rows.find(r=>r.snippet && r.snippet.length > 40) || rows[0];
+    let answer = best.snippet;
+    if(isBn && !/[\u0980-\u09FF]/.test(answer)){
+      try {
+        const r = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=bn&dt=t&q=${encodeURIComponent(answer)}`);
+        const d = await r.json();
+        if(d?.[0]?.[0]?.[0]) answer = d[0][0][0];
+      } catch(_) {}
+    }
+    return answer;
+  }
+  function resultHtml(q,rows,answer){const usable=rows.length?rows:fallbackCards(q);const note=rows.length?`<div class="web-result-summary"><strong>${rows.length}টি real result</strong> · Sources collected and filtered for “${esc(q)}”</div>`:`<div class="web-result-summary"><strong>Direct live-search options</strong><br>API responses were unavailable, so use one of these live result pages instead of an empty state.</div>`;const chips=suggestions(q).map(s=>`<button class="web-suggestion" onclick="webQuickAsk(${JSON.stringify(s).replace(/</g,'\\u003c')})">${esc(s)}</button>`).join('');const ansHtml=answer?`<article class="web-result-card" style="border-left:4px solid var(--orange);background:var(--mint)"><div class="web-result-source">✨ Smart Answer</div><p class="web-result-snippet" style="font-size:15px;font-weight:500">${esc(answer)}</p></article>`:'';return `${ansHtml}${note}<div class="web-results">${usable.map(resultCard).join('')}</div><div class="web-retry-row"><button class="btn secondary sm" onclick="retryWebSearch(${JSON.stringify(q).replace(/</g,'\\u003c')})">Retry search</button><span class="muted">Try a more specific query:</span>${chips}</div>`}
   window.renderWebChatV2=render;window.renderWebChat=render;
   window.webQuickAsk=function(q){const i=document.getElementById('webChatInput');if(i){i.value=q;i.focus();if(typeof window.askWebChat==='function')window.askWebChat({preventDefault(){}})}else{state.messages.push({role:'user',text:q});window.askWebChat({preventDefault(){}})}};
   window.retryWebSearch=function(q){state.messages=state.messages.filter(m=>!(m.role==='assistant'&&m.query===q));const i=document.getElementById('webChatInput');if(i)i.value=q;window.askWebChat({preventDefault(){}})};
-  window.askWebChat=async function(e){e?.preventDefault?.();const input=document.getElementById('webChatInput'),q=(input?.value||'').trim();if(!q||state.loading)return;state.lastQuery=q;state.messages.push({role:'user',text:q});state.loading='Searching public web sources…';render();try{const rows=await search(q);state.loading='Filtering result cards…';render();await wait(120);state.messages.push({role:'assistant',query:q,html:resultHtml(q,rows),error:!rows.length});}catch(err){state.messages.push({role:'assistant',query:q,error:true,html:resultHtml(q,[])});}finally{state.loading=false;render();setTimeout(()=>document.getElementById('webChatInput')?.focus(),0)}};
+  window.askWebChat=async function(e){
+    e?.preventDefault?.();
+    const input=document.getElementById('webChatInput'),q=(input?.value||'').trim();
+    if(!q||state.loading)return;
+    state.lastQuery=q;
+    state.messages.push({role:'user',text:q});
+    state.loading='Searching public web sources…';
+    render();
+    try{
+      const rows=await search(q);
+      state.loading='Synthesizing answer…';
+      render();
+      const answer = await synthesizeAnswer(q, rows);
+      state.messages.push({role:'assistant',query:q,html:resultHtml(q,rows,answer),error:!rows.length});
+    }catch(err){
+      state.messages.push({role:'assistant',query:q,error:true,html:resultHtml(q,[],null)});
+    }finally{
+      state.loading=false;
+      render();
+      setTimeout(()=>document.getElementById('webChatInput')?.focus(),0);
+    }
+  };
   const st=document.createElement('style');st.id='web-search-fix-style';st.textContent=`.web-results{display:grid;gap:12px;margin-top:12px}.web-result-card{background:var(--glass-strong,var(--card));border:1px solid var(--glass-border,var(--line));border-radius:17px;padding:14px;box-shadow:var(--glass-shadow,var(--shadow));overflow:hidden}.web-result-source{display:flex;align-items:center;gap:6px;color:var(--sub);font-size:11px;margin-bottom:8px}.web-result-source img{border-radius:4px;flex:0 0 auto}.web-result-title{display:block;color:var(--emerald-d);font-size:17px;line-height:1.35;font-weight:800;text-decoration:none}.web-result-title:hover{text-decoration:underline}.web-result-url{color:var(--sub);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:4px}.web-result-snippet{color:var(--text);font-size:13px;line-height:1.58;margin:8px 0 0}.web-result-actions{display:flex;align-items:center;gap:9px;margin-top:11px;flex-wrap:wrap}.web-result-actions .btn{width:auto;text-decoration:none}.web-result-source-link{font-size:12px;color:var(--emerald-d);text-decoration:none;overflow-wrap:anywhere}.web-result-summary{font-size:12px;color:var(--sub);line-height:1.5;margin:5px 0 8px}.web-retry-row{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:14px 0 4px}.web-retry-row .web-suggestion{margin:0;padding:7px 10px}.web-error{border-color:rgba(192,57,43,.22)!important}.web-search-card{position:sticky;bottom:calc(4px + var(--safe-b,0px));z-index:4}.web-chat-log{padding-bottom:8px}@media(max-width:430px){.web-result-title{font-size:16px}.web-result-card{padding:12px}}`;document.head.appendChild(st);
   window.addEventListener('load',()=>{if(location.hash==='#web-chat')render()});
 })();
