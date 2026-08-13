@@ -79,6 +79,35 @@
     const tasksPct = Math.min(100, Math.round(done/Math.max(1,t.length||1)*100));
     const unread = notifications().filter(n=>!n.read).length;
 
+    const commandTools = [
+      ['📚', 'Bank', 'প্রশ্নভাণ্ডার', 'question-bank'],
+      ['📋', 'Mock', 'মক টেস্ট', 'exam/setup'],
+      ['⚡', 'Quick', 'দ্রুত অনুশীলন', 'exam/setup'],
+      ['❌', 'Mistakes', 'ভুলের খাতা', 'mistakes'],
+      ['📊', 'Progress', 'অগ্রগতি দেখুন', 'progress'],
+      ['🎯', 'Goals', 'দৈনিক লক্ষ্য', 'progress/plan'],
+      ['🔄', 'Revision', 'স্মার্ট রিভিশন', 'mistakes'],
+      ['📖', 'Vocab', 'ভোকাবুলারি', 'vocabulary'],
+      ['🕐', 'History', 'পরীক্ষার ইতিহাস', 'history'],
+      ['🔍', 'Search', 'প্রশ্ন খুঁজুন', 'question-bank'],
+      ['⚙️', 'Settings', 'অ্যাপ সেটিংস', 'settings'],
+      ['⋯', 'More', 'আরও ফিচার', 'settings']
+    ];
+
+    const commandPages = [[0,6],[6,12]].map(([start,end]) => commandTools.slice(start,end).map(([icon,title,subtitle,route]) => `
+      <button class="p3-command-card-v3" onclick="navigate('${route}')" type="button">
+        <span class="p3-command-icon-v3">${icon}</span>
+        <span class="p3-command-title-v3">${title}</span>
+        <span class="p3-command-subtitle-v3">${subtitle}</span>
+      </button>`).join(''));
+
+    const specialTools = [
+      ['🧠', 'Daily GK', 'আজকের গুরুত্বপূর্ণ সাধারণ জ্ঞান', 'daily-gk'],
+      ['🌐', 'Web Chat', 'দ্রুত তথ্য খুঁজুন', 'web-chat'],
+      ['📖', 'Dictionary', 'শব্দের অর্থ ও Vocabulary', 'dictionary'],
+      ['🧩', 'Memorizing', 'Smart memorization tools', 'memorizing']
+    ];
+
     return `
     <section class="p3-dashboard-v3" data-p3-command>
       <header class="p3-header-v3">
@@ -140,6 +169,22 @@
           <div class="p3-card-progress"><i style="width:${Math.min(100, st * 10)}%"></i></div>
         </article>
       </div>
+
+      <section class="p3-card-v3 p3-command-section-v3">
+        <div class="p3-section-head-v3">
+          <b>Your Command Center</b>
+          <span class="p3-swipe-hint-v3">Swipe to explore · 12 tools</span>
+        </div>
+        <div class="command-carousel" aria-label="Quick access study tools">
+          <div class="command-track" id="commandTrack">
+            ${commandPages.map((page,index)=>`<div class="command-slide" data-command-page="${index}">${page}</div>`).join('')}
+          </div>
+        </div>
+        <div class="command-dots" role="tablist" aria-label="Command Center pages">
+          <button class="command-dot active" type="button" role="tab" aria-label="Page 1" aria-selected="true" onclick="goCommandPage(0)"></button>
+          <button class="command-dot" type="button" role="tab" aria-label="Page 2" aria-selected="false" onclick="goCommandPage(1)"></button>
+        </div>
+      </section>
 
       <section class="p3-card-v3 p3-recommend-v3">
         <div class="p3-recommend-content">
@@ -300,6 +345,25 @@
           <div class="p3-bottom-value">আজকের ছোট প্রচেষ্টা, আগামীর বড় সাফল্য। 💚</div>
         </div>
       </div>
+
+      <section class="p3-special-section-v3">
+        <div class="p3-section-head-v3">
+          <b>Special Study Tools</b>
+          <span class="p3-dashboard-only-v3">Dashboard only</span>
+        </div>
+        <div class="p3-special-grid-v3">
+          ${specialTools.map(([icon, title, subtitle, route]) => `
+            <button class="p3-special-card-v3" onclick="navigate('${route}')">
+              <span class="p3-special-icon-v3">${icon}</span>
+              <div class="p3-special-info-v3">
+                <strong>${title}</strong>
+                <small>${subtitle}</small>
+              </div>
+              <span class="p3-special-arrow-v3">${ICONS.arrow}</span>
+            </button>
+          `).join('')}
+        </div>
+      </section>
     </section>`;
   }
 
@@ -376,7 +440,26 @@
 
     .p3-section-head-v3{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
     .p3-section-head-v3 b{font-size:15px;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:8px}
+    .p3-swipe-hint-v3{font-size:11px;color:#94a3b8;font-weight:500}
     .p3-add-task-btn{color:#10b981;background:none;border:0;font-weight:800;font-size:13px;cursor:pointer}
+
+    .p3-command-section-v3{padding:16px 0}
+    .p3-command-section-v3 .p3-section-head-v3{padding:0 16px}
+    .p3-command-card-v3{background:#fff;border:1px solid #f1f5f9;border-radius:15px;padding:12px;display:flex;flex-direction:column;align-items:flex-start;gap:5px;box-shadow:0 2px 10px rgba(0,0,0,0.02);cursor:pointer;text-align:left;transition:transform 0.1s ease}
+    .p3-command-card-v3:active{transform:scale(0.96)}
+    .p3-command-icon-v3{font-size:24px;margin-bottom:4px}
+    .p3-command-title-v3{font-weight:800;font-size:13px;color:#0f172a}
+    .p3-command-subtitle-v3{font-size:10px;color:#64748b}
+
+    .p3-special-section-v3{margin-top:20px}
+    .p3-special-grid-v3{display:grid;gap:10px}
+    .p3-special-card-v3{background:#fff;border:1px solid #f1f5f9;border-radius:18px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:15px;box-shadow:0 4px 15px rgba(0,0,0,0.03);cursor:pointer;text-align:left;transition:transform 0.1s ease}
+    .p3-special-card-v3:active{transform:scale(0.98)}
+    .p3-special-icon-v3{font-size:28px}
+    .p3-special-info-v3 strong{display:block;font-size:15px;color:#0f172a;font-weight:800}
+    .p3-special-info-v3 small{display:block;font-size:12px;color:#64748b;margin-top:2px}
+    .p3-special-arrow-v3{color:#10b981}
+    .p3-dashboard-only-v3{font-size:11px;color:#94a3b8}
     .p3-task-list-v3{display:grid;gap:8px}
     .p3-task-item-v3{display:flex;gap:10px;align-items:center;padding:10px;background:#f8fafc;border-radius:12px;font-size:13px}
     .p3-task-item-v3 input{accent-color:#10b981}

@@ -35,17 +35,15 @@
 
   const dashboardTools = [
     ['📚', 'Bank', 'প্রশ্নভাণ্ডার', 'question-bank'],
-    ['📝', 'Mock Test', 'মক টেস্ট', 'exam/setup'],
-    ['⚡', 'Quick Test', 'দ্রুত অনুশীলন', 'exam/setup'],
+    ['📋', 'Mock', 'মক টেস্ট', 'exam/setup'],
+    ['⚡', 'Quick', 'দ্রুত অনুশীলন', 'exam/setup'],
     ['❌', 'Mistakes', 'ভুলের খাতা', 'mistakes'],
     ['📊', 'Progress', 'অগ্রগতি দেখুন', 'progress'],
     ['🎯', 'Goals', 'দৈনিক লক্ষ্য', 'progress/plan'],
     ['🔄', 'Revision', 'স্মার্ট রিভিশন', 'mistakes'],
-    ['📖', 'Vocabulary', 'ভোকাবুলারি', 'vocabulary'],
-    ['🕘', 'History', 'পরীক্ষার ইতিহাস', 'history'],
+    ['📖', 'Vocab', 'ভোকাবুলারি', 'vocabulary'],
+    ['🕐', 'History', 'পরীক্ষার ইতিহাস', 'history'],
     ['🔍', 'Search', 'প্রশ্ন খুঁজুন', 'question-bank'],
-    ['🗒️', 'Notes', 'নোট ও ব্যাখ্যা', 'question-bank'],
-    ['🔖', 'Bookmarks', 'সংরক্ষিত প্রশ্ন', 'exam-modes'],
     ['⚙️', 'Settings', 'অ্যাপ সেটিংস', 'settings'],
     ['⋯', 'More', 'আরও ফিচার', 'settings']
   ];
@@ -77,7 +75,7 @@
     const smartFocus = getSmartFocusTopics();
     const greeting = new Date().getHours() < 12 ? 'সুপ্রভাত' : new Date().getHours() < 18 ? 'শুভ অপরাহ্ণ' : 'শুভ সন্ধ্যা';
 
-    const commandPages = [[0,5],[5,10],[10,14]].map(([start,end]) => dashboardTools.slice(start,end).map(([icon,title,subtitle,route]) => `
+    const commandPages = [[0,6],[6,12]].map(([start,end]) => dashboardTools.slice(start,end).map(([icon,title,subtitle,route]) => `
       <button class="command-card" onclick="navigate('${route}')" type="button">
         <span class="command-icon" aria-hidden="true">${icon}</span>
         <span class="command-title">${title}</span>
@@ -113,7 +111,7 @@
         </div>
       </section>
 
-      <section class="dashboard-section"><div class="section-heading"><h2>Your Command Center</h2><span>Quick access · Swipe to explore · 14 tools</span></div><div class="command-carousel" aria-label="Quick access study tools"><div class="command-track" id="commandTrack">${commandPages.map((page,index)=>`<div class="command-slide" data-command-page="${index}">${page}</div>`).join('')}</div></div><div class="command-dots" role="tablist" aria-label="Command Center pages">${commandPages.map((_,index)=>`<button class="command-dot ${index===0?'active':''}" type="button" role="tab" aria-label="Page ${index+1}" aria-selected="${index===0?'true':'false'}" onclick="goCommandPage(${index})"></button>`).join('')}</div></section>
+      <section class="dashboard-section"><div class="section-heading"><h2>Your Command Center</h2><span>Swipe to explore · 12 tools</span></div><div class="command-carousel" aria-label="Quick access study tools"><div class="command-track" id="commandTrack">${commandPages.map((page,index)=>`<div class="command-slide" data-command-page="${index}">${page}</div>`).join('')}</div></div><div class="command-dots" role="tablist" aria-label="Command Center pages">${commandPages.map((_,index)=>`<button class="command-dot ${index===0?'active':''}" type="button" role="tab" aria-label="Page ${index+1}" aria-selected="${index===0?'true':'false'}" onclick="goCommandPage(${index})"></button>`).join('')}</div></section>
       <section class="dashboard-section" data-special-study-tools><div class="section-heading"><h2>Special Study Tools</h2><span>Dashboard only</span></div><div class="special-tools-grid">${specialCards}</div></section>
 
       ${unfinished ? `<section class="resume-card"><div><strong>${unfinished.mode === 'mock' ? '📝 Mock Exam' : '⚡ Flash Practice'}</strong><p>${unfinished.currentIndex + 1} / ${unfinished.questions.length} Questions</p></div><button class="btn sm" onclick="navigate('exam/running')">Continue</button></section>` : `<section class="start-card"><div><strong>আজকের প্রস্তুতি শুরু করুন</strong><p>আপনার admission journey-তে আরেকটি focused session যোগ করুন।</p></div><button class="btn sm" onclick="navigate('exam/setup')">Start Practice</button></section>`}
