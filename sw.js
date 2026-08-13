@@ -1,10 +1,12 @@
-const CACHE_NAME = "admission-hub-v2026-08-13-04";
+const CACHE_NAME = "admission-hub-v2026-08-13-05";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./manifest.json",
   "./manifest.webmanifest",
   "./phase1-upgrade.js",
+  "./phase12-ui.js",
+  "./routine90.js",
   "./web-search-fix.js",
   "./upgrade-features.js",
   "./phase3-intelligence.js",
