@@ -4,13 +4,14 @@
   const GK_CACHE_KEY='daily-gk-live-v1';
   const GK_TTL=24*60*60*1000;
   const GROQ_ENDPOINT='https://api.groq.com/openai/v1/chat/completions';
-  const GROQ_MODEL='llama-3.3-70b-versatile';
+  const GROQ_MODEL='llama-3.1-8b-instant';
   // GitHub Pages is client-only, so this key is intentionally read from one place.
   // Configure window.GROQ_API_KEY before this script, or save a key as localStorage.groq_api_key.
   const GROQ_API_KEY=String(window.GROQ_API_KEY||localStorage.getItem('groq_api_key')||'').trim();
+  const GK_COUNT=20;
   const CATEGORY_PLAN=[
-    ['Bangladesh',10],['International',8],['Science & Technology',7],['Economy',5],
-    ['Environment',5],['Sports',5],['Awards/Organizations',5],['Other current affairs',5]
+    ['Bangladesh',5],['International',4],['Science & Technology',3],['Economy',2],
+    ['Environment',2],['Sports',2],['Awards/Organizations',1],['Other current affairs',1]
   ];
   const now=()=>Date.now();
   const today=()=>new Date().toISOString().slice(0,10);
@@ -30,43 +31,33 @@
   const validateSet=raw=>{
     const rows=Array.isArray(raw)?raw:(Array.isArray(raw?.items)?raw.items:[]), seen=new Set(), out=[];
     rows.forEach((x,i)=>{const q=normalizeItem(x,i),k=q?.question?.toLowerCase();if(q&&k&&!seen.has(k)){seen.add(k);out.push(q)}});
-    if(out.length<50)return null;
-    return out.slice(0,50);
+    if(out.length<GK_COUNT)return null;
+    return out.slice(0,GK_COUNT);
   };
-  async function requestBatch(categories,batchNum){
+  async function requestLiveSet(){
     if(!GROQ_API_KEY||GROQ_API_KEY.includes('REPLACE'))throw Error('Groq API key is not configured.');
-    const plan=categories.map(([c,n])=>`${c}: ${n}`).join(', ');
-    const total=categories.reduce((s,[,n])=>s+n,0);
-    const prompt=`আজ ${new Date().toISOString().slice(0,10)}। বাংলাদেশি admission/BCS পরীক্ষার্থীদের জন্য ঠিক ${total}টি সাম্প্রতিক, যাচাইযোগ্য current-affairs MCQ তৈরি করো। Category allocation অবশ্যই হবে: ${plan}। গত ৩০-৯০ দিনের গুরুত্বপূর্ণ ঘটনা অগ্রাধিকার দাও; evergreen fact কেবল সাম্প্রতিক context ছাড়া ব্যবহার করবে না। প্রতিটি প্রশ্নের sourceUrl অবশ্যই প্রকাশিত নির্ভরযোগ্য সংবাদমাধ্যম/সরকারি/আন্তর্জাতিক প্রতিষ্ঠানের https URL হবে এবং sourceTitle, publishedDate, collectedAt দেবে। প্রশ্ন, চারটি option, explanation সম্পূর্ণ বাংলায় হবে; options-এ কোনো hint, 'উপরের কোনটি নয়', duplicate, বা অস্পষ্টতা থাকবে না। শুধু এই JSON object ফেরত দাও: {"items":[{"question":"...","options":["...","...","...","..."],"correctAnswer":0,"explanation":"...","category":"...","sourceTitle":"...","sourceUrl":"https://...","publishedDate":"YYYY-MM-DD","collectedAt":"ISO-8601"}]}`;
-    const r=await fetch(GROQ_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${GROQ_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:GROQ_MODEL,messages:[{role:'system',content:'তুমি নির্ভুল, source-aware Bengali current-affairs question generator। তথ্য বানিয়ে লিখবে না।'}, {role:'user',content:prompt}],temperature:.7,max_tokens:6000,response_format:{type:'json_object'}})});
+    const plan=CATEGORY_PLAN.map(([c,n])=>`${c}: ${n}`).join(', ');
+    const prompt=`আজ ${new Date().toISOString().slice(0,10)}। বাংলাদেশি বিশ্ববিদ্যালয় ভর্তি পরীক্ষার জন্য ঠিক ${GK_COUNT}টি গুরুত্বপূর্ণ ও সাম্প্রতিক current-affairs MCQ তৈরি করো। Category allocation: ${plan}। গত ৩০-৯০ দিনের গুরুত্বপূর্ণ ঘটনা অগ্রাধিকার দাও। প্রতিটি প্রশ্নের sourceUrl অবশ্যই নির্ভরযোগ্য সংবাদমাধ্যম/সরকারি প্রতিষ্ঠানের https URL হবে। প্রশ্ন, option, explanation বাংলায় হবে। শুধু JSON ফেরত দাও: {"items":[{"question":"...","options":["...","...","...","..."],"correctAnswer":0,"explanation":"...","category":"...","sourceTitle":"...","sourceUrl":"https://...","publishedDate":"YYYY-MM-DD","collectedAt":"ISO-8601"}]}`;
+    const r=await fetch(GROQ_ENDPOINT,{method:'POST',headers:{Authorization:`Bearer ${GROQ_API_KEY}`,'Content-Type':'application/json'},body:JSON.stringify({model:GROQ_MODEL,messages:[{role:'system',content:'তুমি নির্ভুল Bengali current-affairs MCQ generator। বিশ্ববিদ্যালয় ভর্তি পরীক্ষায় আসার মতো প্রশ্ন তৈরি করো।'},{role:'user',content:prompt}],temperature:.7,max_tokens:4000,response_format:{type:'json_object'}})});
     if(!r.ok){let msg='Groq request failed';try{const e=await r.json();msg=e?.error?.message||msg}catch(_){}throw Error(`${msg} (${r.status})`)}
-    const body=await r.json(), content=body?.choices?.[0]?.message?.content;
+    const body=await r.json(),content=body?.choices?.[0]?.message?.content;
     const parsed=extractJson(content);
     const rows=Array.isArray(parsed)?parsed:(Array.isArray(parsed?.items)?parsed.items:[]);
-    return rows;
+    const seen=new Set(),out=[];
+    rows.forEach((x,i)=>{const q=normalizeItem(x,i),k=q?.question?.toLowerCase();if(q&&k&&!seen.has(k)){seen.add(k);out.push({...q,id:`daily-gk-${today()}-${out.length+1}`})}});
+    if(out.length<GK_COUNT)throw Error(`মাত্র ${out.length}টি valid প্রশ্ন পাওয়া গেছে। পুনরায় চেষ্টা করুন।`);
+    return out.slice(0,GK_COUNT);
   }
-  async function requestLiveSet(){
-    const batch1Cats=[['Bangladesh',5],['International',4],['Science & Technology',4],['Economy',3],['Environment',3],['Sports',3],['Awards/Organizations',2],['Other current affairs',1]];
-    const batch2Cats=[['Bangladesh',5],['International',4],['Science & Technology',3],['Economy',2],['Environment',2],['Sports',2],['Awards/Organizations',3],['Other current affairs',4]];
-    const rows1=await requestBatch(batch1Cats,1);
-    await new Promise(r=>setTimeout(r,5000));
-    const rows2=await requestBatch(batch2Cats,2);
-    const allRows=[...rows1,...rows2];
-    const seen=new Set(), out=[];
-    allRows.forEach((x,i)=>{const q=normalizeItem(x,i),k=q?.question?.toLowerCase();if(q&&k&&!seen.has(k)){seen.add(k);out.push({...q,id:`daily-gk-${today()}-${out.length+1}`})}});
-    if(out.length<50)throw Error(`মাত্র ${out.length}টি valid প্রশ্ন পাওয়া গেছে, ৫০টি দরকার। পুনরায় চেষ্টা করুন।`);
-    return out.slice(0,50);
-  }
-  const fresh=async()=>{const previous=readCache();const set=await requestLiveSet();const cache={updatedAt:now(),expiresAt:now()+GK_TTL,items:set,viewed:previous?.viewed&&previous.items?.length===50?previous.viewed:{}};writeCache(cache);return cache};
-  const cacheState=()=>{const c=readCache();return c&&c.items.length===50?c:null};
+  const fresh=async()=>{const previous=readCache();const set=await requestLiveSet();const cache={updatedAt:now(),expiresAt:now()+GK_TTL,items:set,viewed:previous?.viewed&&previous.items?.length===GK_COUNT?previous.viewed:{}};writeCache(cache);return cache};
+  const cacheState=()=>{const c=readCache();return c&&c.items.length>=GK_COUNT?c:null};
   const remaining=c=>Math.max(0,(c?.expiresAt||now())-now());
   const formatRemaining=ms=>{const s=Math.ceil(ms/1000),h=Math.floor(s/3600),m=Math.floor((s%3600)/60);return `${h} ঘণ্টা ${m} মিনিট`};
   const GKState={mode:'browse',index:0,answers:{},started:0,score:null,loading:false,error:'',cache:null};
   let timerId=0;
   function setViewed(id){const c=cacheState();if(!c)return;c.viewed=c.viewed||{};c.viewed[id]=true;writeCache(c)}
   function gkOption(q,i,disabled){const selected=GKState.answers[q.id];let cls='';if(selected!=null){if(i===q.answerIndex)cls='correct';else if(i===selected)cls='wrong'}return `<button class="gk-choice ${cls}" ${disabled||selected!=null?'disabled':''} onclick="chooseDailyGK('${q.id}',${i})"><span>${String.fromCharCode(65+i)}</span>${esc(q.options[i])}</button>`}
-  function renderGKLoading(){renderShell(`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="navigate('dashboard')">← <span>Daily GK</span></button><h1 class="phase23-title">Daily GK · Live 50</h1><p class="phase23-subtitle">ইন্টারনেট থেকে আজকের যাচাইযোগ্য ৫০টি প্রশ্ন সংগ্রহ করা হচ্ছে…</p></div><article class="card"><p>Groq থেকে নতুন প্রশ্ন আনা হচ্ছে। এই পেজটি খোলা রাখুন।</p></article></div>`,{topbar:false})}
-  function renderGKError(c){const old=c?.items?.length===50;renderShell(`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="navigate('dashboard')">← <span>Daily GK</span></button><h1 class="phase23-title">Daily GK · Live 50</h1><p class="phase23-subtitle">${old?'নতুন set আনা যায়নি; আগের সংরক্ষিত set দেখানো হচ্ছে।':'আজকের GK এখনো সংগ্রহ করা যায়নি।'}</p></div><article class="card"><b>সাময়িক সমস্যা</b><p>${esc(GKState.error||'Groq API থেকে উত্তর পাওয়া যায়নি।')}</p><button class="btn" onclick="retryDailyGK()">Retry</button></article></div>`,{topbar:false})}
+  function renderGKLoading(){renderShell(`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="navigate('dashboard')">← <span>Daily GK</span></button><h1 class="phase23-title">Daily GK · Live ${GK_COUNT}</h1><p class="phase23-subtitle">ইন্টারনেট থেকে আজকের গুরুত্বপূর্ণ ${GK_COUNT}টি প্রশ্ন সংগ্রহ করা হচ্ছে…</p></div><article class="card"><p>Groq থেকে নতুন প্রশ্ন আনা হচ্ছে। এই পেজটি খোলা রাখুন।</p></article></div>`,{topbar:false})}
+  function renderGKError(c){const old=c?.items?.length>=GK_COUNT;renderShell(`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="navigate('dashboard')">← <span>Daily GK</span></button><h1 class="phase23-title">Daily GK · Live ${GK_COUNT}</h1><p class="phase23-subtitle">${old?'নতুন set আনা যায়নি; আগের সংরক্ষিত set দেখানো হচ্ছে।':'আজকের GK এখনো সংগ্রহ করা যায়নি।'}</p></div><article class="card"><b>সাময়িক সমস্যা</b><p>${esc(GKState.error||'Groq API থেকে উত্তর পাওয়া যায়নি।')}</p><button class="btn" onclick="retryDailyGK()">Retry</button></article></div>`,{topbar:false})}
   function renderDailyGK(){
     clearTimeout(timerId); const c=GKState.cache||cacheState();
     if(GKState.loading)return renderGKLoading();
@@ -74,15 +65,15 @@
     GKState.cache=c; if(GKState.mode==='test')return renderGKTest(c); if(GKState.mode==='result')return renderGKResult(c);
     const cards=c.items.map((q,i)=>{const seen=!!c.viewed?.[q.id];return `<article class="card master-gk-card"><div class="row between"><span class="pill blue">${esc(q.category)} · ${String(i+1).padStart(2,'0')}</span><a class="muted" target="_blank" rel="noopener noreferrer" href="${esc(q.sourceUrl)}">${esc(q.sourceTitle)} ↗</a></div><div class="muted" style="margin-top:6px">প্রকাশিত: ${esc(q.publishedDate)} · সংগৃহীত: ${esc(q.collectedAt)}</div><h3>${esc(q.question)}</h3><div class="gk-choice-grid">${q.options.map((_,j)=>gkOption(q,j,true)).join('')}</div><details class="answer-box" onclick="setViewed('${q.id}')"><summary>উত্তর ও ব্যাখ্যা দেখুন</summary><p><b>সঠিক উত্তর:</b> ${esc(q.options[q.answerIndex])}</p><p>${esc(q.explanation)}</p></details>${seen?'':'<small class="muted">এখনও দেখা হয়নি</small>'}</article>`}).join('');
     const left=remaining(c);timerId=setTimeout(()=>renderDailyGK(),60000); const viewed=Object.keys(c.viewed||{}).length;
-    const html=`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="navigate('dashboard')">← <span>Daily GK</span></button><h1 class="phase23-title">Daily GK · Live 50 Questions</h1><p class="phase23-subtitle">সাম্প্রতিক তথ্য থেকে তৈরি বাংলা MCQ · একই set ২৪ ঘণ্টা cache থাকবে</p></div><div class="master-gk-actions"><button class="btn" onclick="startDailyGKTest()">Daily GK Test</button><span class="muted">Progress: ${viewed} / 50</span><span class="muted">🔄 পরবর্তী আপডেট: ${formatRemaining(left)} পরে</span></div><div class="master-gk-feed">${cards}</div></div>`;renderShell(html,{topbar:false})
+    const html=`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="navigate('dashboard')">← <span>Daily GK</span></button><h1 class="phase23-title">Daily GK · Live ${GK_COUNT} Questions</h1><p class="phase23-subtitle">বিশ্ববিদ্যালয় ভর্তি পরীক্ষায় আসার মতো সাম্প্রতিক MCQ · ২৪ ঘণ্টা পর আপডেট</p></div><div class="master-gk-actions"><button class="btn" onclick="startDailyGKTest()">Daily GK Test</button><span class="muted">Progress: ${viewed} / ${GK_COUNT}</span><span class="muted">🔄 পরবর্তী আপডেট: ${formatRemaining(left)} পরে</span></div><div class="master-gk-feed">${cards}</div></div>`;renderShell(html,{topbar:false})
   }
-  function renderGKTest(c){const q=c.items[GKState.index],selected=GKState.answers[q.id];const html=`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="exitDailyGKTest()">← <span>Daily GK Test</span></button><h1 class="phase23-title">Daily GK Test</h1><p class="phase23-subtitle">Question ${GKState.index+1} / 50</p></div><article class="card master-test-card"><span class="pill blue">${esc(q.category)}</span><h2>${esc(q.question)}</h2><div class="gk-choice-grid">${q.options.map((_,j)=>gkOption(q,j,false)).join('')}</div>${selected!=null?`<div class="answer-box"><b>${selected===q.answerIndex?'সঠিক':'ভুল'}</b><br>সঠিক উত্তর: ${esc(q.options[q.answerIndex])}</div>`:''}<div class="row between" style="margin-top:16px"><span class="muted">${selected==null?'একটি উত্তর নির্বাচন করুন':'উত্তর সংরক্ষিত'}</span>${selected!=null?(GKState.index===49?'<button class="btn" onclick="submitDailyGK()">Submit Test</button>':`<button class="btn" onclick="nextDailyGK()">Next</button>`):''}</div></article></div>`;renderShell(html,{topbar:false})}
-  function renderGKResult(c){const score=GKState.score||0,acc=Math.round(score/50*100);const review=c.items.map((q,i)=>`<div class="gk-review"><b>${i+1}. ${esc(q.question)}</b><div>Your: ${GKState.answers[q.id]!=null?esc(q.options[GKState.answers[q.id]]):'Not answered'} · Correct: ${esc(q.options[q.answerIndex])}</div><small>${esc(q.explanation)}</small></div>`).join('');renderShell(`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="navigate('dashboard')">← <span>Daily GK</span></button><h1 class="phase23-title">Daily GK Result</h1></div><div class="phase-metric"><b>${score} / 50</b><span>Score · Accuracy ${acc}%</span></div><div class="row" style="margin:14px 0"><button class="btn" onclick="startDailyGKTest()">Retry</button><button class="btn ghost" onclick="GKState.mode='browse';renderDailyGK()">Review Browse Mode</button></div><article class="card">${review}</article></div>`,{topbar:false})}
+  function renderGKTest(c){const q=c.items[GKState.index],selected=GKState.answers[q.id];const html=`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="exitDailyGKTest()">← <span>Daily GK Test</span></button><h1 class="phase23-title">Daily GK Test</h1><p class="phase23-subtitle">Question ${GKState.index+1} / ${GK_COUNT}</p></div><article class="card master-test-card"><span class="pill blue">${esc(q.category)}</span><h2>${esc(q.question)}</h2><div class="gk-choice-grid">${q.options.map((_,j)=>gkOption(q,j,false)).join('')}</div>${selected!=null?`<div class="answer-box"><b>${selected===q.answerIndex?'সঠিক':'ভুল'}</b><br>সঠিক উত্তর: ${esc(q.options[q.answerIndex])}</div>`:''}<div class="row between" style="margin-top:16px"><span class="muted">${selected==null?'একটি উত্তর নির্বাচন করুন':'উত্তর সংরক্ষিত'}</span>${selected!=null?(GKState.index===GK_COUNT-1?'<button class="btn" onclick="submitDailyGK()">Submit Test</button>':`<button class="btn" onclick="nextDailyGK()">Next</button>`):''}</div></article></div>`;renderShell(html,{topbar:false})}
+  function renderGKResult(c){const score=GKState.score||0,acc=Math.round(score/GK_COUNT*100);const review=c.items.map((q,i)=>`<div class="gk-review"><b>${i+1}. ${esc(q.question)}</b><div>Your: ${GKState.answers[q.id]!=null?esc(q.options[GKState.answers[q.id]]):'Not answered'} · Correct: ${esc(q.options[q.answerIndex])}</div><small>${esc(q.explanation)}</small></div>`).join('');renderShell(`<div class="phase23-page master-gk-page"><div class="phase23-head"><button class="phase23-back" onclick="navigate('dashboard')">← <span>Daily GK</span></button><h1 class="phase23-title">Daily GK Result</h1></div><div class="phase-metric"><b>${score} / ${GK_COUNT}</b><span>Score · Accuracy ${acc}%</span></div><div class="row" style="margin:14px 0"><button class="btn" onclick="startDailyGKTest()">Retry</button><button class="btn ghost" onclick="GKState.mode='browse';renderDailyGK()">Review Browse Mode</button></div><article class="card">${review}</article></div>`,{topbar:false})}
   window.renderDailyGK=renderDailyGK;
   window.retryDailyGK=()=>{GKState.error='';GKState.cache=null;renderDailyGK()};
   window.startDailyGKTest=()=>{const c=cacheState();if(!c)return;GKState.cache=c;GKState.mode='test';GKState.index=0;GKState.answers={};GKState.started=now();GKState.score=null;renderDailyGK()};
   window.chooseDailyGK=(id,i)=>{if(GKState.mode==='browse')return;GKState.answers[id]=i;renderDailyGK()};
-  window.nextDailyGK=()=>{GKState.index=Math.min(49,GKState.index+1);renderDailyGK()};
+  window.nextDailyGK=()=>{GKState.index=Math.min(GK_COUNT-1,GKState.index+1);renderDailyGK()};
   window.submitDailyGK=()=>{const c=cacheState();GKState.score=c.items.reduce((n,q)=>n+(GKState.answers[q.id]===q.answerIndex?1:0),0);GKState.mode='result';renderDailyGK()};
   window.exitDailyGKTest=()=>{GKState.mode='browse';renderDailyGK()};
   const memKey='memory-system-v2';const memLoad=()=>{try{return JSON.parse(localStorage.getItem(memKey)||'null')||{topics:[]}}catch(_){return {topics:[]}}};const memSave=x=>localStorage.setItem(memKey,JSON.stringify(x));const memory=memLoad();memory.topics=memory.topics?.length?memory.topics:[...['Vocabulary','Correct Spelling','Synonym','Antonym','Idiom','বাংলা বাগধারা','One Word Substitution','Important Dates','Authors & Books','Literature','Grammar Rules','Confusing Words','GK facts'].map((name,i)=>({id:'seed-'+i,name,custom:false,items:[]}))];memSave(memory);const MState={topicId:'',query:'',sort:'new',practice:null};
