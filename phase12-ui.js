@@ -49,7 +49,6 @@
   ];
 
   const specialTools = [
-    ['📅', '90 Days Routine', '৯০ দিনের ভর্তি প্রস্তুতি রুটিন', 'progress/plan'],
     ['🧠', 'Daily GK', 'আজকের গুরুত্বপূর্ণ সাধারণ জ্ঞান', 'daily-gk'],
     ['🌐', 'Web Chat', 'দ্রুত তথ্য খুঁজুন', 'web-chat'],
     ['📖', 'Dictionary', 'শব্দের অর্থ ও Vocabulary', 'dictionary'],
