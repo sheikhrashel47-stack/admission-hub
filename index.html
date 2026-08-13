@@ -4505,6 +4505,7 @@ boot();
 <link rel="stylesheet" href="premium-reward-styles.css?v=1">
 <script src="reward-quest-upgrade.js?v=3"></script>
 
+
 <!-- INLINE FINAL FIX: web-chat-rebuild.js -->
 <script data-inline-fix="web-chat-rebuild.js">
 (function(){
@@ -4548,6 +4549,22 @@ boot();
 
   document.addEventListener('keypress', function(e) { if (e.key === 'Enter' && e.target && e.target.id === 'wcInput') { e.stopImmediatePropagation(); e.preventDefault(); if (!state.loading) ask(e); } }, true);
   document.addEventListener('submit', function(e) { if (e.target && e.target.matches && e.target.matches('.wc-input-wrap')) { e.stopImmediatePropagation(); e.preventDefault(); if (!state.loading) ask(e); } }, true);
+
+// Final keyboard shield: window capture runs before legacy document shortcuts.
+(function(){
+  const chatEvent = e => e && e.target && e.target.id === 'wcInput' && location.hash.replace(/^#/, '').split('?')[0] === 'web-chat';
+  const guard = e => {
+    if (!chatEvent(e)) return;
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    if (e.type === 'keydown' && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!window.WebChatRebuildState?.loading && typeof window.askWebChatRebuild === 'function') window.askWebChatRebuild(e);
+    }
+  };
+  window.addEventListener('keydown', guard, true);
+  window.addEventListener('keypress', guard, true);
+})();
 
 </script>
 <!-- INLINE FINAL FIX: dictionary-final-fix.js -->
@@ -4624,6 +4641,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 })();
 
   (() => { let n=0; const reconcile=setInterval(() => { n++; if (document.querySelector('.dashboard-v2,.p3-dashboard-v3,.page')) window.updateDashboardGreeting(); if (n >= 20) clearInterval(reconcile); }, 100); })();
+
 </script>
 </body>
 </html>

@@ -39,3 +39,19 @@
 
   document.addEventListener('keypress', function(e) { if (e.key === 'Enter' && e.target && e.target.id === 'wcInput') { e.stopImmediatePropagation(); e.preventDefault(); if (!state.loading) ask(e); } }, true);
   document.addEventListener('submit', function(e) { if (e.target && e.target.matches && e.target.matches('.wc-input-wrap')) { e.stopImmediatePropagation(); e.preventDefault(); if (!state.loading) ask(e); } }, true);
+
+// Final keyboard shield: window capture runs before legacy document shortcuts.
+(function(){
+  const chatEvent = e => e && e.target && e.target.id === 'wcInput' && location.hash.replace(/^#/, '').split('?')[0] === 'web-chat';
+  const guard = e => {
+    if (!chatEvent(e)) return;
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    if (e.type === 'keydown' && e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!window.WebChatRebuildState?.loading && typeof window.askWebChatRebuild === 'function') window.askWebChatRebuild(e);
+    }
+  };
+  window.addEventListener('keydown', guard, true);
+  window.addEventListener('keypress', guard, true);
+})();
