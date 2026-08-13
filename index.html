@@ -596,6 +596,7 @@ window.addEventListener('hashchange',()=>{
 const NAV_TABS=[
   {key:'dashboard', icon:'🏠', label:'Home'},
   {key:'question-bank', icon:'📚', label:'Bank'},
+  {key:'smart-formatter', icon:'🧩', label:'Parser'},
   {key:'exam', icon:'📝', label:'Exam'},
   {key:'history', icon:'📋', label:'History'},
   {key:'progress', icon:'📊', label:'Progress'},
@@ -603,6 +604,7 @@ const NAV_TABS=[
 
 function baseTab(path){
   if(path.startsWith('ai-chat')) return 'history';
+  if(path.startsWith('smart-formatter')) return 'smart-formatter';
   if(path.startsWith('exam')) return 'exam';
   if(path.startsWith('question-bank')||path.startsWith('subject')||path.startsWith('topic')||path.startsWith('question')||path.startsWith('add-question')||path.startsWith('edit-question')) return 'question-bank';
   if(path.startsWith('history')) return 'history';
