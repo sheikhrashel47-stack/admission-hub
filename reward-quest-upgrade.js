@@ -22,8 +22,59 @@
     {id:'analytics-focus',name:'Focus Analytics',description:'Analytics cards-এ accuracy-focused highlight।',icon:'📊',cost:700,category:CATEGORY.ANALYTICS,unlock:{earned:700}},
     {id:'result-confetti',name:'Result Confetti',description:'Exam result summary-তে celebration treatment।',icon:'🎉',cost:1200,category:CATEGORY.RESULT,unlock:{accuracy:80}},
     {id:'achievement-crown',name:'Achievement Crown',description:'Achievement section ও result-এ crown decoration।',icon:'👑',cost:1900,category:CATEGORY.ACHIEVEMENT,unlock:{level:8}},
-    {id:'achievement-laurel',name:'Laurel of Mastery',description:'Mastery milestones-এর জন্য laurel decoration।',icon:'🏆',cost:2400,category:CATEGORY.ACHIEVEMENT,unlock:{earned:3000}}
-  ];
+    {id:'achievement-laurel',name:'Laurel of Mastery',description:'Mastery milestones-এর জন্য laurel decoration।',icon:'🏆',cost:2400,category:CATEGORY.ACHIEVEMENT,unlock:{earned:3000}},
+
+    {id:'premium-aurora-theme',name:'Aurora Scholar',description:'রঙ বদলানো aurora gradient theme; dashboard ও shop-এ প্রয়োগ হবে।',icon:'🌌',cost:5000,category:CATEGORY.THEME,unlock:{level:5}},
+    {id:'premium-royal-indigo-theme',name:'Royal Indigo',description:'গভীর indigo ও gold academic theme।',icon:'💠',cost:6000,category:CATEGORY.THEME,unlock:{level:6}},
+    {id:'premium-sunset-theme',name:'Sunset Focus',description:'উষ্ণ sunset focus theme, দীর্ঘ study session-এর জন্য।',icon:'🌅',cost:7000,category:CATEGORY.THEME,unlock:{level:7}},
+    {id:'premium-ocean-theme',name:'Oceanic Calm',description:'শান্ত ocean-blue premium theme।',icon:'🌊',cost:8000,category:CATEGORY.THEME,unlock:{earned:1500}},
+    {id:'premium-rose-theme',name:'Rose Quartz',description:'নরম rose-quartz light theme।',icon:'🌹',cost:9000,category:CATEGORY.THEME,unlock:{earned:2000}},
+    {id:'premium-cosmic-theme',name:'Cosmic Night',description:'নক্ষত্রময় cosmic night theme।',icon:'🌠',cost:10000,category:CATEGORY.THEME,unlock:{level:8}},
+    {id:'premium-sage-theme',name:'Sage Library',description:'মৃদু sage-green library theme।',icon:'🌿',cost:11000,category:CATEGORY.THEME,unlock:{earned:2500}},
+    {id:'premium-copper-theme',name:'Copper Scholar',description:'copper accent-এর editorial theme।',icon:'🟠',cost:12000,category:CATEGORY.THEME,unlock:{level:9}},
+    {id:'premium-pearl-theme',name:'Pearl Study',description:'পরিষ্কার pearl-white premium theme।',icon:'🫧',cost:13000,category:CATEGORY.THEME,unlock:{earned:3000}},
+    {id:'premium-neon-theme',name:'Neon Momentum',description:'রাতের revision-এর জন্য electric neon theme।',icon:'⚡',cost:14000,category:CATEGORY.THEME,unlock:{streak:7}},
+    {id:'premium-owl-avatar',name:'Midnight Owl',description:'চোখে focus-glow থাকা owl avatar।',icon:'🦉',cost:15000,category:CATEGORY.AVATAR,unlock:{level:7}},
+    {id:'premium-fox-avatar',name:'Clever Fox',description:'দ্রুত learning-এর clever fox avatar।',icon:'🦊',cost:16000,category:CATEGORY.AVATAR,unlock:{earned:3500}},
+    {id:'premium-astronaut-avatar',name:'Study Astronaut',description:'লক্ষ্যপূরণের জন্য astronaut avatar।',icon:'🧑\u200d🚀',cost:17000,category:CATEGORY.AVATAR,unlock:{level:8}},
+    {id:'premium-lion-avatar',name:'Lion Scholar',description:'confidence ও leadership-এর lion avatar।',icon:'🦁',cost:18000,category:CATEGORY.AVATAR,unlock:{streak:10}},
+    {id:'premium-phoenix-avatar',name:'Phoenix Learner',description:'ফিরে দাঁড়ানোর phoenix avatar।',icon:'🔥',cost:19000,category:CATEGORY.AVATAR,unlock:{earned:4500}},
+    {id:'premium-crown-avatar',name:'Crowned Scholar',description:'রাজকীয় crown scholar avatar।',icon:'👑',cost:20000,category:CATEGORY.AVATAR,unlock:{level:10}},
+    {id:'premium-wolf-avatar',name:'Focus Wolf',description:'নিরব focus-এর wolf avatar।',icon:'🐺',cost:21000,category:CATEGORY.AVATAR,unlock:{streak:14}},
+    {id:'premium-eagle-avatar',name:'Eagle Vision',description:'দূরদর্শী eagle avatar।',icon:'🦅',cost:22000,category:CATEGORY.AVATAR,unlock:{accuracy:90}},
+    {id:'premium-dragon-avatar',name:'Dragon Mentor',description:'legendary dragon mentor avatar।',icon:'🐉',cost:23000,category:CATEGORY.AVATAR,unlock:{earned:6000}},
+    {id:'premium-robot-avatar',name:'Precision Bot',description:'data-driven precision bot avatar।',icon:'🤖',cost:24000,category:CATEGORY.AVATAR,unlock:{level:11}},
+    {id:'premium-rainbow-aura',name:'Rainbow Aura',description:'avatar-এর চারপাশে রঙিন animated aura।',icon:'🌈',cost:25000,category:CATEGORY.EFFECT,unlock:{earned:5000}},
+    {id:'premium-orbit-aura',name:'Orbit Rings',description:'avatar ঘিরে orbiting ring effect।',icon:'🪐',cost:26000,category:CATEGORY.EFFECT,unlock:{level:9}},
+    {id:'premium-electric-aura',name:'Electric Focus',description:'হালকা electric pulse focus effect।',icon:'⚡',cost:27000,category:CATEGORY.EFFECT,unlock:{streak:14}},
+    {id:'premium-leaf-aura',name:'Leaf Breeze',description:'শান্ত floating leaf effect।',icon:'🍃',cost:28000,category:CATEGORY.EFFECT,unlock:{earned:7000}},
+    {id:'premium-fire-aura',name:'Phoenix Fire',description:'উজ্জ্বল fire aura effect।',icon:'🔥',cost:29000,category:CATEGORY.EFFECT,unlock:{streak:21}},
+    {id:'premium-diamond-aura',name:'Diamond Glow',description:'crystal diamond glow effect।',icon:'💎',cost:30000,category:CATEGORY.EFFECT,unlock:{level:12}},
+    {id:'premium-master-badge',name:'Master Scholar',description:'profile-এ Master Scholar premium badge।',icon:'🏅',cost:31000,category:CATEGORY.PROFILE,unlock:{earned:8000}},
+    {id:'premium-elite-badge',name:'Elite Admission',description:'admission-ready elite badge।',icon:'🎓',cost:32000,category:CATEGORY.PROFILE,unlock:{accuracy:92}},
+    {id:'premium-verified-badge',name:'Verified Learner',description:'verified consistency badge।',icon:'✅',cost:33000,category:CATEGORY.PROFILE,unlock:{streak:21}},
+    {id:'premium-mentor-badge',name:'Peer Mentor',description:'অন্যদের অনুপ্রাণিত করার mentor badge।',icon:'🧭',cost:34000,category:CATEGORY.PROFILE,unlock:{earned:9000}},
+    {id:'premium-legend-badge',name:'Legendary Mind',description:'legendary profile badge।',icon:'🧠',cost:35000,category:CATEGORY.PROFILE,unlock:{level:13}},
+    {id:'premium-streak-30',name:'30-Day Flame',description:'৩০ দিনের ধারাবাহিকতার animated streak badge।',icon:'🔥',cost:36000,category:CATEGORY.STREAK,unlock:{streak:30}},
+    {id:'premium-streak-60',name:'60-Day Comet',description:'৬০ দিনের comet streak badge।',icon:'☄️',cost:37000,category:CATEGORY.STREAK,unlock:{streak:60}},
+    {id:'premium-streak-100',name:'100-Day Century',description:'১০০ দিনের century streak badge।',icon:'💯',cost:38000,category:CATEGORY.STREAK,unlock:{streak:100}},
+    {id:'premium-xp-double',name:'Double XP Hour',description:'পরবর্তী earning activity-তে XP multiplier indicator।',icon:'✖️',cost:39000,category:CATEGORY.XP,unlock:{level:12}},
+    {id:'premium-xp-surge',name:'XP Surge',description:'high-intensity XP surge indicator।',icon:'📈',cost:40000,category:CATEGORY.XP,unlock:{earned:10000}},
+    {id:'premium-coin-mint',name:'Golden Coin Mint',description:'coin wallet-এ golden mint treatment।',icon:'🪙',cost:41000,category:CATEGORY.COIN,unlock:{level:13}},
+    {id:'premium-coin-crystal',name:'Crystal Wallet',description:'coin wallet-এ crystal vault treatment।',icon:'💰',cost:42000,category:CATEGORY.COIN,unlock:{earned:12000}},
+    {id:'premium-glass-museum',name:'Glass Museum',description:'profile-এ museum-grade glass presentation।',icon:'🏛️',cost:43000,category:CATEGORY.PREMIUM,unlock:{level:14}},
+    {id:'premium-starlight',name:'Starlight Field',description:'পুরো profile-এ starlight visual field।',icon:'✨',cost:44000,category:CATEGORY.PREMIUM,unlock:{streak:30}},
+    {id:'premium-analytics-lab',name:'Analytics Lab',description:'analytics card-এ lab-style data visualization accent।',icon:'🧪',cost:45000,category:CATEGORY.ANALYTICS,unlock:{earned:14000}},
+    {id:'premium-analytics-radar',name:'Radar Analytics',description:'progress card-এ radar-inspired analytics accent।',icon:'📡',cost:46000,category:CATEGORY.ANALYTICS,unlock:{accuracy:93}},
+    {id:'premium-result-gold',name:'Golden Result',description:'exam result summary-তে gold celebration frame।',icon:'🥇',cost:47000,category:CATEGORY.RESULT,unlock:{level:15}},
+    {id:'premium-result-cinema',name:'Cinematic Result',description:'exam result-এ cinematic reveal styling।',icon:'🎬',cost:48000,category:CATEGORY.RESULT,unlock:{earned:16000}},
+    {id:'premium-achievement-galaxy',name:'Galaxy Achievements',description:'achievement section-এ galaxy decoration।',icon:'🌌',cost:49000,category:CATEGORY.ACHIEVEMENT,unlock:{level:16}},
+    {id:'premium-achievement-trophy',name:'Grand Trophy Room',description:'achievement section-এ grand trophy decoration।',icon:'🏆',cost:50000,category:CATEGORY.ACHIEVEMENT,unlock:{earned:18000}},
+    {id:'premium-achievement-medal',name:'Hall of Merit',description:'profile-এ merit hall decoration।',icon:'🎖️',cost:51000,category:CATEGORY.ACHIEVEMENT,unlock:{accuracy:95}},
+    {id:'premium-achievement-infinity',name:'Infinity Mastery',description:'সব achievement card-এ infinity decoration।',icon:'♾️',cost:52000,category:CATEGORY.ACHIEVEMENT,unlock:{streak:60}},
+    {id:'premium-legacy-frame',name:'Legacy Scholar Frame',description:'profile ও result-এর জন্য legacy frame।',icon:'🖼️',cost:53000,category:CATEGORY.PREMIUM,unlock:{level:17}},
+    {id:'premium-immortal-seal',name:'Immortal Scholar Seal',description:'সবচেয়ে premium scholar seal ও visual treatment।',icon:'🔱',cost:54000,category:CATEGORY.PROFILE,unlock:{earned:22000}},
+   ];
   const QUEST_TEMPLATES=[
     {id:'study-session',type:'Study',title:'আজ একটি study session সম্পূর্ণ করুন',detail:'যেকোনো Flash, Subject, Topic, Mock বা Exam test শেষ করুন।',target:1,xp:40,metric:'sessions'},
     {id:'question-practice',type:'Practice',title:'২০টি প্রশ্ন practice করুন',detail:'বাস্তব practice activity থেকে progress গণনা হবে।',target:20,xp:55,metric:'questions'},
@@ -44,7 +95,7 @@
   function inventory(s){const raw=s.rewardInventory||{};const out={};REWARDS.forEach((r,i)=>{let v=raw[r.id];if(!v&&Array.isArray(s.unlockedRewards)&&s.unlockedRewards.includes(i))v={ownedAt:Date.now(),active:true};out[r.id]=v||null;});return out;}
   function condition(r){const x=baseXP(),u=r.unlock||{};return (!u.earned||x.earned>=u.earned)&&(!u.level||x.level>=u.level)&&(!u.streak||streak()>=u.streak)&&(!u.accuracy||latestAccuracy()>=u.accuracy);}
   function conditionText(r){const u=r.unlock||{};const a=[];if(u.earned)a.push(`${u.earned} lifetime XP`);if(u.level)a.push(`Level ${u.level}`);if(u.streak)a.push(`${u.streak}-day streak`);if(u.accuracy)a.push(`${u.accuracy}% accuracy`);return a.length?a.join(' · '):'সবার জন্য উন্মুক্ত';}
-  function applyReward(r,active){const b=document.body;if(r.category===CATEGORY.THEME){b.dataset.rewardTheme=active?r.id:'';b.classList.toggle('reward-theme-midnight',active&&r.id==='theme-midnight-focus');b.classList.toggle('reward-theme-emerald',active&&r.id==='theme-emerald-dawn');}if(r.category===CATEGORY.AVATAR||r.category===CATEGORY.EFFECT||r.category===CATEGORY.PROFILE||r.category===CATEGORY.STREAK||r.category===CATEGORY.PREMIUM){b.dataset.rewardAvatar=active?r.id:'';}if(active)window.__admissionRewardPresentation={id:r.id,name:r.name,icon:r.icon,category:r.category};}
+  function applyReward(r,active){const b=document.body;if(r.category===CATEGORY.THEME){b.dataset.rewardTheme=active?r.id:'';b.classList.toggle('reward-theme-midnight',active&&r.id==='theme-midnight-focus');b.classList.toggle('reward-theme-emerald',active&&r.id==='theme-emerald-dawn');}if(r.category===CATEGORY.AVATAR||r.category===CATEGORY.EFFECT||r.category===CATEGORY.PROFILE||r.category===CATEGORY.STREAK||r.category===CATEGORY.PREMIUM||r.category===CATEGORY.ANALYTICS||r.category===CATEGORY.RESULT||r.category===CATEGORY.ACHIEVEMENT||r.category===CATEGORY.XP||r.category===CATEGORY.COIN){b.dataset.rewardAvatar=active?r.id:'';}b.dataset.rewardId=active?r.id:'';b.dataset.rewardCategory=active?r.category:'';b.classList.toggle('reward-premium-active',!!active);if(active)window.__admissionRewardPresentation={id:r.id,name:r.name,icon:r.icon,category:r.category};}
   function status(r,inv){if(inv?.ownedAt)return inv.active?'active':'owned';if(!condition(r))return 'locked';return baseXP().balance>=r.cost?'available':'insufficient';}
   function migrate(s){const inv=inventory(s);s.rewardInventory=inv;s.rewardQuestVersion=2;return s;}
   async function ensure(){let s=settings();if(s.rewardQuestVersion!==2){s=migrate(s);await save(s);}REWARDS.forEach(r=>{const v=s.rewardInventory?.[r.id];if(v?.active)applyReward(r,true);});return s;}
