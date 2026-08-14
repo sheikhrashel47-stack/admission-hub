@@ -1,4 +1,4 @@
-const CACHE_NAME = 'admission-hub-shell-v2';
+const CACHE_NAME = 'admission-hub-shell-v3';
 const APP_SHELL = [
   './',
   './index.html',
@@ -42,6 +42,15 @@ self.addEventListener('fetch', event => {
         }
         return response;
       })
-      .catch(() => caches.match(event.request).then(cached => cached || caches.match('./index.html')))
+      .catch(() => caches.match(event.request).then(cached => {
+      if (cached) return cached;
+      // Only document navigations may fall back to the app shell. Returning
+      // index.html for JS/CSS/JSON requests makes iOS standalone mode parse
+      // HTML as a script and silently drops Question Bank/Exam/History code.
+      if (event.request.mode === 'navigate' || event.request.destination === 'document') {
+        return caches.match('./index.html');
+      }
+      return Response.error();
+    }))
   );
 });
