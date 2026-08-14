@@ -4382,6 +4382,44 @@ boot();
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',registerPwaUpdates,{once:true}); else registerPwaUpdates();
 })();
 </script>
+<style id="mistake-analysis-styles">
+.ma-page{padding-top:4px;}.ma-stats-row{display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px;}
+.ma-stat{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:10px 12px; text-align:center; box-shadow:var(--shadow);}
+.ma-stat-label{display:block; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--sub); font-weight:700;}
+.ma-stat-value{display:block; font-size:14px; font-weight:800; margin-top:3px; color:var(--emerald-d);}
+.ma-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:16px; margin-bottom:16px; box-shadow:var(--shadow); border-left:4px solid var(--orange);}
+.ma-card-head{margin-bottom:10px;}
+.ma-question{font-size:15px; font-weight:750; line-height:1.55; margin:0 0 12px;}
+.ma-options{display:flex; flex-direction:column; gap:8px; margin-bottom:12px;}
+.ma-opt{border:1px solid var(--line); border-radius:11px; padding:10px 12px; display:flex; align-items:flex-start; gap:10px; font-size:14px; line-height:1.5;}
+.ma-opt-let{width:24px; height:24px; border-radius:50%; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:800; flex-shrink:0; background:var(--mint); color:var(--emerald-d);}
+.ma-opt-text{flex:1;}
+.ma-opt-note{font-size:11px; font-weight:700; margin-left:auto; white-space:nowrap;}
+.ma-opt-note.correct{color:var(--green);}
+.ma-opt-note.wrong{color:var(--red);}
+.ma-opt-correct{border-color:var(--green); background:color-mix(in srgb, var(--green) 14%, var(--card));}
+.ma-opt-correct .ma-opt-let{background:var(--green); color:#fff; border-color:var(--green);}
+.ma-opt-wrong{border-color:var(--red); background:color-mix(in srgb, var(--red) 14%, var(--card));}
+.ma-opt-wrong .ma-opt-let{background:var(--red); color:#fff; border-color:var(--red);}
+.ma-info-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:12px;}
+.ma-info-box{border:1px solid var(--line); border-radius:11px; padding:10px 12px; background:var(--mint);}
+.ma-info-label{display:block; font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--sub); font-weight:700; margin-bottom:4px;}
+.ma-info-value{font-size:13.5px; line-height:1.5; font-weight:600;}
+.ma-sub{margin-top:10px; border:1px solid var(--line); border-radius:11px; padding:11px 13px; background:var(--card);}
+.ma-sub b{display:block; font-size:12.5px; margin-bottom:5px; color:var(--emerald-d);}
+.ma-sub > div{font-size:13.5px; line-height:1.6;}
+.ma-sub ul{margin:0; padding-left:18px; display:grid; gap:4px; font-size:13.5px; line-height:1.55;}
+.ma-actions{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px;}
+.ma-notebook-card{border-left:4px solid var(--orange);}
+.ma-notebook-answers{display:grid; gap:6px;}
+.ma-notebook-answer{font-size:13px; padding:7px 10px; border-radius:9px; line-height:1.5;}
+.ma-notebook-answer.wrong-ans{background:color-mix(in srgb, var(--red) 12%, var(--card)); border:1px solid color-mix(in srgb, var(--red) 30%, var(--line));}
+.ma-notebook-answer.correct-ans{background:color-mix(in srgb, var(--green) 12%, var(--card)); border:1px solid color-mix(in srgb, var(--green) 30%, var(--line));}
+.ma-notebook-explain{margin-top:8px; font-size:13px; line-height:1.55; color:var(--sub);}
+.ma-notebook-actions{display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;}
+.ma-notebook-actions .btn{width:auto;}
+@media(max-width:400px){.ma-info-grid{grid-template-columns:1fr;}.ma-stats-row{grid-template-columns:1fr 1fr;}.ma-actions{grid-template-columns:1fr;}}
+</style>
 <style id="vocab-mistake-system-styles">
 .vocab-card{border-left:4px solid var(--emerald);overflow:hidden}.vocab-word{font-size:22px;font-weight:900;letter-spacing:-.02em}.vocab-meaning{font-size:16px;font-weight:700;color:var(--emerald-d);margin-top:5px}.vocab-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.vocab-detail{margin-top:12px;padding:10px;border-radius:10px;background:var(--mint);line-height:1.55}.vocab-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.vocab-parser-row{display:grid;grid-template-columns:1.1fr 1fr 1.5fr 1fr 1fr;gap:7px;align-items:start;padding:9px 0;border-bottom:1px solid var(--line)}.vocab-parser-row>*{min-width:0}.mistake-book-card{border-left:4px solid var(--red)}.mistake-book-card.mastered{border-left-color:var(--green);opacity:.82}.mistake-question{font-size:15px;font-weight:750;line-height:1.5;overflow-wrap:anywhere}.mistake-answer{margin-top:8px;padding:8px 10px;border-radius:9px;background:var(--mint);overflow-wrap:anywhere}.mistake-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.practice-vocab-card{text-align:center;min-height:250px;display:flex;flex-direction:column;justify-content:center}.practice-vocab-word{font-size:34px;font-weight:950;color:var(--emerald-d);overflow-wrap:anywhere}.practice-vocab-meaning{font-size:22px;font-weight:800;margin-top:18px;overflow-wrap:anywhere}.vocab-filter{display:flex;gap:7px;overflow-x:auto;padding-bottom:5px}.vocab-filter .chip{white-space:nowrap;flex:0 0 auto}@media(max-width:640px){.vocab-parser-row{grid-template-columns:1fr 1fr}.vocab-parser-row .wide{grid-column:1/-1}.vocab-word{font-size:20px}.practice-vocab-word{font-size:29px}}
 </style>
@@ -4627,14 +4665,17 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 </script>
 <!-- INLINE FINAL FIX: dashboard-greeting-fix.js -->
 <script data-inline-fix="dashboard-greeting-fix.js">
-(() => {
+(() =&gt; {
   'use strict';
   const weekdays = ['রবিবার','সোমবার','মঙ্গলবার','বুধবার','বৃহস্পতিবার','শুক্রবার','শনিবার'];
   const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
-  const digits = n => String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
-  function greeting(h) { if (h >= 4 && h < 6) return 'শুভ ভোর 🌅'; if (h < 12) return 'শুভ সকাল ☀️'; if (h < 15) return 'শুভ দুপুর 🌤️'; if (h < 17) return 'শুভ বিকাল 🌇'; if (h < 20) return 'শুভ সন্ধ্যা 🌆'; return 'শুভ রাত্রি 🌙'; }
-  function clockText(d = new Date()) { let h=d.getHours(), m=d.getMinutes(); const period=h<4||h>=20?'রাত':h<6?'ভোর':h<12?'সকাল':h<15?'দুপুর':h<17?'বিকাল':'সন্ধ্যা'; const display=h%12||12; return `${weekdays[d.getDay()]}, ${digits(d.getDate())} ${months[d.getMonth()]} ${digits(d.getFullYear())} | ${period} ${digits(display)}:${digits(String(m).padStart(2,'0'))}`; }
-  function update() { const root=document.querySelector('.dashboard-v2,.p3-dashboard-v3,.page'); if (!root) return; const header=root.querySelector('.dashboard-header,.p3-header-v3,.p3-header-text')||root; const h1=header.querySelector('h1,h2'); const d=new Date(); if(h1)h1.textContent=greeting(d.getHours())+', Scholar'; let p=header.querySelector('.p3-live-clock'); if(!p && root.matches('.p3-dashboard-v3,.page')) { p=document.createElement('p'); p.className='p3-live-clock'; p.style.cssText='margin:4px 0 0;color:#78958c;font-size:12px;line-height:1.5'; h1?.insertAdjacentElement('afterend',p); } if(!p) p=header.querySelector('.dashboard-header p'); if(p) p.textContent=clockText(d); }
+  const digits = n =&gt; String(n).replace(/\d/g, d =&gt; '০১২৩৪৫৬৭৮৯'[d]);
+  function greeting(h) { if (h &gt;= 4 &amp;&amp; h &lt; 6) return 'শুভ ভোর 🌅'; if (h &lt; 12) return 'শুভ সকাল ☀️'; if (h &lt; 15) return 'শুভ দুপুর 🌤️'; if (h &lt; 17) return 'শুভ বিকাল 🌇'; if (h &lt; 20) return 'শুভ সন্ধ্যা 🌆'; return 'শুভ রাত্রি 🌙'; }
+  function clockText(d = new Date()) { let h=d.getHours(), m=d.getMinutes(); const period=h&lt;4||h&gt;=20?'রাত':h&lt;6?'ভোর':h&lt;12?'সকাল':h&lt;15?'দুপুর':h&lt;17?'বিকাল':'সন্ধ্যা'; const display=h%12||12; return `${weekdays[d.getDay()]}, ${digits(d.getDate())} ${months[d.getMonth()]} ${digits(d.getFullYear())} | ${period} ${digits(display)}:${digits(String(m).padStart(2,'0'))}`; }
+  function isDashboardPage() {
+    try { return !!(document.querySelector('.dashboard-v2,.p3-dashboard-v3')) || (window.Router &amp;&amp; (Router.path === '' || Router.path === 'dashboard')); } catch(_) { return false; }
+  }
+  function update() { const root=document.querySelector('.dashboard-v2,.p3-dashboard-v3,.page'); if (!root) return; if (!isDashboardPage()) return; const header=root.querySelector('.dashboard-header,.p3-header-v3,.p3-header-text')||root; const h1=header.querySelector('h1,h2'); const d=new Date(); if(h1)h1.textContent=greeting(d.getHours())+', Scholar'; let p=header.querySelector('.p3-live-clock'); if(!p &amp;&amp; root.matches('.p3-dashboard-v3,.page')) { p=document.createElement('p'); p.className='p3-live-clock'; p.style.cssText='margin:4px 0 0;color:#78958c;font-size:12px;line-height:1.5'; h1?.insertAdjacentElement('afterend',p); } if(!p) p=header.querySelector('.dashboard-header p'); if(p) p.textContent=clockText(d); }
   const previous = window.renderDashboard;
   if (typeof previous === 'function') { window.renderDashboard = function(){ const out=previous.apply(this,arguments); setTimeout(update,0); return out; }; }
   window.updateDashboardGreeting = update;
@@ -4642,8 +4683,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
   setTimeout(update, 0);
 })();
 
-  (() => { let n=0; const reconcile=setInterval(() => { n++; if (document.querySelector('.dashboard-v2,.p3-dashboard-v3,.page')) window.updateDashboardGreeting(); if (n >= 20) clearInterval(reconcile); }, 100); })();
-
+  (() =&gt; { let n=0; const reconcile=setInterval(() =&gt; { n++; if (document.querySelector('.dashboard-v2,.p3-dashboard-v3,.page')) window.updateDashboardGreeting(); if (n &gt;= 20) clearInterval(reconcile); }, 100); })();
 </script>
 <script src="mcq-qbank-import.js?v=1"></script>
 <script src="admission-hub-feature-suite.js?v=practice10"></script>
@@ -4651,5 +4691,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="advanced-gamification-v3.js?v=4"></script>
 <script src="ai-agents.js?v=2"></script>
 <script src="ai-mentor-integration.js"></script>
+<script src="mistake-analysis.js?v=3"></script>
 </body>
 </html>
