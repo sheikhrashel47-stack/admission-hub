@@ -1833,10 +1833,11 @@ function buildValidated(raws){
   });
   ImportState.validated=validated;
   ImportState.visibleCount=20;
-  const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order);
-  if(!ImportState.destSubjectId) ImportState.destSubjectId = subs[0]? subs[0].id : '';
-  const topics=topicsOf(ImportState.destSubjectId);
-  if(!ImportState.destTopicId || !topics.find(t=>t.id===ImportState.destTopicId)) ImportState.destTopicId = topics[0]? topics[0].id : '';
+  // Keep destination selection explicit. The parser must never silently choose a subject/topic.
+  const selectedSubject = CACHE.subjects.some(s=>s.id===ImportState.destSubjectId);
+  if(!selectedSubject) ImportState.destSubjectId = '';
+  const selectedTopic = CACHE.topics.some(t=>t.id===ImportState.destTopicId && t.subjectId===ImportState.destSubjectId);
+  if(!selectedTopic) ImportState.destTopicId = '';
 }
 function reValidateOne(idx){
   const v=ImportState.validated[idx]; const raw=v.raw;
@@ -1855,8 +1856,7 @@ function importStats(){
   const invalidCount=total-validCount;
   const dupCount=v.filter(x=>x.isDuplicate).length;
   const selectedCount=v.filter(x=>x.selected && x.status==='valid').length;
-  let readyCount = selectedCount;
-  if(ImportState.dupStrategy==='skip') readyCount = v.filter(x=>x.selected && x.status==='valid' && !x.isDuplicate).length;
+  const readyCount = v.filter(x=>x.selected && x.status==='valid' && !x.isDuplicate).length;
   return {total,validCount,invalidCount,dupCount,selectedCount,readyCount};
 }
 function renderImportPreview(){
@@ -1873,37 +1873,32 @@ function renderImportPreview(){
   <div class="card">
     <div class="row between"><b>📥 Import Summary</b></div>
     <div class="stat-grid" style="margin-top:8px;">
-      <div class="stat-card"><div class="v">${stats.total}</div><div class="l">Detected</div></div>
-      <div class="stat-card"><div class="v">${stats.validCount}</div><div class="l">Valid</div></div>
-      <div class="stat-card"><div class="v">${stats.invalidCount}</div><div class="l">Invalid</div></div>
-      <div class="stat-card"><div class="v">${stats.dupCount}</div><div class="l">Duplicates</div></div>
+      <div class="stat-card"><div class="v">${stats.total}</div><div class="l">Total Questions</div></div>
+      <div class="stat-card"><div class="v">${stats.validCount}</div><div class="l">Valid Questions</div></div>
+      <div class="stat-card"><div class="v">${stats.invalidCount}</div><div class="l">Invalid Questions</div></div>
+      <div class="stat-card"><div class="v">${stats.dupCount}</div><div class="l">Duplicates Skipped</div></div>
     </div>
     <div class="muted" style="margin-top:8px;">Ready to save: <b>${stats.readyCount}</b> / ${stats.selectedCount} selected</div>
   </div>
 
   ${stats.dupCount>0? `<div class="card">
-    <div class="row between"><b>⚠️ Duplicate Handling</b></div>
-    <div class="row wrap" style="margin-top:8px;">
-      <button class="chip ${st.dupStrategy==='skip'?'active':''}" onclick="ImportState.dupStrategy='skip'; render()">Skip</button>
-      <button class="chip ${st.dupStrategy==='keep'?'active':''}" onclick="ImportState.dupStrategy='keep'; render()">Keep All</button>
-      <button class="chip ${st.dupStrategy==='replace'?'active':''}" onclick="ImportState.dupStrategy='replace'; render()">Replace Existing</button>
-    </div>
-    <div class="muted" style="margin-top:6px; font-size:11px;">
-      ${st.dupStrategy==='skip'?'Duplicates will be ignored.':st.dupStrategy==='keep'?'Duplicates will be imported as new questions.':'Existing questions will be updated with new data.'}
-    </div>
+    <div class="row between"><b>⚠️ Duplicate Detection</b></div>
+    <div class="muted" style="margin-top:6px; font-size:11px;">${stats.dupCount} duplicate question${stats.dupCount===1?'':'s'} detected. They will be skipped automatically so existing Question Bank data is never overwritten.</div>
   </div>` : ''}
 
   <div class="card">
-    <div class="row between"><div class="h2" style="margin:0;">Destination</div><div class="row"><button class="btn secondary sm" onclick="openImportAddSubject()">+ Sub</button><button class="btn secondary sm" onclick="openImportAddTopic()">+ Topic</button></div></div>
+    <div class="row between"><div class="h2" style="margin:0;">Destination</div><div class="row wrap"><button class="btn secondary sm" onclick="openImportAddSubject()">+ Add New Subject</button><button class="btn secondary sm" onclick="openImportAddTopic()">+ Add New Topic</button></div></div>
     <label class="flabel">Subject</label>
-    <select id="impDestSubject" onchange="onImportDestSubjectChange(this.value)">
+    <select id="impDestSubject" onchange="onImportDestSubjectChange(this.value)" required>
+      <option value="">Select Subject</option>
       ${subs.map(s=>`<option value="${s.id}" ${s.id===st.destSubjectId?'selected':''}>${esc(s.name)}</option>`).join('')}
     </select>
     <label class="flabel">Topic</label>
-    <select id="impDestTopic" onchange="ImportState.destTopicId=this.value">
-      ${topics.length? topics.map(t=>`<option value="${t.id}" ${t.id===st.destTopicId?'selected':''}>${esc(t.name)}</option>`).join('') : `<option value="">(no topics — add one first)</option>`}
+    <select id="impDestTopic" onchange="ImportState.destTopicId=this.value" ${st.destSubjectId?'':'disabled'} required>
+      <option value="">Select Topic</option>
+      ${topics.map(t=>`<option value="${t.id}" ${t.id===st.destTopicId?'selected':''}>${esc(t.name)}</option>`).join('')}
     </select>
-    ${hasIndividual? `<div class="togglerow" style="border-bottom:none;"><div>Use individual Subject/Topic from data</div><div class="toggle ${st.useIndividual?'on':''}" onclick="ImportState.useIndividual=!ImportState.useIndividual; render()"><div class="dot"></div></div></div>` : ''}
+    <div class="muted" style="margin-top:8px;">Selected Subject: <b>${esc(subjectName(st.destSubjectId))}</b><br>Selected Topic: <b>${esc(topicName(st.destTopicId))}</b></div>
   </div>
 
   ${invalidItems.length>0? `<div class="h2">Needs Fixing (${invalidItems.length})</div>
@@ -1935,8 +1930,8 @@ function renderImportPreview(){
   <div style="height:14px;"></div>
   <div class="row" style="position:sticky; bottom:calc(74px + var(--safe-b)); background:var(--bg); padding:10px 0; z-index:10;">
     <button class="btn ghost" style="flex:1" onclick="cancelImport()">Cancel</button>
-    <button class="btn secondary" style="flex:1" onclick="selectValidImport(true)" ${(!st.destTopicId || stats.validCount===0)?'disabled':''}>Import All Valid</button>
-    <button class="btn" style="flex:1" onclick="saveImportedQuestions()" ${(!st.destTopicId || stats.readyCount===0)?'disabled':''}>Import ${stats.readyCount} Selected</button>
+    <button class="btn secondary" style="flex:1" onclick="selectValidImport(true)" ${(!st.destSubjectId || !st.destTopicId || stats.validCount===0)?'disabled':''}>Import All Valid</button>
+    <button class="btn" style="flex:1" onclick="saveImportedQuestions()" ${(!st.destSubjectId || !st.destTopicId || stats.readyCount===0)?'disabled':''}>Import ${stats.readyCount} Questions to Selected Topic</button>
   </div>
   `;
   renderShell(html, {title:'Import Preview', back:"importGoHome()"});
@@ -1981,8 +1976,8 @@ async function saveImportTopic(){
 }
 function onImportDestSubjectChange(subId){
   ImportState.destSubjectId=subId;
-  const topics=topicsOf(subId);
-  ImportState.destTopicId = topics[0]? topics[0].id : '';
+  // Topic options are rebuilt from the selected subject; never carry a topic across subjects.
+  ImportState.destTopicId='';
   render();
 }
 function cancelImport(){
@@ -2014,35 +2009,30 @@ function saveFixModal(idx){
 /* ---------- Save (chunked, non-blocking) ---------- */
 async function saveImportedQuestions(){
   const st=ImportState;
-  if(!st.destTopicId){ toast('Select a destination topic'); return; }
-  const toSave = st.validated.filter(v=> v.selected && v.status==='valid' && (st.dupStrategy!=='skip' || !v.isDuplicate));
+  const subject = CACHE.subjects.find(s=>s.id===st.destSubjectId);
+  const topic = CACHE.topics.find(t=>t.id===st.destTopicId && t.subjectId===st.destSubjectId);
+  if(!subject || !topic){ toast('Select a Subject and Topic before importing'); return; }
+  // Imports are always additive. Existing questions and any duplicate in this batch are skipped.
+  const toSave = st.validated.filter(v=> v.selected && v.status==='valid' && !v.isDuplicate);
   if(toSave.length===0){ toast('No questions to save'); return; }
   openModal(`<h3>Importing…</h3>
     <div class="progbar"><div id="impProgFill" style="width:0%"></div></div>
     <div class="muted" id="impProgLabel" style="margin-top:8px;">0 / ${toSave.length}</div>`);
   let saved=0;
   for(const v of toSave){
-    const subjectId = (st.useIndividual && v.matchedSubjectId) ? v.matchedSubjectId : st.destSubjectId;
-    const topicId = (st.useIndividual && v.matchedTopicId) ? v.matchedTopicId : st.destTopicId;
-
-    let targetId = uid();
-    let existing = null;
-    if(v.isDuplicate && st.dupStrategy==='replace' && v.duplicateId){
-      targetId = v.duplicateId;
-      existing = CACHE.questions.find(q=>q.id===targetId);
-    }
-
+    const subjectId = st.destSubjectId;
+    const topicId = st.destTopicId;
     const obj={
-      id: targetId, subjectId, topicId,
+      id: uid(), subjectId, topicId,
       question: v.raw.question.trim(),
       options: v.raw.options.map(o=>o.trim()),
       answer: v.raw.answerIndex,
       explanation: (v.raw.explanation||'').trim(),
-      tags: v.raw.tags||[], difficulty: existing? (existing.difficulty||'medium') : 'medium',
-      source: 'import', createdAt: existing? (existing.createdAt||Date.now()) : Date.now(), updatedAt: Date.now(),
-      stats: existing? (existing.stats||{attempts:0,correct:0,wrong:0}) : {attempts:0,correct:0,wrong:0},
-      bookmarked: existing? !!existing.bookmarked : false
-    };
+      tags: v.raw.tags||[], difficulty:'medium',
+      source: 'import', createdAt: Date.now(), updatedAt: Date.now(),
+      stats: {attempts:0,correct:0,wrong:0},
+      bookmarked: false
+    };;
     try{ await dbPut('questions', obj); saved++; }
     catch(e){ console.error(e); }
     if(saved % 20 === 0 || saved===toSave.length){
@@ -2059,7 +2049,7 @@ async function saveImportedQuestions(){
   }catch(e){}
   closeModal();
   st.lastSavedCount=saved;
-  st.lastSkippedCount=st.validated.filter(v=>v.selected && v.status==='valid' && v.isDuplicate && st.dupStrategy==='skip').length;
+  st.lastSkippedCount=st.validated.filter(v=>v.selected && v.status==='valid' && v.isDuplicate).length;
   st.lastWarningCount=st.validated.filter(v=>v.infoOnly&&v.infoOnly.length).length;
   st.lastSubjectId=st.destSubjectId; st.lastTopicId=st.destTopicId;
   importSetScreen('success');
@@ -2072,9 +2062,9 @@ function renderImportSuccess(){
   <div class="card" style="text-align:center;">
     <div style="font-size:34px;">🎉</div>
     <div class="h2" style="margin-top:6px;">Import Complete</div>
-    <div class="big">${st.lastSavedCount} Questions Added</div>
+    <div class="big">${st.lastSavedCount} questions successfully added to ${esc(subjectName(st.lastSubjectId))} → ${esc(topicName(st.lastTopicId))}</div>
     <div class="stat-grid" style="margin-top:12px;text-align:left;"><div class="stat-card"><div class="v">${st.lastSkippedCount||0}</div><div class="l">Skipped duplicates</div></div><div class="stat-card"><div class="v">${st.lastWarningCount||0}</div><div class="l">Warnings</div></div></div>
-    <div class="muted" style="margin-top:6px;">${esc(subjectName(st.lastSubjectId))} · ${esc(topicName(st.lastTopicId))}</div>
+    <div class="muted" style="margin-top:6px;">Existing questions were preserved; duplicates were skipped.</div>
   </div>
   <button class="btn" onclick="navigate('question-bank/topic/${st.lastTopicId}')">View Questions</button>
   <div style="height:8px;"></div>
@@ -4770,7 +4760,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
   (() =&gt; { let n=0; const reconcile=setInterval(() =&gt; { n++; if (document.querySelector('.dashboard-v2,.p3-dashboard-v3,.page')) window.updateDashboardGreeting(); if (n &gt;= 20) clearInterval(reconcile); }, 100); })();
 </script>
 <script src="mcq-qbank-import.js?v=1"></script>
-<script src="admission-hub-feature-suite.js?v=practice10"></script>
+<script src="admission-hub-feature-suite.js?v=question-parser-v2"></script>
 <script src="profile-reward-update.js?v=v1"></script>
 <script src="advanced-gamification-v3.js?v=4"></script>
 <script src="ai-agents.js?v=2"></script>
