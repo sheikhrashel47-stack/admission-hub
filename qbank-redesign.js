@@ -1,7 +1,7 @@
 (() => {
   const qEsc = s => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
   const qStats = q => q.stats || { attempts: 0, correct: 0, wrong: 0 };
-  const practice = window.QuestionBankPracticeSession || { topicId: '', answers: {}, revealed: {}, recent: [] };
+  const practice = window.QuestionBankPracticeSession || { topicId: '', answers: {}, revealed: {}, recent: [], query: '', visibleCount: 40 };
   window.QuestionBankPracticeSession = practice;
 
   function resetPracticeSession(topicId = '') {
@@ -9,6 +9,8 @@
     practice.answers = {};
     practice.revealed = {};
     practice.recent = [];
+    practice.query = '';
+    practice.visibleCount = 40;
     window.BankAnswers = {};
   }
 
@@ -106,11 +108,14 @@
 
   function setPracticeFilter(filter) {
     ExplorerState.status = filter;
+    practice.visibleCount = 40;
     window.renderQuestionBankV2 ? window.renderQuestionBankV2() : renderQuestionBank();
   }
 
   function filteredPracticeQuestions(topicId) {
-    const all = currentTopicQuestions(topicId);
+    let all = currentTopicQuestions(topicId);
+    const query = String(practice.query || '').trim().toLocaleLowerCase();
+    if (query) all = all.filter(q => [q.question, ...(Array.isArray(q.options) ? q.options : [])].join(' ').toLocaleLowerCase().includes(query));
     const filter = ExplorerState.status || 'all';
     if (filter === 'unattempted') return all.filter(q => !practice.answers[q.id]);
     if (filter === 'mistakes') return all.filter(q => practice.answers[q.id] && !practice.answers[q.id].correct);
@@ -133,6 +138,9 @@
     }).join('');
     return `<article class="q-card-v2 card"><div class="q-card-header"><div class="q-card-meta"><span class="q-card-num">Q ${String(i + 1).padStart(2, '0')}</span><span class="q-breadcrumb">${qEsc(subject?.name || '')} • ${qEsc(topic.name)}</span></div><span class="q-status ${statusClass}">${status}</span></div><div class="q-text-v2">${qEsc(q.question)}</div><div class="q-options-v2">${opts}</div>${revealed ? `<div class="q-explanation-v2 ${state?.correct ? 'correct' : state ? 'wrong' : 'revealed'}"><strong>${state ? (state.correct ? '✓ Correct' : '✕ Wrong') : 'Answer revealed'}</strong><p>Correct answer: ${qEsc((q.options || [])[correct] || '')}</p>${q.explanation ? `<p>${qEsc(q.explanation)}</p>` : ''}</div>` : ''}<footer class="q-card-footer"><span>Accuracy <strong>${accuracy(topic.id)}%</strong></span><span>Mistakes <strong>${sessionMistakes(topic.id)}</strong></span><button class="q-footer-btn ${q.bookmarked ? 'active' : ''}" type="button" aria-pressed="${!!q.bookmarked}" onclick="toggleQuestionBookmark('${qEsc(q.id)}');renderQuestionBankV2()">⭐ ${q.bookmarked ? 'Bookmarked' : 'Bookmark'}</button>${!revealed ? `<button class="q-footer-btn" type="button" onclick="revealTopicAnswer('${qEsc(q.id)}')">Show Answer</button>` : ''}<button class="q-footer-btn" type="button" onclick="ahEditQuestion('${qEsc(q.id)}')">Edit</button><button class="q-footer-btn danger" type="button" onclick="ahDuplicateQuestion('${qEsc(q.id)}')">Duplicate</button><button class="q-footer-btn danger" type="button" onclick="ahDeleteQuestion('${qEsc(q.id)}')">Delete</button></footer></article>`;
   }
+
+  window.setTopicQuery = window.setTopicQuery || (value => { practice.query = String(value || ''); practice.visibleCount = 40; if (window.__topicSearchTimer) clearTimeout(window.__topicSearchTimer); window.__topicSearchTimer = setTimeout(() => window.renderQuestionBankV2 && window.renderQuestionBankV2(), 180); });
+  window.loadMoreTopicQuestions = () => { practice.visibleCount = (Number(practice.visibleCount) || 40) + 40; window.renderQuestionBankV2 ? window.renderQuestionBankV2() : renderQuestionBank(); };
 
   window.selectTopicAnswer = (qid, idx) => {
     if (practice.topicId !== ExplorerState.topicId || practice.answers[qid]) return;
@@ -157,10 +165,12 @@
     if (!topic || !sub) { navigate('question-bank'); return; }
     if (practice.topicId !== topic.id) resetPracticeSession(topic.id);
     const qs = filteredPracticeQuestions(topic.id);
+    const visibleQs = qs.slice(0, Math.max(40, Number(practice.visibleCount) || 40));
+    const hasMore = visibleQs.length < qs.length;
     const allCount = currentTopicQuestions(topic.id).length;
     const count = filter => filter === 'all' ? allCount : filter === 'bookmarked' ? currentTopicQuestions(topic.id).filter(q => q.bookmarked).length : filter === 'unattempted' ? currentTopicQuestions(topic.id).filter(q => !practice.answers[q.id]).length : filter === 'mistakes' ? sessionMistakes(topic.id) : practice.recent.length;
     const tabs = [['all','All'],['unattempted','Unattempted'],['mistakes','Mistakes'],['bookmarked','Bookmarked'],['recent','Recent']];
-    const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to topics" onclick="leaveTopic()">‹</button><div><h1>${qEsc(topic.name)}</h1><p>Practice / ${qEsc(sub.name)} / ${qEsc(topic.name)}</p></div></div></div></header><div class="q-filter-tabs-v2" role="tablist">${tabs.map(([k,l]) => `<button type="button" role="tab" aria-selected="${(ExplorerState.status || 'all') === k}" class="${(ExplorerState.status || 'all') === k ? 'active' : ''}" onclick="setPracticeFilter('${k}')">${l} <span>${count(k)}</span></button>`).join('')}</div><div class="q-feed-summary"><span>${qs.length} question${qs.length === 1 ? '' : 's'}</span><span>${answeredRows(topic.id).length}/${allCount} answered</span></div><div class="q-feed-body">${qs.map((q, i) => qCard(q, i, topic, sub)).join('') || '<div class="empty card">No questions match this filter.</div>'}</div></div>`;
+    const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to topics" onclick="leaveTopic()">‹</button><div><h1>${qEsc(topic.name)}</h1><p>Practice / ${qEsc(sub.name)} / ${qEsc(topic.name)}</p></div></div></div></header><div class="q-filter-tabs-v2" role="tablist">${tabs.map(([k,l]) => `<button type="button" role="tab" aria-selected="${(ExplorerState.status || 'all') === k}" class="${(ExplorerState.status || 'all') === k ? 'active' : ''}" onclick="setPracticeFilter('${k}')">${l} <span>${count(k)}</span></button>`).join('')}</div><div class="q-search-box"><input type="search" inputmode="search" aria-label="Search questions" placeholder="Search this topic..." value="${qEsc(practice.query || '')}" oninput="setTopicQuery(this.value)"></div><div class="q-feed-summary"><span>${qs.length} question${qs.length === 1 ? '' : 's'}${hasMore ? ` · showing ${visibleQs.length}` : ''}</span><span>${answeredRows(topic.id).length}/${allCount} answered</span></div><div class="q-feed-body">${visibleQs.map((q, i) => qCard(q, i, topic, sub)).join('') || '<div class="empty card">No questions match this filter.</div>'}${hasMore ? '<button class="btn ghost explorer-load" type="button" onclick="loadMoreTopicQuestions()">Load more questions</button>' : ''}</div></div>`;
     renderShell(html, { title: topic.name, back: "leaveTopic()" });
   }
 

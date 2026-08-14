@@ -8,10 +8,18 @@
   const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
   async function waitForApp() {
+    try {
+      if (window.__admissionBootPromise && typeof window.__admissionBootPromise.then === 'function') {
+        await window.__admissionBootPromise;
+      }
+    } catch (error) {
+      console.warn('[MCQ import] app bootstrap failed before import', error);
+      return false;
+    }
     for (let attempt = 0; attempt < 200; attempt += 1) {
       if (typeof dbGet === 'function' && typeof dbGetAll === 'function' &&
           typeof dbPut === 'function' && typeof loadCache === 'function' &&
-          typeof CACHE !== 'undefined' && Array.isArray(CACHE.subjects)) {
+          typeof DB !== 'undefined' && DB && typeof CACHE !== 'undefined' && Array.isArray(CACHE.subjects)) {
         return true;
       }
       await sleep(100);

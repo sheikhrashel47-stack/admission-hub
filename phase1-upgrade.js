@@ -9,6 +9,7 @@
   const aliases={light:'emerald-glass',dark:'midnight-academic',midnight:'midnight-academic',focus:'ivory-academic',pink:'ivory-academic'};
   const canonical=t=>themes[t]?t:(aliases[t]||'emerald-glass');
   const readTheme=()=>{try{return canonical(localStorage.getItem(THEME_KEY)||window.CACHE?.settings?.theme||'emerald-glass')}catch(_){return 'emerald-glass'}};
+  window.readTheme=readTheme;
   function applyThemeClass(theme){const t=canonical(theme);document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t==='midnight-academic'?'dark':'light';document.body?.setAttribute('data-theme',t);try{localStorage.setItem(THEME_KEY,t);if(window.CACHE?.settings)window.CACHE.settings.theme=t}catch(_){ }return t}
   window.applyTheme=()=>applyThemeClass(readTheme());
   window.setTheme=async function(theme){const t=applyThemeClass(theme);try{if(window.CACHE?.settings&&typeof window.dbPut==='function'){window.CACHE.settings.theme=t;await window.dbPut('settings',window.CACHE.settings)}}catch(_){ }if(typeof window.render==='function')window.render();if(typeof window.toast==='function')window.toast(themes[t].label+' applied')};

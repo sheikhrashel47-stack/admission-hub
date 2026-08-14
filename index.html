@@ -451,11 +451,59 @@ body.no-motion *,body.no-motion *::before,body.no-motion *::after{animation:none
 <link rel="stylesheet" href="vocabulary-master.css?v=1">
 <link rel="stylesheet" href="vocabulary-phase2.css?v=1">
 <link rel="stylesheet" href="vocabulary-upgrade.css?v=phase2-2">
+<style id="admission-ios-stability-styles">
+:root{--visual-viewport-height:100dvh}
+html{height:100%;-webkit-text-size-adjust:100%;text-size-adjust:100%;scroll-behavior:smooth}
+body{min-height:100%;min-height:100dvh;overscroll-behavior-y:none}
+button,a,input,textarea,select{touch-action:manipulation}
+input[type=text],input[type=search],input[type=password],input[type=number],input[type=email],input[type=date],textarea,select{font-size:16px!important;line-height:1.35;min-height:44px}
+textarea{min-height:96px}
+.topbar{padding-top:calc(12px + var(--safe-t));}
+.modal-bg{padding-bottom:var(--safe-b);height:var(--visual-viewport-height);overscroll-behavior:contain}
+.modal{padding-bottom:calc(18px + var(--safe-b));-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.keyboard-open .topbar{position:relative}
+.keyboard-open .bottomnav{pointer-events:none;transform:translateY(110%)}
+.keyboard-open #app{padding-bottom:24px}
+.app-fallback{min-height:100dvh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:32px 20px;background:var(--bg);color:var(--text)}
+.app-fallback-icon{font-size:42px;color:var(--orange);margin-bottom:10px}.app-fallback h1{font-size:21px;margin:0 0 10px}.app-fallback p{max-width:420px;margin:5px 0;color:var(--sub);line-height:1.55}.app-fallback-detail{font-size:12px;word-break:break-word;opacity:.7}.app-fallback-actions{display:flex;gap:10px;width:100%;max-width:420px;margin-top:18px}.app-fallback-actions .btn{flex:1}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.keyboard-open .bottomnav{transition:none}}
+</style>
 </head>
 <body>
 <div id="app"></div>
 <div id="toast" class="toast"></div>
 <div id="modalRoot"></div>
+<script>
+(function installAdmissionSafety(){
+  'use strict';
+  const originalTitle=document.title;
+  let fallbackVisible=false;
+  function fallback(reason){
+    if(fallbackVisible)return;
+    fallbackVisible=true;
+    const app=document.getElementById('app');
+    const message=reason&&reason.message?String(reason.message):'Unexpected application error';
+    console.error('[Admission Hub] recovered from runtime error:',reason);
+    if(app) app.innerHTML=`<main class="app-fallback" role="alert"><div class="app-fallback-icon">⚠</div><h1>Something went wrong</h1><p>Your saved questions, vocabulary, progress, and settings were not deleted.</p><p class="app-fallback-detail">${message.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</p><div class="app-fallback-actions"><button class="btn" type="button" onclick="window.__admissionRecover()">Try again</button><button class="btn ghost" type="button" onclick="window.__admissionGoDashboard()">Go to Dashboard</button></div></main>`;
+    document.body.classList.remove('keyboard-open');
+    document.title=originalTitle;
+  }
+  window.__admissionRecover=function(){fallbackVisible=false;try{if(window.Router){Router.path='dashboard';location.hash='dashboard';}if(typeof window.render==='function')window.render();}catch(error){fallback(error);}};
+  window.__admissionGoDashboard=function(){fallbackVisible=false;try{location.hash='dashboard';if(window.Router)Router.path='dashboard';if(typeof window.render==='function')window.render();}catch(error){fallback(error);}};
+  window.addEventListener('error',event=>{if(event.error)fallback(event.error);},true);
+  window.addEventListener('unhandledrejection',event=>{fallback(event.reason instanceof Error?event.reason:new Error(String(event.reason||'Async operation failed')));},true);
+  window.__admissionShowFallback=fallback;
+  if(window.visualViewport){
+    const syncViewport=()=>{document.documentElement.style.setProperty('--visual-viewport-height',`${window.visualViewport.height}px`);};
+    window.visualViewport.addEventListener('resize',syncViewport,{passive:true});
+    window.visualViewport.addEventListener('scroll',syncViewport,{passive:true});
+    syncViewport();
+  }
+  const focusIntoView=event=>{const target=event.target;if(!target||!target.matches('input,textarea,select,[contenteditable]'))return;document.body.classList.add('keyboard-open');setTimeout(()=>target.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'}),120);};
+  document.addEventListener('focusin',focusIntoView,{passive:true});
+  document.addEventListener('focusout',()=>{setTimeout(()=>{if(!document.activeElement||!document.activeElement.matches('input,textarea,select,[contenteditable]'))document.body.classList.remove('keyboard-open');},250);},{passive:true});
+})();
+</script>
 
 <script>
 'use strict';
@@ -498,7 +546,11 @@ function openDB(){
     req.onerror=(e)=>reject(e.target.error);
   });
 }
-function tx(store,mode='readonly'){return DB.transaction(store,mode).objectStore(store);}
+function tx(store,mode='readonly'){
+  if(!DB) throw new Error('Local database is still starting');
+  if(!DB.objectStoreNames.contains(store)) throw new Error(`Missing local data store: ${store}`);
+  return DB.transaction(store,mode).objectStore(store);
+}
 function dbGetAll(store){return new Promise((res,rej)=>{const r=tx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
 function dbGet(store,id){return new Promise((res,rej)=>{const r=tx(store).get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
 function dbPut(store,obj){return new Promise((res,rej)=>{const r=tx(store,'readwrite').put(obj); r.onsuccess=()=>res(obj); r.onerror=()=>rej(r.error);});}
@@ -534,17 +586,21 @@ function examTypeLabel(r){
   return ({mock:'Mock Test',flash:'Flash Test',mistake:'Mistake Test',weak:'Weak Topic Test',custom:'Custom Test'})[t]||((r.mode||'flash').toUpperCase()+' TEST');
 }
 async function loadCache(){
-  CACHE.subjects=await dbGetAll('subjects');
-  CACHE.topics=await dbGetAll('topics');
-  CACHE.questions=await dbGetAll('questions');
-  CACHE.exams=await dbGetAll('exams');
-  CACHE.examResults=(await dbGetAll('examResults')).map(normalizeExamResult);
-  CACHE.mistakes=await dbGetAll('mistakes');
-  CACHE.vocabulary=await dbGetAll('vocabulary');
-  CACHE.dailyStats=await dbGetAll('dailyStats');
-  CACHE.activityLogs=await dbGetAll('activityLogs');
-  const s=await dbGetAll('settings');
-  CACHE.settings=(s&&s[0])?s[0]:defaultSettings();
+  const read=async(store,fallback=[])=>{
+    try{const value=await dbGetAll(store);return Array.isArray(value)?value.filter(Boolean):fallback;}
+    catch(error){console.warn(`[Admission Hub] Could not read ${store}; keeping the app usable.`,error);return fallback;}
+  };
+  CACHE.subjects=await read('subjects',CACHE.subjects);
+  CACHE.topics=await read('topics',CACHE.topics);
+  CACHE.questions=await read('questions',CACHE.questions);
+  CACHE.exams=await read('exams',CACHE.exams);
+  CACHE.examResults=(await read('examResults',CACHE.examResults)).map(normalizeExamResult).filter(Boolean);
+  CACHE.mistakes=await read('mistakes',CACHE.mistakes);
+  CACHE.vocabulary=await read('vocabulary',CACHE.vocabulary);
+  CACHE.dailyStats=await read('dailyStats',CACHE.dailyStats);
+  CACHE.activityLogs=await read('activityLogs',CACHE.activityLogs);
+  const settings=await read('settings',[]);
+  CACHE.settings=(settings[0]&&typeof settings[0]==='object')?settings[0]:defaultSettings();
 }
 
 function defaultSettings(){
@@ -4123,7 +4179,8 @@ async function executeAIAction(act){
   const oldRender=render; render=function(){if(Router.path==='smart-practice'){openSmartPracticeModal();Router.path='dashboard';location.hash='dashboard';return;} return oldRender();};
 })();
 
-boot();
+window.__admissionBootPromise = boot();
+window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot failed', error));
 
 /* ================= PHASE 1 + 2 COMPATIBILITY FIXES ================= */
 (function(){
