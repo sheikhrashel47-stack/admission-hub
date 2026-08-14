@@ -3351,6 +3351,7 @@ function resetAll(){
   confirmModal('Reset All Data','This permanently deletes EVERYTHING — subjects, topics, questions, exams, vocabulary, settings. This cannot be undone.', async ()=>{
     for(const store of STORES) await dbClear(store);
     await seedIfEmpty();
+    await purgeImportedSubjects();
     await loadCache();
     closeModal(); toast('All data reset'); navigate('dashboard');
   }, 'Delete Everything', true);
@@ -3368,6 +3369,29 @@ async function setTheme(theme){
   applyTheme();
   render();
 }
+/* ---------------- cleanup junk "Imported" subjects (auto-heal on every boot) ---------------- */
+async function purgeImportedSubjects(){
+  try{
+    const subs = await dbGetAll('subjects');
+    const imported = subs.filter(s => (s.name||'').trim().toLowerCase() === 'imported');
+    if(imported.length === 0) return;
+    const kept = subs.filter(s => (s.name||'').trim().toLowerCase() !== 'imported');
+    // Re-home any questions/topics under deleted subjects to the first original subject
+    const fallbackSub = kept.length ? kept.sort((a,b)=>a.order-b.order)[0].id : null;
+    if(fallbackSub){
+      const topics = await dbGetAll('topics');
+      const movedTopics = topics.filter(t => imported.some(s => s.id === t.subjectId));
+      for(const t of movedTopics){ t.subjectId = fallbackSub; t.updatedAt = Date.now(); await dbPut('topics', t); }
+      const questions = await dbGetAll('questions');
+      const movedQ = questions.filter(q => imported.some(s => s.id === q.subjectId));
+      for(const q of movedQ){ q.subjectId = fallbackSub; q.updatedAt = Date.now(); await dbPut('questions', q); }
+    }
+    for(const s of imported){ await dbDel('subjects', s.id); }
+    console.log('Purged', imported.length, 'junk "Imported" subject(s);', (movedTopics||[]).length, 'topics and', (movedQ||[]).length, 'questions re-homed.');
+  }catch(err){
+    console.error('purgeImportedSubjects failed', err);
+  }
+}
 async function boot(){
   try{
     await openDB();
@@ -3378,6 +3402,7 @@ async function boot(){
   }
   try{
     await seedIfEmpty();
+    await purgeImportedSubjects();
     await loadCache();
   }catch(err){
     console.error('Data load failed',err);
