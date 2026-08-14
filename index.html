@@ -883,10 +883,8 @@ function renderDashboard(){
 
       <div class="h2">Tools</div>
       <div class="card history-tool-card fade-in stagger-3" onclick="navigate('history')" style="cursor:pointer;">
-        <div class="row between"><div><div style="font-weight:800;font-size:16px;">📋 Exam History</div><div class="muted">Review every completed exam with advanced filters and full performance details.</div></div><span style="font-size:24px;">›</span></div>
-        <div class="history-tool-stats"><span>${stats.exams} completed</span><span>${stats.best} best score</span><span>${stats.accuracy}% lifetime accuracy</span></div>
+        <div class="row between"><div><div style="font-weight:800;font-size:16px;">📋 Exam History</div><div class="muted">Review every completed exam with advanced filters and full performance details.</div></div><span style="font-size:24px;">›</span></div>        <div class="history-tool-stats"><span>${stats.exams} completed</span><span>${stats.best} best score</span><span>${stats.accuracy}% lifetime accuracy</span></div>
       </div>
-
       <!-- Performance Preview -->
       ${recentExams.length ? `
         <div class="h2">Recent Performance</div>

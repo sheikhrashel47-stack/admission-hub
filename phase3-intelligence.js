@@ -440,6 +440,22 @@
           <button class="p3-btn-v3 p3-btn-secondary-v3" onclick="navigate('mistakes')">Start Smart Revision</button>
         </div>
       </section>
+      <section class="p3-special-section-v3">
+        <div class="p3-section-head-v3">
+          <b>Study Tools</b>
+          <span class="p3-dashboard-only-v3">Review & analysis</span>
+        </div>
+        <div class="p3-special-grid-v3">
+          <button class="p3-special-card-v3" onclick="navigate('bhul-khata')">
+            <span class="p3-special-icon-v3">📒</span>
+            <div class="p3-special-info-v3">
+              <strong>ভুল খাতা</strong>
+              <small>Mistake Analysis — ভুলের structured analysis card</small>
+            </div>
+            <span class="p3-special-arrow-v3">${ICONS.arrow}</span>
+          </button>
+        </div>
+      </section>
     </section>`;
   }
 

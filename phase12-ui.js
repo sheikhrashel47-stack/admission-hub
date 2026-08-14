@@ -117,6 +117,7 @@
       ${unfinished ? `<section class="resume-card"><div><strong>${unfinished.mode === 'mock' ? '📝 Mock Exam' : '⚡ Flash Practice'}</strong><p>${unfinished.currentIndex + 1} / ${unfinished.questions.length} Questions</p></div><button class="btn sm" onclick="navigate('exam/running')">Continue</button></section>` : `<section class="start-card"><div><strong>আজকের প্রস্তুতি শুরু করুন</strong><p>আপনার admission journey-তে আরেকটি focused session যোগ করুন।</p></div><button class="btn sm" onclick="navigate('exam/setup')">Start Practice</button></section>`}
 
       <section class="dashboard-section"><div class="section-heading"><h2>Today's Smart Focus</h2><span>${stats.totalQuestions} questions</span></div><div class="focus-card">${focusMarkup}<button class="btn secondary" onclick="navigate('mistakes')">Start Smart Revision</button></div></section>
+      <section class="dashboard-section"><div class="section-heading"><h2>Study Tools</h2><span>Review & analysis</span></div><button class="special-tool-card" onclick="navigate('bhul-khata')" type="button"><span class="special-tool-icon" aria-hidden="true">📒</span><span><strong>ভুল খাতা</strong><small>Mistake Analysis — ভুলের structured analysis card</small></span><span class="tool-arrow" aria-hidden="true">↗</span></button></section>
     </main>`;
     renderShell(html, { topbar: false });
   };
