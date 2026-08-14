@@ -237,6 +237,29 @@
     openModal(html);
   }
 
+  /* ---------------- AI tutor (MindPal) iframe section ----------------- */
+  function renderAITutorSection(){
+    return '<div class="ma-ai-tutor" id="maAiTutor">' +
+      '<div class="ma-ai-tutor-head"><h3>🤖 AI Admission Tutor (MindPal)</h3>' +
+      '<p>ভুল খাতার পাশাপাশি এই AI ভার্টি টিউটর — যেকোনো ভুল প্রশ্ন, concept বা GK নিয়ে এখানেই আলোচনা করো।</p></div>' +
+      '<div class="ma-ai-tutor-frame"><iframe id="maAiTutorIframe" ' +
+        'src="https://chatbot.getmindpal.com/bangladeshi-university-admission-competitive-exams-gk-current-affairs-tutor-fc3" ' +
+        'allow="clipboard-read; clipboard-write; microphone" ' +
+        'title="AI Admission Tutor — MindPal"></iframe></div>' +
+      '<div class="muted" style="font-size:10.5px; margin-top:8px;">AI Tutor powered by MindPal — iframe load হতে কিছু সময় লাগতে পারে।</div>' +
+    '</div>';
+  }
+  function loadAITutorIframe(){
+    // Lazy-load the AI tutor iframe only once (700px+ iframe is heavy).
+    try {
+      var el = document.getElementById('maAiTutorIframe');
+      if(!el || el.dataset.maLoaded) return;
+      el.dataset.maLoaded = '1';
+      // The src is already set in the markup above; this guard ensures the
+      // iframe renders only once even if the notebook re-renders.
+    } catch(_){}
+  }
+
   /* ---------------- notebook view ------------------------------------- */
   function matchesFilter(item, filter){
     if(filter === 'all') return true;
@@ -295,9 +318,12 @@
         (notebook.length > 0 ? '<span class="muted" style="font-size:11px;">সংরক্ষিত কার্ড browser-এর localStorage-এ থাকবে — refresh-এর পরেও থাকবে।</span>' : '') +
       '</div>' +
       cardsHtml +
+      renderAITutorSection() +
     '</div>';
 
     renderShell(html, { title: 'Mistake Analysis', back: "navigate('mistakes')" });
+
+    loadAITutorIframe();
 
     var searchEl = document.getElementById('maSearch');
     if(searchEl){ searchEl.addEventListener('input', function(){ MAState.search = String(searchEl.value || '').trim(); setMAState(MAState); renderNotebookPage(); }); }
@@ -682,42 +708,48 @@
   // When opening a past result (history/:id), wrong cards also get the
   // analysis entry via the same patch above (renderResultView shared).
 
-  /* ---------------- dashboard Command Center tile (additive) ----------- */
-  // Adds a '📒 Mistake Analysis / ভুল খাতা' tile to the existing Command
-  // Center grid WITHOUT editing the phase3 tile array source. The phase3
-  // module re-slices its local commandTools array on each render, so we
-  // push into that array reference when it is (re)created by patching the
-  // widget builder additively.
-  (function addCommandTile(){
+  /* ---------------- dashboard below-section (additive) ----------------- */
+  // Mistake Analysis / ভুল খাতা now lives as a dedicated section BELOW the
+  // dashboard content (not in the Command Center carousel and not in the
+  // navigation). A short intro card links into the full notebook view,
+  // which hosts the AI tutor (MindPal) iframe.
+  (function addDashboardSection(){
     try {
-      // The phase3 widget builder is local (not a global), so instead of
-      // patching the builder we inject the tile into the rendered DOM
-      // after the dashboard grid exists (purely additive DOM operation).
-      var injected = false;
-      function doInject(){
-        if(injected) return;
-        var tiles = document.querySelectorAll('.p3-command-card-v3');
-        if(!tiles.length) return;
-        injected = true;
-        var first = tiles[0];
-        var tile = document.createElement('button');
-        tile.type = 'button';
-        tile.className = 'p3-command-card-v3 ma-command-tile';
-        tile.onclick = function(){ MA.renderNotebook(); };
-        tile.innerHTML = '<span class="p3-command-icon-v3">📒</span>' +
-          '<span class="p3-command-title-v3">Mistake Analysis</span>' +
-          '<span class="p3-command-subtitle-v3">ভুল খাতা ও analysis card</span>';
-        first.parentNode.insertBefore(tile, first);
+      function buildSection(){
+        var sec = document.createElement('section');
+        sec.className = 'dashboard-section';
+        sec.dataset.maDashboardSection = 'true';
+        sec.innerHTML =
+          '<div class="section-heading"><h2>Mistake Analysis / ভুল খাতা</h2><span>Mistake notebook + AI Tutor</span></div>' +
+          '<div class="focus-card">' +
+            '<div class="row between"><div><strong>📒 তোমার ভুল খাতা ও AI ভার্টি টিউটর</strong>' +
+            '<small>Exam-এর ভুল প্রশ্নগুলো বিশ্লেষণ করে structured card হিসেবে সংরক্ষণ করো — তারপর AI টিউটরের সাথে প্রতিটি ভুল নিয়ে আলোচনা করো।</small></div></div>' +
+            '<button class="btn" onclick="navigate(\'bhul-khata\')">📂 Mistake Analysis খুলুন →</button>' +
+          '</div>';
+        return sec;
       }
-      // Dashboard may render before this module finishes loading; poll gently.
-      var poll = setInterval(function(){ doInject(); if(injected) clearInterval(poll); }, 500);
+      function isDashboardPage(page){
+        if(page.querySelector('.dashboard-section')) return true; // phase12 dashboard marker
+        return false;
+      }
+      function doInject(){
+        var page = document.querySelector('#app .page');
+        if(!page) return false;
+        if(!isDashboardPage(page)) return false;
+        if(page.querySelector('[data-ma-dashboard-section]')) return true;
+        var sec = buildSection();
+        var focusCard = page.querySelector('.focus-card');
+        if(focusCard) focusCard.parentNode.insertBefore(sec, focusCard);
+        else page.appendChild(sec);
+        return true;
+      }
+      // Dashboard may render before this module finishes loading.
+      var poll = setInterval(function(){ if(doInject()) clearInterval(poll); }, 500);
       setTimeout(function(){ clearInterval(poll); }, 30000);
-      // And retry whenever the app re-renders (render hook already captures).
       var oldRender2 = window.render;
       window.render = function(){
         var out = oldRender2.apply(this, arguments);
-        injected = false;
-        setTimeout(doInject, 60);
+        setTimeout(doInject, 80);
         return out;
       };
     } catch(_){ /* additive only — never break the dashboard */ }

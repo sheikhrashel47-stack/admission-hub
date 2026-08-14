@@ -10,7 +10,8 @@
     return originalRender.apply(this, arguments);
   };
 
-  /* AI Mentor removed from navigation; it now lives as a Command Center shortcut below */
+  /* AI Mentor remains off the main navigation; the Command Center shortcut
+     tile was removed so the carousel keeps only its original tiles */
 
   /* Update baseTab function to handle ai-mentor route */
   const originalBaseTab = window.baseTab;
@@ -242,23 +243,9 @@
     document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
   }
 
-  /* Add AI Mentor as a shortcut tile in the Dashboard Command Center carousel */
-  function injectAIMentorCommandTile(){
-    const track = document.getElementById('commandTrack');
-    if(!track || track.querySelector('[data-ai-mentor-tile]')) return;
-    const tile = document.createElement('button');
-    tile.className = 'p3-command-card-v3';
-    tile.setAttribute('data-ai-mentor-tile', 'true');
-    tile.type = 'button';
-    tile.innerHTML = '<span class="p3-command-icon-v3">🧠</span><span class="p3-command-title-v3">AI Mentor</span><span class="p3-command-subtitle-v3">ভর্তি AI সহকারী</span>';
-    tile.addEventListener('click', () => navigate('ai-mentor'));
-    track.appendChild(tile);
-  }
-  if(document.readyState === 'loading'){
-    document.addEventListener('DOMContentLoaded', injectAIMentorCommandTile);
-  } else {
-    injectAIMentorCommandTile();
-  }
+  /* NOTE: The AI Mentor Command Center shortcut tile was removed.
+     AI Mentor now lives only on its dedicated page (renderAIMentor);
+     the Command Center carousel keeps its original tiles only. */
 
   console.log('✅ AI Admission Mentor Integration Loaded');
 })();
