@@ -10,10 +10,7 @@
     return originalRender.apply(this, arguments);
   };
 
-  /* Add AI Mentor to navigation if not already present */
-  if(Array.isArray(NAV_TABS) && !NAV_TABS.some(t => t.key === 'ai-mentor')){
-    NAV_TABS.push({key: 'ai-mentor', icon: '🧠', label: 'AI Mentor'});
-  }
+  /* AI Mentor removed from navigation; it now lives as a Command Center shortcut below */
 
   /* Update baseTab function to handle ai-mentor route */
   const originalBaseTab = window.baseTab;
@@ -243,6 +240,24 @@
     document.head.appendChild(style);
   } else {
     document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
+  }
+
+  /* Add AI Mentor as a shortcut tile in the Dashboard Command Center carousel */
+  function injectAIMentorCommandTile(){
+    const track = document.getElementById('commandTrack');
+    if(!track || track.querySelector('[data-ai-mentor-tile]')) return;
+    const tile = document.createElement('button');
+    tile.className = 'p3-command-card-v3';
+    tile.setAttribute('data-ai-mentor-tile', 'true');
+    tile.type = 'button';
+    tile.innerHTML = '<span class="p3-command-icon-v3">🧠</span><span class="p3-command-title-v3">AI Mentor</span><span class="p3-command-subtitle-v3">ভর্তি AI সহকারী</span>';
+    tile.addEventListener('click', () => navigate('ai-mentor'));
+    track.appendChild(tile);
+  }
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', injectAIMentorCommandTile);
+  } else {
+    injectAIMentorCommandTile();
   }
 
   console.log('✅ AI Admission Mentor Integration Loaded');
