@@ -3350,6 +3350,7 @@ function resetAll(){
     for(const store of STORES) await dbClear(store);
     await seedIfEmpty();
     await purgeImportedSubjects();
+    await purgeDuplicateGeneralTopics();
     await loadCache();
     closeModal(); toast('All data reset'); navigate('dashboard');
   }, 'Delete Everything', true);
@@ -3366,6 +3367,59 @@ async function setTheme(theme){
   await dbPut('settings',CACHE.settings);
   applyTheme();
   render();
+}
+/* ---------------- cleanup duplicate junk "General" topics (auto-heal on every boot) ---------------- */
+async function purgeDuplicateGeneralTopics(){
+  try{
+    const subjects = await dbGetAll('subjects');
+    if(!subjects || subjects.length === 0) return;
+    const topics = await dbGetAll('topics');
+    if(!topics || topics.length === 0) return;
+    const questions = await dbGetAll('questions');
+    let totalDeletedTopics = 0;
+    let totalDeletedQuestions = 0;
+    for(const sub of subjects){
+      const subId = sub.id;
+      const subTopics = topics.filter(t => t.subjectId === subId && (t.name||'').trim().toLowerCase() === 'general');
+      if(subTopics.length <= 1) continue;
+      // Sort descending by question count; the first one is the survivor (most questions, tie-broken by latest updatedAt)
+      const sorted = subTopics.slice().sort((a,b)=>{
+        const ca = CACHE.questions.filter(q => q.topicId === a.id).length;
+        const cb = CACHE.questions.filter(q => q.topicId === b.id).length;
+        if(cb !== ca) return cb - ca;
+        return (b.updatedAt||0) - (a.updatedAt||0);
+      });
+      const survivor = sorted[0];
+      const dupes = sorted.slice(1);
+      // Decide whether to merge dupe questions into the survivor or drop everything
+      // Each of these "General" topics is assumed junk from the import/parser; keep the
+      // single "General" topic but absorb its own questions only if any dupe has content.
+      const qByTopic = {};
+      for(const q of questions){ if(dupes.some(d => d.id === q.topicId)) (qByTopic[q.topicId] = qByTopic[q.topicId] || []).push(q); }
+      const hasContent = Object.values(qByTopic).some(arr => arr.length > 0);
+      if(hasContent){
+        // Merge: move each dupe's questions onto the survivor topic, then delete dupes
+        for(const q of questions){
+          if(dupes.some(d => d.id === q.topicId) && q.topicId !== survivor.id){
+            q.topicId = survivor.id; q.updatedAt = Date.now(); await dbPut('questions', q);
+          }
+        }
+      }else{
+        // All dupes are empty — safe to just delete them
+      }
+      for(const d of dupes){ await dbDel('topics', d.id); totalDeletedTopics++; }
+    }
+    // Second pass: remove any orphaned questions that pointed at deleted (duplicate General) topics
+    const liveTopicIds = new Set((await dbGetAll('topics')).map(t => t.id));
+    for(const q of questions){
+      if(q.topicId && !liveTopicIds.has(q.topicId)){
+        await dbDel('questions', q.id); totalDeletedQuestions++;
+      }
+    }
+    if(totalDeletedTopics) console.log('purgeDuplicateGeneralTopics: deleted', totalDeletedTopics, 'duplicate General topic(s) and', totalDeletedQuestions, 'orphaned question(s); survivor topics kept with their questions merged.');
+  }catch(err){
+    console.error('purgeDuplicateGeneralTopics failed', err);
+  }
 }
 /* ---------------- cleanup junk "Imported" subjects (auto-heal on every boot) ---------------- */
 async function purgeImportedSubjects(){
@@ -3401,6 +3455,7 @@ async function boot(){
   try{
     await seedIfEmpty();
     await purgeImportedSubjects();
+    await purgeDuplicateGeneralTopics();
     await loadCache();
   }catch(err){
     console.error('Data load failed',err);
