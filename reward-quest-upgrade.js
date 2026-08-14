@@ -76,6 +76,7 @@
     {id:'premium-legacy-frame',name:'Legacy Scholar Frame',description:'profile ও result-এর জন্য legacy frame।',icon:'🖼️',cost:53000,category:CATEGORY.PREMIUM,unlock:{level:17}},
     {id:'premium-immortal-seal',name:'Immortal Scholar Seal',description:'সবচেয়ে premium scholar seal ও visual treatment।',icon:'🔱',cost:54000,category:CATEGORY.PROFILE,unlock:{earned:22000}},
    ];
+  window.__legacyRewardCatalog=REWARDS;
   const QUEST_TEMPLATES=[
     {id:'study-session',type:'Study',title:'আজ একটি study session সম্পূর্ণ করুন',detail:'যেকোনো Flash, Subject, Topic, Mock বা Exam test শেষ করুন।',target:1,xp:40,metric:'sessions'},
     {id:'question-practice',type:'Practice',title:'২০টি প্রশ্ন practice করুন',detail:'বাস্তব practice activity থেকে progress গণনা হবে।',target:20,xp:55,metric:'questions'},
