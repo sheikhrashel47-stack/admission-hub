@@ -29,9 +29,8 @@
     lastScrollTime: 0,
     frame: 0,
     measureFrame: 0,
-    restoring: false,
+    suppressScrollHandler: false,
     listenersAttached: false,
-    anchor: null,
   };
 
   const esc = value => {
@@ -101,47 +100,15 @@
 
   function saveScrollState() {
     if (!perf.topicId || !perf.host) return;
-    const anchor = visibleAnchor();
     scrollState[perf.topicId] = {
       scrollOffset: perf.host.scrollTop || 0,
-      anchorQuestionId: anchor?.id || '',
-      anchorOffset: anchor?.offset || 0,
       timestamp: Date.now(),
     };
     try { sessionStorage.setItem(scrollKey, JSON.stringify(scrollState)); } catch (_) { /* storage is optional */ }
   }
 
-  function visibleAnchor() {
-    if (!perf.root || !perf.host) return null;
-    const ids = perf.displayIds.length ? perf.displayIds : perf.filteredIds;
-    if (ids.length) {
-      buildMetrics(ids);
-      const index = Math.min(ids.length - 1, upperBound(perf.offsets, (perf.host.scrollTop || 0) + 8));
-      const id = ids[index];
-      if (id) return { id, offset: (perf.offsets[index] || 0) - (perf.host.scrollTop || 0) };
-    }
-    const hostRect = perf.host.getBoundingClientRect();
-    const cards = [...perf.root.querySelectorAll('[data-question-id]')];
-    const candidate = cards.find(card => card.getBoundingClientRect().bottom >= hostRect.top + 8) || cards[0];
-    if (!candidate) return null;
-    return { id: candidate.dataset.questionId, offset: candidate.getBoundingClientRect().top - hostRect.top };
-  }
-
-  function restoreAnchor(anchor, fallbackScroll) {
-    if (!perf.host) return;
-    const target = anchor?.id ? perf.root?.querySelector(`[data-question-id="${CSS.escape(anchor.id)}"]`) : null;
-    if (target) {
-      const hostRect = perf.host.getBoundingClientRect();
-      perf.host.scrollTop += target.getBoundingClientRect().top - hostRect.top - Number(anchor.offset || 0);
-    } else if (Number.isFinite(fallbackScroll)) {
-      perf.host.scrollTop = Math.max(0, fallbackScroll);
-    }
-  }
-
-  function captureAnchor() { perf.anchor = visibleAnchor(); }
-
   function buildMetrics(ids) {
-    const signature = `${ids.join('|')}|${[...perf.heights].map(([id, h]) => `${id}:${h}`).join('|')}`;
+    const signature = `${ids.length}|${[...perf.heights].map(([id, h]) => `${id}:${h}`).join('|')}`;
     if (perf.metricsSignature === signature && perf.offsets.length === ids.length + 1) return;
     perf.metricsSignature = signature;
     perf.offsets = new Array(ids.length + 1);
@@ -166,7 +133,7 @@
     const scrollTop = perf.host?.scrollTop || 0;
     const viewport = perf.host?.clientHeight || window.innerHeight || 800;
     const fast = Math.abs(perf.velocity) > 1.2;
-    const overscan = fast ? viewport * 2.6 : viewport * 0.9;
+    const overscan = fast ? viewport * 2.6 : viewport * 1.2;
     const start = Math.max(0, upperBound(perf.offsets, Math.max(0, scrollTop - overscan)) - 1);
     const end = Math.min(ids.length, upperBound(perf.offsets, scrollTop + viewport + overscan) + 2);
     return { start, end, top: perf.offsets[start] || 0, bottom: Math.max(0, (perf.offsets[ids.length] || 0) - (perf.offsets[end] || 0)) };
@@ -215,12 +182,10 @@
     if (!perf.root) return;
     const all = topicModel(perf.topicId).ids;
     const filtered = perf.filteredIds;
-    const shown = filtered.length;
     const summary = perf.root.querySelector('[data-q-summary]');
     if (summary) summary.textContent = `${filtered.length} question${filtered.length === 1 ? '' : 's'}`;
-    const answered = answeredIds(all).length;
     const answeredNode = perf.root.querySelector('[data-q-answered]');
-    if (answeredNode) answeredNode.textContent = `${answered}/${all.length} answered`;
+    if (answeredNode) answeredNode.textContent = `${answeredIds(all).length}/${all.length} answered`;
     const counts = {
       all: all.length,
       unattempted: all.filter(id => !sessionAnswer(id)).length,
@@ -241,23 +206,17 @@
 
   function measureRendered() {
     if (!perf.root) return;
-    const currentScroll = perf.host?.scrollTop || 0;
-    const currentAnchor = visibleAnchor();
-    let changed = false;
     perf.root.querySelectorAll('[data-question-id]').forEach(card => {
       const h = Math.ceil(card.getBoundingClientRect().height);
       const id = card.dataset.questionId;
-      if (h > 0 && Math.abs((perf.heights.get(id) || 410) - h) > 1) { perf.heights.set(id, h); changed = true; }
+      if (h > 0 && Math.abs((perf.heights.get(id) || 410) - h) > 1) {
+        perf.heights.set(id, h);
+        perf.metricsSignature = '';
+      }
     });
-    if (changed) {
-      perf.metricsSignature = '';
-      const anchor = perf.anchor || currentAnchor;
-      if (perf.measureFrame) cancelAnimationFrame(perf.measureFrame);
-      perf.measureFrame = requestAnimationFrame(() => { perf.measureFrame = 0; renderWindow(anchor, false, currentScroll); });
-    }
   }
 
-  function renderWindow(anchor = null, force = true, fallbackScroll = null) {
+  function renderWindow(force = true) {
     if (!perf.root || !perf.host) return;
     const list = perf.root.querySelector('[data-q-window-list]');
     const top = perf.root.querySelector('[data-q-window-top]');
@@ -266,7 +225,7 @@
     perf.displayIds = perf.filteredIds.slice();
     perf.positionById = new Map(perf.filteredIds.map((id, index) => [id, index]));
     const w = listWindow();
-    if (!force && w.start === perf.renderedStart && w.end === perf.renderedEnd && perf.metricsSignature) return;
+    if (!force && w.start === perf.renderedStart && w.end === perf.renderedEnd) return;
     const topic = currentTopic();
     const subject = currentSubject(topic);
     top.style.height = `${w.top}px`;
@@ -275,24 +234,24 @@
     list.innerHTML = html;
     perf.renderedStart = w.start;
     perf.renderedEnd = w.end;
-    if (anchor || Number.isFinite(fallbackScroll)) requestAnimationFrame(() => restoreAnchor(anchor, Number.isFinite(fallbackScroll) ? fallbackScroll : scrollState[perf.topicId]?.scrollOffset));
     requestAnimationFrame(measureRendered);
     updateSummary();
   }
 
   function scheduleWindow() {
     if (perf.frame) return;
-    perf.frame = requestAnimationFrame(() => { perf.frame = 0; renderWindow(null, true); });
+    perf.frame = requestAnimationFrame(() => { perf.frame = 0; renderWindow(false); });
   }
 
   function onScroll() {
+    if (perf.suppressScrollHandler) return;
     const now = performance.now();
     const current = perf.host?.scrollTop || 0;
     const dt = Math.max(1, now - (perf.lastScrollTime || now));
     perf.velocity = (current - perf.lastScrollTop) / dt;
     perf.lastScrollTop = current;
     perf.lastScrollTime = now;
-    if (!perf.restoring) saveScrollState();
+    saveScrollState();
     scheduleWindow();
   }
 
@@ -311,9 +270,9 @@
     perf.lastScrollTime = performance.now();
   }
 
-  function patchCard(qid, anchor = null) {
+  function patchCard(qid) {
     const oldCard = perf.root?.querySelector(`[data-question-id="${CSS.escape(qid)}"]`);
-    if (!oldCard) { updateSummary(); return; }
+    if (!oldCard) { renderWindow(true); return; }
     const q = qById(qid), topic = currentTopic(), subject = currentSubject(topic);
     const index = perf.positionById.get(qid) || 0;
     const holder = document.createElement('div');
@@ -321,7 +280,6 @@
     const next = holder.firstElementChild;
     if (next) oldCard.replaceWith(next);
     updateSummary();
-    requestAnimationFrame(() => { restoreAnchor(anchor, null); measureRendered(); });
   }
 
   function resetForTopic(topicId) {
@@ -351,29 +309,22 @@
     const filter = ExplorerState.status || 'all';
     const tabs = [['all', 'All'], ['unattempted', 'Unattempted'], ['mistakes', 'Mistakes'], ['bookmarked', 'Bookmarked'], ['recent', 'Recent']];
     const saved = scrollState[topic.id];
-    const shown = perf.filteredIds.length;
     const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to topics" onclick="leaveTopic()">‹</button><div><h1>${esc(topic.name)}</h1><p>Practice / ${esc(subject.name)} / ${esc(topic.name)}</p></div></div></div></header><div class="q-filter-tabs-v2" role="tablist">${tabs.map(([key, label]) => `<button type="button" role="tab" data-q-tab="${key}" aria-selected="${filter === key}" class="${filter === key ? 'active' : ''}" onclick="qPerfFilter('${key}')">${label} <span data-q-tab-count>0</span></button>`).join('')}</div><div class="q-search-box"><input type="search" inputmode="search" aria-label="Search questions" placeholder="Search this topic..." value="${esc(practice.query || '')}" oninput="qPerfQuery(this.value)"></div><div class="q-feed-summary"><span data-q-summary>${perf.filteredIds.length} question${perf.filteredIds.length === 1 ? '' : 's'}</span><span data-q-answered>0/${model.ids.length} answered</span></div><div class="q-feed-body" data-q-perf-feed><div data-q-window-top class="q-window-spacer"></div><div data-q-window-list></div><div data-q-window-bottom class="q-window-spacer"></div></div></div>`;
     renderShell(html, { title: topic.name, back: 'leaveTopic()' });
     perf.root = document.querySelector('[data-q-perf-feed]')?.closest('.q-bank-container');
     attachScroll();
     perf.filteredIds = filteredIds(topic.id);
     perf.displayIds = perf.filteredIds.slice();
-    perf.restoring = !!saved;
-    if (!saved) perf.host.scrollTop = 0;
-    renderWindow(null, true);
-    if (saved) {
-      const targetIndex = perf.displayIds.indexOf(saved.anchorQuestionId);
-      if (targetIndex >= 0) {
-        perf.host.scrollTop = perf.offsets[targetIndex] + Number(saved.anchorOffset || 0);
-      } else {
-        perf.host.scrollTop = Number(saved.scrollOffset || 0);
-      }
-      requestAnimationFrame(() => {
-        renderWindow(saved, true);
-        requestAnimationFrame(() => { perf.restoring = false; });
-      });
-    } else {
-      perf.restoring = false;
+    // Render the window first
+    renderWindow(true);
+    // Restore scroll position without triggering scroll handler loop
+    if (saved && Number.isFinite(saved.scrollOffset) && saved.scrollOffset > 0) {
+      perf.suppressScrollHandler = true;
+      perf.host.scrollTop = saved.scrollOffset;
+      perf.lastScrollTop = perf.host.scrollTop;
+      // Re-render window at restored position
+      renderWindow(true);
+      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
     }
   }
 
@@ -381,17 +332,30 @@
     if (practice.topicId !== ExplorerState.topicId || sessionAnswer(qid)) return;
     const q = qById(qid);
     if (!q || q.topicId !== ExplorerState.topicId) return;
-    const anchor = visibleAnchor();
+    // Save current scroll position before any DOM change
+    const scrollBefore = perf.host ? perf.host.scrollTop : 0;
     practice.answers[qid] = { selected: idx, correct: idx === answerIndex(q), answeredAt: Date.now() };
     practice.recent = [qid, ...practice.recent.filter(id => id !== qid)];
-    patchCard(qid, anchor);
+    // Patch only the clicked card, no full re-render
+    patchCard(qid);
+    // Restore exact scroll position
+    if (perf.host && Math.abs(perf.host.scrollTop - scrollBefore) > 2) {
+      perf.suppressScrollHandler = true;
+      perf.host.scrollTop = scrollBefore;
+      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
+    }
   };
   window.qPerfReveal = qid => {
     const q = qById(qid);
     if (!q || q.topicId !== ExplorerState.topicId || sessionAnswer(qid)) return;
-    const anchor = visibleAnchor();
+    const scrollBefore = perf.host ? perf.host.scrollTop : 0;
     practice.revealed[qid] = true;
-    patchCard(qid, anchor);
+    patchCard(qid);
+    if (perf.host && Math.abs(perf.host.scrollTop - scrollBefore) > 2) {
+      perf.suppressScrollHandler = true;
+      perf.host.scrollTop = scrollBefore;
+      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
+    }
   };
   window.qPerfFilter = filter => {
     saveScrollState();
@@ -399,7 +363,8 @@
     practice.visibleCount = 100;
     perf.filteredIds = filteredIds(perf.topicId);
     perf.renderedStart = -1;
-    renderWindow(null, true);
+    if (perf.host) perf.host.scrollTop = 0;
+    renderWindow(true);
   };
   window.qPerfQuery = value => {
     practice.query = String(value || '');
@@ -408,7 +373,8 @@
     window.__qPerfQueryTimer = setTimeout(() => {
       perf.filteredIds = filteredIds(perf.topicId);
       perf.renderedStart = -1;
-      renderWindow(null, true);
+      if (perf.host) perf.host.scrollTop = 0;
+      renderWindow(true);
     }, 180);
   };
   window.qPerfLoadMore = () => {
@@ -416,12 +382,12 @@
     practice.visibleCount = (Number(practice.visibleCount) || 100) + 100;
     perf.filteredIds = filteredIds(perf.topicId);
     perf.renderedStart = -1;
-    renderWindow(null, true);
+    renderWindow(true);
   };
   window.qPerfBookmark = async qid => {
     const q = qById(qid);
     if (!q) return;
-    const anchor = visibleAnchor();
+    const scrollBefore = perf.host ? perf.host.scrollTop : 0;
     q.bookmarked = !q.bookmarked;
     q.bookmarkUpdatedAt = Date.now();
     try {
@@ -436,28 +402,37 @@
     } catch (_) {
       q.bookmarked = !q.bookmarked;
       toast('Could not update bookmark');
-      restoreAnchor(anchor, null);
+    }
+    // Restore scroll
+    if (perf.host && Math.abs(perf.host.scrollTop - scrollBefore) > 2) {
+      perf.suppressScrollHandler = true;
+      perf.host.scrollTop = scrollBefore;
+      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
     }
   };
 
-  function preserveMutationAnchor() {
-    saveScrollState();
-    return perf.topicId ? scrollState[perf.topicId] : null;
+  function preserveMutationScroll() {
+    return perf.host ? perf.host.scrollTop : 0;
   }
-  function restoreMutationAnchor(saved) {
-    if (!saved || !perf.host) return;
+  function restoreMutationScroll(scrollBefore) {
+    if (!perf.host || !Number.isFinite(scrollBefore)) return;
     requestAnimationFrame(() => {
-      perf.host.scrollTop = Number(saved.scrollOffset || 0);
-      renderWindow(saved, true);
+      perf.suppressScrollHandler = true;
+      perf.host.scrollTop = scrollBefore;
+      renderWindow(true);
+      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
     });
   }
   for (const name of ['ahEditQuestion', 'ahDeleteQuestion', 'ahDuplicateQuestion']) {
     const original = window[name];
     if (typeof original !== 'function') continue;
     window[name] = async function preservedQuestionMutation(...args) {
-      const saved = preserveMutationAnchor();
+      const scrollBefore = preserveMutationScroll();
       const result = await original.apply(this, args);
-      restoreMutationAnchor(saved);
+      // After mutation, refresh filtered ids and re-render
+      perf.filteredIds = filteredIds(perf.topicId);
+      perf.renderedStart = -1;
+      restoreMutationScroll(scrollBefore);
       return result;
     };
   }
@@ -474,15 +449,7 @@
   if (typeof legacyNavigate === 'function') {
     window.navigate = function preservedNavigate(path) {
       if (perf.topicId && !String(path || '').startsWith('question-bank/topic/')) saveScrollState();
-      const topicId = String(path || '').startsWith('question-bank/topic/') ? decodeURIComponent(String(path).split('/')[2] || '') : '';
-      const saved = topicId ? scrollState[topicId] : null;
       legacyNavigate(path);
-      if (saved) requestAnimationFrame(() => {
-        if (perf.topicId === topicId && perf.host) {
-          perf.host.scrollTop = Number(saved.scrollOffset || 0);
-          renderWindow(saved, true);
-        }
-      });
     };
   }
 
@@ -499,7 +466,7 @@
     return legacyRenderQuestionBankV2 ? legacyRenderQuestionBankV2() : undefined;
   };
   window.__qbankPerformance = {
-    version: 'windowed-v1',
+    version: 'windowed-v2',
     state: perf,
     getRenderedCount: () => perf.root?.querySelectorAll('[data-question-id]').length || 0,
     getTopicOrder: topicId => topicModel(topicId).ids.slice(),
@@ -514,6 +481,6 @@
 
   const style = document.createElement('style');
   style.id = 'qbank-performance-style';
-  style.textContent = 'html{overflow-y:hidden}body{overflow-y:auto;-webkit-overflow-scrolling:touch}.q-window-spacer{display:block;width:1px;min-height:0;pointer-events:none;overflow:hidden}.q-window-spacer::after{content:"";display:block;width:1px;height:1px}';
+  style.textContent = '.q-window-spacer{display:block;width:100%;min-height:0;pointer-events:none;overflow:hidden}';
   document.head.appendChild(style);
 })();
