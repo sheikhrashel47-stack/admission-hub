@@ -459,8 +459,8 @@ button,a,input,textarea,select{touch-action:manipulation}
 input[type=text],input[type=search],input[type=password],input[type=number],input[type=email],input[type=date],textarea,select{font-size:16px!important;line-height:1.35;min-height:44px}
 textarea{min-height:96px}
 .topbar{padding-top:calc(12px + var(--safe-t));}
-.modal-bg{padding-bottom:var(--safe-b);height:var(--visual-viewport-height);overscroll-behavior:contain}
-.modal{padding-bottom:calc(18px + var(--safe-b));-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.modal-bg{box-sizing:border-box;top:var(--visual-viewport-offset-top,0px);bottom:auto;height:var(--visual-viewport-height);max-height:var(--visual-viewport-height);padding-bottom:calc(var(--safe-b) + 8px);overscroll-behavior:contain}
+.modal{box-sizing:border-box;max-height:calc(var(--visual-viewport-height) - 16px);padding-bottom:calc(18px + var(--safe-b));-webkit-overflow-scrolling:touch;overscroll-behavior:contain;transform:translate3d(0,0,0);will-change:transform}
 .keyboard-open .topbar{position:relative}
 .keyboard-open .bottomnav{pointer-events:none;transform:translateY(110%)}
 .keyboard-open #app{padding-bottom:24px}
@@ -493,13 +493,32 @@ textarea{min-height:96px}
   window.addEventListener('error',event=>{if(event.error)fallback(event.error);},true);
   window.addEventListener('unhandledrejection',event=>{fallback(event.reason instanceof Error?event.reason:new Error(String(event.reason||'Async operation failed')));},true);
   window.__admissionShowFallback=fallback;
+  const isEditableTarget=target=>target&&target.matches('input,textarea,select,[contenteditable]');
+  const keepFocusedFieldVisible=()=>{
+    const target=document.activeElement;
+    const vv=window.visualViewport;
+    if(!vv||!isEditableTarget(target))return;
+    const modal=target.closest('.modal,.urgent-modal');
+    if(!modal)return;
+    const rect=target.getBoundingClientRect();
+    const top=vv.offsetTop+10;
+    const bottom=vv.offsetTop+vv.height-12;
+    if(rect.top<top||rect.bottom>bottom)target.scrollIntoView({block:'center',inline:'nearest',behavior:'auto'});
+  };
   if(window.visualViewport){
-    const syncViewport=()=>{document.documentElement.style.setProperty('--visual-viewport-height',`${window.visualViewport.height}px`);};
+    const syncViewport=()=>{
+      const vv=window.visualViewport;
+      document.documentElement.style.setProperty('--visual-viewport-height',`${Math.max(0,vv.height)}px`);
+      document.documentElement.style.setProperty('--visual-viewport-offset-top',`${Math.max(0,vv.offsetTop||0)}px`);
+      document.documentElement.style.setProperty('--keyboard-inset',`${Math.max(0,window.innerHeight-vv.height-(vv.offsetTop||0))}px`);
+      document.body.classList.toggle('keyboard-open',vv.height<window.innerHeight*.86);
+      requestAnimationFrame(keepFocusedFieldVisible);
+    };
     window.visualViewport.addEventListener('resize',syncViewport,{passive:true});
     window.visualViewport.addEventListener('scroll',syncViewport,{passive:true});
     syncViewport();
   }
-  const focusIntoView=event=>{const target=event.target;if(!target||!target.matches('input,textarea,select,[contenteditable]'))return;document.body.classList.add('keyboard-open');setTimeout(()=>target.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'}),120);};
+  const focusIntoView=event=>{const target=event.target;if(!isEditableTarget(target))return;document.body.classList.add('keyboard-open');setTimeout(()=>{target.scrollIntoView({block:'center',inline:'nearest',behavior:'smooth'});keepFocusedFieldVisible();},120);};
   document.addEventListener('focusin',focusIntoView,{passive:true});
   document.addEventListener('focusout',()=>{setTimeout(()=>{if(!document.activeElement||!document.activeElement.matches('input,textarea,select,[contenteditable]'))document.body.classList.remove('keyboard-open');},250);},{passive:true});
 })();
