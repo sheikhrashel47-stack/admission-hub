@@ -57,8 +57,9 @@
     });
     trackedNodes.clear();
 
-    document.querySelectorAll('iframe[src*="chatbot.getmindpal.com"], iframe[src*="getmindpal.com"]')
-      .forEach(node => node.remove());
+    document.querySelectorAll(
+      '[data-mindpal-layout], [aria-label="Open chat"], [aria-label="Close chat"], iframe[src*="chatbot.getmindpal.com"], iframe[src*="getmindpal.com"]'
+    ).forEach(node => node.remove());
 
     if (window.mindpalConfig?.chatbotId === CHATBOT_ID) {
       try { delete window.mindpalConfig; } catch (_) { window.mindpalConfig = undefined; }
