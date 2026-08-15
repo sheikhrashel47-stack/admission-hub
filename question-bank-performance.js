@@ -185,11 +185,7 @@
 
   function getFilteredQuestions(topicId) {
     let all = CACHE.questions.filter(q => q.topicId === topicId);
-    // Sort numerically
-    all.sort((a, b) => {
-      const an = getNum(a), bn = getNum(b);
-      return an - bn;
-    });
+    // Keep original order from CACHE (same as before any update)
     const query = String(practice.query || '').trim().toLowerCase();
     if (query) all = all.filter(q => [q.question, ...(q.options || [])].join(' ').toLowerCase().includes(query));
     const filter = ExplorerState.status || 'all';
@@ -211,7 +207,7 @@
     const state = practice.answers[q.id];
     const revealed = practice.revealed[q.id] || state;
     const correct = answerFor(q);
-    const number = getNum(q) < 99999 ? getNum(q) : index + 1;
+    const number = index + 1;
     const status = state ? (state.correct ? 'Correct' : 'Wrong') : 'Unattempted';
     const statusClass = state ? (state.correct ? 'correct' : 'wrong') : 'unattempted';
     const opts = (q.options || []).map((o, j) => {
