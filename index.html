@@ -4471,7 +4471,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
   window.fetchNews=fetchNews;window.addEvent=addEvent;window.saveEvent=saveEvent;window.deleteEvent=deleteEvent;window.exportAnalytics=exportAnalytics;
   const oldRender=render;render=function(){if(Router.path==='smart-formatter')return renderFormatter();if(Router.path==='calendar')return renderCalendar();if(Router.path==='analytics')return renderAnalytics();return oldRender()};
   baseTab=function(path){if(path==='calendar'||path==='analytics')return 'dashboard';return ORIGINAL.baseTab(path)};
-  const oldBoot=boot;boot=async function(){await oldBoot(); if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});};
+  // Service-worker registration is intentionally centralized in the dedicated PWA lifecycle block below.
   const oldRenderShell=renderShell;renderShell=function(inner,opts){oldRenderShell(inner,opts);};
   window.openPhase5Formatter=()=>{FEATURE.screen='home';navigate('smart-formatter')};
 })();
@@ -4505,27 +4505,32 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
 })();
 /* ================= PWA UPDATE / CACHE INVALIDATION ================= */
 (function(){
-  function showPwaUpdate(registration){
-    if(document.getElementById('pwaUpdateNotice')) return;
-    const notice=document.createElement('div');
-    notice.id='pwaUpdateNotice';
-    notice.setAttribute('role','status');
-    notice.style.cssText='position:fixed;left:12px;right:12px;bottom:calc(82px + var(--safe-b));z-index:250;background:var(--emerald-d);color:#fff;border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 8px 24px rgba(0,0,0,.18);font-size:12px;';
-    notice.innerHTML='<span style="flex:1">A new version is available.</span><button id="pwaUpdateApply" class="btn sm" style="width:auto;background:#fff;color:var(--emerald-d)">Refresh</button>';
-    document.body.appendChild(notice);
-    document.getElementById('pwaUpdateApply').onclick=()=>{registration.waiting?.postMessage({type:'SKIP_WAITING'}); window.location.reload()};
+  function activateWaiting(registration){
+    const waiting=registration.waiting;
+    if(!waiting) return false;
+    waiting.postMessage({type:'SKIP_WAITING'});
+    return true;
   }
   async function registerPwaUpdates(){
     if(!('serviceWorker' in navigator)) return;
     try{
       const registration=await navigator.serviceWorker.register('./sw.js',{scope:'./'});
-      registration.update().catch(()=>{});
-      if(registration.waiting) showPwaUpdate(registration);
+      await registration.update().catch(()=>{});
+      // Apply an already-installed worker immediately; never require a cache-clear action.
+      activateWaiting(registration);
       registration.addEventListener('updatefound',()=>{
-        const worker=registration.installing; if(!worker) return;
-        worker.addEventListener('statechange',()=>{if(worker.state==='installed' && navigator.serviceWorker.controller) showPwaUpdate(registration)});
+        const worker=registration.installing;
+        if(!worker) return;
+        worker.addEventListener('statechange',()=>{
+          if(worker.state==='installed' && navigator.serviceWorker.controller) activateWaiting(registration);
+        });
       });
-      navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!window.__pwaRefreshing){window.__pwaRefreshing=true;window.location.reload()}});
+      navigator.serviceWorker.addEventListener('controllerchange',()=>{
+        if(!window.__pwaRefreshing){
+          window.__pwaRefreshing=true;
+          window.location.reload();
+        }
+      });
     }catch(error){console.warn('PWA registration failed',error)}
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',registerPwaUpdates,{once:true}); else registerPwaUpdates();

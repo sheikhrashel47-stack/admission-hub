@@ -24,8 +24,23 @@ assert 'setTopicQuery' in qbank
 assert 'visibleQs.map' in qbank
 
 sw = (ROOT / "sw.js").read_text(encoding="utf-8")
-assert "const CACHE_NAME" in sw
+assert re.search(r"const CACHE_PREFIX = ['\"]admission-hub-shell-", sw)
+assert re.search(r"const BUILD_ID = ['\"]v\d+['\"]", sw)
+assert sw.count("const CACHE_NAME") == 1
+assert "cache: 'no-store'" in sw
+assert "cache: 'reload'" in sw
+assert "self.skipWaiting()" in sw
+assert "self.clients.claim()" in sw
 assert "caches.match('./index.html')" in sw
+assert "navigator.serviceWorker.register" in html
+assert html.count("navigator.serviceWorker.register") == 1
+assert "scope:'./'" in html
+assert "activateWaiting(registration)" in html
+assert "const DB_NAME='admissionHubDB', DB_VERSION=3" in html
+assert "const STORES=['appMeta','subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','ADMISSION_PLANS','PLAN_DAYS']" in html
+assert "if(subs.length===0 && !meta)" in html
+assert "indexedDB.deleteDatabase" not in sw
+assert "localStorage.clear" not in sw
 
 payload = json.loads((ROOT / "mcq_final.json").read_text(encoding="utf-8"))
 questions = payload["questions"]
