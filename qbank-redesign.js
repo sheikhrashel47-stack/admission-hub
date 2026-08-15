@@ -42,7 +42,7 @@
     return `<article class="q-nav-card" role="button" tabindex="0" onclick="openRedesignedSubject('${qEsc(s.id)}')" onkeydown="if(event.key==='Enter')openRedesignedSubject('${qEsc(s.id)}')">
       <div class="q-nav-badge" style="background:${getBadgeColor(s.name)}">${qEsc(getAbbr(s.name))}</div>
       <div class="q-nav-info"><strong>${qEsc(s.name)}</strong><span>${topics.length} Topics • ${qs.length} Questions</span></div>
-      <div class="q-manage-actions"><button type="button" class="q-manage-btn" onclick="event.stopPropagation();ahRenameSubject('${qEsc(s.id)}')">Rename</button><button type="button" class="q-manage-btn danger" onclick="event.stopPropagation();ahDeleteSubject('${qEsc(s.id)}')">Delete</button></div><span class="q-nav-arrow" aria-hidden="true">›</span>
+      <span class="q-nav-arrow" aria-hidden="true">›</span>
     </article>`;
   }
 
@@ -50,7 +50,7 @@
     const qs = CACHE.questions.filter(q => q.topicId === t.id);
     return `<article class="q-nav-card q-nav-card-topic" role="button" tabindex="0" onclick="openRedesignedTopic('${qEsc(t.id)}')" onkeydown="if(event.key==='Enter')openRedesignedTopic('${qEsc(t.id)}')">
       <span class="q-topic-icon" aria-hidden="true">📄</span><div class="q-nav-info"><strong>${qEsc(t.name)}</strong></div>
-      <div class="q-topic-count">${qs.length} Q</div><div class="q-manage-actions"><button type="button" class="q-manage-btn q-manage-icon" title="Rename" aria-label="Rename" onclick="event.stopPropagation();ahRenameTopic('${qEsc(t.id)}')">✏️</button><button type="button" class="q-manage-btn q-manage-icon danger" title="Delete" aria-label="Delete" onclick="event.stopPropagation();ahDeleteTopic('${qEsc(t.id)}')">🗑️</button></div><span class="q-nav-arrow" aria-hidden="true">›</span>
+      <div class="q-topic-count">${qs.length} Q</div><span class="q-nav-arrow" aria-hidden="true">›</span>
     </article>`;
   }
 
@@ -86,7 +86,7 @@
     const subs = [...CACHE.subjects].sort((a, b) => (a.order || 0) - (b.order || 0));
     const search = (ExplorerState.query || '').toLowerCase();
     const filtered = subs.filter(s => !search || String(s.name).toLowerCase().includes(search));
-    const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div><h1>প্রশ্ন ব্যাংক</h1><p>সব Subject</p></div><div class="row"><button class="q-header-icon" type="button" aria-label="Search subjects" onclick="toggleQSearch()">${window.ICONS?.search || '🔍'}</button><button class="q-header-icon" type="button" aria-label="Add subject" onclick="openSubjectForm(null)">+</button></div></div><div id="qSearchBox" class="q-search-box ${ExplorerState.query ? '' : 'hide'}"><input type="search" placeholder="Search subjects..." value="${qEsc(ExplorerState.query)}" oninput="ExplorerState.query=this.value;window.renderQuestionBankV2()"></div></header><div class="q-list-body">${filtered.map(subjectRow).join('') || '<div class="empty">No subjects found.</div>'}</div></div>`;
+    const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div><h1>প্রশ্ন ব্যাংক</h1><p>সব Subject</p></div><div class="row"><button class="q-header-icon" type="button" aria-label="Search subjects" onclick="toggleQSearch()">${window.ICONS?.search || '🔍'}</button><button class="q-header-icon" type="button" aria-label="Question Bank Settings" title="Settings" onclick="openQuestionBankSettings()">⚙️</button></div></div><div id="qSearchBox" class="q-search-box ${ExplorerState.query ? '' : 'hide'}"><input type="search" placeholder="Search subjects..." value="${qEsc(ExplorerState.query)}" oninput="ExplorerState.query=this.value;window.renderQuestionBankV2()"></div></header><div class="q-list-body">${filtered.map(subjectRow).join('') || '<div class="empty">No subjects found.</div>'}</div></div>`;
     renderShell(html, { title: 'Question Bank', back: "navigate('dashboard')" });
   }
 
