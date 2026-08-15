@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v5';
+const BUILD_ID = 'v6';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const APP_SHELL = [
   './',
@@ -19,9 +19,23 @@ async function cacheNetworkResponse(request, response) {
     const cache = await caches.open(CACHE_NAME);
     await cache.put(request, response.clone());
   } catch (_) {
-    // A cache write failure must never prevent the current network response.
+    // Cache failures must never block the fresh network response.
   }
   return response;
+}
+
+async function offlineFallback(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+
+  if (isDocumentRequest(request)) {
+    const shell = await caches.match('./index.html');
+    if (shell) return shell;
+    const shellUrl = new URL('./index.html', self.location.href).href;
+    return (await caches.match(shellUrl)) || Response.error();
+  }
+
+  return Response.error();
 }
 
 self.addEventListener('install', event => {
@@ -29,13 +43,16 @@ self.addEventListener('install', event => {
     const cache = await caches.open(CACHE_NAME);
     await Promise.all(APP_SHELL.map(async asset => {
       try {
-        const request = new Request(asset, {cache: 'reload'});
-        const response = await fetch(request);
+        const url = new URL(asset, self.location.href).href;
+        const request = new Request(url, {cache: 'reload'});
+        const response = await fetch(request, {cache: 'no-store'});
         if (response.ok) await cache.put(request, response);
       } catch (_) {
-        // The worker can still activate when one optional shell asset is offline.
+        // The worker can still activate if an optional shell asset is unavailable.
       }
     }));
+
+    // Activate this worker immediately; do not wait for old tabs to close.
     await self.skipWaiting();
   })());
 });
@@ -45,9 +62,11 @@ self.addEventListener('activate', event => {
     const keys = await caches.keys();
     await Promise.all(
       keys
-        .filter(key => key.startsWith('admission-hub-') && key !== CACHE_NAME)
+        .filter(key => key !== CACHE_NAME)
         .map(key => caches.delete(key))
     );
+
+    // Take control of existing PWA clients without requiring another launch.
     await self.clients.claim();
   })());
 });
@@ -67,17 +86,12 @@ self.addEventListener('fetch', event => {
 
   event.respondWith((async () => {
     try {
-      // Always ask the network for the current deployed same-origin asset.
-      // The cached response is used only when the device is offline.
+      // Network-first for every same-origin HTML, JS, CSS, JSON, and asset request.
       const response = await fetch(request, {cache: 'no-store'});
       return cacheNetworkResponse(request, response);
     } catch (_) {
-      const cached = await caches.match(request);
-      if (cached) return cached;
-      if (isDocumentRequest(request)) {
-        return (await caches.match('./index.html')) || Response.error();
-      }
-      return Response.error();
+      // Cache is used only when the network is unavailable.
+      return offlineFallback(request);
     }
   })());
 });
