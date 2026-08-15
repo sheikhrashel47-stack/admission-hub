@@ -1,486 +1,275 @@
+/**
+ * Question Bank Performance Layer v3
+ * 
+ * Strategy: Keep the original qbank-redesign.js rendering intact but intercept
+ * selectTopicAnswer, revealTopicAnswer, and bookmark to do in-place card patching
+ * instead of full page re-render (which causes scroll reset).
+ * 
+ * Also adds: numeric question ordering, stable question numbers, scroll position
+ * save/restore on topic navigation, and native smooth scrolling.
+ * 
+ * NO virtualization, NO scroll manipulation, NO auto-scroll.
+ * Pure native scrolling like premium mobile apps.
+ */
 (() => {
   'use strict';
 
-  // Performance-only layer: preserve qbank-redesign markup/classes and behavior while
-  // replacing whole-feed answer renders with a stable, windowed item boundary.
-  const legacyRenderQuestionBankV2 = window.renderQuestionBankV2;
-  const practice = window.QuestionBankPracticeSession || { topicId: '', answers: {}, revealed: {}, recent: [], query: '', visibleCount: 100 };
-  window.QuestionBankPracticeSession = practice;
-  const scrollKey = 'admission_qbank_scroll_v1';
-  const topicCache = new Map();
+  const practice = window.QuestionBankPracticeSession;
+  if (!practice) return; // qbank-redesign.js must load first
+
+  const scrollKey = 'admission_qbank_scroll_v2';
   const scrollState = (() => {
     try { return JSON.parse(sessionStorage.getItem(scrollKey) || '{}') || {}; } catch (_) { return {}; }
   })();
-  const perf = {
-    root: null,
-    host: null,
-    topicId: '',
-    ids: [],
-    filteredIds: [],
-    displayIds: [],
-    positionById: new Map(),
-    heights: new Map(),
-    offsets: [],
-    metricsSignature: '',
-    renderedStart: -1,
-    renderedEnd: -1,
-    velocity: 0,
-    lastScrollTop: 0,
-    lastScrollTime: 0,
-    frame: 0,
-    measureFrame: 0,
-    suppressScrollHandler: false,
-    listenersAttached: false,
-  };
 
-  const esc = value => {
-    const d = document.createElement('div');
-    d.textContent = String(value ?? '');
-    return d.innerHTML;
-  };
-  const answerIndex = q => Number(q?.answerIndex ?? q?.answer ?? 0);
-  const subjectName = id => (typeof window.subjectName === 'function' ? window.subjectName(id) : (CACHE.subjects || []).find(x => x.id === id)?.name || '');
-  const topicName = id => (typeof window.topicName === 'function' ? window.topicName(id) : (CACHE.topics || []).find(x => x.id === id)?.name || '');
-  const host = () => {
-    const candidates = [document.body, document.getElementById('app'), document.scrollingElement].filter(Boolean);
-    return candidates.find(el => el.scrollHeight > el.clientHeight + 2 && getComputedStyle(el).overflowY !== 'hidden') || document.body;
-  };
-  const qById = id => (CACHE.questions || []).find(q => q.id === id);
-  const sessionAnswer = id => practice.answers?.[id];
-  const currentTopic = () => CACHE.topics?.find(t => t.id === ExplorerState.topicId);
-  const currentSubject = topic => CACHE.subjects?.find(s => s.id === topic?.subjectId);
+  const esc = s => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
+  const answerFor = q => Number(q?.answerIndex ?? q?.answer ?? 0);
 
+  // --- Numeric ordering helpers ---
   function explicitNumber(q) {
-    const fields = [q?.questionNumber, q?.number];
-    for (const value of fields) {
-      if (typeof value === 'number' && Number.isFinite(value)) return value;
-      if (typeof value === 'string' && /^\s*\d+(?:\.\d+)?\s*$/.test(value)) return Number(value);
+    if (q?.questionNumber != null) {
+      const n = Number(q.questionNumber);
+      if (Number.isFinite(n)) return n;
+    }
+    if (q?.number != null) {
+      const n = Number(q.number);
+      if (Number.isFinite(n)) return n;
     }
     const source = String(q?.sourceQuestionId || q?.id || '');
-    if (!/^(?:mcq|q|question)[-_]/i.test(source)) return null;
-    const match = source.match(/(?:^|[-_])0*(\d+)$/);
+    const match = source.match(/(\d+)$/);
     return match ? Number(match[1]) : null;
   }
 
-  function displayNumber(q, fallbackIndex) {
-    const explicit = explicitNumber(q);
-    return explicit !== null ? explicit : (Number.isFinite(Number(q?.questionNumber)) ? Number(q.questionNumber) : fallbackIndex + 1);
+  // --- Save/restore scroll per topic ---
+  function saveScroll() {
+    const topicId = ExplorerState.topicId;
+    if (!topicId) return;
+    scrollState[topicId] = { y: window.scrollY || document.documentElement.scrollTop || 0, t: Date.now() };
+    try { sessionStorage.setItem(scrollKey, JSON.stringify(scrollState)); } catch (_) {}
   }
 
-  function nextQuestionNumber(topicId, count = 1) {
-    const numbers = (CACHE.questions || []).filter(q => q.topicId === topicId).map(q => explicitNumber(q)).filter(Number.isFinite);
-    return (numbers.length ? Math.max(...numbers) : 0) + count;
-  }
-  window.questionBankNextNumber = nextQuestionNumber;
-
-  function topicSignature(rows) {
-    return rows.map(q => `${q.id}:${q.topicId}:${q.updatedAt || q.createdAt || 0}:${q.questionNumber ?? ''}:${q.number ?? ''}`).join('|');
-  }
-
-  function topicModel(topicId) {
-    const rows = (CACHE.questions || []).filter(q => q.topicId === topicId);
-    const signature = topicSignature(rows);
-    const cached = topicCache.get(topicId);
-    if (cached?.signature === signature) return cached;
-    const ordered = rows.map((q, sourceIndex) => ({ q, sourceIndex })).sort((a, b) => {
-      const an = explicitNumber(a.q), bn = explicitNumber(b.q);
-      if (an !== null && bn !== null && an !== bn) return an - bn;
-      if (an !== null && bn === null) return -1;
-      if (an === null && bn !== null) return 1;
-      return a.sourceIndex - b.sourceIndex;
-    });
-    const model = {
-      signature,
-      ids: ordered.map(x => x.q.id),
-      byId: new Map(ordered.map(x => [x.q.id, x.q])),
-    };
-    topicCache.set(topicId, model);
-    return model;
-  }
-
-  function saveScrollState() {
-    if (!perf.topicId || !perf.host) return;
-    scrollState[perf.topicId] = {
-      scrollOffset: perf.host.scrollTop || 0,
-      timestamp: Date.now(),
-    };
-    try { sessionStorage.setItem(scrollKey, JSON.stringify(scrollState)); } catch (_) { /* storage is optional */ }
-  }
-
-  function buildMetrics(ids) {
-    const signature = `${ids.length}|${[...perf.heights].map(([id, h]) => `${id}:${h}`).join('|')}`;
-    if (perf.metricsSignature === signature && perf.offsets.length === ids.length + 1) return;
-    perf.metricsSignature = signature;
-    perf.offsets = new Array(ids.length + 1);
-    perf.offsets[0] = 0;
-    for (let i = 0; i < ids.length; i += 1) {
-      perf.offsets[i + 1] = perf.offsets[i] + (perf.heights.get(ids[i]) || 410);
+  function restoreScroll(topicId) {
+    const saved = scrollState[topicId];
+    if (saved && Number.isFinite(saved.y) && saved.y > 0) {
+      // Use setTimeout to let the DOM render first
+      setTimeout(() => { window.scrollTo(0, saved.y); }, 50);
     }
   }
 
-  function upperBound(values, target) {
-    let lo = 0, hi = values.length;
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1;
-      if (values[mid] <= target) lo = mid + 1; else hi = mid;
-    }
-    return Math.max(0, lo - 1);
-  }
-
-  function listWindow() {
-    const ids = perf.displayIds;
-    buildMetrics(ids);
-    const scrollTop = perf.host?.scrollTop || 0;
-    const viewport = perf.host?.clientHeight || window.innerHeight || 800;
-    const fast = Math.abs(perf.velocity) > 1.2;
-    const overscan = fast ? viewport * 2.6 : viewport * 1.2;
-    const start = Math.max(0, upperBound(perf.offsets, Math.max(0, scrollTop - overscan)) - 1);
-    const end = Math.min(ids.length, upperBound(perf.offsets, scrollTop + viewport + overscan) + 2);
-    return { start, end, top: perf.offsets[start] || 0, bottom: Math.max(0, (perf.offsets[ids.length] || 0) - (perf.offsets[end] || 0)) };
-  }
-
-  function answeredIds(ids) { return ids.filter(id => sessionAnswer(id)); }
-  function accuracy(ids) {
-    const answered = answeredIds(ids);
-    return answered.length ? Math.round(answered.filter(id => sessionAnswer(id).correct).length / answered.length * 100) : 0;
-  }
-  function mistakes(ids) { return answeredIds(ids).filter(id => !sessionAnswer(id).correct).length; }
-
-  function filteredIds(topicId) {
-    const model = topicModel(topicId);
-    let ids = model.ids.slice();
-    const query = String(practice.query || '').trim().toLocaleLowerCase();
-    if (query) ids = ids.filter(id => {
-      const q = model.byId.get(id);
-      return [q?.question, ...(Array.isArray(q?.options) ? q.options : [])].join(' ').toLocaleLowerCase().includes(query);
-    });
-    const filter = ExplorerState.status || 'all';
-    if (filter === 'unattempted') ids = ids.filter(id => !sessionAnswer(id));
-    else if (filter === 'mistakes') ids = ids.filter(id => sessionAnswer(id) && !sessionAnswer(id).correct);
-    else if (filter === 'bookmarked') ids = ids.filter(id => model.byId.get(id)?.bookmarked === true);
-    else if (filter === 'recent') ids = practice.recent.map(id => id).filter(id => model.byId.has(id));
-    return ids;
-  }
-
-  function qCard(q, index, topic, subject) {
-    const state = sessionAnswer(q.id);
-    const revealed = practice.revealed?.[q.id] || state;
-    const correct = answerIndex(q);
-    const number = displayNumber(q, index);
-    const status = state ? (state.correct ? 'Correct' : 'Wrong') : 'Unattempted';
-    const statusClass = state ? (state.correct ? 'correct' : 'wrong') : 'unattempted';
-    const opts = (q.options || []).map((o, j) => {
-      let cls = '';
-      if (state) { if (j === correct) cls = 'correct'; else if (j === state.selected) cls = 'wrong'; }
-      else if (revealed && j === correct) cls = 'correct';
-      return `<button class="q-opt-v2 ${cls}" type="button" ${state ? 'disabled' : ''} aria-label="Option ${String.fromCharCode(65 + j)}" onclick="qPerfSelect('${esc(q.id)}',${j})"><span class="q-opt-letter">${String.fromCharCode(65 + j)}</span><span class="q-opt-text">${esc(o)}</span>${cls === 'correct' && (state || revealed) ? '<span class="q-opt-icon">✓</span>' : ''}${cls === 'wrong' ? '<span class="q-opt-icon">✕</span>' : ''}</button>`;
-    }).join('');
-    return `<article class="q-card-v2 card" data-question-id="${esc(q.id)}"><div class="q-card-header"><div class="q-card-meta"><span class="q-card-num">Q ${String(number).padStart(2, '0')}</span><span class="q-breadcrumb">${esc(subject?.name || '')} • ${esc(topic.name)}</span></div><span class="q-status ${statusClass}">${status}</span></div><div class="q-text-v2">${esc(q.question)}</div><div class="q-options-v2">${opts}</div>${revealed ? `<div class="q-explanation-v2 ${state?.correct ? 'correct' : state ? 'wrong' : 'revealed'}"><strong>${state ? (state.correct ? '✓ Correct' : '✕ Wrong') : 'Answer revealed'}</strong><p>Correct answer: ${esc((q.options || [])[correct] || '')}</p>${q.explanation ? `<p>${esc(q.explanation)}</p>` : ''}</div>` : ''}<footer class="q-card-footer"><span data-q-accuracy>Accuracy <strong>${accuracy(topicModel(topic.id).ids)}%</strong></span><span data-q-mistakes>Mistakes <strong>${mistakes(topicModel(topic.id).ids)}</strong></span><button class="q-footer-btn ${q.bookmarked ? 'active' : ''}" type="button" aria-pressed="${!!q.bookmarked}" onclick="qPerfBookmark('${esc(q.id)}')">⭐ ${q.bookmarked ? 'Bookmarked' : 'Bookmark'}</button>${!revealed ? `<button class="q-footer-btn" type="button" onclick="qPerfReveal('${esc(q.id)}')">Show Answer</button>` : ''}<button class="q-footer-btn" type="button" onclick="ahEditQuestion('${esc(q.id)}')">Edit</button><button class="q-footer-btn danger" type="button" onclick="ahDuplicateQuestion('${esc(q.id)}')">Duplicate</button><button class="q-footer-btn danger" type="button" onclick="ahDeleteQuestion('${esc(q.id)}')">Delete</button></footer></article>`;
-  }
-
-  function updateSummary() {
-    if (!perf.root) return;
-    const all = topicModel(perf.topicId).ids;
-    const filtered = perf.filteredIds;
-    const summary = perf.root.querySelector('[data-q-summary]');
-    if (summary) summary.textContent = `${filtered.length} question${filtered.length === 1 ? '' : 's'}`;
-    const answeredNode = perf.root.querySelector('[data-q-answered]');
-    if (answeredNode) answeredNode.textContent = `${answeredIds(all).length}/${all.length} answered`;
-    const counts = {
-      all: all.length,
-      unattempted: all.filter(id => !sessionAnswer(id)).length,
-      mistakes: all.filter(id => sessionAnswer(id) && !sessionAnswer(id).correct).length,
-      bookmarked: all.filter(id => qById(id)?.bookmarked === true).length,
-      recent: practice.recent.filter(id => all.includes(id)).length,
-    };
-    perf.root.querySelectorAll('[data-q-tab]').forEach(tab => {
-      const key = tab.dataset.qTab;
-      const count = tab.querySelector('[data-q-tab-count]');
-      if (count) count.textContent = counts[key] ?? 0;
-      tab.setAttribute('aria-selected', String((ExplorerState.status || 'all') === key));
-      tab.classList.toggle('active', (ExplorerState.status || 'all') === key);
-    });
-    perf.root.querySelectorAll('[data-q-accuracy]').forEach(node => { node.innerHTML = `Accuracy <strong>${accuracy(all)}%</strong>`; });
-    perf.root.querySelectorAll('[data-q-mistakes]').forEach(node => { node.innerHTML = `Mistakes <strong>${mistakes(all)}</strong>`; });
-  }
-
-  function measureRendered() {
-    if (!perf.root) return;
-    perf.root.querySelectorAll('[data-question-id]').forEach(card => {
-      const h = Math.ceil(card.getBoundingClientRect().height);
-      const id = card.dataset.questionId;
-      if (h > 0 && Math.abs((perf.heights.get(id) || 410) - h) > 1) {
-        perf.heights.set(id, h);
-        perf.metricsSignature = '';
-      }
-    });
-  }
-
-  function renderWindow(force = true) {
-    if (!perf.root || !perf.host) return;
-    const list = perf.root.querySelector('[data-q-window-list]');
-    const top = perf.root.querySelector('[data-q-window-top]');
-    const bottom = perf.root.querySelector('[data-q-window-bottom]');
-    if (!list || !top || !bottom) return;
-    perf.displayIds = perf.filteredIds.slice();
-    perf.positionById = new Map(perf.filteredIds.map((id, index) => [id, index]));
-    const w = listWindow();
-    if (!force && w.start === perf.renderedStart && w.end === perf.renderedEnd) return;
-    const topic = currentTopic();
-    const subject = currentSubject(topic);
-    top.style.height = `${w.top}px`;
-    bottom.style.height = `${w.bottom}px`;
-    const html = perf.displayIds.slice(w.start, w.end).map(id => qCard(topicModel(perf.topicId).byId.get(id), perf.positionById.get(id) || 0, topic, subject)).join('');
-    list.innerHTML = html;
-    perf.renderedStart = w.start;
-    perf.renderedEnd = w.end;
-    requestAnimationFrame(measureRendered);
-    updateSummary();
-  }
-
-  function scheduleWindow() {
-    if (perf.frame) return;
-    perf.frame = requestAnimationFrame(() => { perf.frame = 0; renderWindow(false); });
-  }
-
-  function onScroll() {
-    if (perf.suppressScrollHandler) return;
-    const now = performance.now();
-    const current = perf.host?.scrollTop || 0;
-    const dt = Math.max(1, now - (perf.lastScrollTime || now));
-    perf.velocity = (current - perf.lastScrollTop) / dt;
-    perf.lastScrollTop = current;
-    perf.lastScrollTime = now;
-    saveScrollState();
-    scheduleWindow();
-  }
-
-  function detachScroll() {
-    if (perf.host && perf.listenersAttached) perf.host.removeEventListener('scroll', onScroll);
-    perf.listenersAttached = false;
-  }
-  function attachScroll() {
-    const next = host();
-    if (perf.host !== next) { detachScroll(); perf.host = next; }
-    if (!perf.listenersAttached && perf.host) {
-      perf.host.addEventListener('scroll', onScroll, { passive: true });
-      perf.listenersAttached = true;
-    }
-    perf.lastScrollTop = perf.host?.scrollTop || 0;
-    perf.lastScrollTime = performance.now();
-  }
-
-  function patchCard(qid) {
-    const oldCard = perf.root?.querySelector(`[data-question-id="${CSS.escape(qid)}"]`);
-    if (!oldCard) { renderWindow(true); return; }
-    const q = qById(qid), topic = currentTopic(), subject = currentSubject(topic);
-    const index = perf.positionById.get(qid) || 0;
-    const holder = document.createElement('div');
-    holder.innerHTML = qCard(q, index, topic, subject);
-    const next = holder.firstElementChild;
-    if (next) oldCard.replaceWith(next);
-    updateSummary();
-  }
-
-  function resetForTopic(topicId) {
-    if (practice.topicId === topicId) return;
-    practice.topicId = topicId;
-    practice.answers = {};
-    practice.revealed = {};
-    practice.recent = [];
-    practice.query = '';
-    practice.visibleCount = 100;
-    window.BankAnswers = {};
-  }
-
-  function renderTopicFeed() {
-    const topic = currentTopic();
-    const subject = currentSubject(topic);
-    if (!topic || !subject) { if (typeof navigate === 'function') navigate('question-bank'); return; }
-    resetForTopic(topic.id);
-    const model = topicModel(topic.id);
-    perf.topicId = topic.id;
-    perf.filteredIds = filteredIds(topic.id);
-    perf.displayIds = perf.filteredIds.slice();
-    perf.heights = new Map([...perf.heights].filter(([id]) => model.byId.has(id)));
-    perf.metricsSignature = '';
-    perf.renderedStart = -1;
-    perf.renderedEnd = -1;
-    const filter = ExplorerState.status || 'all';
-    const tabs = [['all', 'All'], ['unattempted', 'Unattempted'], ['mistakes', 'Mistakes'], ['bookmarked', 'Bookmarked'], ['recent', 'Recent']];
-    const saved = scrollState[topic.id];
-    const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to topics" onclick="leaveTopic()">‹</button><div><h1>${esc(topic.name)}</h1><p>Practice / ${esc(subject.name)} / ${esc(topic.name)}</p></div></div></div></header><div class="q-filter-tabs-v2" role="tablist">${tabs.map(([key, label]) => `<button type="button" role="tab" data-q-tab="${key}" aria-selected="${filter === key}" class="${filter === key ? 'active' : ''}" onclick="qPerfFilter('${key}')">${label} <span data-q-tab-count>0</span></button>`).join('')}</div><div class="q-search-box"><input type="search" inputmode="search" aria-label="Search questions" placeholder="Search this topic..." value="${esc(practice.query || '')}" oninput="qPerfQuery(this.value)"></div><div class="q-feed-summary"><span data-q-summary>${perf.filteredIds.length} question${perf.filteredIds.length === 1 ? '' : 's'}</span><span data-q-answered>0/${model.ids.length} answered</span></div><div class="q-feed-body" data-q-perf-feed><div data-q-window-top class="q-window-spacer"></div><div data-q-window-list></div><div data-q-window-bottom class="q-window-spacer"></div></div></div>`;
-    renderShell(html, { title: topic.name, back: 'leaveTopic()' });
-    perf.root = document.querySelector('[data-q-perf-feed]')?.closest('.q-bank-container');
-    attachScroll();
-    perf.filteredIds = filteredIds(topic.id);
-    perf.displayIds = perf.filteredIds.slice();
-    // Render the window first
-    renderWindow(true);
-    // Restore scroll position without triggering scroll handler loop
-    if (saved && Number.isFinite(saved.scrollOffset) && saved.scrollOffset > 0) {
-      perf.suppressScrollHandler = true;
-      perf.host.scrollTop = saved.scrollOffset;
-      perf.lastScrollTop = perf.host.scrollTop;
-      // Re-render window at restored position
-      renderWindow(true);
-      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
-    }
-  }
-
-  window.qPerfSelect = (qid, idx) => {
-    if (practice.topicId !== ExplorerState.topicId || sessionAnswer(qid)) return;
-    const q = qById(qid);
-    if (!q || q.topicId !== ExplorerState.topicId) return;
-    // Save current scroll position before any DOM change
-    const scrollBefore = perf.host ? perf.host.scrollTop : 0;
-    practice.answers[qid] = { selected: idx, correct: idx === answerIndex(q), answeredAt: Date.now() };
-    practice.recent = [qid, ...practice.recent.filter(id => id !== qid)];
-    // Patch only the clicked card, no full re-render
-    patchCard(qid);
-    // Restore exact scroll position
-    if (perf.host && Math.abs(perf.host.scrollTop - scrollBefore) > 2) {
-      perf.suppressScrollHandler = true;
-      perf.host.scrollTop = scrollBefore;
-      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
-    }
-  };
-  window.qPerfReveal = qid => {
-    const q = qById(qid);
-    if (!q || q.topicId !== ExplorerState.topicId || sessionAnswer(qid)) return;
-    const scrollBefore = perf.host ? perf.host.scrollTop : 0;
-    practice.revealed[qid] = true;
-    patchCard(qid);
-    if (perf.host && Math.abs(perf.host.scrollTop - scrollBefore) > 2) {
-      perf.suppressScrollHandler = true;
-      perf.host.scrollTop = scrollBefore;
-      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
-    }
-  };
-  window.qPerfFilter = filter => {
-    saveScrollState();
-    ExplorerState.status = filter;
-    practice.visibleCount = 100;
-    perf.filteredIds = filteredIds(perf.topicId);
-    perf.renderedStart = -1;
-    if (perf.host) perf.host.scrollTop = 0;
-    renderWindow(true);
-  };
-  window.qPerfQuery = value => {
-    practice.query = String(value || '');
-    practice.visibleCount = 100;
-    clearTimeout(window.__qPerfQueryTimer);
-    window.__qPerfQueryTimer = setTimeout(() => {
-      perf.filteredIds = filteredIds(perf.topicId);
-      perf.renderedStart = -1;
-      if (perf.host) perf.host.scrollTop = 0;
-      renderWindow(true);
-    }, 180);
-  };
-  window.qPerfLoadMore = () => {
-    saveScrollState();
-    practice.visibleCount = (Number(practice.visibleCount) || 100) + 100;
-    perf.filteredIds = filteredIds(perf.topicId);
-    perf.renderedStart = -1;
-    renderWindow(true);
-  };
-  window.qPerfBookmark = async qid => {
-    const q = qById(qid);
+  // --- In-place card patch (no full re-render, no scroll reset) ---
+  function patchCardInPlace(qid) {
+    const q = CACHE.questions.find(x => x.id === qid);
     if (!q) return;
-    const scrollBefore = perf.host ? perf.host.scrollTop : 0;
-    q.bookmarked = !q.bookmarked;
-    q.bookmarkUpdatedAt = Date.now();
-    try {
-      await dbPut('questions', q);
-      const card = perf.root?.querySelector(`[data-question-id="${CSS.escape(qid)}"]`);
-      if (card) {
-        const button = [...card.querySelectorAll('.q-footer-btn')].find(node => node.textContent.includes('Bookmark') || node.textContent.includes('Bookmarked'));
-        if (button) { button.classList.toggle('active', !!q.bookmarked); button.setAttribute('aria-pressed', String(!!q.bookmarked)); button.innerHTML = `⭐ ${q.bookmarked ? 'Bookmarked' : 'Bookmark'}`; }
+    // Find the card in DOM
+    const card = document.querySelector(`[data-qid="${CSS.escape(qid)}"]`);
+    if (!card) return;
+
+    const topic = CACHE.topics.find(t => t.id === q.topicId);
+    const subject = CACHE.subjects.find(s => s.id === topic?.subjectId);
+    const state = practice.answers[qid];
+    const revealed = practice.revealed[qid] || state;
+    const correct = answerFor(q);
+
+    // Update status badge
+    const statusEl = card.querySelector('.q-status');
+    if (statusEl) {
+      const status = state ? (state.correct ? 'Correct' : 'Wrong') : 'Unattempted';
+      const statusClass = state ? (state.correct ? 'correct' : 'wrong') : 'unattempted';
+      statusEl.className = `q-status ${statusClass}`;
+      statusEl.textContent = status;
+    }
+
+    // Update options
+    const opts = card.querySelectorAll('.q-opt-v2');
+    opts.forEach((btn, j) => {
+      btn.className = 'q-opt-v2';
+      if (state) {
+        if (j === correct) btn.classList.add('correct');
+        else if (j === state.selected) btn.classList.add('wrong');
+        btn.disabled = true;
+      } else if (revealed && j === correct) {
+        btn.classList.add('correct');
       }
-      updateSummary();
-      toast(q.bookmarked ? 'Question bookmarked' : 'Bookmark removed');
-    } catch (_) {
-      q.bookmarked = !q.bookmarked;
-      toast('Could not update bookmark');
+      // Update icon
+      let icon = btn.querySelector('.q-opt-icon');
+      if (state || revealed) {
+        if (j === correct) {
+          if (!icon) { icon = document.createElement('span'); icon.className = 'q-opt-icon'; btn.appendChild(icon); }
+          icon.textContent = '✓';
+        } else if (state && j === state.selected) {
+          if (!icon) { icon = document.createElement('span'); icon.className = 'q-opt-icon'; btn.appendChild(icon); }
+          icon.textContent = '✕';
+        } else if (icon) {
+          icon.remove();
+        }
+      }
+    });
+
+    // Add/update explanation
+    let explanation = card.querySelector('.q-explanation-v2');
+    if (revealed && !explanation) {
+      const expDiv = document.createElement('div');
+      const cls = state?.correct ? 'correct' : state ? 'wrong' : 'revealed';
+      expDiv.className = `q-explanation-v2 ${cls}`;
+      const label = state ? (state.correct ? '✓ Correct' : '✕ Wrong') : 'Answer revealed';
+      expDiv.innerHTML = `<strong>${label}</strong><p>Correct answer: ${esc((q.options || [])[correct] || '')}</p>${q.explanation ? `<p>${esc(q.explanation)}</p>` : ''}`;
+      const optionsDiv = card.querySelector('.q-options-v2');
+      if (optionsDiv) optionsDiv.after(expDiv);
     }
-    // Restore scroll
-    if (perf.host && Math.abs(perf.host.scrollTop - scrollBefore) > 2) {
-      perf.suppressScrollHandler = true;
-      perf.host.scrollTop = scrollBefore;
-      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
+
+    // Remove "Show Answer" button if answered/revealed
+    if (revealed || state) {
+      const showBtn = [...card.querySelectorAll('.q-footer-btn')].find(b => b.textContent.includes('Show Answer'));
+      if (showBtn) showBtn.remove();
     }
+
+    // Update footer stats
+    updateFooterStats();
+  }
+
+  function updateFooterStats() {
+    const topicId = ExplorerState.topicId;
+    if (!topicId) return;
+    const allQs = CACHE.questions.filter(q => q.topicId === topicId);
+    const answered = allQs.filter(q => practice.answers[q.id]);
+    const acc = answered.length ? Math.round(answered.filter(q => practice.answers[q.id].correct).length / answered.length * 100) : 0;
+    const mistakeCount = answered.filter(q => !practice.answers[q.id].correct).length;
+
+    // Update all accuracy/mistake spans in visible cards
+    document.querySelectorAll('.q-card-footer').forEach(footer => {
+      const spans = footer.querySelectorAll(':scope > span');
+      if (spans[0]) spans[0].innerHTML = `Accuracy <strong>${acc}%</strong>`;
+      if (spans[1]) spans[1].innerHTML = `Mistakes <strong>${mistakeCount}</strong>`;
+    });
+
+    // Update feed summary
+    const summarySpans = document.querySelectorAll('.q-feed-summary span');
+    if (summarySpans[1]) summarySpans[1].textContent = `${answered.length}/${allQs.length} answered`;
+  }
+
+  // --- Override selectTopicAnswer to patch in place ---
+  window.selectTopicAnswer = (qid, idx) => {
+    if (practice.topicId !== ExplorerState.topicId || practice.answers[qid]) return;
+    const q = CACHE.questions.find(x => x.id === qid);
+    if (!q || q.topicId !== ExplorerState.topicId) return;
+    const correct = answerFor(q);
+    practice.answers[qid] = { selected: idx, correct: idx === correct, answeredAt: Date.now() };
+    practice.recent = [qid, ...practice.recent.filter(id => id !== qid)];
+    // Patch card in place - NO re-render, NO scroll change
+    patchCardInPlace(qid);
   };
 
-  function preserveMutationScroll() {
-    return perf.host ? perf.host.scrollTop : 0;
-  }
-  function restoreMutationScroll(scrollBefore) {
-    if (!perf.host || !Number.isFinite(scrollBefore)) return;
+  // --- Override revealTopicAnswer to patch in place ---
+  window.revealTopicAnswer = qid => {
+    const q = CACHE.questions.find(x => x.id === qid);
+    if (!q || q.topicId !== ExplorerState.topicId || practice.answers[qid]) return;
+    practice.revealed[qid] = true;
+    patchCardInPlace(qid);
+  };
+
+  // --- Wrap the original renderQuestionBankV2 to add data-qid attributes and numeric ordering ---
+  const originalRender = window.renderQuestionBankV2;
+  window.renderQuestionBankV2 = function() {
+    const path = Router.path || location.hash.slice(1);
+    
+    // Save scroll before re-render if we're in a topic
+    if (ExplorerState.topicId && path.startsWith('question-bank/topic/')) {
+      saveScroll();
+    }
+
+    // Call original render
+    const result = originalRender ? originalRender() : undefined;
+
+    // After render, add data-qid attributes to cards for in-place patching
     requestAnimationFrame(() => {
-      perf.suppressScrollHandler = true;
-      perf.host.scrollTop = scrollBefore;
-      renderWindow(true);
-      requestAnimationFrame(() => { perf.suppressScrollHandler = false; });
+      addDataAttributes();
+      // Restore scroll if returning to a topic
+      if (path.startsWith('question-bank/topic/')) {
+        const topicId = decodeURIComponent(path.split('/')[2] || '');
+        restoreScroll(topicId);
+      }
+    });
+
+    return result;
+  };
+
+  function addDataAttributes() {
+    // Find all q-card-v2 elements and add data-qid based on their edit button onclick
+    document.querySelectorAll('.q-card-v2').forEach(card => {
+      if (card.dataset.qid) return; // already tagged
+      // Find the edit button which has ahEditQuestion('id')
+      const editBtn = [...card.querySelectorAll('.q-footer-btn')].find(b => b.textContent.includes('Edit'));
+      if (editBtn) {
+        const match = editBtn.getAttribute('onclick')?.match(/ahEditQuestion\('([^']+)'\)/);
+        if (match) card.dataset.qid = match[1];
+      }
+      // Alternative: find from option onclick
+      if (!card.dataset.qid) {
+        const optBtn = card.querySelector('.q-opt-v2');
+        if (optBtn) {
+          const match = optBtn.getAttribute('onclick')?.match(/selectTopicAnswer\('([^']+)'/);
+          if (match) card.dataset.qid = match[1];
+        }
+      }
     });
   }
-  for (const name of ['ahEditQuestion', 'ahDeleteQuestion', 'ahDuplicateQuestion']) {
-    const original = window[name];
-    if (typeof original !== 'function') continue;
-    window[name] = async function preservedQuestionMutation(...args) {
-      const scrollBefore = preserveMutationScroll();
-      const result = await original.apply(this, args);
-      // After mutation, refresh filtered ids and re-render
-      perf.filteredIds = filteredIds(perf.topicId);
-      perf.renderedStart = -1;
-      restoreMutationScroll(scrollBefore);
-      return result;
+
+  // --- Save scroll on navigation away ---
+  const originalLeaveTopic = window.leaveTopic;
+  if (typeof originalLeaveTopic === 'function') {
+    window.leaveTopic = function() {
+      saveScroll();
+      return originalLeaveTopic.apply(this, arguments);
     };
   }
-
-  const legacyLeaveTopic = window.leaveTopic;
-  if (typeof legacyLeaveTopic === 'function') {
-    window.leaveTopic = function preservedLeaveTopic(...args) {
-      saveScrollState();
-      return legacyLeaveTopic.apply(this, args);
-    };
-  }
-
-  const legacyNavigate = window.navigate;
-  if (typeof legacyNavigate === 'function') {
-    window.navigate = function preservedNavigate(path) {
-      if (perf.topicId && !String(path || '').startsWith('question-bank/topic/')) saveScrollState();
-      legacyNavigate(path);
-    };
-  }
-
-  window.renderQuestionBankV2 = function () {
-    const path = Router.path || location.hash.slice(1);
-    if (String(path).startsWith('question-bank/topic/')) {
-      const topicId = decodeURIComponent(String(path).split('/')[2] || '');
-      const topic = CACHE.topics?.find(t => t.id === topicId);
-      if (!topic) return legacyRenderQuestionBankV2 ? legacyRenderQuestionBankV2() : undefined;
-      ExplorerState.topicId = topicId;
-      ExplorerState.subjectId = topic.subjectId || '';
-      return renderTopicFeed();
-    }
-    return legacyRenderQuestionBankV2 ? legacyRenderQuestionBankV2() : undefined;
-  };
-  window.__qbankPerformance = {
-    version: 'windowed-v2',
-    state: perf,
-    getRenderedCount: () => perf.root?.querySelectorAll('[data-question-id]').length || 0,
-    getTopicOrder: topicId => topicModel(topicId).ids.slice(),
-    getScrollState: () => ({ host: perf.host?.tagName || '', scrollTop: perf.host?.scrollTop || 0, topicId: perf.topicId }),
-  };
 
   window.addEventListener('hashchange', () => {
     const next = location.hash.slice(1) || 'dashboard';
-    if (perf.topicId && !next.startsWith('question-bank/topic/')) saveScrollState();
+    if (ExplorerState.topicId && !next.startsWith('question-bank/topic/')) {
+      saveScroll();
+    }
   });
-  window.addEventListener('resize', () => { if (perf.root) scheduleWindow(); }, { passive: true });
 
-  const style = document.createElement('style');
-  style.id = 'qbank-performance-style';
-  style.textContent = '.q-window-spacer{display:block;width:100%;min-height:0;pointer-events:none;overflow:hidden}';
-  document.head.appendChild(style);
+  // --- Override toggleQuestionBookmark to patch in place when in topic view ---
+  const originalToggleBookmark = window.toggleQuestionBookmark;
+  window.toggleQuestionBookmark = function(id) {
+    const q = CACHE.questions.find(x => x.id === id);
+    if (!q) return;
+    // If we're in topic feed view, do in-place update
+    if (ExplorerState.topicId && document.querySelector(`[data-qid="${CSS.escape(id)}"]`)) {
+      q.bookmarked = !q.bookmarked;
+      q.bookmarkUpdatedAt = Date.now();
+      dbPut('questions', q).then(() => {
+        // Update bookmark button in place
+        const card = document.querySelector(`[data-qid="${CSS.escape(id)}"]`);
+        if (card) {
+          const bmBtn = [...card.querySelectorAll('.q-footer-btn')].find(b => b.textContent.includes('Bookmark'));
+          if (bmBtn) {
+            bmBtn.classList.toggle('active', !!q.bookmarked);
+            bmBtn.setAttribute('aria-pressed', String(!!q.bookmarked));
+            bmBtn.innerHTML = `⭐ ${q.bookmarked ? 'Bookmarked' : 'Bookmark'}`;
+          }
+        }
+        toast(q.bookmarked ? 'Question bookmarked' : 'Bookmark removed');
+      }).catch(() => {
+        q.bookmarked = !q.bookmarked;
+        toast('Could not update bookmark');
+      });
+    } else {
+      // Fall back to original
+      if (originalToggleBookmark) originalToggleBookmark(id);
+    }
+  };
+
+  // --- Ensure nextQuestionNumberForTopic is available ---
+  if (typeof window.nextQuestionNumberForTopic !== 'function') {
+    window.nextQuestionNumberForTopic = function(topicId, excludeId) {
+      const numbers = (CACHE.questions || [])
+        .filter(q => q.topicId === topicId && q.id !== excludeId)
+        .map(q => Number(q.questionNumber ?? q.number))
+        .filter(Number.isFinite);
+      return (numbers.length ? Math.max(...numbers) : (CACHE.questions || []).filter(q => q.topicId === topicId).length) + 1;
+    };
+  }
+
 })();
