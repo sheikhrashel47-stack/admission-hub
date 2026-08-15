@@ -18,7 +18,9 @@ assert 'Local database is still starting' in html
 assert 'visual-viewport-height' in html
 
 qbank = (ROOT / "qbank-redesign.js").read_text(encoding="utf-8")
-assert 'visibleCount: 40' in qbank
+assert 'visibleCount: 100' in qbank
+assert '|| 100) + 100' in qbank
+assert 'Math.max(100' in qbank
 assert 'loadMoreTopicQuestions' in qbank
 assert 'setTopicQuery' in qbank
 assert 'visibleQs.map' in qbank
