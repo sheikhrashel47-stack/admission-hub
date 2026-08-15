@@ -2,6 +2,12 @@
   'use strict';
 
   const CHILD_KEY = 'parentTopicId';
+  if (!document.getElementById('ah-topic-card-layout-fix')) {
+    const style = document.createElement('style');
+    style.id = 'ah-topic-card-layout-fix';
+    style.textContent = '.q-nav-card-topic{flex-wrap:wrap}.q-nav-card-topic>.row{flex:0 0 100%}';
+    document.head.appendChild(style);
+  }
   const appCache = () => (typeof CACHE !== 'undefined' ? CACHE : { subjects: [], topics: [], questions: [], settings: {} });
   let migrationState = 'idle';
   let migrationPromise = null;
