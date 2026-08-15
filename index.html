@@ -541,8 +541,8 @@ function round2(n){return Math.round(n*100)/100;}
 function debounce(fn,ms){let t; return (...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);};}
 
 /* ---------------- IndexedDB layer ---------------- */
-const DB_NAME='admissionHubDB', DB_VERSION=3;
-const STORES=['appMeta','subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','ADMISSION_PLANS','PLAN_DAYS'];
+const DB_NAME='admissionHubDB', DB_VERSION=4;
+const STORES=['appMeta','subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
 let DB=null;
 
 function openDB(){
@@ -578,7 +578,7 @@ function dbClear(store){return new Promise((res,rej)=>{const r=tx(store,'readwri
 async function dbPutMany(store,arr){for(const o of arr) await dbPut(store,o); return true;}
 
 /* ---------------- in-memory cache (mirrors DB, refreshed on write) ---------------- */
-const CACHE={subjects:[],topics:[],questions:[],exams:[],examResults:[],mistakes:[],vocabulary:[],dailyStats:[],activityLogs:[],settings:{}};
+const CACHE={subjects:[],topics:[],questions:[],exams:[],examResults:[],mistakes:[],vocabulary:[],dailyStats:[],activityLogs:[],notes:[],settings:{}};
 
 function normalizeExamResult(r){
   if(!r) return r;
@@ -618,6 +618,7 @@ async function loadCache(){
   CACHE.vocabulary=await read('vocabulary',CACHE.vocabulary);
   CACHE.dailyStats=await read('dailyStats',CACHE.dailyStats);
   CACHE.activityLogs=await read('activityLogs',CACHE.activityLogs);
+  CACHE.notes=await read('notes',CACHE.notes);
   const settings=await read('settings',[]);
   CACHE.settings=(settings[0]&&typeof settings[0]==='object')?settings[0]:defaultSettings();
 }
@@ -4897,6 +4898,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
 <script src="feature-upgrade-2026.js?v=3"></script>
+<script src="notes-tool.js?v=1"></script>
 <script src="question-analysis-chatbot.js?v=3"></script>
 <script src="manual-mindpal-helper.js?v=1"></script>
 </body>

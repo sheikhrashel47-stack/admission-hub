@@ -9,6 +9,7 @@
   let syncTimer = 0;
   let scriptLoading = false;
   let active = false;
+  let pendingContext = {};
 
   function currentPath() {
     return String(window.Router?.path || location.hash.slice(1) || 'dashboard').split('?')[0];
@@ -76,6 +77,10 @@
     }
   }
 
+  function sanitizeContext(context){
+    return Object.fromEntries(Object.entries(context || {}).slice(0,20).map(([key,value])=>[String(key),String(value ?? '').slice(0,500)]));
+  }
+
   function loadWidget() {
     if (active || scriptLoading || document.getElementById(SCRIPT_ID)) return;
     active = true;
@@ -85,10 +90,11 @@
 
     window.mindpalConfig = {
       chatbotId: CHATBOT_ID,
+      customSessionContext: sanitizeContext(pendingContext),
       display: { type: 'floating-corner', anchor: 'right' },
       behavior: {
         showInitialMessageBubbleWhenMinimized: true,
-        minimizedByDefault: true
+        minimizedByDefault: false
       }
     };
 
@@ -132,7 +138,14 @@
   window.questionAnalysisChatbot = {
     sync,
     cleanup,
-    isActive: () => active && (isQuestionTopicRoute() || isFlashTestRoute()) && questionCardsPresent()
+    isActive: () => active && (isQuestionTopicRoute() || isFlashTestRoute()) && questionCardsPresent(),
+    prepareContext(context){
+      pendingContext = sanitizeContext(context);
+      cleanup();
+      setTimeout(sync, 0);
+      setTimeout(sync, 500);
+    },
+    getContext(){ return {...pendingContext}; }
   };
 
   setTimeout(sync, 0);
