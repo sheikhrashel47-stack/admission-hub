@@ -13,8 +13,16 @@
     document.head.appendChild(style);
   }
 
-  // Route changes begin at the top once, while scrolling inside a view remains natural.
-  window.addEventListener('hashchange', () => window.scrollTo(0, 0), false);
+  // Smart scroll: only scroll to top when the base route actually changes,
+  // not on in-page state updates (dropdown changes, search filtering, etc.)
+  let _lastRouteBase = (location.hash.slice(1) || 'dashboard').split('/')[0];
+  window.addEventListener('hashchange', () => {
+    const newBase = (location.hash.slice(1) || 'dashboard').split('/')[0];
+    if (newBase !== _lastRouteBase) {
+      window.scrollTo(0, 0);
+    }
+    _lastRouteBase = newBase;
+  }, false);
 
   const bindNestedClickGuards = () => {
     document.querySelectorAll('[role="button"][onclick] button, [role="button"][onclick] a, [role="button"][onclick] input, [role="button"][onclick] select, [role="button"][onclick] textarea, [role="button"][onclick] [role="button"]').forEach(control => {
