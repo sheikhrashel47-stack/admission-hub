@@ -1033,6 +1033,10 @@ async function setTarget(v){
 function subjectQCount(subId){return CACHE.questions.filter(q=>q.subjectId===subId).length;}
 function topicQCount(topId){return CACHE.questions.filter(q=>q.topicId===topId).length;}
 function topicsOf(subId){return CACHE.topics.filter(t=>t.subjectId===subId).sort((a,b)=>a.order-b.order);}
+function nextQuestionNumberForTopic(topicId, excludeId=''){
+  const numbers=CACHE.questions.filter(q=>q.topicId===topicId && q.id!==excludeId).map(q=>Number(q.questionNumber ?? q.number)).filter(Number.isFinite);
+  return (numbers.length ? Math.max(...numbers) : CACHE.questions.filter(q=>q.topicId===topicId).length) + 1;
+}
 
 const ExplorerState={
   query:'', subjectId:'', topicId:'', status:'all', difficulty:'all',
@@ -1566,7 +1570,7 @@ async function saveQuestionForm(qid){
     await dbPut('questions',q);
   } else {
     await dbPut('questions',{id:uid(),subjectId,topicId,question,options,answer,explanation,tags,difficulty,
-      source:'manual', createdAt:Date.now(), updatedAt:Date.now(), stats:{attempts:0,correct:0,wrong:0}});
+      questionNumber:nextQuestionNumberForTopic(topicId), source:'manual', createdAt:Date.now(), updatedAt:Date.now(), stats:{attempts:0,correct:0,wrong:0}});
   }
   CACHE.questions=await dbGetAll('questions');
   toast('Question saved');
@@ -4032,6 +4036,7 @@ async function executeAIAction(act){
           id:uid(),
           subjectId:subId,
           topicId:topId,
+          questionNumber:nextQuestionNumberForTopic(topId),
           question:q.question,
           options:q.options.slice(0,4),
           answer:typeof q.answer==='number'?q.answer:0,
@@ -4878,5 +4883,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="vocabulary-phase2.js?v=1"></script>
 <script src="vocabulary-upgrade.js?v=phase2-3"></script>
 <script src="study-hub.js?v=2"></script>
+<script src="question-bank-performance.js?v=3"></script>
 </body>
 </html>

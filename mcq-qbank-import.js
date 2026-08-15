@@ -133,6 +133,7 @@
         difficulty: item.difficulty || 'medium',
         source: SOURCE,
         sourceQuestionId: item.id,
+        questionNumber: Number.isFinite(Number(item.id)) ? Number(item.id) : undefined,
         sourcePage: item.source_page,
         stats: { attempts: 0, correct: 0, wrong: 0 },
         bookmarked: false,
