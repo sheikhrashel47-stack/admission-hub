@@ -203,11 +203,21 @@
     return match ? Number(match[1]) : 99999;
   }
 
+  // Build a map of question id -> serial number (1 to n) for the full topic
+  function getSerialMap(topicId) {
+    const all = CACHE.questions.filter(x => x.topicId === topicId);
+    const map = new Map();
+    all.forEach((q, i) => map.set(q.id, i + 1));
+    return map;
+  }
+
   function buildCard(q, index, topic, subject) {
     const state = practice.answers[q.id];
     const revealed = practice.revealed[q.id] || state;
     const correct = answerFor(q);
-    const number = index + 1;
+    // Use serial number from full topic list (1 to n)
+    const serialMap = getSerialMap(topic.id);
+    const number = serialMap.get(q.id) || (index + 1);
     const status = state ? (state.correct ? 'Correct' : 'Wrong') : 'Unattempted';
     const statusClass = state ? (state.correct ? 'correct' : 'wrong') : 'unattempted';
     const opts = (q.options || []).map((o, j) => {
