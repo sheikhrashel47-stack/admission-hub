@@ -239,8 +239,10 @@
     if (totalPages <= 1) return '';
     const prevDisabled = page === 0;
     const nextDisabled = page >= totalPages - 1;
+    const pageButtons = Array.from({ length: totalPages }, (_, i) => `<button class="qbank-page-btn ${i === page ? 'active' : ''}" type="button" ${i === page ? 'aria-current="page"' : ''} onclick="qbankGoToPage(${i})">${i + 1}</button>`).join('');
     return `<div class="qbank-pagination">
       <button class="qbank-page-btn ${prevDisabled ? 'disabled' : ''}" ${prevDisabled ? 'disabled' : ''} onclick="qbankGoToPage(${page - 1})">← Previous</button>
+      <span class="qbank-page-numbers" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center">${pageButtons}</span>
       <span class="qbank-page-info">Page ${page + 1} of ${totalPages}</span>
       <button class="qbank-page-btn ${nextDisabled ? 'disabled' : ''}" ${nextDisabled ? 'disabled' : ''} onclick="qbankGoToPage(${page + 1})">Next →</button>
     </div>`;
