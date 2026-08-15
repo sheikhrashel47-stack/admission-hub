@@ -75,7 +75,7 @@
     return leaf;
   }
 
-  window.topicHierarchy = { topicChildren, topicRoots, topicLeaves, descendantIds, topicDisplayName, topicQuestionCount, leafPickerOptions };
+  window.topicHierarchy = { topicChildren, topicRoots, topicLeaves, descendantIds, topicDisplayName, topicQuestionCount, leafPickerOptions, ensureDirectQuestionsLeaf };
   window.topicPickerOptions = leafPickerOptions;
 
   async function migrateDirectParentQuestions() {
