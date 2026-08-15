@@ -5,7 +5,7 @@
   if (!document.getElementById('ah-topic-card-layout-fix')) {
     const style = document.createElement('style');
     style.id = 'ah-topic-card-layout-fix';
-    style.textContent = '.q-nav-card-topic{flex-wrap:wrap}.q-nav-card-topic>.row{flex:0 0 100%}';
+    style.textContent = '.q-nav-card-topic{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:8px}.q-nav-card-topic>.row{grid-column:1/-1;margin-top:0 !important;width:100% !important}';
     document.head.appendChild(style);
   }
   const appCache = () => (typeof CACHE !== 'undefined' ? CACHE : { subjects: [], topics: [], questions: [], settings: {} });
@@ -232,13 +232,6 @@
         topicsOf = leafTopicsForUI;
         try { output = originalExamSetup.apply(this, args); } finally { topicsOf = prior; }
       } else output = originalExamSetup.apply(this, args);
-      const reset = () => {
-        const scroller = document.querySelector('.setup-scroll');
-        if (scroller) scroller.scrollTop = 0;
-        document.documentElement.scrollTop = 0;
-        document.body.scrollTop = 0;
-        window.scrollTo(0, 0);
-      };
       const appendExamSubtopics = () => {
         const section = [...document.querySelectorAll('.setup-section')].find(node => node.textContent.includes('Step 3'));
         const row = section?.querySelector('.filter-row');
@@ -250,8 +243,8 @@
         const additions = subs.filter(s => selectedSubs.includes(s.id)).flatMap(s => leafPickerOptions(s.id).map(t => ({ ...t, subjectName: s.name }))).filter(t => !existing.has(`${t.subjectName} · ${t.name}`) && !row.querySelector(`[onclick*="${t.id}"]`));
         if (additions.length) row.insertAdjacentHTML('beforeend', additions.map(t => `<button class="choice ${st.topicIds.includes(t.id) ? 'active' : ''}" onclick="toggleSetupTopic('${escH(t.id)}')"><b>${escH(t.subjectName)} · ${escH(t.name)}</b></button>`).join(''));
       };
-      requestAnimationFrame(() => { appendExamSubtopics(); reset(); });
-      setTimeout(() => { appendExamSubtopics(); reset(); }, 40);
+      requestAnimationFrame(appendExamSubtopics);
+      setTimeout(appendExamSubtopics, 40);
       return output;
     };
   }

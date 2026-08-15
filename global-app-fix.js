@@ -1,31 +1,20 @@
 (() => {
   'use strict';
 
-  const resetViewScroll = () => {
-    window.scrollTo(0, 0);
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-    document.querySelectorAll('.page, .setup-scroll').forEach(node => {
-      node.scrollTop = 0;
-    });
-  };
-
-  const scheduleScrollReset = () => {
-    resetViewScroll();
-    requestAnimationFrame(resetViewScroll);
-    setTimeout(resetViewScroll, 50);
-  };
-
-  const originalNavigate = window.navigate;
-  if (typeof originalNavigate === 'function') {
-    window.navigate = function(...args) {
-      const result = originalNavigate.apply(this, args);
-      scheduleScrollReset();
-      return result;
-    };
+  if (!document.getElementById('ah-natural-scroll-fix')) {
+    const style = document.createElement('style');
+    style.id = 'ah-natural-scroll-fix';
+    style.textContent = `
+      html, body { overflow-y: auto !important; }
+      #app { overflow: visible !important; }
+      .setup-scroll { height: auto !important; max-height: none !important; overflow: visible !important; padding-bottom: 24px !important; }
+      .setup-footer { position: sticky !important; bottom: calc(74px + var(--safe-b)) !important; }
+    `;
+    document.head.appendChild(style);
   }
 
-  window.addEventListener('hashchange', scheduleScrollReset, false);
+  // Route changes begin at the top once, while scrolling inside a view remains natural.
+  window.addEventListener('hashchange', () => window.scrollTo(0, 0), false);
 
   const bindNestedClickGuards = () => {
     document.querySelectorAll('[role="button"][onclick] button, [role="button"][onclick] a, [role="button"][onclick] input, [role="button"][onclick] select, [role="button"][onclick] textarea, [role="button"][onclick] [role="button"]').forEach(control => {
