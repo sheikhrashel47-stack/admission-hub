@@ -5,7 +5,7 @@
   if (!document.getElementById('ah-topic-card-layout-fix')) {
     const style = document.createElement('style');
     style.id = 'ah-topic-card-layout-fix';
-    style.textContent = '.q-nav-card-topic{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px}.q-nav-card-topic>.row{grid-column:1/-1;margin-top:0 !important;width:100% !important}.ah-settings-page{padding-bottom:24px}.ah-settings-intro{display:flex;flex-direction:column;gap:4px;margin:4px 0 12px;color:var(--text)}.ah-settings-intro span,.ah-settings-subject small,.ah-settings-topic small{color:var(--sub);font-size:12px;line-height:1.4}.ah-settings-toolbar{display:flex;justify-content:flex-end;margin:10px 0}.ah-settings-subject{padding:14px;margin:10px 0}.ah-settings-subject-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.ah-settings-subject-title{display:flex;align-items:center;gap:10px;min-width:0}.ah-settings-subject-title>span{font-size:24px}.ah-settings-subject-title h2{font-size:17px;margin:0 0 2px}.ah-settings-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.ah-settings-topic-list{margin-top:12px;border-top:1px solid var(--line);padding-top:4px}.ah-settings-topic{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0 10px calc(var(--ah-topic-depth, 0) * 18px);border-bottom:1px solid color-mix(in srgb, var(--line) 65%, transparent)}.ah-settings-topic-main{display:flex;align-items:center;gap:8px;min-width:0}.ah-settings-topic-main>div{display:flex;flex-direction:column;min-width:0}.ah-settings-topic-main strong{font-size:14px;overflow-wrap:anywhere}.ah-settings-topic-icon{font-size:18px;flex-shrink:0}.ah-settings-empty{color:var(--sub);font-size:13px;padding:12px 0}@media(max-width:620px){.ah-settings-subject-head{flex-direction:column}.ah-settings-actions{justify-content:flex-start}.ah-settings-topic{align-items:flex-start;flex-direction:column}.ah-settings-topic .ah-settings-actions{padding-left:26px}}';
+    style.textContent = '.ah-subject-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:12px}.ah-subject-grid .u-subject{margin:0;min-height:78px;border-radius:16px;padding:14px}.q-nav-card-topic{display:flex;align-items:center;min-height:64px;gap:10px}.q-nav-card-topic>.row{grid-column:1/-1;margin-top:0 !important;width:100% !important}.ah-settings-page{padding-bottom:24px}.ah-settings-intro{display:flex;flex-direction:column;gap:4px;margin:4px 0 12px;color:var(--text)}.ah-settings-intro span,.ah-settings-subject small,.ah-settings-topic small,.ah-design-copy small,.ah-design-heading small{color:var(--sub);font-size:12px;line-height:1.4}.ah-settings-toolbar{display:flex;justify-content:flex-end;margin:10px 0}.ah-settings-subject{padding:14px;margin:10px 0}.ah-settings-subject-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}.ah-settings-subject-title{display:flex;align-items:center;gap:10px;min-width:0}.ah-settings-subject-title>span{font-size:24px}.ah-settings-subject-title h2{font-size:17px;margin:0 0 2px}.ah-settings-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}.ah-settings-topic-list{margin-top:12px;border-top:1px solid var(--line);padding-top:4px}.ah-settings-topic{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0 10px calc(var(--ah-topic-depth, 0) * 18px);border-bottom:1px solid color-mix(in srgb, var(--line) 65%, transparent)}.ah-settings-topic-main{display:flex;align-items:center;gap:8px;min-width:0}.ah-settings-topic-main>div{display:flex;flex-direction:column;min-width:0}.ah-settings-topic-main strong{font-size:14px;overflow-wrap:anywhere}.ah-settings-topic-icon{font-size:18px;flex-shrink:0}.ah-settings-empty{color:var(--sub);font-size:13px;padding:12px 0}.ah-design-panel{padding:14px;margin:10px 0}.ah-design-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}.ah-design-heading>div,.ah-design-copy{display:flex;flex-direction:column;gap:2px}.ah-design-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.ah-design-choice{position:relative;display:flex;align-items:center;gap:10px;text-align:left;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--card);color:var(--text);cursor:pointer}.ah-design-choice.active{border-color:var(--emerald);box-shadow:0 0 0 2px color-mix(in srgb, var(--emerald) 18%, transparent)}.ah-design-preview{display:flex;align-items:flex-end;gap:3px;width:42px;height:34px;padding:5px;border-radius:9px;background:#e6f7ef;flex-shrink:0}.ah-design-preview i{display:block;flex:1;border-radius:3px;background:#0f6b4f;height:55%}.ah-design-preview i:nth-child(2){height:78%}.ah-design-preview i:nth-child(3){height:40%}.ah-design-preview.grid{background:#eef2ff}.ah-design-preview.grid i{background:#4f46e5}.ah-design-preview.minimal{background:#f5f5f5}.ah-design-preview.minimal i{background:#6b7280}.ah-design-preview.lavender{background:#f3e8ff}.ah-design-preview.lavender i{background:#9333ea}.ah-design-preview.focus{background:#dcfce7}.ah-design-preview.focus i{background:#166534}.ah-design-check{margin-left:auto;color:var(--emerald);font-weight:800}.ah-design-copy strong{font-size:13px}.ah-design-copy small{line-height:1.25}@media(max-width:620px){.ah-settings-subject-head{flex-direction:column}.ah-settings-actions{justify-content:flex-start}.ah-settings-topic{align-items:flex-start;flex-direction:column}.ah-settings-topic .ah-settings-actions{padding-left:26px}.ah-design-grid{grid-template-columns:1fr}.ah-subject-grid{gap:8px}.ah-subject-grid .u-subject{padding:10px;min-height:70px}}html[data-qbank-design="grid"] .ah-subject-grid{gap:8px}html[data-qbank-design="minimal"] .ah-subject-grid .u-subject,html[data-qbank-design="minimal"] .q-nav-card-topic{border:0;box-shadow:none;background:transparent}html[data-qbank-design="lavender"] .ah-subject-grid .u-subject,html[data-qbank-design="lavender"] .q-nav-card-topic{background:#fbf7ff;border-color:#e9d5ff}html[data-qbank-design="focus"] .ah-subject-grid .u-subject,html[data-qbank-design="focus"] .q-nav-card-topic{border-left:4px solid #166534;border-radius:10px}';
     document.head.appendChild(style);
   }
   const appCache = () => (typeof CACHE !== 'undefined' ? CACHE : { subjects: [], topics: [], questions: [], settings: {} });
@@ -91,42 +91,46 @@
     return changed;
   }
 
-  async function migrateMemorizingVocabulary() {
-    if (!Array.isArray(appCache().subjects) || !Array.isArray(appCache().topics) || typeof dbPut !== 'function') return false;
-    const changedSubjects = new Set();
+  async function restoreVocabularyLayout() {
+    if (!Array.isArray(appCache().topics) || typeof dbPut !== 'function') return false;
     const rangePattern = /^Vocabulary\s*\(\s*\d+\s*-\s*\d+\s*\)$/i;
-    const subjects = [...CACHE.subjects];
-    for (const subject of subjects) {
-      const roots = CACHE.topics.filter(t => t.subjectId === subject.id && !t[CHILD_KEY]);
-      const vocabularyTopics = roots.filter(t => rangePattern.test(String(t.name || ''))).sort((a, b) => (a.order || 0) - (b.order || 0));
-      if (!vocabularyTopics.length) continue;
-      let parent = roots.find(t => String(t.name || '').trim().toLowerCase() === 'vocabulary');
-      if (!parent) {
-        parent = { id: uid(), subjectId: subject.id, name: 'Vocabulary', order: vocabularyTopics[0].order || 0, createdAt: Date.now(), updatedAt: Date.now() };
-        await dbPut('topics', parent);
-        CACHE.topics.push(parent);
+    const migratedBefore = !!CACHE.settings?.subtopicMigrationV2;
+    let changed = false;
+    const parents = [...CACHE.topics].filter(t => String(t.name || '').trim().toLowerCase() === 'vocabulary' && !t[CHILD_KEY]);
+    for (const parent of parents) {
+      const rangeChildren = CACHE.topics.filter(t => t[CHILD_KEY] === parent.id && rangePattern.test(String(t.name || ''))).sort((a, b) => (a.order || 0) - (b.order || 0));
+      if (!rangeChildren.length) continue;
+      const rootTopics = CACHE.topics.filter(t => t.subjectId === parent.subjectId && !t[CHILD_KEY] && t.id !== parent.id);
+      let nextOrder = rootTopics.reduce((max, topic) => Math.max(max, Number(topic.order) || 0), -1) + 1;
+      for (const child of rangeChildren) {
+        const restored = { ...child };
+        delete restored[CHILD_KEY];
+        restored.order = nextOrder++;
+        restored.updatedAt = Date.now();
+        await dbPut('topics', restored);
+        changed = true;
       }
-      for (const topic of vocabularyTopics) {
-        if (topic.id === parent.id || topic[CHILD_KEY] === parent.id) continue;
-        topic[CHILD_KEY] = parent.id;
-        topic.updatedAt = Date.now();
-        await dbPut('topics', topic);
-        changedSubjects.add(subject.id);
+      const otherChildren = CACHE.topics.filter(t => t[CHILD_KEY] === parent.id && !rangePattern.test(String(t.name || '')));
+      const parentQuestions = (CACHE.questions || []).some(q => q.topicId === parent.id);
+      if (migratedBefore && !otherChildren.length && !parentQuestions) {
+        await dbDel('topics', parent.id);
+        changed = true;
       }
     }
-    if (!changedSubjects.size) return false;
+    if (!changed && !migratedBefore) return false;
     CACHE.topics = await dbGetAll('topics');
-    CACHE.settings = { ...(CACHE.settings || { id: 'main' }), subtopicMigrationV2: true };
+    CACHE.settings = { ...(CACHE.settings || { id: 'main' }), subtopicMigrationV2: false, vocabularyLayoutRestoredV1: true };
     await dbPut('settings', CACHE.settings);
-    return true;
+    return changed;
   }
 
   async function ensureMigration() {
     if (migrationState === 'done') return false;
     if (migrationPromise) return migrationPromise;
     migrationState = 'running';
-    migrationPromise = migrateMemorizingVocabulary().then(vocabularyChanged => migrateDirectParentQuestions().then(directQuestionChanged => {
-      const changed = vocabularyChanged || directQuestionChanged;
+    migrationPromise = restoreVocabularyLayout().then(vocabularyRestored => migrateDirectParentQuestions().then(directQuestionChanged => {
+      const changed = vocabularyRestored || directQuestionChanged;
+      applyQuestionBankDesign();
       if (changed || (CACHE.subjects?.length && CACHE.topics?.length)) migrationState = 'done';
       else migrationState = 'idle';
       migrationPromise = null;
@@ -145,13 +149,10 @@
     const children = topicChildren(topic.id);
     const count = topicQuestionCount(topic.id);
     const childLabel = children.length ? `${children.length} sub-topic${children.length === 1 ? '' : 's'} · ` : '';
-    const addSubtopic = `openTopicForm('${escH(subjectId)}',null,'${escH(topic.id)}')`;
-    const addQuestion = `navigate('add-question?sub=${escH(subjectId)}&top=${escH(topic.id)}')`;
     return `<article class="q-nav-card q-nav-card-topic" role="button" tabindex="0" onclick="openRedesignedTopic('${escH(topic.id)}')" onkeydown="if(event.key==='Enter')openRedesignedTopic('${escH(topic.id)}')">
       <span class="q-topic-icon" aria-hidden="true">${children.length ? '📂' : '📄'}</span>
       <div class="q-nav-info"><strong>${escH(topic.name)}</strong><span>${childLabel}${count} question${count === 1 ? '' : 's'}</span></div>
       <span class="q-nav-arrow" aria-hidden="true">›</span>
-      <div class="row" style="width:100%;margin-top:8px;gap:8px" onclick="event.stopPropagation()">${children.length ? `<button class="btn ghost sm" style="flex:1" onclick="openRedesignedTopic('${escH(topic.id)}')">Open Sub-topics</button>` : `<button class="btn ghost sm" style="flex:1" onclick="${addQuestion}">+ Question</button><button class="btn secondary sm" style="flex:1" onclick="startExamFor([],['${escH(topic.id)}'])">Start Exam</button>`}</div>
     </article>`;
   }
 
@@ -161,7 +162,7 @@
     const roots = topicRoots(subjectId);
     const search = String(ExplorerState.query || '').toLowerCase();
     const filtered = roots.filter(t => !search || String(t.name).toLowerCase().includes(search));
-    const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to subjects" onclick="location.hash='question-bank'">‹</button><div><h1>${escH(subject.name)}</h1><p>${roots.length} Topics · ${CACHE.questions.filter(q => q.subjectId === subjectId).length} Questions</p></div></div><div class="row"><button class="q-header-icon" type="button" aria-label="Search topics" onclick="toggleQSearch()">${window.ICONS?.search || '🔍'}</button><button class="q-header-icon" type="button" aria-label="Add question" onclick="ahAddQuestion()">＋Q</button></div></div><div id="qSearchBox" class="q-search-box ${ExplorerState.query ? '' : 'hide'}"><input type="search" placeholder="Search topics..." value="${escH(ExplorerState.query)}" oninput="ExplorerState.query=this.value;window.renderQuestionBankV2()"></div></header><div class="q-list-body">${filtered.map(t => renderTopicCard(t, subjectId)).join('') || '<div class="empty">No topics found.</div>'}</div></div>`;
+    const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to subjects" onclick="location.hash='question-bank'">‹</button><div><h1>${escH(subject.name)}</h1><p>${roots.length} Topics · ${CACHE.questions.filter(q => q.subjectId === subjectId).length} Questions</p></div></div><div class="row"><button class="q-header-icon" type="button" aria-label="Search topics" onclick="toggleQSearch()">${window.ICONS?.search || '🔍'}</button></div></div><div id="qSearchBox" class="q-search-box ${ExplorerState.query ? '' : 'hide'}"><input type="search" placeholder="Search topics..." value="${escH(ExplorerState.query)}" oninput="ExplorerState.query=this.value;window.renderQuestionBankV2()"></div></header><div class="q-list-body">${filtered.map(t => renderTopicCard(t, subjectId)).join('') || '<div class="empty">No topics found.</div>'}</div></div>`;
     renderShell(html, { title: subject.name, back: "navigate('question-bank')" });
   }
 
@@ -171,9 +172,34 @@
     return `<div class="ah-settings-topic" style="--ah-topic-depth:${Math.min(depth, 6)}"><div class="ah-settings-topic-main"><span class="ah-settings-topic-icon">${children.length ? '📂' : '📄'}</span><div><strong>${escH(topic.name)}</strong><small>${count} question${count === 1 ? '' : 's'}${children.length ? ` · ${children.length} sub-topic${children.length === 1 ? '' : 's'}` : ''}</small></div></div><div class="ah-settings-actions"><button class="btn ghost sm" type="button" onclick="ahRenameTopic('${escH(topic.id)}')">Rename</button><button class="btn danger sm" type="button" onclick="ahDeleteTopic('${escH(topic.id)}')">Delete</button><button class="btn secondary sm" type="button" onclick="openTopicForm('${escH(subjectId)}',null,'${escH(topic.id)}')">+ Sub-topic</button></div></div>${children.map(child => settingsTopicRow(child, subjectId, depth + 1)).join('')}`;
   }
 
+  const questionBankDesigns = [
+    { id: 'mint', title: 'Mint Calm', description: 'বর্তমান নরম academic style' },
+    { id: 'grid', title: 'Two-Column Grid', description: 'Subject card-এর compact grid' },
+    { id: 'minimal', title: 'Minimal Clean', description: 'কম border, বেশি whitespace' },
+    { id: 'lavender', title: 'Lavender Soft', description: 'হালকা purple accent' },
+    { id: 'focus', title: 'Focus Green', description: 'strong green navigation accent' },
+  ];
+  const questionBankDesign = () => questionBankDesigns.some(d => d.id === CACHE.settings?.questionBankDesign) ? CACHE.settings.questionBankDesign : 'mint';
+  function applyQuestionBankDesign() { document.documentElement.dataset.qbankDesign = questionBankDesign(); }
+  async function selectQuestionBankDesign(id) {
+    if (!questionBankDesigns.some(d => d.id === id)) return;
+    CACHE.settings = { ...(CACHE.settings || { id: 'main' }), questionBankDesign: id };
+    await dbPut('settings', CACHE.settings);
+    applyQuestionBankDesign();
+    toast('Question Bank design updated');
+    renderQuestionBankSettings();
+  }
+  window.applyQuestionBankDesign = applyQuestionBankDesign;
+  window.selectQuestionBankDesign = selectQuestionBankDesign;
+  function renderQuestionBankDesignPanel() {
+    const active = questionBankDesign();
+    return `<section class="ah-design-panel card"><div class="ah-design-heading"><div><strong>Question Bank Design</strong><small>৫টি design-এর যেকোনো একটি বেছে নাও</small></div><span class="pill">${active}</span></div><div class="ah-design-grid">${questionBankDesigns.map(design => `<button type="button" class="ah-design-choice ${active === design.id ? 'active' : ''}" onclick="selectQuestionBankDesign('${design.id}')"><span class="ah-design-preview ${design.id}"><i></i><i></i><i></i></span><span class="ah-design-copy"><strong>${design.title}</strong><small>${design.description}</small></span><span class="ah-design-check">${active === design.id ? '✓' : ''}</span></button>`).join('')}</div></section>`;
+  }
+
   function renderQuestionBankSettings() {
+    applyQuestionBankDesign();
     const subjects = [...(CACHE.subjects || [])].sort((a, b) => (a.order || 0) - (b.order || 0));
-    const html = `<div class="q-bank-container ah-settings-page"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to Question Bank" onclick="navigate('question-bank')">‹</button><div><h1>Question Bank Settings</h1><p>Subject, Topic এবং Sub-topic পরিচালনা করুন</p></div></div><button class="q-header-icon" type="button" aria-label="Close settings" onclick="navigate('question-bank')">✓</button></div></header><div class="ah-settings-intro card"><strong>Content management</strong><span>Browse page পরিষ্কার রাখা হয়েছে। সব rename, delete এবং নতুন Topic/Sub-topic এখানে পরিচালনা করুন।</span></div><div class="ah-settings-toolbar"><button class="btn" type="button" onclick="ahAddSubject()">+ Add Subject</button></div><div class="ah-settings-subject-list">${subjects.map(subject => { const roots = topicRoots(subject.id); const subjectQuestions = (CACHE.questions || []).filter(q => q.subjectId === subject.id).length; return `<section class="ah-settings-subject card"><div class="ah-settings-subject-head"><div class="ah-settings-subject-title"><span>${escH(subject.icon || '📘')}</span><div><h2>${escH(subject.name)}</h2><small>${subjectQuestions} questions · ${roots.length} top-level topics</small></div></div><div class="ah-settings-actions"><button class="btn ghost sm" type="button" onclick="ahRenameSubject('${escH(subject.id)}')">Rename</button><button class="btn danger sm" type="button" onclick="ahDeleteSubject('${escH(subject.id)}')">Delete</button><button class="btn secondary sm" type="button" onclick="openTopicForm('${escH(subject.id)}',null)">+ Topic</button></div></div><div class="ah-settings-topic-list">${roots.map(topic => settingsTopicRow(topic, subject.id)).join('') || '<div class="ah-settings-empty">No topics yet. Add the first Topic above.</div>'}</div></section>`; }).join('') || '<div class="empty">No subjects yet.</div>'}</div></div>`;
+    const html = `<div class="q-bank-container ah-settings-page"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to Question Bank" onclick="navigate('question-bank')">‹</button><div><h1>Question Bank Settings</h1><p>Subject, Topic এবং Sub-topic পরিচালনা করুন</p></div></div><button class="q-header-icon" type="button" aria-label="Close settings" onclick="navigate('question-bank')">✓</button></div></header><div class="ah-settings-intro card"><strong>Content management</strong><span>Browse page পরিষ্কার রাখা হয়েছে। সব rename, delete এবং নতুন Topic/Sub-topic এখানে পরিচালনা করুন।</span></div>${renderQuestionBankDesignPanel()}<div class="ah-settings-toolbar"><button class="btn" type="button" onclick="ahAddSubject()">+ Add Subject</button></div><div class="ah-settings-subject-list">${subjects.map(subject => { const roots = topicRoots(subject.id); const subjectQuestions = (CACHE.questions || []).filter(q => q.subjectId === subject.id).length; return `<section class="ah-settings-subject card"><div class="ah-settings-subject-head"><div class="ah-settings-subject-title"><span>${escH(subject.icon || '📘')}</span><div><h2>${escH(subject.name)}</h2><small>${subjectQuestions} questions · ${roots.length} top-level topics</small></div></div><div class="ah-settings-actions"><button class="btn ghost sm" type="button" onclick="ahRenameSubject('${escH(subject.id)}')">Rename</button><button class="btn danger sm" type="button" onclick="ahDeleteSubject('${escH(subject.id)}')">Delete</button><button class="btn secondary sm" type="button" onclick="openTopicForm('${escH(subject.id)}',null)">+ Topic</button></div></div><div class="ah-settings-topic-list">${roots.map(topic => settingsTopicRow(topic, subject.id)).join('') || '<div class="ah-settings-empty">No topics yet. Add the first Topic above.</div>'}</div></section>`; }).join('') || '<div class="empty">No subjects yet.</div>'}</div></div>`;
     renderShell(html, { title: 'Question Bank Settings', back: "navigate('question-bank')" });
   }
   window.renderQuestionBankSettings = renderQuestionBankSettings;
@@ -364,4 +390,5 @@
     }
     if (migrationState === 'done' || attempts > 60) clearInterval(reconcile);
   }, 500);
+  setTimeout(applyQuestionBankDesign, 0);
 })();
