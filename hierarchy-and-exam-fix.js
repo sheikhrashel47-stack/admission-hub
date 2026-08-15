@@ -22,14 +22,25 @@
   const topicRoots = subjectId => [...(appCache().topics || [])]
     .filter(t => t.subjectId === subjectId && !t[CHILD_KEY])
     .sort((a, b) => (a.order || 0) - (b.order || 0));
-  const topicLeaves = id => {
+  const topicLeaves = (id, seen = new Set()) => {
+    if (seen.has(id)) return [];
+    seen.add(id);
     const children = topicChildren(id);
-    return children.length ? children.flatMap(child => topicLeaves(child.id)) : (appCache().topics || []).filter(t => t.id === id);
+    return children.length ? children.flatMap(child => topicLeaves(child.id, new Set(seen))) : (appCache().topics || []).filter(t => t.id === id);
   };
   const descendantIds = id => topicLeaves(id).map(t => t.id);
   const topicDisplayName = topic => {
-    const parent = topic?.[CHILD_KEY] ? appCache().topics?.find(t => t.id === topic[CHILD_KEY]) : null;
-    return parent ? `${parent.name} · ${topic.name}` : String(topic?.name || '');
+    if (!topic) return '';
+    const topics = appCache().topics || [];
+    const parts = [];
+    const seen = new Set();
+    let current = topic;
+    while (current && !seen.has(current.id)) {
+      seen.add(current.id);
+      parts.unshift(String(current.name || ''));
+      current = current[CHILD_KEY] ? topics.find(t => t.id === current[CHILD_KEY]) : null;
+    }
+    return parts.join(' · ');
   };
   const topicQuestionCount = id => {
     const ids = new Set(descendantIds(id));
@@ -40,8 +51,45 @@
     return leaves.map(leaf => ({ ...leaf, pickerName: topicDisplayName(leaf) }));
   });
 
+  async function ensureDirectQuestionsLeaf(parentId) {
+    const parent = appCache().topics?.find(t => t.id === parentId);
+    if (!parent) return null;
+    const directQuestions = (appCache().questions || []).filter(q => q.topicId === parentId);
+    if (!directQuestions.length) return null;
+    let children = topicChildren(parentId);
+    let leaf = children.find(t => String(t.name || '').trim().toLowerCase() === 'general') || null;
+    if (!leaf) {
+      for (let i = 0; i < children.length; i++) {
+        children[i].order = i + 1;
+        children[i].updatedAt = Date.now();
+        await dbPut('topics', children[i]);
+      }
+      leaf = { id: uid(), subjectId: parent.subjectId, parentTopicId: parentId, name: 'General', order: 0, createdAt: Date.now(), updatedAt: Date.now() };
+      await dbPut('topics', leaf);
+    }
+    for (const question of directQuestions) {
+      await dbPut('questions', { ...question, topicId: leaf.id, updatedAt: Date.now() });
+    }
+    CACHE.topics = await dbGetAll('topics');
+    CACHE.questions = await dbGetAll('questions');
+    return leaf;
+  }
+
   window.topicHierarchy = { topicChildren, topicRoots, topicLeaves, descendantIds, topicDisplayName, topicQuestionCount, leafPickerOptions };
   window.topicPickerOptions = leafPickerOptions;
+
+  async function migrateDirectParentQuestions() {
+    let changed = false;
+    const parents = [...(appCache().topics || [])].filter(topic => topicChildren(topic.id).length);
+    for (const parent of parents) {
+      const direct = (appCache().questions || []).filter(q => q.topicId === parent.id);
+      if (direct.length) {
+        await ensureDirectQuestionsLeaf(parent.id);
+        changed = true;
+      }
+    }
+    return changed;
+  }
 
   async function migrateMemorizingVocabulary() {
     if (!Array.isArray(appCache().subjects) || !Array.isArray(appCache().topics) || typeof dbPut !== 'function') return false;
@@ -77,7 +125,8 @@
     if (migrationState === 'done') return false;
     if (migrationPromise) return migrationPromise;
     migrationState = 'running';
-    migrationPromise = migrateMemorizingVocabulary().then(changed => {
+    migrationPromise = Promise.all([migrateMemorizingVocabulary(), migrateDirectParentQuestions()]).then(([vocabularyChanged, directQuestionChanged]) => {
+      const changed = vocabularyChanged || directQuestionChanged;
       if (changed || (CACHE.subjects?.length && CACHE.topics?.length)) migrationState = 'done';
       else migrationState = 'idle';
       migrationPromise = null;
@@ -96,15 +145,14 @@
     const children = topicChildren(topic.id);
     const count = topicQuestionCount(topic.id);
     const childLabel = children.length ? `${children.length} sub-topic${children.length === 1 ? '' : 's'} · ` : '';
-    const addAction = children.length
-      ? `openTopicForm('${escH(subjectId)}',null,'${escH(topic.id)}')`
-      : `navigate('add-question?sub=${escH(subjectId)}&top=${escH(topic.id)}')`;
+    const addSubtopic = `openTopicForm('${escH(subjectId)}',null,'${escH(topic.id)}')`;
+    const addQuestion = `navigate('add-question?sub=${escH(subjectId)}&top=${escH(topic.id)}')`;
     return `<article class="q-nav-card q-nav-card-topic" role="button" tabindex="0" onclick="openRedesignedTopic('${escH(topic.id)}')" onkeydown="if(event.key==='Enter')openRedesignedTopic('${escH(topic.id)}')">
       <span class="q-topic-icon" aria-hidden="true">${children.length ? '📂' : '📄'}</span>
       <div class="q-nav-info"><strong>${escH(topic.name)}</strong><span>${childLabel}${count} question${count === 1 ? '' : 's'}</span></div>
       <div class="q-manage-actions"><button type="button" class="q-manage-btn q-manage-icon" title="Rename" aria-label="Rename" onclick="event.stopPropagation();ahRenameTopic('${escH(topic.id)}')">✏️</button><button type="button" class="q-manage-btn q-manage-icon danger" title="Delete" aria-label="Delete" onclick="event.stopPropagation();ahDeleteTopic('${escH(topic.id)}')">🗑️</button></div>
       <span class="q-nav-arrow" aria-hidden="true">›</span>
-      <div class="row" style="width:100%;margin-top:8px;gap:8px" onclick="event.stopPropagation()"><button class="btn ghost sm" style="flex:1" onclick="${addAction}">${children.length ? '+ Sub-topic' : '+ Question'}</button>${children.length ? '' : `<button class="btn secondary sm" style="flex:1" onclick="startExamFor([],['${escH(topic.id)}'])">Start Exam</button>`}</div>
+      <div class="row" style="width:100%;margin-top:8px;gap:8px" onclick="event.stopPropagation()"><button class="btn ghost sm" style="flex:1" onclick="${addSubtopic}">+ Sub-topic</button>${children.length ? '' : `<button class="btn ghost sm" style="flex:1" onclick="${addQuestion}">+ Question</button><button class="btn secondary sm" style="flex:1" onclick="startExamFor([],['${escH(topic.id)}'])">Start Exam</button>`}</div>
     </article>`;
   }
 
@@ -123,8 +171,11 @@
     const subject = CACHE.subjects.find(s => s.id === parent?.subjectId);
     if (!parent || !subject) { navigate('question-bank'); return; }
     const children = topicChildren(parentId);
-    const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to topics" onclick="location.hash='question-bank/subject/${encodeURIComponent(subject.id)}'">‹</button><div><h1>${escH(parent.name)}</h1><p>${escH(subject.name)} · ${children.length} Sub-topics</p></div></div><div class="row"><button class="q-header-icon" type="button" aria-label="Add sub-topic" onclick="openTopicForm('${escH(subject.id)}',null,'${escH(parent.id)}')">+</button></div></div></header><div class="q-list-body">${children.map(t => renderTopicCard(t, subject.id, true)).join('') || '<div class="empty">No sub-topics yet.</div>'}</div></div>`;
-    renderShell(html, { title: parent.name, back: `navigate('question-bank/subject/${encodeURIComponent(subject.id)}')` });
+    const parentOfParent = parent[CHILD_KEY] ? CACHE.topics.find(t => t.id === parent[CHILD_KEY]) : null;
+    const backPath = parentOfParent ? `question-bank/topic/${encodeURIComponent(parentOfParent.id)}` : `question-bank/subject/${encodeURIComponent(subject.id)}`;
+    const breadcrumb = topicDisplayName(parent);
+    const html = `<div class="q-bank-container"><header class="q-bank-header"><div class="row between"><div class="row"><button class="q-back-btn" type="button" aria-label="Back to parent" onclick="location.hash='${backPath}'">‹</button><div><h1>${escH(parent.name)}</h1><p>${escH(breadcrumb)} · ${children.length} Sub-topics</p></div></div><div class="row"><button class="q-header-icon" type="button" aria-label="Add sub-topic" onclick="openTopicForm('${escH(subject.id)}',null,'${escH(parent.id)}')">+</button></div></div></header><div class="q-list-body">${children.map(t => renderTopicCard(t, subject.id, true)).join('') || '<div class="empty">No sub-topics yet.</div>'}</div></div>`;
+    renderShell(html, { title: parent.name, back: `navigate('${backPath}')` });
   }
 
   const originalOpenTopicForm = window.openTopicForm;
@@ -137,10 +188,12 @@
     if (!parentId || topicId) return originalSaveTopic?.apply(this, arguments);
     const name = document.getElementById('topName')?.value.trim();
     if (!name) { toast('Name required'); return; }
+    await ensureDirectQuestionsLeaf(parentId);
     const order = topicChildren(parentId).length;
     await dbPut('topics', { id: uid(), subjectId, [CHILD_KEY]: parentId, name, order, createdAt: Date.now(), updatedAt: Date.now() });
     CACHE.topics = await dbGetAll('topics');
-    closeModal(); toast('Saved'); render();
+    CACHE.questions = await dbGetAll('questions');
+    closeModal(); toast('Sub-topic saved'); render();
   };
 
   const originalImportAddTopic = window.openImportAddTopic;

@@ -1210,7 +1210,8 @@ function openQuestionPreview(id){
   openModal(`<div class="row between"><h3 style="margin:0;">Question preview</h3><button class="iconbtn" onclick="closeModal()">×</button></div><div class="muted" style="margin:10px 0 4px;">${esc(subjectName(q.subjectId))} · ${esc(topicName(q.topicId))} · ${(q.difficulty||'medium')}</div><div style="font-weight:700;font-size:15px;line-height:1.45;">${esc(q.question)}</div><div style="margin-top:12px;">${(q.options||[]).map((o,i)=>`<div class="opt ${i===q.answer?'correct':''}"><span class="let">${String.fromCharCode(65+i)}</span><span>${esc(o)}</span></div>`).join('')}</div>${q.explanation?`<div class="card" style="background:var(--mint);margin:8px 0 0;padding:12px;"><b>Explanation</b><div class="muted" style="margin-top:4px;">${esc(q.explanation)}</div></div>`:''}<div class="muted" style="margin-top:10px;">${st.attempts||0} attempts · ${st.wrong||0} mistakes${answer?` · Correct answer: ${esc(answer)}`:''}</div><div class="row" style="margin-top:14px;"><button class="btn ghost" style="flex:1" onclick="closeModal();navigate('edit-question/${q.id}')">Edit</button><button class="btn" style="flex:1" onclick="closeModal();startQuestionPractice('${q.id}')">Practice</button></div>`);
 }
 function moveTopicOptions(subjectId,selectedTopicId){
-  return CACHE.topics.filter(t=>t.subjectId===subjectId).sort((a,b)=>a.order-b.order).map(t=>`<option value="${t.id}" ${t.id===selectedTopicId?'selected':''}>${esc(t.name)}</option>`).join('');
+  const options=window.topicPickerOptions?window.topicPickerOptions(subjectId):CACHE.topics.filter(t=>t.subjectId===subjectId).sort((a,b)=>a.order-b.order).map(t=>({...t,pickerName:t.name}));
+  return options.map(t=>`<option value="${t.id}" ${t.id===selectedTopicId?'selected':''}>${esc(t.pickerName||t.name)}</option>`).join('');
 }
 function refreshMoveTopicSelect(){
   const sub=document.getElementById('moveSubjectSelect'), top=document.getElementById('moveTopicSelect'); if(!sub||!top) return;
@@ -1275,7 +1276,7 @@ function startQuestionPractice(id){
   ExamSetup=freshSetup(); ExamSetup.mode='flash'; ExamSetup.onlyQuestionIds=[id]; ExamSetup.subjectIds=[]; ExamSetup.topicIds=[]; ExamSetup.totalCount=1; ExamSetup.randomizeQ=false; ExamSetup.randomizeOpt=false; navigate('exam/setup');
 }
 function subjectName(id){const s=CACHE.subjects.find(x=>x.id===id); return s?s.name:'—';}
-function topicName(id){const t=CACHE.topics.find(x=>x.id===id); return t?t.name:'—';}
+function topicName(id){const t=CACHE.topics.find(x=>x.id===id); return t?(window.topicHierarchy?.topicDisplayName?window.topicHierarchy.topicDisplayName(t):t.name):'—';}
 
 function openSubjectForm(id){
   const s = id ? CACHE.subjects.find(x=>x.id===id) : null;
@@ -4871,7 +4872,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
   (() => { let n=0; const reconcile=setInterval(() => { n++; if (document.querySelector('.dashboard-v2,.p3-dashboard-v3,.page')) window.updateDashboardGreeting(); if (n >= 20) clearInterval(reconcile); }, 100); })();
 </script>
 <script src="mcq-qbank-import.js?v=1"></script>
-<script src="admission-hub-feature-suite.js?v=question-parser-v2"></script>
+<script src="admission-hub-feature-suite.js?v=question-parser-v3"></script>
 <script src="profile-reward-update.js?v=v1"></script>
 <script src="advanced-gamification-v3.js?v=4"></script>
 <script src="ai-agents.js?v=2"></script>
@@ -4884,7 +4885,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="vocabulary-upgrade.js?v=phase2-3"></script>
 <script src="study-hub.js?v=2"></script>
 <script src="question-bank-performance.js?v=7"></script>
-<script src="hierarchy-and-exam-fix.js?v=8"></script>
+<script src="hierarchy-and-exam-fix.js?v=9"></script>
 <script src="global-app-fix.js?v=3"></script>
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
