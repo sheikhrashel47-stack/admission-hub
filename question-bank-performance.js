@@ -241,10 +241,12 @@
     const nextDisabled = page >= totalPages - 1;
     const pageButtons = Array.from({ length: totalPages }, (_, i) => `<button class="qbank-page-btn ${i === page ? 'active' : ''}" type="button" ${i === page ? 'aria-current="page"' : ''} onclick="qbankGoToPage(${i})">${i + 1}</button>`).join('');
     return `<div class="qbank-pagination">
-      <button class="qbank-page-btn ${prevDisabled ? 'disabled' : ''}" ${prevDisabled ? 'disabled' : ''} onclick="qbankGoToPage(${page - 1})">← Previous</button>
-      <span class="qbank-page-numbers">${pageButtons}</span>
-      <span class="qbank-page-info">Page ${page + 1} of ${totalPages}</span>
-      <button class="qbank-page-btn ${nextDisabled ? 'disabled' : ''}" ${nextDisabled ? 'disabled' : ''} onclick="qbankGoToPage(${page + 1})">Next →</button>
+      <div class="qbank-page-nav">
+        <button class="qbank-page-btn ${prevDisabled ? 'disabled' : ''}" ${prevDisabled ? 'disabled' : ''} onclick="qbankGoToPage(${page - 1})">← Previous</button>
+        <span class="qbank-page-info">Page ${page + 1} of ${totalPages}</span>
+        <button class="qbank-page-btn ${nextDisabled ? 'disabled' : ''}" ${nextDisabled ? 'disabled' : ''} onclick="qbankGoToPage(${page + 1})">Next →</button>
+      </div>
+      <div class="qbank-page-numbers">${pageButtons}</div>
     </div>`;
   }
 
@@ -333,6 +335,6 @@
   // --- Pagination CSS ---
   const style = document.createElement('style');
   style.id = 'qbank-pagination-style';
-  style.textContent = `.qbank-pagination{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:16px 4px;margin-top:8px;border-top:1px solid var(--line);flex-wrap:nowrap;overflow:hidden}.qbank-page-btn{background:var(--emerald);color:#fff;border:none;border-radius:11px;padding:12px 18px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s}.qbank-page-btn:active{opacity:.8}.qbank-page-btn.disabled{background:var(--line);color:var(--sub);cursor:not-allowed;opacity:.6}.qbank-page-numbers{display:flex;align-items:center;gap:6px;flex:1 1 auto;min-width:0;overflow-x:auto;flex-wrap:nowrap;justify-content:flex-start;white-space:nowrap;scrollbar-width:thin}.qbank-page-numbers .qbank-page-btn,.qbank-pagination > .qbank-page-btn{flex:0 0 auto}.qbank-page-info{font-size:13px;font-weight:600;color:var(--sub);flex:0 0 auto;white-space:nowrap}`;
+  style.textContent = `.qbank-pagination{display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:16px 4px;margin-top:8px;border-top:1px solid var(--line);overflow:hidden}.qbank-page-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%}.qbank-page-btn{background:var(--emerald);color:#fff;border:none;border-radius:11px;padding:12px 18px;font-size:14px;font-weight:700;cursor:pointer;transition:opacity .2s}.qbank-page-btn:active{opacity:.8}.qbank-page-btn.disabled{background:var(--line);color:var(--sub);cursor:not-allowed;opacity:.6}.qbank-page-nav .qbank-page-btn{flex:0 0 auto}.qbank-page-numbers{display:flex;align-items:center;gap:6px;width:100%;min-width:0;overflow-x:auto;flex-wrap:nowrap;justify-content:center;white-space:nowrap;scrollbar-width:thin}.qbank-page-numbers .qbank-page-btn{flex:0 0 auto}.qbank-page-info{font-size:13px;font-weight:600;color:var(--sub);flex:0 0 auto;white-space:nowrap}`;
   document.head.appendChild(style);
 })();
