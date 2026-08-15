@@ -160,5 +160,7 @@
   if (typeof oldRenderU === 'function' && !oldRenderU.__upgrade2026) { renderUpgradeRouteU.__upgrade2026 = true; window.render = renderUpgradeRouteU; try { render = renderUpgradeRouteU; } catch (_) {} }
   window.renderUpgradeRoute = renderUpgradeRouteU;
   function initU() { installXPHooksU(); if (typeof window.loadCache === 'function') setTimeout(installXPHooksU, 1200); }
-  initU(); setInterval(installXPHooksU, 1500); setTimeout(() => { const p = currentPathU(); if (p === 'rewards' || p === 'reward-shop' || p === 'profile') renderUpgradeRouteU(); }, 1250); setTimeout(() => { const p = currentPathU(); if (p === 'rewards' || p === 'reward-shop' || p === 'profile') renderUpgradeRouteU(); }, 1850);
+  function reconcileUpgradeRouteU() { const p = currentPathU(); if (p !== 'rewards' && p !== 'reward-shop' && p !== 'profile') return; if (!document.querySelector('.u-premium-page')) renderUpgradeRouteU(); }
+  window.addEventListener('hashchange', () => { setTimeout(reconcileUpgradeRouteU, 0); setTimeout(reconcileUpgradeRouteU, 450); setTimeout(reconcileUpgradeRouteU, 1200); });
+  initU(); setInterval(installXPHooksU, 1500); setInterval(reconcileUpgradeRouteU, 700); setTimeout(reconcileUpgradeRouteU, 1250); setTimeout(reconcileUpgradeRouteU, 2200);
 })();
