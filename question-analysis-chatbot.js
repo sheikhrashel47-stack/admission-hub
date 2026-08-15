@@ -101,7 +101,7 @@
   function sync() {
     const shouldShow = isQuestionTopicRoute() && questionCardsPresent();
     if (shouldShow) loadWidget();
-    else if (active || document.getElementById(SCRIPT_ID)) cleanup();
+    else cleanup();
   }
 
   function scheduleSync() {
