@@ -21,13 +21,37 @@
   add('Streak','Hard',[['Three-Day Fire','Maintain a 3-day study streak.',3,'streak',{xp:140,gold:90}],['Seven-Day Flame','Maintain a 7-day study streak.',7,'streak',{xp:300,gold:200,diamond:2}],['Consistency Engine','Study on 5 separate days in the cycle.',5,'studyDays',{xp:220,gold:140,diamond:1}]]);
   add('Advanced','Expert',[['Combo Specialist','Get 50 correct without 5 consecutive mistakes.',50,'advancedCorrect',{xp:300,gold:200,diamond:1}],['Difficult Topic Ace','Score 90% in a difficult topic.',1,'difficult90',{xp:320,gold:210,diamond:1}]]);
   add('Advanced','Legendary',[['Legendary Scholar','Complete 150 questions in the cycle.',150,'questions',{xp:600,gold:400,diamond:3,unlock:true,badge:'legendaryScholar'}],['Admission Dominator','Score 95%+ in 3 completed exams.',3,'highScoreExams',{xp:650,gold:450,diamond:3,unlock:true,badge:'admissionDominator'}],['Untouchable Run','Get 50 correct with zero mistakes in the cycle.',50,'perfectCorrect',{xp:700,gold:500,diamond:4,unlock:true,badge:'untouchableRun'}]]);
-  if(catalog.length!==50)throw new Error('Daily Quest 2.0 requires exactly 50 quest challenges');
+  const EASY20 = [
+    ['First Question','Answer 1 question today.',1,'questions',{xp:5,gold:5}],
+    ['Three Questions','Answer 3 questions today.',3,'questions',{xp:8,gold:8}],
+    ['Five Questions','Answer 5 questions today.',5,'questions',{xp:12,gold:10}],
+    ['Ten Questions','Answer 10 questions today.',10,'questions',{xp:20,gold:15}],
+    ['First Correct','Get 1 question correct.',1,'correct',{xp:6,gold:6}],
+    ['Correct Trio','Get 3 questions correct.',3,'correct',{xp:10,gold:10}],
+    ['Correct Five','Get 5 questions correct.',5,'correct',{xp:15,gold:12}],
+    ['Study Spark','Complete 1 meaningful study action.',1,'activities',{xp:6,gold:6}],
+    ['Study Pair','Complete 2 meaningful study actions.',2,'activities',{xp:10,gold:10}],
+    ['Mistake Peek','Review 1 mistake.',1,'mistakes',{xp:6,gold:6}],
+    ['Mistake Pair','Review 2 mistakes.',2,'mistakes',{xp:10,gold:10}],
+    ['Revision Spark','Complete 1 revision action.',1,'revision',{xp:7,gold:7}],
+    ['Flash Start','Complete 1 flash test.',1,'flashComplete',{xp:12,gold:10}],
+    ['Exam Start','Finish any 1 exam.',1,'examComplete',{xp:12,gold:10}],
+    ['Mock Try','Complete 1 mock test.',1,'mockComplete',{xp:15,gold:12}],
+    ['Fresh Question','Try 1 new question.',1,'newQuestions',{xp:6,gold:6}],
+    ['Streak Spark','Keep today’s streak alive.',1,'streak',{xp:7,gold:7}],
+    ['Topic Touch','Practice 1 topic.',1,'topics',{xp:8,gold:8}],
+    ['Correct Again','Get 2 more questions correct.',2,'correct',{xp:8,gold:8}],
+    ['Daily Finish','Complete 1 study activity before leaving.',1,'activities',{xp:8,gold:8}]
+  ];
+  catalog.splice(0,catalog.length,...EASY20.map((x,i)=>({id:`daily-easy20-${String(i+1).padStart(2,'0')}`,title:x[0],description:x[1],category:['Study','Accuracy','Revision','Exam','Streak'][i%5],difficulty:'Easy',target:x[2],metric:x[3],reward:x[4],progress:0,completed:false,claimed:false,refreshed:false,index:i})));
+  const QUEST_VERSION='easy20-v1';
+  if(catalog.length!==20)throw new Error('Daily Quest easy catalog must contain exactly 20 challenges');
   const state=()=>{const s=CACHE.settings||{};s.dailyQuest2=s.dailyQuest2||{cycleId:'',cycleStartedAt:0,refreshAt:0,quests:[],transactions:[],badgeProgress:{},studyDays:[]};return s.dailyQuest2;};
   const cycleDuration=25*60*60*1000;
   const seed=()=>Math.floor(Date.now()/cycleDuration);
   const hash=x=>{let h=2166136261;for(const c of String(x)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0;};
-  function choose(cycle){const ranked=catalog.map((q,i)=>({...q,rank:hash(`${cycle}:${q.id}`)+i})).sort((a,b)=>a.rank-b.rank);const cats=['Study','Accuracy','Revision','Exam','Streak','Advanced'];const out=[];cats.forEach(c=>{const q=ranked.find(x=>x.category===c);if(q)out.push({...q,progress:0,completed:false,claimed:false,refreshed:false})});ranked.forEach(q=>{if(out.length<9&&!out.some(x=>x.id===q.id))out.push({...q,progress:0,completed:false,claimed:false,refreshed:false});});return out;}
-  function ensure(){const s=state(),c=seed(),id=String(c);if(s.cycleId!==id||!Array.isArray(s.quests)||!s.quests.length){s.cycleId=id;s.cycleStartedAt=c*cycleDuration;s.refreshAt=(c+1)*cycleDuration;s.quests=choose(id);s.transactions=Array.isArray(s.transactions)?s.transactions:[];s.badgeProgress=s.badgeProgress||{};s.studyDays=Array.isArray(s.studyDays)?s.studyDays:[];CACHE.settings.dailyQuest2=s;dbPut('settings',CACHE.settings).catch(()=>{});}return s;}
+  function choose(cycle){return catalog.map((q,i)=>({...q,rank:hash(`${cycle}:${q.id}`)+i})).sort((a,b)=>a.rank-b.rank).slice(0,20).map(q=>({...q,progress:0,completed:false,claimed:false,refreshed:false}));}
+  function ensure(){const s=state(),c=seed(),id=String(c);if(s.questVersion!==QUEST_VERSION||s.cycleId!==id||!Array.isArray(s.quests)||!s.quests.length){s.questVersion=QUEST_VERSION;s.cycleId=id;s.cycleStartedAt=c*cycleDuration;s.refreshAt=(c+1)*cycleDuration;s.quests=choose(id);s.transactions=Array.isArray(s.transactions)?s.transactions:[];s.badgeProgress=s.badgeProgress||{};s.studyDays=Array.isArray(s.studyDays)?s.studyDays:[];CACHE.settings.dailyQuest2=s;dbPut('settings',CACHE.settings).catch(()=>{});}return s;}
   const progressFor=(q,e)=>{const v=e.values||e;return num(v[q.metric]??0);};
   async function update(e={}){const s=ensure();const day=typeof todayKey==='function'?todayKey():new Date().toISOString().slice(0,10);if(e.meaningful&&!s.studyDays.includes(day))s.studyDays.push(day);s.quests.forEach(q=>{if(q.claimed)return;const inc=progressFor(q,{...e,studyDays:s.studyDays.length});if(inc>0)q.progress=Math.min(q.target,num(q.progress)+inc);if(q.metric==='studyDays')q.progress=Math.min(q.target,s.studyDays.length);if(q.metric==='streak')q.progress=Math.min(q.target,num(e.streak||e.currentStreak||0));if(q.progress>=q.target)q.completed=true;});await dbPut('settings',CACHE.settings);window.dispatchEvent(new CustomEvent('dailyQuest2:updated'));}
   async function grantUnlock(s,r,source){if(!r.unlock)return;const g=typeof window.__advancedGamificationState==='function'?window.__advancedGamificationState():{inventory:{},transactions:[]};g.inventory=g.inventory||{};const reward=Array.isArray(window.__phase1RewardCatalog)?window.__phase1RewardCatalog.find(x=>!g.inventory[x.id]?.ownedAt&&x.category!=='Badges & Achievements'):null;if(reward){g.inventory[reward.id]={ownedAt:Date.now(),used:0,remaining:null};g.transactions.unshift({id:`quest-unlock-${Date.now()}`,date:Date.now(),label:`Quest unlock — ${reward.name}`,source});CACHE.settings.gamificationV3=g;}if(r.badge){s.badgeProgress[r.badge]=num(s.badgeProgress[r.badge])+1;}}
