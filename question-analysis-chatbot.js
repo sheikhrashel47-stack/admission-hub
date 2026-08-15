@@ -18,9 +18,19 @@
     return currentPath().startsWith('question-bank/topic/');
   }
 
+  function isFlashTestRoute() {
+    if (currentPath() !== 'exam/running') return false;
+    try {
+      const exam = typeof ActiveExam !== 'undefined' ? ActiveExam : window.ActiveExam;
+      return exam?.mode === 'flash';
+    } catch (_) {
+      return false;
+    }
+  }
+
   function questionCardsPresent() {
     return !!document.querySelector(
-      '.q-card-v2, [data-qnav-card].q-card-v2, .p3-qb-question-card, .question-card'
+      '.q-card-v2, [data-qnav-card].q-card-v2, .p3-qb-question-card, .question-card, .flash-q-card'
     );
   }
 
@@ -99,7 +109,7 @@
   }
 
   function sync() {
-    const shouldShow = isQuestionTopicRoute() && questionCardsPresent();
+    const shouldShow = (isQuestionTopicRoute() || isFlashTestRoute()) && questionCardsPresent();
     if (shouldShow) loadWidget();
     else cleanup();
   }
@@ -122,7 +132,7 @@
   window.questionAnalysisChatbot = {
     sync,
     cleanup,
-    isActive: () => active && isQuestionTopicRoute() && questionCardsPresent()
+    isActive: () => active && (isQuestionTopicRoute() || isFlashTestRoute()) && questionCardsPresent()
   };
 
   setTimeout(sync, 0);
