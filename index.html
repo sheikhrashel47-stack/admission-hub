@@ -733,6 +733,7 @@ function confirmModal(title, body, onYes, yesLabel, danger){
 /* ================= RENDER DISPATCH ================= */
 function render(){
   const p=Router.path;
+  if(p==='notes' && window.renderNotesTool) return window.renderNotesTool();
   if(p==='web-chat' && window.renderWebChatV2) return window.renderWebChatV2();
   if(p==='dictionary' && window.renderDictionaryV2) return window.renderDictionaryV2();
   if((p==='question-bank'||p.startsWith('question-bank/')) && window.renderQuestionBankV2) return window.renderQuestionBankV2();
