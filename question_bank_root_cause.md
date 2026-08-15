@@ -64,3 +64,7 @@ The full-ID renderer now reports `219 questions` without the previous `showing 1
 With `question-bank-performance.js?v=2` loaded, direct topic hash navigation produced the expected 219-question practice route. The renderer mounted only 15 card nodes at the restored position, kept the original `219 questions` summary, and a fresh option selection completed with 0-pixel body-scroll drift. The answer state was stored in the per-question session map.
 
 The browser console showed no runtime errors during the final route and interaction checks.
+
+## Production verification
+
+GitHub Pages deployment run `31883465570` completed successfully for commit `ea87df2`. On the live site, the direct topic URL loaded `windowed-v1`, indexed 219 questions, mounted only seven cards at the initial viewport, preserved the `219 questions` summary, and resolved the topic route with the original question IDs and markup.
