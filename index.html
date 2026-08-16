@@ -93,7 +93,8 @@ body.modal-open #navRoot{visibility:hidden!important;pointer-events:none!importa
 /* Bottom nav */
 .bottomnav{position:static!important; left:auto!important; right:auto!important; top:auto!important; bottom:auto!important; z-index:auto!important; background:var(--card);
   border-top:1px solid var(--line); display:flex; padding-bottom:var(--safe-b);
-  max-width:560px; margin:0 auto;}
+  max-width:560px; margin:0 auto; opacity:.94; transform:translateY(3px); transition:opacity .3s ease, transform .3s ease;}
+.bottomnav:hover{opacity:1; transform:translateY(0);}
 .navbtn{flex:1; background:none; border:none; padding:9px 0 8px; display:flex; flex-direction:column;
   align-items:center; gap:2px; color:var(--sub); font-size:10.5px; cursor:pointer;}
 .navbtn .ic{font-size:20px;}
@@ -4927,5 +4928,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="notes-tool.js?v=dashboard-notes-v4-0816"></script>
 <script src="manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816"></script>
 <script src="nav-resume-fix.js?v=1"></script>
+<script src="mistake-note-icon.js?v=1"></script>
 </body>
 </html>
