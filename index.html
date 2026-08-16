@@ -4438,7 +4438,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
   window.togglePlanTask=async function(dayId,taskId){const d=CACHE.planDays.find(x=>x.id===dayId);if(!d)return;const t=d.tasks.find(x=>x.id===taskId);if(!t)return;t.done=!t.done;d.completed=dayProgress(d)===100;if(d.completed){d.archivedAt=Date.now();const p=activePlan();if(p){p.activeDayIndex=Math.min(89,d.index+1);await dbPut(planStore,p);}}await dbPut(dayStore,d);await refreshPlans();render();};
   window.planTodayMock=function(){const d=(CACHE.planDays||[]).find(x=>x.planId===activePlan()?.id&&x.index===activePlan()?.activeDayIndex);const pool=(d?.topics||[]).flatMap(n=>CACHE.questions.filter(q=>topicName(q.topicId)===n));if(pool.length)beginExamFromPool(pool.slice(0,20),'mock');else navigate('exam/setup');};
   function planDayCard(d,active){return `<article class="card plan-day ${d.completed?'complete':''} ${active?'active':''}"><div class="row between" style="align-items:flex-start"><div><div class="explorer-kicker">DAY ${String(d.dayNumber).padStart(2,'0')} · ${esc(d.dayName)}</div><h3 style="margin:3px 0">${planTitle(new Date(d.actualDate+'T12:00:00'))}</h3></div><span class="pill ${d.completed?'green':''}">${dayProgress(d)}%</span></div><div class="progbar" style="margin:10px 0 5px"><div style="width:${dayProgress(d)}%"></div></div><div class="muted">${planDoneCount(d)}/${planTaskCount(d)} topics/tasks · ${d.mcqCompleted||0}/${d.mcqTarget} MCQs · ${d.studyMinutes} min study</div><div style="margin-top:8px">${(d.tasks||[]).map(t=>`<label class="plan-task ${t.done?'done':''}"><input type="checkbox" ${t.done?'checked':''} onchange="togglePlanTask('${d.id}','${t.id}')"><span>${esc(t.label)}</span></label>`).join('')||'<div class="muted">No tasks yet. Add them with Edit Day.</div>'}</div>${d.notes?`<div class="muted" style="margin-top:10px">Note: ${esc(d.notes)}</div>`:''}<div class="row wrap" style="gap:7px;margin-top:12px"><button class="btn ghost sm" onclick="editPlanDay('${d.id}')">Edit Day</button>${active&&!d.completed?'<button class="btn secondary sm" onclick="planTodayMock()">Today\'s Mock</button>':''}</div></article>`;}
-  function renderPlan(){const p=activePlan();if(!p){renderShell(`<div class="explorer-head"><div class="explorer-kicker">Admission Roadmap</div><div class="explorer-title">90-Day Master Plan</div><div class="explorer-subtitle">Build a calendar-safe study roadmap connected to your existing subjects, topics, and Mock Test flow.</div></div><div class="card premium-hero"><h2 style="margin:0">Your next 90 days, organized.</h2><p style="opacity:.8">Create a plan to generate every date, day name, task checklist, MCQ target, and progress record.</p><button class="btn" style="background:#fff;color:var(--emerald-d)" onclick="openPlanCreate()">Create 90-Day Plan</button></div>`,{title:'Master Plan'});return;}const days=(CACHE.planDays||[]).filter(d=>d.planId===p.id).sort((a,b)=>a.index-b.index);const a=planAnalysis(p,days), activeIndex=Math.min(89,p.activeDayIndex||0);planWindowStart=Math.max(0,Math.min(80,planWindowStart));const visible=days.slice(planWindowStart,planWindowStart+10);renderShell(`<div class="explorer-head"><div class="explorer-kicker">Admission Roadmap</div><div class="explorer-title">90-Day Master Plan</div><div class="explorer-subtitle">${p.paused?'Paused · ':''}Day ${activeIndex+1}/90 · ${a.recommendation}</div></div><section class="premium-hero"><div class="row between"><div><div style="font-size:11px;letter-spacing:.08em;font-weight:800;opacity:.8">PLAN HEALTH ${a.health[0]}</div><div style="font-size:22px;font-weight:800;margin-top:4px">${a.health[1]}</div></div><button class="xp-badge" onclick="navigate('rewards')">✦ ${formatXP(CACHE.settings.xpBalance||0)} XP</button></div><div class="phase-grid" style="margin-top:16px"><div><b>${Math.max(0,90-a.completed)}</b><small>Days remaining</small></div><div><b>${a.actual}%</b><small>Overall progress</small></div><div><b>${a.topics}</b><small>Tasks completed</small></div><div><b>${computeStreak()}</b><small>Study streak</small></div></div></section><div class="row wrap" style="gap:7px;margin-bottom:10px"><button class="btn sm" onclick="changePlanStart()">Change start</button><button class="btn ghost sm" onclick="pauseAdmissionPlan()">${p.paused?'Resume':'Pause'}</button><button class="btn ghost sm" onclick="resetFuturePlan()">Reset future</button></div><div class="plan-window"><button class="chip" onclick="planWindowStart=Math.max(0,planWindowStart-10);render()">← Earlier</button>${[0,10,20,30,40,50,60,70,80].map(n=>`<button class="chip ${planWindowStart===n?'active':''}" onclick="planWindowStart=${n};render()">Days ${n+1}-${Math.min(90,n+10)}</button>`).join('')}<button class="chip" onclick="planWindowStart=Math.min(80,planWindowStart+10);render()">Later →</button></div>${visible.map(d=>planDayCard(d,d.index===activeIndex)).join('')}`,{title:'90-Day Master Plan'});}
+  function renderPlan(){const p=activePlan();if(!p){renderShell(`<div class="explorer-head"><div class="explorer-kicker">Admission Roadmap</div><div class="explorer-title">90-Day Master Plan</div><div class="explorer-subtitle">Build a calendar-safe study roadmap connected to your existing subjects, topics, and Mock Test flow.</div></div><div class="card premium-hero"><h2 style="margin:0">Your next 90 days, organized.</h2><p style="opacity:.8">Create a plan to generate every date, day name, task checklist, MCQ target, and progress record.</p><button class="btn" style="background:#fff;color:var(--emerald-d)" onclick="openPlanCreate()">Create 90-Day Plan</button></div>`,{title:'Master Plan'});return;}const days=(CACHE.planDays||[]).filter(d=>d.planId===p.id).sort((a,b)=>a.index-b.index);const a=planAnalysis(p,days), activeIndex=Math.min(89,p.activeDayIndex||0);planWindowStart=Math.max(0,Math.min(80,planWindowStart));const visible=days.slice(planWindowStart,planWindowStart+10);renderShell(`<div class="explorer-head"><div class="explorer-kicker">Admission Roadmap</div><div class="explorer-title">90-Day Master Plan</div><div class="explorer-subtitle">${p.paused?'Paused · ':''}Day ${activeIndex+1}/90 · ${a.recommendation}</div></div><section class="premium-hero"><div class="row between"><div><div style="font-size:11px;letter-spacing:.08em;font-weight:800;opacity:.8">PLAN HEALTH ${a.health[0]}</div><div style="font-size:22px;font-weight:800;margin-top:4px">${a.health[1]}</div></div><button class="xp-badge" onclick="navigate('rewards')">✦ ${formatXP(CACHE.settings.xpBalance||0)} XP</button></div><div class="phase-grid" style="margin-top:16px"><div><b>${Math.max(0,90-a.completed)}</b><small>Days remaining</small></div><div><b>${a.actual}%</b><small>Overall progress</small></div><div><b>${a.topics}</b><small>Tasks completed</small></div><div><b>${computeStreak()}</b><small>Study streak</small></div></div></section><div class="row wrap" style="gap:7px;margin-bottom:10px"><button class="btn sm" onclick="changePlanStart()">Change start</button><button class="btn sm" onclick="openWidgetSyncModal()">📲 Widget Sync</button><button class="btn ghost sm" onclick="pauseAdmissionPlan()">${p.paused?'Resume':'Pause'}</button><button class="btn ghost sm" onclick="resetFuturePlan()">Reset future</button></div><div class="plan-window"><button class="chip" onclick="planWindowStart=Math.max(0,planWindowStart-10);render()">← Earlier</button>${[0,10,20,30,40,50,60,70,80].map(n=>`<button class="chip ${planWindowStart===n?'active':''}" onclick="planWindowStart=${n};render()">Days ${n+1}-${Math.min(90,n+10)}</button>`).join('')}<button class="chip" onclick="planWindowStart=Math.min(80,planWindowStart+10);render()">Later →</button></div>${visible.map(d=>planDayCard(d,d.index===activeIndex)).join('')}`,{title:'90-Day Master Plan'});}
   window.renderAdmissionPlan=renderPlan;
 
   function comparisonHtml(){const today=phaseAggregate(phaseDayResults()), yesterday=phaseAggregate(phaseDayResults(localDayKey(addDays(new Date(),-1))));const rows=[['Questions',today.questions,yesterday.questions],['Accuracy',phaseAccuracy(today)+'%',phaseAccuracy(yesterday)+'%'],['Study time',fmtTime(today.time),fmtTime(yesterday.time)],['Mock tests',today.exams,yesterday.exams]];const delta=(a,b)=>{if(a===b)return '<span class="change-flat">→ 0%</span>';const n=typeof a==='number'&&typeof b==='number'?(b?Math.round((a-b)/b*100):100):null;return `<span class="${a>b?'change-up':'change-down'}">${a>b?'↑':'↓'} ${n===null?'':Math.abs(n)+'%'}</span>`};const message=today.questions===0&&yesterday.questions===0?'আজ ও গতকাল কোনো সংরক্ষিত অনুশীলন নেই—প্রথম একটি বাস্তব সেশন শুরু করুন।':today.questions>=yesterday.questions?'আজকের অনুশীলন গতকালের চেয়ে ভালো—এই ধারাটি বজায় রাখুন।':'আজকের গতি গতকালের তুলনায় কম; একটি ছোট ১০ প্রশ্নের সেশন দিয়ে শুরু করুন।';return `<div class="h2">Today vs Yesterday</div><div class="card"><div class="muted">বাস্তব সংরক্ষিত ডেটা · ${planTitle(new Date())}</div>${rows.map((r,i)=>`<div class="row between" style="padding:11px 0;border-bottom:${i<rows.length-1?'1px solid var(--line)':'0'}"><span>${r[0]}</span><span><b>${r[1]}</b> <span class="muted">vs ${r[2]}</span> &nbsp;${delta(r[1],r[2])}</span></div>`).join('')}<div class="insight-card" style="margin:10px 0 0">${message}</div></div>`;}
@@ -4498,11 +4498,80 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     catch(_){}
     return plannerTodayPayload();
   };
-  /* Lightweight endpoint: index.html?api=planner-today returns JSON without rendering the app shell. */
+  /* Full plan export: all 90 days with tasks, progress, dates — for the iOS widget static sync. */
+  function plannerFullPayload(){
+    const p=activePlan();
+    if(!p) return {error:'no_plan'};
+    const days=(CACHE.planDays||[]).filter(d=>d.planId===p.id).sort((a,b)=>a.index-b.index);
+    if(!days.length) return {error:'no_days'};
+    const byId={};
+    CACHE.subjects.forEach(s=>{byId[s.id]={name:s.name,icon:s.icon||''};});
+    return {
+      ok:true,
+      plan:{name:p.name, startDate:p.startDate, paused:!!p.paused},
+      activeDayIndex:Number(p.activeDayIndex||0),
+      days:days.map(d=>({
+        index:d.index, dayNumber:d.dayNumber, actualDate:d.actualDate, dayName:d.dayName,
+        progressPct:dayProgress(d), doneCount:planDoneCount(d), taskCount:planTaskCount(d),
+        completed:!!d.completed, mcqTarget:d.mcqTarget||0, studyMinutes:d.studyMinutes||0,
+        tasks:(d.tasks||[]).map(t=>({label:t.label,done:!!t.done,subject:t.subjectId?byId[t.subjectId]:null}))
+      })),
+      generatedAt:new Date().toISOString()
+    };
+  }
+  window.getPlannerFullJson=async function(){
+    try{ await loadCache(); }
+    catch(_){}
+    return plannerFullPayload();
+  };
+  /* Widget Sync: copy the full plan JSON or download planner.json for the iOS widget. */
+  window.widgetSyncPlan=async function(){
+    const payload=await window.getPlannerFullJson();
+    if(payload.error){toast('কোনো 90-Day Plan পাওয়া যায়নি — আগে Plan তৈরি করো');return;}
+    const json=JSON.stringify(payload,null,1);
+    try{
+      await navigator.clipboard.writeText(json);
+      toast('Plan JSON কপি হয়েছে — widget গাইডে পেস্ট করো');
+    }catch(_){
+      const blob=new Blob([json],{type:'application/json'});
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob); a.download='planner.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      toast('planner.json ডাউনলোড হয়েছে');
+    }
+  };
+  window.openWidgetSyncModal=async function(){
+    const payload=await window.getPlannerFullJson();
+    if(payload.error){toast('কোনো 90-Day Plan পাওয়া যায়নি — আগে Plan তৈরি করো');return;}
+    const json=JSON.stringify(payload,null,1);
+    const escJ=json.replace(/</g,'&lt;');
+    openModal(`
+      <h3>📲 iOS Widget Sync</h3>
+      <p class="muted" style="font-size:12px">নিচের JSON পুরোটা কপি করে iPhone widget অ্যাপে (AdmissionPlanWidget) পেস্ট করো। Plan পরিবর্তন হলে আবার Sync চাপো।</p>
+      <div style="background:#f1f5f9;border-radius:10px;padding:10px;max-height:220px;overflow:auto;font-size:10px;margin:10px 0"><pre style="margin:0;white-space:pre-wrap">${escJ}</pre></div>
+      <div class="row" style="gap:8px">
+        <button class="btn" style="flex:1" id="wscCopy">📋 JSON কপি করো</button>
+        <button class="btn ghost" style="flex:1" onclick="closeModal()">বন্ধ করো</button>
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:10px">ডিভাইস: ${navigator.platform||''} · আজ: ${new Date().toLocaleDateString('en-GB')}</div>
+    `);
+    document.getElementById('wscCopy').onclick=async function(){
+      try{ await navigator.clipboard.writeText(json); this.textContent='✓ কপি হয়েছে'; }
+      catch(_){
+        const t=document.createElement('textarea'); t.value=json; document.body.appendChild(t); t.select();
+        try{ document.execCommand('copy'); this.textContent='✓ কপি হয়েছে'; }
+        catch(__){ this.textContent='ম্যানুয়ালি সিলেক্ট করে কপি করো'; }
+        t.remove();
+      }
+    };
+  };
+
+  /* Lightweight endpoint: index.html?api=planner-today returns today's JSON without rendering the app shell. */
   (function servePlannerApi(){
     try{
       const params=new URLSearchParams(location.search);
-      if(params.get('api')==='planner-today' && typeof window.getPlannerTodayJson==='function'){
+      const apiName=params.get('api');
+      if(apiName==='planner-today' && typeof window.getPlannerTodayJson==='function'){
         window.getPlannerTodayJson().then(payload=>{
           document.open();
           document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Planner Today API</title></head><body><pre>'+JSON.stringify(payload,null,1).replace(/</g,'&lt;')+'</pre></body></html>');
