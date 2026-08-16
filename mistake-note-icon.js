@@ -167,7 +167,7 @@
     /resultPracticeOne\("([^"]+?)","([^"]+?)"/,
     /resultPracticeOne\('([^']+?)','([^']+?)'/,
     /resultAddMistake\(\s*'([^']+?)'\s*,\s*'([^']+?)'/,
-    /resultToggleBookmark\(['"]([^"']+?)['"]\)/,
+    /resultToggleBookmark\((?:'|"|\\u0027)([^"']+?)(?:'|"|\\u0027)\)/,
     /startQuestionPractice\(\[[\s\S]*?["']([^"']+?)["']\]/,
     /toggleQuestionBookmark\(['"]([^"']+?)['"]\)/,
     /ahEditQuestion\(['"]([^"']+?)['"]\)/,
@@ -228,8 +228,8 @@
   function run(){
     CARD_SELECTORS.forEach(sel => {
       document.querySelectorAll(sel).forEach(card => {
+        if (card.querySelector('.mn-note-row')) { card.setAttribute('data-mistake-done', '1'); return; }
         if (card.getAttribute('data-mistake-done')) return;
-        card.setAttribute('data-mistake-done', '1');
 
         const hostSel = sel === '.flash-feedback.wrong' ? 'flash' : 'regular';
         const qid = hostSel === 'flash' ? extractIdFromFlashHost(card) : extractIdFromHandlers(card);
@@ -265,6 +265,7 @@
     const row = card.querySelector('.mn-note-row');
     if (row) row.remove();
     card.removeAttribute('data-mistake-qid');
+    card.removeAttribute('data-mistake-done');
   }
 
   /* ---------- styles ---------- */
