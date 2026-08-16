@@ -153,6 +153,7 @@
       return r;
     })();
     const mode = opts.mode || 'note';
+    if (q && q.id) card.setAttribute('data-mistake-qid', String(q.id));   // keep future runs from losing the link
     if (mode === 'mock' && !row.querySelector('.mn-ai-btn')) {
       row.appendChild(makeButton('🤖 AI Explain', 'Gemini-এ prompt কপি করো', () => openAiExplainFor(q, opts)));
     }
