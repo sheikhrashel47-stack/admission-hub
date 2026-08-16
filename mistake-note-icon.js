@@ -31,8 +31,12 @@
 
   function findQuestionByText(text){
     if (!text || text.length < 12) return null;
-    const t = String(text).trim();
-    return getCache().questions?.find(q => String(q.question).trim() === t) || null;
+    const t = String(text);
+    // Exact match first, then prefix match (card text carries status labels too).
+    return getCache().questions?.find(q => {
+      const qt = String(q.question);
+      return qt.trim() === t.trim() || (qt.length >= 14 && t.trim().indexOf(qt.trim()) === 0) || (t.trim().length >= 14 && qt.trim().indexOf(t.trim()) === 0);
+    }) || null;
   }
 
   function findQuestionForCard(card){
