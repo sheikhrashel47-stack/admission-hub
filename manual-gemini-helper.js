@@ -52,7 +52,9 @@
 
 প্রথমেই ভুল option-টি কেন tempting এবং সঠিক উত্তরের সঙ্গে তার মূল পার্থক্য একদম সহজ ভাষায় ধরিয়ে দাও। তারপর প্রশ্নের ধরন অনুযায়ী ৩–৫টি ছোট paragraph বা bullet দাও; fixed label/template নয়। Vocabulary হলে word association/mnemonic, preposition হলে phrase pattern, grammar হলে rule ও trap, synonym/antonym হলে contrast—যেটি সবচেয়ে কাজে লাগে সেটিই বেছে নাও। একটি পরীক্ষার হলের mental shortcut দাও। Example কেবল concept পরিষ্কার করলে, এক লাইনে দাও।
 
-সাধারণ প্রশ্নে ৫০–৯০ শব্দ যথেষ্ট; tricky হলে প্রয়োজনমতো সামান্য বেশি, কিন্তু repetition, greeting, ভূমিকা ও filler বাদ। Output শুধু explanation। প্রশ্ন, option ও source explanation-এর ভিত্তি ছাড়া নির্দিষ্ট factual claim বানাবে না; source অসম্পূর্ণ, ambiguous বা conflicting হলে এক লাইনে জানাবে।
+সাধারণ প্রশ্নে ৫০–৯০ শব্দ যথেষ্ট; tricky হলে প্রয়োজনমতো সামান্য বেশি, কিন্তু repetition, greeting, ভূমিকা ও filler বাদ। প্রশ্ন, option ও source explanation-এর ভিত্তি ছাড়া নির্দিষ্ট factual claim বানাবে না; source অসম্পূর্ণ, ambiguous বা conflicting হলে এক লাইনে জানাবে।
+
+উত্তরের শেষে অবশ্যই “নোটে সেভ করার মতো:” শিরোনামে ৫–১০টি ছোট line দাও। এটি আলাদা, সহজ ও memorable revision note হবে—মূল ভুল, সঠিক ধারণা ও পরীক্ষার shortcut থাকবে; greeting বা repetition নয়।
 
 প্রশ্ন: ${clean(q?.question,1000)}
 অপশন:\n${options}
@@ -196,12 +198,21 @@
     if (typeof window.navigate === 'function') window.navigate(target);
     else location.hash = '#' + target;
   };
-  function maybeOpenPendingNote(){
+  function maybeOpenPendingNote(attempt){
     const pending=readPendingNote();
-    if(!pending?.question || typeof window.openQuestionNoteEditor !== 'function') return;
+    if(!pending?.question) return;
     const target=String(pending.returnPath||'');
-    const here=currentPath();
-    if(target && here !== target) return;
+    const hashPath=decodeURIComponent(String(location.hash||'').replace(/^#/,''));
+    const here=hashPath || currentPath();
+    if(target && here !== target){
+      try { if(typeof window.navigate==='function') window.navigate(target); } catch (_) {}
+      if((attempt||0)<4) setTimeout(()=>maybeOpenPendingNote((attempt||0)+1),280);
+      return;
+    }
+    if(typeof window.openQuestionNoteEditor !== 'function'){
+      if((attempt||0)<8) setTimeout(()=>maybeOpenPendingNote((attempt||0)+1),250);
+      return;
+    }
     const q=pending.question;
     window.__manualGeminiQuestion=q;
     window.__manualGeminiSelectedIndex=Number(pending.selectedIndex);
@@ -210,14 +221,35 @@
     try { if(pending.source==='Question Bank' && typeof window.renderQuestionBankV2==='function') window.renderQuestionBankV2(); } catch (_) {}
     try { if(pending.source==='Flash Test' && window.ActiveExam && typeof window.startTimerLoop==='function') window.startTimerLoop(); } catch (_) {}
     try { if(typeof window.closeModal==='function') window.closeModal(); } catch (_) {}
-    clearPendingNote();
-    setTimeout(() => window.openQuestionNoteEditor({q,selectedIndex:Number(pending.selectedIndex),source:pending.source||'Admission Hub'}), 120);
+    setTimeout(() => {
+      try {
+        const result=window.openQuestionNoteEditor({q,selectedIndex:Number(pending.selectedIndex),source:pending.source||'Admission Hub'});
+        clearPendingNote();
+        return result;
+      } catch (_) {
+        if((attempt||0)<8) setTimeout(()=>maybeOpenPendingNote((attempt||0)+1),250);
+      }
+    }, 120);
+  }
+  function resetReturnedViewport(){
+    try {
+      document.body.classList.remove('keyboard-open');
+      document.body.classList.add('provider-returned');
+      document.documentElement.style.setProperty('--visual-viewport-offset-top','0px');
+      document.documentElement.style.setProperty('--keyboard-inset','0px');
+      document.documentElement.style.setProperty('--visual-viewport-height','100dvh');
+      document.querySelectorAll('.bottomnav').forEach(el => { el.style.transform='none'; el.style.bottom='0px'; });
+    } catch (_) {}
   }
   function schedulePendingNote(){
+    resetReturnedViewport();
     setTimeout(maybeOpenPendingNote,120);
     setTimeout(maybeOpenPendingNote,700);
-    try { if(window.__admissionBootPromise?.then) window.__admissionBootPromise.then(()=>setTimeout(maybeOpenPendingNote,120)); } catch (_) {}
+    setTimeout(maybeOpenPendingNote,1500);
+    try { if(window.__admissionBootPromise?.then) window.__admissionBootPromise.then(()=>setTimeout(maybeOpenPendingNote,180)); } catch (_) {}
   }
+  window.addEventListener('pageshow',()=>{ resetReturnedViewport(); schedulePendingNote(); });
+  window.addEventListener('focus',()=>{ if(readPendingNote()) { resetReturnedViewport(); setTimeout(maybeOpenPendingNote,180); } });
   const previousRender=window.render;
   function wrappedGeminiRender(){ if(currentPath()==='gemini') return renderGeminiPage(); return previousRender.apply(this,arguments); }
   if(typeof previousRender==='function'){ window.render=wrappedGeminiRender; try { render=wrappedGeminiRender; } catch (_) {} }
