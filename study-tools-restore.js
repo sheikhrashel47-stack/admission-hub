@@ -15,7 +15,6 @@
 
   function renderStudyTools() {
     shellS(`<div class="st-kicker">ADMISSION HUB UPGRADE</div><h1 class="st-title">Study Tools</h1><p class="st-subtitle">All new utilities are additive and preserve the original database and Mock Test flow.</p><div class="st-tools-grid">
-      ${card('✈️', 'Telegram', 'Notification controls', 'telegram')}
       ${card('📚', 'Study Helper', 'Source-only explanations', 'study-helper')}
       ${card('🧮', 'Calculator', 'Unified calculations', 'calculator')}
       ${card('🌐', 'Web Search', 'Real public search', 'web-search')}
@@ -24,23 +23,6 @@
       ${card('🎯', 'Exam Modes', 'Nine modes', 'exam-modes')}
     </div>`, { title: 'Study Tools', back: "navigate('dashboard')" });
   }
-
-  const TG_KEY = 'admission_tg_secure_v2';
-  function tgState() { return read(TG_KEY, { relayUrl: '', relayKey: '', chatId: '', botUsername: '', connected: false, categories: { daily: true, exam: true, result: true, streak: true } }); }
-  function renderTelegram() {
-    const tg = tgState();
-    const categories = [['daily', 'Daily study reminder'], ['exam', 'Exam reminder'], ['result', 'Result notification'], ['streak', 'Streak reminder']];
-    shellS(`<div class="st-kicker">SECURE NOTIFICATIONS</div><h1 class="st-title">Telegram</h1><p class="st-subtitle">Bot credentials stay on your relay server. This app stores only your relay settings and chat identifier.</p>
-      <div class="st-status ${tg.connected ? 'is-connected' : ''}"><strong>${tg.connected ? '✓ Telegram Connected' : 'Not connected'}</strong><span>${tg.connected ? 'Test notifications are available.' : 'Connect a bot, then register your chat ID.'}</span></div>
-      <div class="st-panel">${input('tgRelay', 'Secure relay URL', 'url', tg.relayUrl)}${input('tgChat', 'Telegram chat ID', 'text', tg.chatId)}${input('tgBot', 'Bot username', 'text', tg.botUsername)}
-        <div class="st-actions"><button class="st-btn" type="button" onclick="saveTelegramRestore()">Save connection</button><button class="st-btn st-secondary" type="button" onclick="openTelegramBotRestore()">Open Telegram bot</button><button class="st-btn st-secondary" type="button" onclick="testTelegramRestore()" ${tg.connected ? '' : 'disabled'}>Test notification</button></div>
-        <p class="st-note">After pressing Open Telegram bot, tap Start in Telegram. Your relay must expose <code>POST /notify</code>, use server-side <code>TELEGRAM_BOT_TOKEN</code>, validate origin/authentication, and deduplicate by <code>dedupeKey</code>.</p></div>
-      <div class="st-panel"><h2>Notification categories</h2>${categories.map(([id, label]) => `<label class="st-toggle"><span>${label}</span><input type="checkbox" ${tg.categories[id] !== false ? 'checked' : ''} onchange="toggleTelegramRestore('${id}', this.checked)"></label>`).join('')}</div>`, { title: 'Telegram', back: "navigate('study-tools')" });
-  }
-  window.saveTelegramRestore = () => { const tg = tgState(); tg.relayUrl = document.getElementById('tgRelay')?.value.trim() || ''; tg.chatId = document.getElementById('tgChat')?.value.trim() || ''; tg.botUsername = document.getElementById('tgBot')?.value.trim().replace(/^@/, '') || ''; tg.relayKey = tg.relayKey || ''; tg.connected = Boolean(tg.relayUrl && tg.chatId); write(TG_KEY, tg); toastS(tg.connected ? 'Telegram connection saved.' : 'Add a relay URL and chat ID first.'); renderTelegram(); };
-  window.openTelegramBotRestore = () => { const tg = tgState(); if (!tg.botUsername) return toastS('Enter the bot username first.'); window.open(`https://t.me/${encodeURIComponent(tg.botUsername)}?start=admission_hub`, '_blank', 'noopener'); };
-  window.toggleTelegramRestore = (id, value) => { const tg = tgState(); tg.categories[id] = Boolean(value); write(TG_KEY, tg); };
-  window.testTelegramRestore = async () => { const tg = tgState(); if (!tg.connected) return toastS('Connect Telegram first.'); try { const response = await fetch(tg.relayUrl.replace(/\/$/, '') + '/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', ...(tg.relayKey ? { 'X-Relay-Key': tg.relayKey } : {}) }, body: JSON.stringify({ chatId: tg.chatId, dedupeKey: `test-${new Date().toISOString().slice(0, 10)}`, category: 'test', title: 'Study Reminder', body: 'Admission Hub test notification received.' }) }); if (!response.ok) throw new Error('Relay request failed'); toastS('Test notification sent.'); } catch (_) { toastS('Could not reach the secure relay. Check the URL and try again.'); } };
 
   let searchQuery = '';
   function renderWebSearch() {
@@ -90,7 +72,7 @@
     const page = document.querySelector('#app .page');
     if (!page || page.querySelector('[data-study-tools-entry]')) return;
     const section = document.createElement('section'); section.className = 'st-dashboard-entry'; section.dataset.studyToolsEntry = '';
-    section.innerHTML = `<div class="section-heading"><h2>Study Tools</h2><span>7 utilities</span></div><button class="st-dashboard-button" type="button" onclick="navigate('study-tools')"><span><strong>Open Study Tools</strong><small>Telegram · Study Helper · Calculator · Web Search · Dictionary · Memorizing 33 · Exam Modes</small></span><span class="st-arrow">›</span></button>`;
+    section.innerHTML = `<div class="section-heading"><h2>Study Tools</h2><span>6 utilities</span></div><button class="st-dashboard-button" type="button" onclick="navigate('study-tools')"><span><strong>Open Study Tools</strong><small>Study Helper · Calculator · Web Search · Dictionary · Memorizing 33 · Exam Modes</small></span><span class="st-arrow">›</span></button>`;
     page.appendChild(section);
   }
   const previousRender = window.render;
@@ -98,7 +80,6 @@
   window.render = function restoredStudyToolsRouter() {
     const path = (typeof Router !== 'undefined' ? Router.path : location.hash.slice(1)) || 'dashboard';
     if (path === 'study-tools') return renderStudyTools();
-    if (path === 'telegram') return renderTelegram();
     if (path === 'web-search') return renderWebSearch();
     if (path === 'calculator') return renderCalculatorRestore();
     if (path === 'study-helper') return renderStudyHelperRestore();
@@ -109,7 +90,6 @@
     return result;
   };
   window.renderStudyTools = renderStudyTools;
-  window.renderTelegramRestore = renderTelegram;
 })();
 
 /* Restored historical launcher compatibility: the original commit exposed this entry on the dashboard. */
