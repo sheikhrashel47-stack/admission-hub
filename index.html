@@ -3563,12 +3563,17 @@ async function boot(){
   Router.path=location.hash.slice(1)||'dashboard';
 
   const resumable=await checkResumableExam();
+  let returningFromManualAi=false;
+  try {
+    const pending=JSON.parse(sessionStorage.getItem('admission_gemini_pending_note_v2')||'null');
+    returningFromManualAi=!!pending && pending.source==='Flash Test' && pending.returnPath==='exam/running';
+  } catch (_) {}
   if(resumable){
     ActiveExam=resumable;
     if(resumable.mode==='mock' && computeRemaining(resumable)<=0){
       // time expired while the app was closed/backgrounded — auto-submit through the existing pipeline, don't reset to full time
       await submitExam(true);
-    } else {
+    } else if(!returningFromManualAi) {
       openModal(`<h3>Resume Active Exam?</h3>
         <p class="muted">You have an unfinished ${resumable.mode==='mock'?'Mock':'Flash'} test with ${Object.keys(resumable.selectedAnswers).length}/${resumable.questions.length} answered.</p>
         <div class="row" style="margin-top:14px;">
@@ -4900,6 +4905,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="mobile-ux-fix.js?v=1"></script>
 <script src="feature-upgrade-2026.js?v=3"></script>
 <script src="notes-tool.js?v=gemini-v3-0816"></script>
-<script src="manual-gemini-helper.js?v=gemini-v8-0816"></script>
+<script src="manual-gemini-helper.js?v=gemini-v10-0816"></script>
 </body>
 </html>
