@@ -199,7 +199,7 @@
     if (/wrong/.test(cls)) return true;                       // result-review-card.wrong / answer-reveal.wrong
     if (text.indexOf('Unattempted') !== -1) return false;     // q-card-v2: never attempted → hide
     if (text.indexOf('⏭ Skip') !== -1 || text.indexOf('Skip') !== -1 && !/Wrong/.test(text)) { if (/Wrong/.test(text) === false && /ভুল/.test(text) === false) return false; }
-    return /✕ Wrong|Mistakes \d+|ভুল উত্তর|Wrong answer/.test(text);  // q-card-v2 status banner
+    return /✕ Wrong|ভুল উত্তর|Wrong answer/.test(text);        // q-card-v2 status banner
   }
 
   const CARD_SELECTORS = [
