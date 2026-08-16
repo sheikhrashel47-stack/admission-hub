@@ -136,21 +136,25 @@
     const nav = document.getElementById('navRoot');
     if (!nav) return;
     const vv = window.visualViewport;
-    const height = Math.round((vv && vv.height) || window.innerHeight || document.documentElement.clientHeight);
-    document.documentElement.style.setProperty('--visual-viewport-height', `${height}px`);
+    const viewportHeight = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
+    const standaloneScreenHeight = isStandalonePwa() && window.screen && Number.isFinite(window.screen.height) ? window.screen.height : 0;
+    const layoutHeight = Math.round(isStandalonePwa() && standaloneScreenHeight ? standaloneScreenHeight : viewportHeight);
+    const visualHeight = Math.round((vv && vv.height) || layoutHeight);
+    document.documentElement.style.setProperty('--visual-viewport-height', `${visualHeight}px`);
     if (isStandalonePwa()) {
-      // In iOS Add to Home Screen, visualViewport.height may report the
-      // keyboard/active visual area even when no keyboard is visible. Never
-      // convert that value into a top coordinate for the fixed nav shell.
-      nav.style.setProperty('top', 'auto', 'important');
-      nav.style.setProperty('bottom', '0px', 'important');
+      // iOS Add to Home Screen can report a shorter visualViewport while the
+      // standalone layout viewport remains full height. Anchor to the layout
+      // viewport explicitly; using visualViewport/bottom:0 can stop too high.
+      const navHeight = nav.offsetHeight || 74;
+      nav.style.setProperty('top', `${Math.max(0, layoutHeight - navHeight)}px`, 'important');
+      nav.style.setProperty('bottom', 'auto', 'important');
       nav.style.setProperty('left', '0px', 'important');
       nav.style.setProperty('right', '0px', 'important');
       nav.style.setProperty('transform', 'none', 'important');
       return;
     }
     const offsetTop = Math.max(0, Math.round((vv && vv.offsetTop) || 0));
-    nav.style.setProperty('top', `${offsetTop + height - nav.offsetHeight}px`, 'important');
+    nav.style.setProperty('top', `${offsetTop + visualHeight - nav.offsetHeight}px`, 'important');
     nav.style.setProperty('bottom', 'auto', 'important');
   };
   window.syncViewportNav = syncViewportNav;
