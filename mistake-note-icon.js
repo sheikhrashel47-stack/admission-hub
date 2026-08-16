@@ -52,10 +52,10 @@
     card.appendChild(btn);
   }
 
-  function decorateList(containerSelector, cardSelector, extractId){
-    const containers = document.querySelectorAll(containerSelector);
-    containers.forEach(container => {
-      const cards = container.querySelectorAll(cardSelector);
+  function decorateList(cardSelector, extractId){
+    // Query the whole document: the app renders pages directly into body/.page,
+    // so a scoped container selector can miss the cards.
+    const cards = document.querySelectorAll(cardSelector);
       cards.forEach(card => {
         if (card.getAttribute('data-mistake-qid')) return;
         const qid = extractId(card);
@@ -64,7 +64,6 @@
           attachIconToCard(card);
         }
       });
-    });
   }
 
   // Mistake Bank cards use inline onclick handlers like startQuestionPractice(['qid'])
@@ -76,21 +75,21 @@
 
   function run(){
     // Mistake Bank (Smart Mistake Book) — handlers live on buttons inside the card
-    decorateList('.page, main', '.card.mistake-book-card', (card) => {
+    decorateList('.card.mistake-book-card', (card) => {
       const btn = card.querySelector('button[onclick*="startQuestionPractice"]');
       const handler = btn ? (btn.getAttribute('onclick') || '') : (card.getAttribute('onclick') || '');
       const match = handler.match(/startQuestionPractice\(\[["']([^"']+?)["']\]/);
       return match ? match[1] : null;
     });
     // Exam result wrong cards
-    decorateList('.result-review-list', '.result-review-card.wrong', (card) => {
-      const btn = card.querySelector('.result-action[onclick*="resultPracticeOne"]');
+    decorateList('.result-review-card.wrong', (card) => {
+      const btn = card.querySelector('[onclick*="resultPracticeOne"]');
       if (!btn) return null;
       const match = (btn.getAttribute('onclick') || '').match(/resultPracticeOne\("([^"]+?)","([^"]+?)"/);
       return match ? match[2] : null;
     });
     // Mistake Bank 2.0 cards
-    decorateList('.page, main', '.card.mistake-row', idFromHandler);
+    decorateList('.card.mistake-row', idFromHandler);
   }
 
   const style = document.createElement('style');
