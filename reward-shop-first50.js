@@ -39,10 +39,10 @@
     const blueprint = settings.rewardBlueprint200 = settings.rewardBlueprint200 || {version: VERSION, inventory: {}, active: {}, events: []};
     blueprint.version = VERSION; blueprint.inventory = blueprint.inventory || {}; blueprint.active = blueprint.active || {};
     blueprint.events = Array.isArray(blueprint.events) ? blueprint.events : [];
-    if (blueprint.autoActivationVersion === 'first200-v2') {
-      Object.keys(blueprint.inventory).forEach(id => { if (/^reward-(10[1-9]|1[1-9][0-9]|200)$/.test(id)) delete blueprint.inventory[id] });
+    if (blueprint.autoActivationVersion === 'first200-v2' || blueprint.autoActivationVersion === 'rollback-100-v1') {
+      Object.keys(blueprint.inventory).forEach(id => { if (/^reward-(10[1-9]|1[1-9][0-9]|200)$/.test(id) || blueprint.inventory[id]?.autoActivated) delete blueprint.inventory[id] });
       Object.keys(blueprint.active).forEach(id => { if (/^reward-(10[1-9]|1[1-9][0-9]|200)$/.test(id) || blueprint.active[id]?.autoActivated) delete blueprint.active[id] });
-      blueprint.autoActivationVersion = 'rollback-100-v1';
+      blueprint.autoActivationVersion = 'rollback-100-v2';
       delete blueprint.autoActivationPending;
       blueprint.rollbackPending = true;
       blueprint.events.push({type: 'rollback-to-first-100', date: Date.now()});
