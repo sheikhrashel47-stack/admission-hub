@@ -78,6 +78,8 @@
   }
 
   function dashboardCleanup() {
+    const currentRoute = String(window.Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
+    if (currentRoute !== 'dashboard') return;
     const page = document.querySelector('#app .page');
     if (!page) return;
     const cards = [...page.querySelectorAll('[data-study-hub-dashboard-card]')];
@@ -89,6 +91,13 @@
     section.dataset.studyHubDashboardCard = '';
     section.innerHTML = `<div class="sh-dashboard-card" role="button" tabindex="0" onclick="navigate('study-hub')" onkeydown="if(event.key==='Enter'||event.key===' ')navigate('study-hub')"><div class="sh-dashboard-card-glow"></div><div class="sh-dashboard-card-top"><span class="sh-dashboard-icon">✦</span><span class="sh-dashboard-badge">6 TOOLS</span></div><strong>STUDY HUB</strong><p>Your essential admission toolkit</p><div class="sh-preview">Mistake Book <i>·</i> Revision <i>·</i> Bookmarks <i>·</i> Quick Notes <i>·</i> Focus <i>·</i> Countdown</div><span class="sh-dashboard-cta">Open Study Hub <b>→</b></span></div>`;
     page.insertBefore(section, page.firstChild || null);
+    const existingStudio = page.querySelector('[data-experience-studio-entry]');
+    if (existingStudio) existingStudio.remove();
+    const studioSection = document.createElement('section');
+    studioSection.className = 'es-dashboard-entry';
+    studioSection.dataset.experienceStudioEntry = '';
+    studioSection.innerHTML = `<button type="button" class="es-dashboard-card" onclick="navigate('experience-studio')" aria-label="Open Experience Studio"><span class="es-dashboard-orb">✨</span><span class="es-dashboard-copy"><small>PREMIUM TOOL · FUTURE EXPERIENCES</small><strong>Experience Studio</strong><em>Shape the next layer of your personal study space.</em></span><span class="es-dashboard-arrow">↗</span></button>`;
+    page.appendChild(studioSection);
   }
 
   function getMistakeRows() {
