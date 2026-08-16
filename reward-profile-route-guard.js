@@ -6,11 +6,11 @@
   'use strict';
   const path = () => String((window.Router && window.Router.path) || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
   const previous = window.render;
-  const renderRoute = () => {
+  const renderRoute = function () {
     const p = path();
     if (p === 'profile' && typeof window.__advancedProfileRender === 'function') return window.__advancedProfileRender();
     if ((p === 'rewards' || p === 'reward-shop') && typeof window.rewardFirst50Render === 'function') return window.rewardFirst50Render();
-    return typeof previous === 'function' ? previous.apply(window, arguments) : undefined;
+    return typeof previous === 'function' ? previous.apply(this, arguments) : undefined;
   };
   const guarded = function () {
     const p = path();
