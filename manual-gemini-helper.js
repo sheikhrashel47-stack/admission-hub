@@ -238,7 +238,7 @@
       document.documentElement.style.setProperty('--visual-viewport-offset-top','0px');
       document.documentElement.style.setProperty('--keyboard-inset','0px');
       document.documentElement.style.setProperty('--visual-viewport-height','100dvh');
-      document.querySelectorAll('.bottomnav').forEach(el => { el.style.transform='none'; el.style.bottom='0px'; });
+      window.syncViewportNav?.();
     } catch (_) {}
   }
   function schedulePendingNote(){

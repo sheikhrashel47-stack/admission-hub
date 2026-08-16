@@ -123,6 +123,47 @@
   };
 })();
 
+/* Keep the primary navigation pinned to the visual viewport on iOS Safari/PWA. */
+(() => {
+  const isStandalonePwa = () => {
+    try {
+      return window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches || window.matchMedia('(display-mode: fullscreen)').matches;
+    } catch (_) {
+      return window.navigator.standalone === true;
+    }
+  };
+  const syncViewportNav = () => {
+    const nav = document.getElementById('navRoot');
+    if (!nav) return;
+    const vv = window.visualViewport;
+    const height = Math.round((vv && vv.height) || window.innerHeight || document.documentElement.clientHeight);
+    document.documentElement.style.setProperty('--visual-viewport-height', `${height}px`);
+    if (isStandalonePwa()) {
+      // In iOS Add to Home Screen, visualViewport.height may report the
+      // keyboard/active visual area even when no keyboard is visible. Never
+      // convert that value into a top coordinate for the fixed nav shell.
+      nav.style.setProperty('top', 'auto', 'important');
+      nav.style.setProperty('bottom', '0px', 'important');
+      nav.style.setProperty('left', '0px', 'important');
+      nav.style.setProperty('right', '0px', 'important');
+      nav.style.setProperty('transform', 'none', 'important');
+      return;
+    }
+    const offsetTop = Math.max(0, Math.round((vv && vv.offsetTop) || 0));
+    nav.style.setProperty('top', `${offsetTop + height - nav.offsetHeight}px`, 'important');
+    nav.style.setProperty('bottom', 'auto', 'important');
+  };
+  window.syncViewportNav = syncViewportNav;
+  window.addEventListener('resize', syncViewportNav, { passive: true });
+  window.addEventListener('orientationchange', () => setTimeout(syncViewportNav, 120), { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncViewportNav, { passive: true });
+    window.visualViewport.addEventListener('scroll', syncViewportNav, { passive: true });
+  }
+  document.addEventListener('DOMContentLoaded', syncViewportNav, { once: true });
+  setTimeout(syncViewportNav, 0);
+})();
+
 /* Phase 1+2 visual system: restrained warm-white canvas, soft glass cards, readable Bengali type. */
 const phase12Style = document.createElement('style');
 phase12Style.textContent = `
