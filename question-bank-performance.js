@@ -81,7 +81,8 @@
       const showBtn = [...card.querySelectorAll('.q-footer-btn')].find(b => b.textContent.includes('Show Answer'));
       if (showBtn) showBtn.remove();
     }
-    if (state && !state.correct && !card.querySelector('.q-note-btn')) {
+    const noteReady = typeof window.isManualGeminiNoteReady === 'function' && window.isManualGeminiNoteReady(qid);
+    if (state && !state.correct && noteReady && !card.querySelector('.q-note-btn')) {
       const footer = card.querySelector('.q-card-footer');
       if (footer) {
         const noteBtn = document.createElement('button');
@@ -92,6 +93,7 @@
         footer.insertBefore(noteBtn, footer.querySelector('button'));
       }
     }
+    if (!noteReady) card.querySelector('.q-note-btn')?.remove();
 
     updateFooterStats();
   }
@@ -244,7 +246,7 @@
     const acc = answered.length ? Math.round(answered.filter(x => practice.answers[x.id].correct).length / answered.length * 100) : 0;
     const mistakeCount = answered.filter(x => !practice.answers[x.id].correct).length;
 
-    return `<article class="q-card-v2 card" data-qid="${esc(q.id)}"><div class="q-card-header"><div class="q-card-meta"><span class="q-card-num">Q ${String(number).padStart(2, '0')}</span><span class="q-breadcrumb">${esc(subject?.name || '')} • ${esc(topicPath)}</span></div><span class="q-status ${statusClass}">${status}</span></div><div class="q-text-v2">${esc(q.question)}</div><div class="q-options-v2">${opts}</div>${expHtml}<footer class="q-card-footer"><span>Accuracy <strong>${acc}%</strong></span><span>Mistakes <strong>${mistakeCount}</strong></span>${state && !state.correct ? `<button class="q-footer-btn q-note-btn" type="button" onclick="window.openManualGeminiNoteForQuestion('${esc(q.id)}')">📝 নোট করুন</button>` : ''}<button class="q-footer-btn ${q.bookmarked ? 'active' : ''}" type="button" aria-pressed="${!!q.bookmarked}" onclick="toggleQuestionBookmark('${esc(q.id)}')">⭐ ${q.bookmarked ? 'Bookmarked' : 'Bookmark'}</button>${!revealed ? `<button class="q-footer-btn" type="button" onclick="revealTopicAnswer('${esc(q.id)}')">Show Answer</button>` : ''}<button class="q-footer-btn" type="button" onclick="ahEditQuestion('${esc(q.id)}')">Edit</button><button class="q-footer-btn danger" type="button" onclick="ahDuplicateQuestion('${esc(q.id)}')">Duplicate</button><button class="q-footer-btn danger" type="button" onclick="ahDeleteQuestion('${esc(q.id)}')">Delete</button></footer></article>`;
+    return `<article class="q-card-v2 card" data-qid="${esc(q.id)}"><div class="q-card-header"><div class="q-card-meta"><span class="q-card-num">Q ${String(number).padStart(2, '0')}</span><span class="q-breadcrumb">${esc(subject?.name || '')} • ${esc(topicPath)}</span></div><span class="q-status ${statusClass}">${status}</span></div><div class="q-text-v2">${esc(q.question)}</div><div class="q-options-v2">${opts}</div>${expHtml}<footer class="q-card-footer"><span>Accuracy <strong>${acc}%</strong></span><span>Mistakes <strong>${mistakeCount}</strong></span>${state && !state.correct && typeof window.isManualGeminiNoteReady === 'function' && window.isManualGeminiNoteReady(q.id) ? `<button class="q-footer-btn q-note-btn" type="button" onclick="window.openManualGeminiNoteForQuestion('${esc(q.id)}')">📝 নোট করুন</button>` : ''}<button class="q-footer-btn ${q.bookmarked ? 'active' : ''}" type="button" aria-pressed="${!!q.bookmarked}" onclick="toggleQuestionBookmark('${esc(q.id)}')">⭐ ${q.bookmarked ? 'Bookmarked' : 'Bookmark'}</button>${!revealed ? `<button class="q-footer-btn" type="button" onclick="revealTopicAnswer('${esc(q.id)}')">Show Answer</button>` : ''}<button class="q-footer-btn" type="button" onclick="ahEditQuestion('${esc(q.id)}')">Edit</button><button class="q-footer-btn danger" type="button" onclick="ahDuplicateQuestion('${esc(q.id)}')">Duplicate</button><button class="q-footer-btn danger" type="button" onclick="ahDeleteQuestion('${esc(q.id)}')">Delete</button></footer></article>`;
   }
 
   function buildPagination(page, totalPages, totalQuestions) {
