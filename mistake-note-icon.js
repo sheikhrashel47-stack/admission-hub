@@ -93,19 +93,19 @@
     decorateList('.page, main', '.card.mistake-row', idFromHandler);
   }
 
-  const previousRender = window.render;
-  function wrapped(){
-    const out = previousRender.apply(this, arguments);
-    setTimeout(run, 0);
-    return out;
-  }
-  if (typeof previousRender === 'function') { window.render = wrapped; try { render = wrapped; } catch (_) {} }
-
   const style = document.createElement('style');
   style.id = 'mistake-note-icon-styles';
   style.textContent = `.card.mistake-book-card,.card.mistake-row,.result-review-card.wrong{position:relative}.mn-note-icon{position:absolute;bottom:12px;right:12px;border:1px solid #b9ddc8;background:#f1fbf4;color:#0f6b4f;border-radius:999px;min-width:34px;height:30px;font-size:13px;padding:0 8px;cursor:pointer;line-height:28px;box-shadow:0 2px 6px rgba(15,107,79,.12);z-index:3}.mn-note-icon:active{transform:scale(.94)}`;
   document.head.appendChild(style);
 
-  setTimeout(run, 600);
-  setTimeout(run, 1600);
+  // Keep the icons alive even when other scripts overwrite window.render:
+  // observe the DOM for new cards and periodically re-check.
+  const observer = new MutationObserver(() => setTimeout(run, 0));
+  observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
+  window.addEventListener('hashchange', () => setTimeout(run, 400));
+
+  setTimeout(run, 400);
+  setTimeout(run, 1200);
+  setTimeout(run, 2600);
+  setInterval(run, 3500);
 })();
