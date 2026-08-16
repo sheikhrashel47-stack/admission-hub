@@ -237,28 +237,17 @@
     openModal(html);
   }
 
-  /* ---------------- AI tutor (MindPal) iframe section ----------------- */
+  /* ---------------- Gemini tutor section ------------------------------ */
   function renderAITutorSection(){
     return '<div class="ma-ai-tutor" id="maAiTutor">' +
-      '<div class="ma-ai-tutor-head"><h3>🤖 AI Admission Tutor (MindPal)</h3>' +
-      '<p>ভুল খাতার পাশাপাশি এই AI ভার্টি টিউটর — যেকোনো ভুল প্রশ্ন, concept বা GK নিয়ে এখানেই আলোচনা করো।</p></div>' +
-      '<div class="ma-ai-tutor-frame"><iframe id="maAiTutorIframe" ' +
-        'src="https://chatbot.getmindpal.com/bangladeshi-university-admission-competitive-exams-gk-current-affairs-tutor-fc3" ' +
-        'allow="clipboard-read; clipboard-write; microphone" ' +
-        'title="AI Admission Tutor — MindPal"></iframe></div>' +
-      '<div class="muted" style="font-size:10.5px; margin-top:8px;">AI Tutor powered by MindPal — iframe load হতে কিছু সময় লাগতে পারে।</div>' +
+      '<div class="ma-ai-tutor-head"><h3>✨ Gemini AI Tutor</h3>' +
+      '<p>ভুল প্রশ্ন, concept বা GK নিয়ে সংক্ষিপ্ত ও শিক্ষামূলক উত্তর পেতে prompt কপি করে Gemini-তে paste করো।</p></div>' +
+      '<div style="padding:14px 0 4px; text-align:center;">' +
+        '<button class="btn" onclick="window.open(\'https://gemini.google.com/app\',\'_self\')">✨ Gemini খুলুন</button>' +
+      '</div>' +
     '</div>';
   }
-  function loadAITutorIframe(){
-    // Lazy-load the AI tutor iframe only once (700px+ iframe is heavy).
-    try {
-      var el = document.getElementById('maAiTutorIframe');
-      if(!el || el.dataset.maLoaded) return;
-      el.dataset.maLoaded = '1';
-      // The src is already set in the markup above; this guard ensures the
-      // iframe renders only once even if the notebook re-renders.
-    } catch(_){}
-  }
+  function loadAITutorIframe(){ /* kept as a compatibility no-op for the existing notebook render flow */ }
 
   /* ---------------- notebook view ------------------------------------- */
   function matchesFilter(item, filter){

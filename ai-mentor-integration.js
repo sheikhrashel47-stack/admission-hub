@@ -1,4 +1,4 @@
-/* ================= AI ADMISSION MENTOR - MindPal Chatbot Integration ================= */
+/* ================= AI ADMISSION MENTOR - Gemini Integration ================= */
 (function(){
   'use strict';
 
@@ -62,14 +62,12 @@
           </div>
         </div>
 
-        <!-- AI Chatbot Container -->
-        <div class="ai-mentor-chatbot fade-in" style="animation-delay: 0.2s;">
-          <iframe
-            src="https://chatbot.getmindpal.com/bengali-admission-mentor-ffw"
-            allow="clipboard-read; clipboard-write; microphone"
-            style="width: 100%; height: 700px; border: none; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);"
-            title="AI Admission Mentor Chatbot">
-          </iframe>
+        <!-- Gemini Mentor Container -->
+        <div class="ai-mentor-chatbot fade-in" style="animation-delay: 0.2s; padding: 20px; text-align: center;">
+          <div style="font-size: 38px; margin-bottom: 10px;">✨</div>
+          <h3 style="margin: 0 0 8px; color: var(--text);">Gemini AI Mentor</h3>
+          <p style="margin: 0 auto 15px; max-width: 460px; font-size: 13px; line-height: 1.6; color: var(--sub);">প্রশ্ন বা ভুলের prompt কপি করে Gemini-তে paste করে দ্রুত শিক্ষামূলক উত্তর নাও।</p>
+          <button class="btn btn-press" onclick="window.open('https://gemini.google.com/app','_self')" style="max-width: 260px;">✨ Gemini খুলুন</button>
         </div>
 
         <!-- Info Card -->
@@ -160,9 +158,8 @@
       animation: fadeUp 0.5s ease-out forwards;
     }
 
-    .ai-mentor-chatbot iframe {
-      display: block;
-      width: 100%;
+    .ai-mentor-chatbot {
+      min-height: 180px;
     }
 
     .ai-mentor-info {
@@ -175,9 +172,6 @@
         grid-template-columns: 1fr;
       }
 
-      .ai-mentor-chatbot iframe {
-        min-height: 600px;
-      }
     }
 
     @media (max-width: 390px) {
@@ -197,9 +191,6 @@
         font-size: 10px;
       }
 
-      .ai-mentor-chatbot iframe {
-        min-height: 500px;
-      }
     }
 
     /* iPad/Tablet optimization */
@@ -208,9 +199,6 @@
         grid-template-columns: repeat(4, 1fr);
       }
 
-      .ai-mentor-chatbot iframe {
-        min-height: 800px;
-      }
     }
 
     /* Light theme */
@@ -247,5 +235,5 @@
      AI Mentor now lives only on its dedicated page (renderAIMentor);
      the Command Center carousel keeps its original tiles only. */
 
-  console.log('✅ AI Admission Mentor Integration Loaded');
+  console.log('✅ Gemini AI Mentor Integration Loaded');
 })();

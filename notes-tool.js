@@ -23,14 +23,6 @@
   }
   function subjectName(id){ return text((cache().subjects||[]).find(x=>x.id===id)?.name || ''); }
   function topicName(id){ return text((cache().topics||[]).find(x=>x.id===id)?.name || ''); }
-  function relatedFor(q){
-    const all=(cache().questions||[]).filter(item=>item && item.id!==q?.id);
-    const sameTopic=all.filter(item=>item.topicId && item.topicId===q?.topicId);
-    const sameSubject=all.filter(item=>item.subjectId && item.subjectId===q?.subjectId && item.topicId!==q?.topicId);
-    return [...sameTopic,...sameSubject].filter((item,index,arr)=>arr.findIndex(x=>x.id===item.id)===index).slice(0,3).map(item=>({
-      questionId:item.id, question:text(item.question,400), subjectId:item.subjectId||'', topicId:item.topicId||''
-    }));
-  }
   function sourceLabel(source){ return source==='Flash Test' ? 'Flash Test' : 'Question Bank'; }
   function noteFromQuestion({q, selectedIndex, source, existing}){
     const correctIndex=questionAnswerIndex(q);
@@ -51,7 +43,6 @@
       topicId:q?.topicId ?? current.topicId ?? '',
       explanation:text(q?.explanation ?? current.explanation,4000),
       aiExplain:text(current.aiExplain,8000),
-      relatedQuestions:current.relatedQuestions?.length?current.relatedQuestions:relatedFor(q),
       createdAt:current.createdAt||Date.now(),
       updatedAt:Date.now()
     };
@@ -75,8 +66,7 @@
     }).join('');
   }
   function openEditor(note){
-    const related=(note.relatedQuestions||[]).map((item,index)=>`<div class="note-related-item"><span>${index+1}</span><div>${escValue(item.question)}<small>${escValue(subjectName(item.subjectId))}${item.topicId?` · ${escValue(topicName(item.topicId))}`:''}</small></div></div>`).join('');
-    openModal(`<div class="note-editor-head"><div><div class="note-kicker">${escValue(note.source)} · ছোট নোট</div><h3>এই প্রশ্নটি নোট করুন</h3></div><button class="iconbtn" onclick="closeModal()">×</button></div><div class="note-card-preview"><div class="note-meta">${escValue(subjectName(note.subjectId))}${note.topicId?` · ${escValue(topicName(note.topicId))}`:''}</div><div class="note-question">${escValue(note.question)}</div><div class="note-options">${optionsMarkup(note)}</div><div class="note-answer-grid"><div class="wrong-box"><small>তোমার উত্তর</small><b>${escValue(note.wrongAnswer||'—')}</b></div><div class="correct-box"><small>সঠিক উত্তর</small><b>${escValue(note.correctAnswer||'—')}</b></div></div>${note.explanation?`<div class="note-existing"><b>Existing explanation</b><p>${escValue(note.explanation)}</p></div>`:''}</div><label class="flabel">AI Explain</label><textarea id="noteAiExplainInput" placeholder="MindPal Agent-এর explanation এখানে paste করো...">${escValue(note.aiExplain)}</textarea><p class="note-save-hint">Save চাপলে পুরো question card, answer, explanation ও AI Explain এই নোটে রাখা হবে।</p><div class="note-related"><div class="note-section-title">Related 3 Questions</div>${related||'<div class="muted">Related question পাওয়া যায়নি।</div>'}</div><button class="btn" style="margin-top:14px" onclick="window.saveCurrentQuestionNote()">💾 Save Note</button>`);
+    openModal(`<div class="note-editor-head"><div><div class="note-kicker">${escValue(note.source)} · ছোট নোট</div><h3>এই প্রশ্নটি নোট করুন</h3></div><button class="iconbtn" onclick="closeModal()">×</button></div><div class="note-card-preview"><div class="note-meta">${escValue(subjectName(note.subjectId))}${note.topicId?` · ${escValue(topicName(note.topicId))}`:''}</div><div class="note-question">${escValue(note.question)}</div><div class="note-options">${optionsMarkup(note)}</div><div class="note-answer-grid"><div class="wrong-box"><small>তোমার উত্তর</small><b>${escValue(note.wrongAnswer||'—')}</b></div><div class="correct-box"><small>সঠিক উত্তর</small><b>${escValue(note.correctAnswer||'—')}</b></div></div>${note.explanation?`<div class="note-existing"><b>Existing explanation</b><p>${escValue(note.explanation)}</p></div>`:''}</div><label class="flabel">AI Explain</label><textarea id="noteAiExplainInput" placeholder="Gemini-এর explanation এখানে paste করো...">${escValue(note.aiExplain)}</textarea><p class="note-save-hint">Save চাপলে পুরো question card, answer, explanation ও AI Explain এই নোটে রাখা হবে।</p><button class="btn" style="margin-top:14px" onclick="window.saveCurrentQuestionNote()">💾 Save Note</button>`);
     window.__editingQuestionNote=note;
   }
   window.openQuestionNoteEditor=function(payload){
@@ -110,7 +100,7 @@
     const total=(cache().notes||[]).length;
     const qbank=(cache().notes||[]).filter(n=>n.source==='Question Bank').length;
     const flash=(cache().notes||[]).filter(n=>n.source==='Flash Test').length;
-    const cards=list.map(note=>`<article class="saved-note-card"><div class="saved-note-top"><span class="note-kicker">${escValue(note.source)}</span><span class="note-date">${new Date(note.updatedAt||note.createdAt||Date.now()).toLocaleDateString('bn-BD')}</span></div><div class="saved-note-subject">${escValue(subjectName(note.subjectId))}${note.topicId?` · ${escValue(topicName(note.topicId))}`:''}</div><h3>${escValue(note.question)}</h3><div class="saved-note-answer"><span class="wrong-label">ভুল: ${escValue(note.wrongAnswer||'—')}</span><span class="correct-label">সঠিক: ${escValue(note.correctAnswer||'—')}</span></div>${note.aiExplain?`<div class="saved-ai-explain"><b>AI Explain</b><p>${escValue(note.aiExplain)}</p></div>`:`<div class="saved-ai-empty">AI Explain এখনো যোগ করা হয়নি</div>`}<div class="saved-note-related"><b>Related questions: ${(note.relatedQuestions||[]).length}</b></div><div class="saved-note-actions"><button class="note-action primary" onclick="editSavedNote('${escValue(note.id)}')">Edit / AI Explain</button><button class="note-action" onclick="deleteSavedNote('${escValue(note.id)}')">Delete</button></div></article>`).join('');
+    const cards=list.map(note=>`<article class="saved-note-card"><div class="saved-note-top"><span class="note-kicker">${escValue(note.source)}</span><span class="note-date">${new Date(note.updatedAt||note.createdAt||Date.now()).toLocaleDateString('bn-BD')}</span></div><div class="saved-note-subject">${escValue(subjectName(note.subjectId))}${note.topicId?` · ${escValue(topicName(note.topicId))}`:''}</div><h3>${escValue(note.question)}</h3><div class="saved-note-answer"><span class="wrong-label">ভুল: ${escValue(note.wrongAnswer||'—')}</span><span class="correct-label">সঠিক: ${escValue(note.correctAnswer||'—')}</span></div>${note.aiExplain?`<div class="saved-ai-explain"><b>AI Explain</b><p>${escValue(note.aiExplain)}</p></div>`:`<div class="saved-ai-empty">AI Explain এখনো যোগ করা হয়নি</div>`}<div class="saved-note-actions"><button class="note-action primary" onclick="editSavedNote('${escValue(note.id)}')">Edit / AI Explain</button><button class="note-action" onclick="deleteSavedNote('${escValue(note.id)}')">Delete</button></div></article>`).join('');
     const html=`<main class="notes-page"><div class="notes-hero"><div class="notes-kicker">PERSONAL LEARNING NOTES</div><h1>নোট</h1><p>ভুল প্রশ্ন, সঠিক উত্তর ও AI explanation এক জায়গায় রাখো।</p><div class="notes-stat-grid"><div><b>${total}</b><span>All Notes</span></div><div><b>${qbank}</b><span>Question Bank</span></div><div><b>${flash}</b><span>Flash Test</span></div></div></div><div class="notes-toolbar"><input id="notesSearch" type="search" placeholder="নোট খুঁজুন..." value="${escValue(state.search)}" oninput="searchSavedNotes(this.value)"><div class="notes-tabs"><button class="note-tab ${state.filter==='all'?'active':''}" onclick="setNotesFilter('all')">সব</button><button class="note-tab ${state.filter==='Question Bank'?'active':''}" onclick="setNotesFilter('Question Bank')">Question Bank</button><button class="note-tab ${state.filter==='Flash Test'?'active':''}" onclick="setNotesFilter('Flash Test')">Flash Test</button></div></div>${cards?`<section class="saved-notes-list">${cards}</section>`:`<div class="notes-empty"><div>📝</div><h3>এখনো কোনো নোট নেই</h3><p>Question Bank বা Flash Test-এ ভুল হলে “ছোট নোট করুন” চাপলে এখানে দেখা যাবে।</p></div>`}</main>`;
     renderShell(html,{title:'নোট',back:"navigate('dashboard')"});
   };
