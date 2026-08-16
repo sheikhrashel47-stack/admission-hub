@@ -4712,7 +4712,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       }
     },{once:false});
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v11',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v12',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5044,7 +5044,8 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="ai-agents.js?v=gemini-v6-0816"></script>
 <script src="ai-mentor-integration.js?v=gemini-v2-0816"></script>
 <script src="mistake-analysis.js?v=gemini-v4-0816"></script>
-<script src="phase1-reward-shop-2.js?v=6"></script>
+<script src="reward-blueprint-engine.js?v=205"></script>
+<script src="phase1-reward-shop-2.js?v=7"></script>
 <script src="phase2-daily-quest-2.js?v=5"></script>
 <script src="vocabulary-master.js?v=1"></script>
 <script src="vocabulary-phase2.js?v=1"></script>
@@ -5060,7 +5061,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816"></script>
 <script src="nav-resume-fix.js?v=1"></script>
 <script src="mistake-note-icon.js?v=14"></script>
-<script src="reward-blueprint-engine.js?v=204"></script>
 <script src="reward-batch1-effects.js?v=1"></script>
 </body>
 </html>
