@@ -243,7 +243,7 @@
       '<div class="ma-ai-tutor-head"><h3>✨ Gemini AI Tutor</h3>' +
       '<p>ভুল প্রশ্ন, concept বা GK নিয়ে সংক্ষিপ্ত ও শিক্ষামূলক উত্তর পেতে prompt কপি করে Gemini-তে paste করো।</p></div>' +
       '<div style="padding:14px 0 4px; text-align:center;">' +
-        '<button class="btn" onclick="window.open(\'https://gemini.google.com/app\',\'_self\')">✨ Gemini খুলুন</button>' +
+        '<button class="btn" onclick="window.open(\'https://gemini.google.com/app\',\'_blank\')">✨ Gemini খুলুন</button>' +
       '</div>' +
     '</div>';
   }

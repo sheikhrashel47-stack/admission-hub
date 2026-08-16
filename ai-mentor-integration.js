@@ -67,7 +67,7 @@
           <div style="font-size: 38px; margin-bottom: 10px;">✨</div>
           <h3 style="margin: 0 0 8px; color: var(--text);">Gemini AI Mentor</h3>
           <p style="margin: 0 auto 15px; max-width: 460px; font-size: 13px; line-height: 1.6; color: var(--sub);">প্রশ্ন বা ভুলের prompt কপি করে Gemini-তে paste করে দ্রুত শিক্ষামূলক উত্তর নাও।</p>
-          <button class="btn btn-press" onclick="window.open('https://gemini.google.com/app','_self')" style="max-width: 260px;">✨ Gemini খুলুন</button>
+          <button class="btn btn-press" onclick="window.open('https://gemini.google.com/app','_blank')" style="max-width: 260px;">✨ Gemini খুলুন</button>
         </div>
 
         <!-- Info Card -->

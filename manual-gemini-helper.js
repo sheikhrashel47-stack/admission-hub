@@ -189,7 +189,17 @@
     const root = document.getElementById('manualGeminiRoot');
     if (root) { root.innerHTML = ''; root.style.cssText = 'display:none'; }
     document.body.classList.remove('mg-open');
-    const go = () => window.location.assign(url);
+    const go = () => {
+      // Use window.open instead of location.assign for iOS standalone PWA.
+      // location.assign navigates the PWA itself which causes viewport bugs
+      // on return. window.open opens in Safari, keeping the PWA intact.
+      const isStandalone = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+      if (isStandalone) {
+        window.open(url, '_blank');
+      } else {
+        window.location.assign(url);
+      }
+    };
     if (window.__manualGeminiLastPrompt) copyText(window.__manualGeminiLastPrompt, go);
     else go();
   }
@@ -202,20 +212,27 @@
     if (typeof window.navigate === 'function') window.navigate(target);
     else location.hash = '#' + target;
   };
+  let _geminiRestoreRan = false;
   function restoreReturnedQuestionContext(){
+    if(_geminiRestoreRan) return;
     const pending=readPendingNote();
     if(!pending?.question) return;
+    _geminiRestoreRan = true;
     const target=String(pending.returnPath||'');
     const hashPath=decodeURIComponent(String(location.hash||'').replace(/^#/,'')).split('?')[0];
     const here=hashPath || currentPath();
     if(target && here !== target){
       try { if(typeof window.navigate==='function') window.navigate(target); } catch (_) {}
+      // Don't clear pending yet - wait until we actually arrive at target
+      setTimeout(()=>{ _geminiRestoreRan = false; }, 300);
       return;
     }
+    // We are at the target - restore context and CLEAR pending note
     window.__manualGeminiQuestion=pending.question;
     window.__manualGeminiSelectedIndex=Number(pending.selectedIndex);
     window.__manualGeminiSource=pending.source||'Admission Hub';
     restorePracticeState();
+    clearPendingNote();
     try {
       if(pending.source==='Question Bank' && typeof window.renderQuestionBankV2==='function') window.renderQuestionBankV2();
     } catch (_) {}
