@@ -39,6 +39,15 @@
     const blueprint = settings.rewardBlueprint200 = settings.rewardBlueprint200 || {version: VERSION, inventory: {}, active: {}, events: []};
     blueprint.version = VERSION; blueprint.inventory = blueprint.inventory || {}; blueprint.active = blueprint.active || {};
     blueprint.events = Array.isArray(blueprint.events) ? blueprint.events : [];
+    if (blueprint.autoActivationVersion === 'first200-v2') {
+      Object.keys(blueprint.inventory).forEach(id => { if (/^reward-(10[1-9]|1[1-9][0-9]|200)$/.test(id)) delete blueprint.inventory[id] });
+      Object.keys(blueprint.active).forEach(id => { if (/^reward-(10[1-9]|1[1-9][0-9]|200)$/.test(id) || blueprint.active[id]?.autoActivated) delete blueprint.active[id] });
+      blueprint.autoActivationVersion = 'rollback-100-v1';
+      delete blueprint.autoActivationPending;
+      blueprint.rollbackPending = true;
+      blueprint.events.push({type: 'rollback-to-first-100', date: Date.now()});
+      blueprint.events = blueprint.events.slice(-500);
+    }
     return {settings, game, blueprint};
   };
   const saveState = async state => {
@@ -97,7 +106,12 @@
     </article>`;
   };
   const render = () => {
-    const state = getState(); const ownedCount = CATALOG.filter(item => owned(item, state)).length;
+    const state = getState();
+    if (state.blueprint.rollbackPending) {
+      state.blueprint.rollbackPending = false;
+      saveState(state).catch(() => {});
+    }
+    const ownedCount = CATALOG.filter(item => owned(item, state)).length;
     const html = `<div class="reward-first50-page rshop-page"><header class="rshop-hero"><button class="rshop-back" type="button" onclick="navigate('dashboard')">←</button><div class="rshop-hero-copy"><span class="rshop-kicker">ADMISSION HUB · BLUEPRINT COLLECTION</span><h1>Reward Atelier</h1><p>প্রতিটি reward কেনার আগে পূর্ণ visual preview দেখুন</p></div><div class="rshop-hero-gem">✦<small>100</small></div></header>
       <section class="rshop-wallet"><div><small>⚡ XP</small><strong>${state.settings.xpBalance.toLocaleString()}</strong><em>Study power</em></div><div><small>🪙 Gold</small><strong>${state.game.gold.toLocaleString()}</strong><em>Blueprint coins</em></div><div><small>💎 Diamond</small><strong>${state.game.diamonds.toLocaleString()}</strong><em>Premium currency</em></div><div><small>🎒 Collection</small><strong>${ownedCount}/100</strong><em>${activeCount(state)} active</em></div></section>
       <section class="rshop-toolbar"><div class="rshop-toolbar-title"><strong>Reward Blueprint</strong><span>100 experiences · 2-column gallery</span></div><div class="rshop-controls"><input id="rewardShopSearch" aria-label="Reward search" placeholder="Search reward…" oninput="window.rewardShopFilter()"><select id="rewardShopRarity" onchange="window.rewardShopFilter()"><option>All rarities</option>${['Common','Uncommon','Rare','Epic','Legendary'].map(x => `<option>${x}</option>`).join('')}</select><select id="rewardShopCurrency" onchange="window.rewardShopFilter()"><option>All currencies</option>${['XP','Gold','Diamond'].map(x => `<option>${x}</option>`).join('')}</select><select id="rewardShopStatus" onchange="window.rewardShopFilter()"><option>All status</option><option>available</option><option>owned</option><option>active</option><option>insufficient</option></select></div></section>
