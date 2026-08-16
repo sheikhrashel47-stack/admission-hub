@@ -229,6 +229,10 @@
     CARD_SELECTORS.forEach(sel => {
       document.querySelectorAll(sel).forEach(card => {
         if (card.querySelector('.mn-note-row')) { card.setAttribute('data-mistake-done', '1'); return; }
+        // A stale 'done' flag from an earlier script version must not block
+        // attachment forever — only skip when we already attached in THIS version.
+        const stale = card.getAttribute('data-mistake-done') && !card.querySelector('.mn-note-row');
+        if (stale) card.removeAttribute('data-mistake-done');
         if (card.getAttribute('data-mistake-done')) return;
 
         const hostSel = sel === '.flash-feedback.wrong' ? 'flash' : 'regular';
