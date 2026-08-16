@@ -112,7 +112,7 @@
     try { return JSON.parse(sessionStorage.getItem(GEMINI_PENDING_NOTE)||'null'); } catch (_) { return null; }
   }
   function clearPendingNote(){ try { sessionStorage.removeItem(GEMINI_PENDING_NOTE); sessionStorage.removeItem(GEMINI_PAGE_STATE); } catch (_) {} }
-  function currentPath(){ return String(window.Router?.path || location.hash.replace(/^#\/?/,'').split('?')[0] || 'dashboard'); }
+  function currentPath(){ const hash=location.hash.replace(/^#\/?/,'').split('?')[0]; return String(hash || window.Router?.path || 'dashboard'); }
   function addInlineNoteButton({q}){
     const cards = [...document.querySelectorAll('.q-card-v2,[data-qnav-card],.p3-qb-question-card,.question-card,.flash-q-card')];
     const host = cards.find(card => (card.textContent || '').includes(String(q?.question || '').slice(0,80)));
@@ -249,6 +249,8 @@
     try { if(window.__admissionBootPromise?.then) window.__admissionBootPromise.then(()=>setTimeout(maybeOpenPendingNote,180)); } catch (_) {}
   }
   window.addEventListener('pageshow',()=>{ resetReturnedViewport(); schedulePendingNote(); });
+  window.addEventListener('popstate',()=>{ if(readPendingNote()) { resetReturnedViewport(); setTimeout(maybeOpenPendingNote,180); } });
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && readPendingNote()) { resetReturnedViewport(); setTimeout(maybeOpenPendingNote,180); } });
   window.addEventListener('focus',()=>{ if(readPendingNote()) { resetReturnedViewport(); setTimeout(maybeOpenPendingNote,180); } });
   const previousRender=window.render;
   function wrappedGeminiRender(){ if(currentPath()==='gemini') return renderGeminiPage(); return previousRender.apply(this,arguments); }
