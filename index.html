@@ -659,7 +659,7 @@ async function logActivity(kind, count){
 }
 
 /* ================= ROUTER ================= */
-const Router={ path:'dashboard', params:{}, };
+const Router={ path:(location.hash.slice(1).split('?')[0]||'dashboard'), params:{}, };
 function navigate(path){
   Router.path=path;
   location.hash=path;
