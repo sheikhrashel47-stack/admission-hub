@@ -75,9 +75,10 @@
   }
 
   function run(){
-    // Mistake Bank (Smart Mistake Book)
+    // Mistake Bank (Smart Mistake Book) — handlers live on buttons inside the card
     decorateList('.page, main', '.card.mistake-book-card', (card) => {
-      const handler = card.getAttribute('onclick') || '';
+      const btn = card.querySelector('button[onclick*="startQuestionPractice"]');
+      const handler = btn ? (btn.getAttribute('onclick') || '') : (card.getAttribute('onclick') || '');
       const match = handler.match(/startQuestionPractice\(\[["']([^"']+?)["']\]/);
       return match ? match[1] : null;
     });
