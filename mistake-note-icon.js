@@ -228,7 +228,13 @@
   function run(){
     CARD_SELECTORS.forEach(sel => {
       document.querySelectorAll(sel).forEach(card => {
-        if (card.querySelector('.mn-note-row')) { card.setAttribute('data-mistake-done', '1'); return; }
+        const existingRow = card.querySelector('.mn-note-row');
+        if (existingRow) {
+          // A row from an older script version carries no question id — purge it
+          // so the card gets re-evaluated against the current logic.
+          if (!card.getAttribute('data-mistake-qid')) { removeRow(card); }
+          else { card.setAttribute('data-mistake-done', '1'); return; }
+        }
         // A stale 'done' flag from an earlier script version must not block
         // attachment forever — only skip when we already attached in THIS version.
         const stale = card.getAttribute('data-mistake-done') && !card.querySelector('.mn-note-row');
