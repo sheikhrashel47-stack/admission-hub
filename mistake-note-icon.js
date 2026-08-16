@@ -260,6 +260,7 @@
 
         // Question bank / mistake book cards: icon ONLY when wrong.
         if (!isWrongCard) { removeRow(card); return; }
+        if (!q) { removeRow(card); return; }   // no question → nothing to note
         attachButtonsToCard(card, q, { source: 'Question Bank' });
       });
     });
