@@ -11,7 +11,7 @@
   const NOTE_STORE = 'notes';
   const state = { filter: 'all', search: '' };
 
-  function cache(){ return window.CACHE || { notes: [], questions: [], subjects: [], topics: [] }; }
+  function cache(){ try { if(typeof CACHE!=='undefined' && CACHE) return CACHE; } catch(_){} return window.CACHE || { notes: [], questions: [], subjects: [], topics: [] }; }
   function escValue(value){
     if(typeof window.esc === 'function') return window.esc(String(value ?? ''));
     return String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

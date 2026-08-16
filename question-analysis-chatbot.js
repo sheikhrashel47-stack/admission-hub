@@ -94,7 +94,7 @@
       display: { type: 'floating-corner', anchor: 'right' },
       behavior: {
         showInitialMessageBubbleWhenMinimized: true,
-        minimizedByDefault: false
+        minimizedByDefault: true
       }
     };
 
