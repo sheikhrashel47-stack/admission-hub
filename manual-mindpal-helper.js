@@ -42,8 +42,8 @@
     const related = relatedQuestions(q).map((item,index)=>`${index+1}. ${clean(item.question,500)}`).join('\n') || 'প্রাসঙ্গিক related question পাওয়া যায়নি।';
     return `তুমি Admission Hub-এর বাংলা Mistake Analysis Teacher। অপ্রয়োজনীয় কথা বলবে না; সংক্ষেপে কিন্তু গভীরভাবে উত্তর দেবে।\n\nSource: ${source}\nSubject: ${subject}\nTopic: ${topic}\n\nপ্রশ্ন:\n${clean(q?.question,5000)}\n\nOptions:\n${options}\n\nStudent-এর ভুল উত্তর: ${clean(selected,1200)}\nসঠিক উত্তর: ${clean(correct,1200)}\nআগের ভুলের সংখ্যা: ${Number(previous?.wrongCount || 0)}\nExisting explanation:\n${clean(q?.explanation,3000)}\n\nশুধু এই ৬টি ছোট section দাও: কেন ভুল, সঠিক নিয়ম, Exam Trap, মনে রাখার কৌশল, ১টি ছোট উদাহরণ, Final takeaway।\n\nশেষে এই ৩টি related question শুধু question হিসেবে দাও; উত্তর বা দীর্ঘ ব্যাখ্যা দেবে না:\n${related}\n\nCorrect answer পরিবর্তন করবে না।`;
   }
-  function copyText(value){
-    const done = () => { const el=document.getElementById('manualMindPalCopyStatus'); if(el) el.textContent='Prompt copied ✓ এখন MindPal chatbot-এ paste করো'; };
+  function copyText(value, after){
+    const done = () => { const el=document.getElementById('manualMindPalCopyStatus'); if(el) el.textContent='Prompt copied ✓ এখন MindPal chatbot-এ paste করো'; if(typeof after==='function') after(); };
     if (navigator.clipboard?.writeText) { navigator.clipboard.writeText(value).then(done).catch(() => fallbackCopy(value, done)); }
     else fallbackCopy(value, done);
   }
@@ -69,19 +69,31 @@
     setTimeout(()=>addInlineNoteButton({q,selectedIndex,source}),80);
     let root=document.getElementById('manualMindPalRoot');
     if(!root){ root=document.createElement('div'); root.id='manualMindPalRoot'; document.body.appendChild(root); }
-    root.innerHTML=`<div class="mmp-backdrop" role="dialog" aria-modal="true" aria-label="MindPal mistake helper"><div class="mmp-modal"><button class="mmp-close" type="button" aria-label="Close" onclick="window.closeManualMindPal()">×</button><div class="mmp-kicker">MINDPAL · ${esc(source)}</div><h2>ভুল প্রশ্নটি বুঝে নাও</h2><p class="mmp-help">App question-এর context MindPal-এ বসিয়ে দিয়েছে। এখন শুধু chatbot খুলে <b>Send</b> চাপবে।</p><div class="mmp-question"><b>প্রশ্ন</b><p>${esc(q?.question)}</p><span>তোমার উত্তর: <strong>${esc(q?.options?.[selectedIndex] || '')}</strong></span><span>সঠিক উত্তর: <strong>${esc(q?.options?.[getCorrectIndex(q)] || '')}</strong></span></div><div class="mmp-related"><b>Related 3 questions</b><ol>${related.map(item=>`<li>${esc(item.question)}</li>`).join('') || '<li>পাওয়া যায়নি</li>'}</ol></div><div id="manualMindPalCopyStatus" class="mmp-status">Context প্রস্তুত হচ্ছে...</div><div class="mmp-actions"><button class="mmp-copy" type="button" onclick="window.openManualMindPal()">💬 MindPal খুলে Send করো</button><button class="mmp-close-btn" type="button" onclick="window.openQuestionNoteEditor({q:window.__manualMindPalQuestion,selectedIndex:window.__manualMindPalSelectedIndex,source:window.__manualMindPalSource})">📝 ছোট নোট করুন</button></div></div></div>`;
+    root.style.cssText='position:fixed;inset:0;z-index:10060;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;background:rgba(8,28,22,.62);overflow:auto;';
+    root.innerHTML=`<div class="mmp-backdrop" role="dialog" aria-modal="true" aria-label="MindPal mistake helper"><div class="mmp-modal"><button class="mmp-close" type="button" aria-label="Close" onclick="window.closeManualMindPal()">×</button><div class="mmp-kicker">MINDPAL · ${esc(source)}</div><h2>ভুল প্রশ্নটি বুঝে নাও</h2><p class="mmp-help">Prompt তৈরি হয়েছে। নিচের button একবার চাপলে prompt কপি হবে এবং MindPal chatbot খুলবে; সেখানে input-এ paste করে <b>Send</b> চাপবে।</p><div class="mmp-question"><b>প্রশ্ন</b><p>${esc(q?.question)}</p><span>তোমার উত্তর: <strong>${esc(q?.options?.[selectedIndex] || '')}</strong></span><span>সঠিক উত্তর: <strong>${esc(q?.options?.[getCorrectIndex(q)] || '')}</strong></span></div><textarea class="mmp-prompt" id="manualMindPalPrompt" readonly aria-label="MindPal prompt">${esc(prompt)}</textarea><div class="mmp-related"><b>Related 3 questions</b><ol>${related.map(item=>`<li>${esc(item.question)}</li>`).join('') || '<li>পাওয়া যায়নি</li>'}</ol></div><div id="manualMindPalCopyStatus" class="mmp-status">Prompt প্রস্তুত হচ্ছে...</div><div class="mmp-actions"><button class="mmp-copy" type="button" onclick="window.openManualMindPal()">📋 Prompt কপি + MindPal খুলো</button><button class="mmp-close-btn" type="button" onclick="window.openQuestionNoteEditor({q:window.__manualMindPalQuestion,selectedIndex:window.__manualMindPalSelectedIndex,source:window.__manualMindPalSource})">📝 ছোট নোট করুন</button></div></div></div>`;
     window.__manualMindPalQuestion=q; window.__manualMindPalSelectedIndex=selectedIndex; window.__manualMindPalSource=source;
     document.body.classList.add('mmp-open');
   }
   window.copyManualMindPalPrompt = function(){ if(window.__manualMindPalLastPrompt) copyText(window.__manualMindPalLastPrompt); };
   window.openManualMindPal = function(){
-    const status=document.getElementById('manualMindPalCopyStatus');
-    if(status) status.textContent='MindPal খুলছে… context ready';
-    const button=document.querySelector('[aria-label="Open chat"]');
-    if(button){ button.click(); setTimeout(()=>{const s=document.getElementById('manualMindPalCopyStatus');if(s)s.textContent='MindPal chat খুলেছে—এখন শুধু Send চাপো';},500); }
-    else if(status) status.textContent='MindPal widget এখনও load হচ্ছে—কিছুক্ষণ পরে আবার চাপো';
+    const prompt=window.__manualMindPalLastPrompt || '';
+    // The modal was covering the cross-origin widget, so the user could not see or use Send.
+    // Copy first while this click still has user activation, then remove the overlay and expose the widget.
+    if(prompt) copyText(prompt);
+    const root=document.getElementById('manualMindPalRoot');
+    if(root) root.innerHTML='';
+    document.body.classList.remove('mmp-open');
+    const openChat=()=>{
+      const button=document.querySelector('[aria-label="Open chat"]');
+      if(button) button.click();
+    };
+    if(document.querySelector('[aria-label="Close chat"]')) return;
+    openChat();
+    setTimeout(()=>{
+      if(!document.querySelector('[aria-label="Close chat"]')) openChat();
+    },500);
   };
-  window.closeManualMindPal = function(){ const root=document.getElementById('manualMindPalRoot'); if(root) root.innerHTML=''; document.body.classList.remove('mmp-open'); };
+  window.closeManualMindPal = function(){ const root=document.getElementById('manualMindPalRoot'); if(root){ root.innerHTML=''; root.style.cssText='display:none'; } document.body.classList.remove('mmp-open'); };
   function wrapTopic(){
     if(typeof window.selectTopicAnswer !== 'function' || window.selectTopicAnswer.__manualMindPalWrapped) return;
     const original=window.selectTopicAnswer;
