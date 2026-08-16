@@ -112,6 +112,10 @@
     try { return JSON.parse(sessionStorage.getItem(GEMINI_PENDING_NOTE)||'null'); } catch (_) { return null; }
   }
   function clearPendingNote(){ try { sessionStorage.removeItem(GEMINI_PENDING_NOTE); sessionStorage.removeItem(GEMINI_PAGE_STATE); } catch (_) {} }
+  window.isManualGeminiNoteReady = function(qid){
+    const pending = readPendingNote();
+    return !!(pending?.question && String(pending.question.id) === String(qid));
+  };
   function currentPath(){ const hash=location.hash.replace(/^#\/?/,'').split('?')[0]; return String(hash || window.Router?.path || 'dashboard'); }
   function addInlineNoteButton({q}){
     const cards = [...document.querySelectorAll('.q-card-v2,[data-qnav-card],.p3-qb-question-card,.question-card,.flash-q-card')];
@@ -141,7 +145,7 @@
     let root = document.getElementById('manualGeminiRoot');
     if (!root) { root = document.createElement('div'); root.id = 'manualGeminiRoot'; document.body.appendChild(root); }
     root.style.cssText = 'position:fixed;inset:0;z-index:10060;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;background:rgba(8,28,22,.62);overflow:auto;';
-    root.innerHTML = `<div class="mg-backdrop" role="dialog" aria-modal="true" aria-label="Gemini mistake helper"><div class="mg-modal"><button class="mg-close" type="button" aria-label="Close" onclick="window.closeManualGemini()">×</button><div class="mg-kicker">GEMINI · ${esc(source)}</div><h2>ভুল প্রশ্নটি বুঝে নাও</h2><p class="mg-help">Prompt কপি করে Gemini বা ChatGPT-এর যেকোনো একটি খুলে paste করে Send চাপো। ফিরে এলে এই প্রশ্নটি নোট করার editor নিজে খুলবে।</p><div class="mg-question"><b>প্রশ্ন</b><p>${esc(q?.question)}</p><span>তোমার উত্তর: <strong>${esc(q?.options?.[selectedIndex] || '')}</strong></span><span>সঠিক উত্তর: <strong>${esc(q?.options?.[getCorrectIndex(q)] || '')}</strong></span></div><textarea class="mg-prompt" id="manualGeminiPrompt" readonly aria-label="Gemini prompt">${esc(prompt)}</textarea><div id="manualGeminiCopyStatus" class="mg-status">Prompt প্রস্তুত আছে। Copy চাপো।</div><div class="mg-actions"><button class="mg-copy" type="button" onclick="window.copyManualGeminiPrompt()">📋 Prompt কপি করুন</button><button class="mg-gemini" type="button" onclick="window.openManualGemini()">✨ Gemini খুলুন</button><button class="mg-chatgpt" type="button" onclick="window.openManualChatGPT()">◉ ChatGPT খুলুন</button></div></div></div>`;
+    root.innerHTML = `<div class="mg-backdrop" role="dialog" aria-modal="true" aria-label="Gemini mistake helper"><div class="mg-modal"><button class="mg-close" type="button" aria-label="Close" onclick="window.closeManualGemini()">×</button><div class="mg-kicker">GEMINI · ${esc(source)}</div><h2>ভুল প্রশ্নটি বুঝে নাও</h2><p class="mg-help">Prompt কপি করে Gemini বা ChatGPT-এর যেকোনো একটি খুলে paste করে Send চাপো। ফিরে এসে প্রশ্নের নিচের ছোট “📝 নোট করুন” button-এ click করলে explanation save করতে পারবে।</p><div class="mg-question"><b>প্রশ্ন</b><p>${esc(q?.question)}</p><span>তোমার উত্তর: <strong>${esc(q?.options?.[selectedIndex] || '')}</strong></span><span>সঠিক উত্তর: <strong>${esc(q?.options?.[getCorrectIndex(q)] || '')}</strong></span></div><textarea class="mg-prompt" id="manualGeminiPrompt" readonly aria-label="Gemini prompt">${esc(prompt)}</textarea><div id="manualGeminiCopyStatus" class="mg-status">Prompt প্রস্তুত আছে। Copy চাপো।</div><div class="mg-actions"><button class="mg-copy" type="button" onclick="window.copyManualGeminiPrompt()">📋 Prompt কপি করুন</button><button class="mg-gemini" type="button" onclick="window.openManualGemini()">✨ Gemini খুলুন</button><button class="mg-chatgpt" type="button" onclick="window.openManualChatGPT()">◉ ChatGPT খুলুন</button></div></div></div>`;
 
     const compact = window.innerWidth <= 480;
     const backdrop = root.querySelector('.mg-backdrop');
@@ -198,60 +202,29 @@
     if (typeof window.navigate === 'function') window.navigate(target);
     else location.hash = '#' + target;
   };
-  function maybeOpenPendingNote(attempt){
+  function restoreReturnedQuestionContext(){
     const pending=readPendingNote();
     if(!pending?.question) return;
     const target=String(pending.returnPath||'');
-    const hashPath=decodeURIComponent(String(location.hash||'').replace(/^#/,''));
+    const hashPath=decodeURIComponent(String(location.hash||'').replace(/^#/,'')).split('?')[0];
     const here=hashPath || currentPath();
     if(target && here !== target){
       try { if(typeof window.navigate==='function') window.navigate(target); } catch (_) {}
-      if((attempt||0)<4) setTimeout(()=>maybeOpenPendingNote((attempt||0)+1),280);
       return;
     }
-    if(typeof window.openQuestionNoteEditor !== 'function'){
-      if((attempt||0)<8) setTimeout(()=>maybeOpenPendingNote((attempt||0)+1),250);
-      return;
-    }
-    const q=pending.question;
-    window.__manualGeminiQuestion=q;
+    window.__manualGeminiQuestion=pending.question;
     window.__manualGeminiSelectedIndex=Number(pending.selectedIndex);
     window.__manualGeminiSource=pending.source||'Admission Hub';
     restorePracticeState();
-    try { if(pending.source==='Question Bank' && typeof window.renderQuestionBankV2==='function') window.renderQuestionBankV2(); } catch (_) {}
-    try { if(pending.source==='Flash Test' && window.ActiveExam && typeof window.startTimerLoop==='function') window.startTimerLoop(); } catch (_) {}
-    try { if(typeof window.closeModal==='function') window.closeModal(); } catch (_) {}
-    setTimeout(() => {
-      try {
-        const result=window.openQuestionNoteEditor({q,selectedIndex:Number(pending.selectedIndex),source:pending.source||'Admission Hub'});
-        clearPendingNote();
-        return result;
-      } catch (_) {
-        if((attempt||0)<8) setTimeout(()=>maybeOpenPendingNote((attempt||0)+1),250);
-      }
-    }, 120);
-  }
-  function resetReturnedViewport(){
     try {
-      document.body.classList.remove('keyboard-open');
-      document.body.classList.add('provider-returned');
-      document.documentElement.style.setProperty('--visual-viewport-offset-top','0px');
-      document.documentElement.style.setProperty('--keyboard-inset','0px');
-      document.documentElement.style.setProperty('--visual-viewport-height','100dvh');
-      window.syncViewportNav?.();
+      if(pending.source==='Question Bank' && typeof window.renderQuestionBankV2==='function') window.renderQuestionBankV2();
     } catch (_) {}
   }
-  function schedulePendingNote(){
-    resetReturnedViewport();
-    setTimeout(maybeOpenPendingNote,120);
-    setTimeout(maybeOpenPendingNote,700);
-    setTimeout(maybeOpenPendingNote,1500);
-    try { if(window.__admissionBootPromise?.then) window.__admissionBootPromise.then(()=>setTimeout(maybeOpenPendingNote,180)); } catch (_) {}
-  }
-  window.addEventListener('pageshow',()=>{ resetReturnedViewport(); schedulePendingNote(); });
-  window.addEventListener('popstate',()=>{ if(readPendingNote()) { resetReturnedViewport(); setTimeout(maybeOpenPendingNote,180); } });
-  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible' && readPendingNote()) { resetReturnedViewport(); setTimeout(maybeOpenPendingNote,180); } });
-  window.addEventListener('focus',()=>{ if(readPendingNote()) { resetReturnedViewport(); setTimeout(maybeOpenPendingNote,180); } });
+  // Return from Gemini/ChatGPT never opens an editor automatically.
+  // The wrong-answer card owns the explicit “📝 নোট করুন” action.
+  window.addEventListener('pageshow',()=>setTimeout(restoreReturnedQuestionContext,180));
+  window.addEventListener('popstate',()=>setTimeout(restoreReturnedQuestionContext,180));
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') setTimeout(restoreReturnedQuestionContext,180); });
   const previousRender=window.render;
   function wrappedGeminiRender(){ if(currentPath()==='gemini') return renderGeminiPage(); return previousRender.apply(this,arguments); }
   if(typeof previousRender==='function'){ window.render=wrappedGeminiRender; try { render=wrappedGeminiRender; } catch (_) {} }
@@ -262,10 +235,25 @@
     if (root) { root.innerHTML = ''; root.style.cssText = 'display:none'; }
     document.body.classList.remove('mg-open');
   };
-  window.openManualGeminiNote = function(){
-    const args = {q:window.__manualGeminiQuestion,selectedIndex:window.__manualGeminiSelectedIndex,source:window.__manualGeminiSource};
+  window.openManualGeminiNoteForQuestion = function(qid){
+    const q = getCache().questions?.find(item => String(item.id) === String(qid));
+    const practice = window.QuestionBankPracticeSession;
+    const state = practice?.answers?.[qid] || window.BankAnswers?.[qid] || null;
+    const pending = readPendingNote();
+    const selectedIndex = pending?.question && String(pending.question.id) === String(qid)
+      ? Number(pending.selectedIndex)
+      : Number(state?.selected);
+    if(!q || !Number.isFinite(selectedIndex) || selectedIndex === getCorrectIndex(q)) return;
+    window.__manualGeminiQuestion=q;
+    window.__manualGeminiSelectedIndex=selectedIndex;
+    window.__manualGeminiSource='Question Bank';
+    clearPendingNote();
     window.closeManualGemini();
-    setTimeout(() => window.openQuestionNoteEditor?.(args), 0);
+    setTimeout(() => window.openQuestionNoteEditor?.({q,selectedIndex,source:'Question Bank'}), 0);
+  };
+  window.openManualGeminiNote = function(){
+    const q = window.__manualGeminiQuestion;
+    if(q?.id) window.openManualGeminiNoteForQuestion(q.id);
   };
   function wrapTopic(){
     if (typeof window.selectTopicAnswer !== 'function' || window.selectTopicAnswer.__manualGeminiWrapped) return;
@@ -298,7 +286,6 @@
   installHooks();
   setTimeout(installHooks, 800);
   setTimeout(installHooks, 1800);
-  schedulePendingNote();
 
   const style = document.createElement('style');
   style.id = 'manual-gemini-helper-styles';
