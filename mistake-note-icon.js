@@ -1,8 +1,9 @@
 /*
   ADMISSION HUB · MISTAKE NOTE ICON
-  Adds a small note icon to every wrong-question card (Mistake Bank & exam result).
-  Clicking it saves the question as a note; if a Gemini explanation is pending,
-  it saves with the AI explain, otherwise it opens the note editor directly.
+  Adds a small note icon to every wrong-question card (practice review card,
+  Mistake Bank, exam result review). Clicking it opens the note editor so the
+  question — with its wrong answer and a pasted Gemini AI explain — can be
+  saved into the Notes tool.
 */
 (function installMistakeNoteIcon(){
   'use strict';
@@ -14,10 +15,26 @@
     return window.CACHE || { questions: [], mistakes: [], subjects: [], topics: [] };
   }
 
-  function findQuestionForCard(card){
-    const qid = card?.getAttribute?.('data-mistake-qid');
+  function findQuestionById(qid){
     if (!qid) return null;
     return getCache().questions?.find(x => String(x.id) === String(qid)) || null;
+  }
+
+  // Fallback: match a wrong question by its text (used by the Mistake Bank
+  // where the card keeps the full question text, not the id).
+  function findQuestionByText(text){
+    if (!text || text.length < 12) return null;
+    const t = String(text).trim();
+    return getCache().questions?.find(q => String(q.question).trim() === t) || null;
+  }
+
+  function findQuestionForCard(card){
+    const qid = card?.getAttribute?.('data-mistake-qid');
+    const q = findQuestionById(qid);
+    if (q) return q;
+    // Fallback: card keeps the question text in .mistake-question etc.
+    const text = card?.textContent || '';
+    return findQuestionByText(text) || null;
   }
 
   function openNoteFor(q){
@@ -52,53 +69,77 @@
     card.appendChild(btn);
   }
 
-  function decorateList(cardSelector, extractId){
-    // Query the whole document: the app renders pages directly into body/.page,
-    // so a scoped container selector can miss the cards.
-    const cards = document.querySelectorAll(cardSelector);
-      cards.forEach(card => {
+  // Extract a question id from any inline onclick handler string.
+  const ID_PATTERNS = [
+    /data-qid="([^"]+)"/,                       // practice review card (q-card-v2)
+    /resultPracticeOne\("([^"]+?)","([^"]+?)"/,  // exam result review card
+    /resultPracticeOne\('([^']+?)','([^']+?)'/,
+    /resultAddMistake\(\s*'([^']+?)'\s*,\s*'([^']+?)'/,
+    /startQuestionPractice\(\[[\s\S]*?["']([^"']+?)["']\]/,
+    /toggleQuestionBookmark\(['"]([^"']+?)['"]\)/,
+    /ahEditQuestion\(['"]([^"']+?)['"]\)/,
+    /ahDuplicateQuestion\(['"]([^"']+?)['"]\)/,
+    /ahDeleteQuestion\(['"]([^"']+?)['"]\)/,
+    /revealTopicAnswer\(['"]([^"']+?)['"]\)/,
+    /selectTopicAnswer\(['"]([^"']+?)['"]\)/
+  ];
+
+  function extractIdFromHandlers(card){
+    const buttons = card.querySelectorAll('[onclick]');
+    for (const b of buttons) {
+      const oc = b.getAttribute('onclick') || '';
+      for (const pat of ID_PATTERNS) {
+        const m = oc.match(pat);
+        if (m) return m[1];
+      }
+    }
+    const own = card.getAttribute('onclick') || '';
+    for (const pat of ID_PATTERNS) {
+      const m = own.match(pat);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+  // Whether the card represents a wrong/attempted question worth noting.
+  function isWrongCard(card){
+    const cls = (card.className || '').toString();
+    if (cls.indexOf('wrong') !== -1) return true;
+    const text = card.textContent || '';
+    return /Wrong answer|ভুল উত্তর|✕ Wrong|Mistakes \d+/.test(text);
+  }
+
+  const CARD_SELECTORS = [
+    '.q-card-v2',                     // practice / topic review card (video flow)
+    '.result-review-card',            // exam result review card
+    '.card.mistake-book-card',        // Smart Mistake Book
+    '.card.mistake-row'               // Mistake Bank 2.0
+  ];
+
+  function run(){
+    CARD_SELECTORS.forEach(sel => {
+      document.querySelectorAll(sel).forEach(card => {
+        if (!isWrongCard(card)) return;
         if (card.getAttribute('data-mistake-qid')) return;
-        const qid = extractId(card);
+        const qid = extractIdFromHandlers(card);
         if (qid) {
           card.setAttribute('data-mistake-qid', qid);
           attachIconToCard(card);
+        } else if (findQuestionByText(card.textContent || '')) {
+          // No handler id found; match by question text instead.
+          card.setAttribute('data-mistake-qid', '__bytext__');
+          attachIconToCard(card);
         }
       });
-  }
-
-  // Mistake Bank cards use inline onclick handlers like startQuestionPractice(['qid'])
-  function idFromHandler(card){
-    const handler = card.getAttribute('onclick') || '';
-    const match = handler.match(/startQuestionPractice\(\[["']([^"']+?)["']\]/);
-    return match ? match[1] : null;
-  }
-
-  function run(){
-    // Mistake Bank (Smart Mistake Book) — handlers live on buttons inside the card
-    decorateList('.card.mistake-book-card', (card) => {
-      const btn = card.querySelector('button[onclick*="startQuestionPractice"]');
-      const handler = btn ? (btn.getAttribute('onclick') || '') : (card.getAttribute('onclick') || '');
-      const match = handler.match(/startQuestionPractice\(\[["']([^"']+?)["']\]/);
-      return match ? match[1] : null;
     });
-    // Exam result wrong cards
-    decorateList('.result-review-card.wrong', (card) => {
-      const btn = card.querySelector('[onclick*="resultPracticeOne"]');
-      if (!btn) return null;
-      const match = (btn.getAttribute('onclick') || '').match(/resultPracticeOne\("([^"]+?)","([^"]+?)"/);
-      return match ? match[2] : null;
-    });
-    // Mistake Bank 2.0 cards
-    decorateList('.card.mistake-row', idFromHandler);
   }
 
   const style = document.createElement('style');
   style.id = 'mistake-note-icon-styles';
-  style.textContent = `.card.mistake-book-card,.card.mistake-row,.result-review-card.wrong{position:relative}.mn-note-icon{position:absolute;bottom:12px;right:12px;border:1px solid #b9ddc8;background:#f1fbf4;color:#0f6b4f;border-radius:999px;min-width:34px;height:30px;font-size:13px;padding:0 8px;cursor:pointer;line-height:28px;box-shadow:0 2px 6px rgba(15,107,79,.12);z-index:3}.mn-note-icon:active{transform:scale(.94)}`;
+  style.textContent = `.q-card-v2,.card.mistake-book-card,.card.mistake-row,.result-review-card{position:relative}.mn-note-icon{position:absolute;top:12px;right:10px;border:1px solid #b9ddc8;background:#f1fbf4;color:#0f6b4f;border-radius:999px;min-width:36px;height:32px;font-size:14px;padding:0 9px;cursor:pointer;line-height:30px;box-shadow:0 2px 6px rgba(15,107,79,.14);z-index:5}.mn-note-icon:active{transform:scale(.94)}`;
   document.head.appendChild(style);
 
-  // Keep the icons alive even when other scripts overwrite window.render:
-  // observe the DOM for new cards and periodically re-check.
+  // Keep icons alive regardless of other scripts overwriting window.render:
   const observer = new MutationObserver(() => setTimeout(run, 0));
   observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
   window.addEventListener('hashchange', () => setTimeout(run, 400));
@@ -106,5 +147,5 @@
   setTimeout(run, 400);
   setTimeout(run, 1200);
   setTimeout(run, 2600);
-  setInterval(run, 3500);
+  setInterval(run, 2000);
 })();
