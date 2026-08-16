@@ -1,19 +1,22 @@
 /* Admission Hub · Reward/Profile route guard
- * Keeps the purchase-gated Blueprint Shop and VIP Profile renderer authoritative.
+ * Keeps the purchase-gated Blueprint Shop and VIP Profile renderer authoritative
+ * without interrupting the app's original Dashboard renderer.
  */
 (() => {
   'use strict';
   const path = () => String((window.Router && window.Router.path) || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
+  const previous = window.render;
   const renderRoute = () => {
     const p = path();
     if (p === 'profile' && typeof window.__advancedProfileRender === 'function') return window.__advancedProfileRender();
     if ((p === 'rewards' || p === 'reward-shop') && typeof window.rewardFirst50Render === 'function') return window.rewardFirst50Render();
+    return typeof previous === 'function' ? previous.apply(window, arguments) : undefined;
   };
   const guarded = function () {
     const p = path();
     if (p === 'profile' && typeof window.__advancedProfileRender === 'function') return window.__advancedProfileRender();
     if ((p === 'rewards' || p === 'reward-shop') && typeof window.rewardFirst50Render === 'function') return window.rewardFirst50Render();
-    return undefined;
+    return typeof previous === 'function' ? previous.apply(this, arguments) : undefined;
   };
   guarded.__rewardProfileGuard = true;
   window.render = guarded;
