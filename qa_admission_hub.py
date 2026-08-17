@@ -69,6 +69,8 @@ assert 'source=pwa#progress/plan' in (ROOT / "manifest.json").read_text(encoding
 assert 'source=pwa#progress/plan' in (ROOT / "manifest.webmanifest").read_text(encoding="utf-8")
 assert "normalizePwaLaunch" in html
 assert "legacy Master Plan" in html
+assert "p === 'progress/plan'" in html
+assert "window.Routine90?.render" in html
 assert "scope:'./'" in html
 assert "activateWaiting(registration)" in html
 assert "indexedDB.deleteDatabase" not in sw
