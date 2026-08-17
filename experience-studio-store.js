@@ -1,7 +1,7 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'admissionHub.experienceStudio.v1';
+  const STORAGE_KEY = 'admissionHub.experienceStudio.v2';
   const TYPES = ['themes', 'animations', 'cards'];
   const TYPE_ALIASES = { theme: 'themes', themes: 'themes', animation: 'animations', animations: 'animations', card: 'cards', cards: 'cards' };
   const state = load();
@@ -10,8 +10,8 @@
 
   function baseState() {
     return {
-      version: 1,
-      purchased: { themes: [], animations: [], cards: [] },
+      version: 2,
+      unlocked: { themes: [], animations: [], cards: [] },
       active: { themes: null, animations: null, cards: null },
       updatedAt: 0
     };
@@ -21,18 +21,23 @@
     const next = baseState();
     if (!raw || typeof raw !== 'object') return next;
     TYPES.forEach((type) => {
-      const purchased = Array.isArray(raw.purchased?.[type]) ? raw.purchased[type] : [];
-      next.purchased[type] = [...new Set(purchased.map((id) => String(id)).filter(Boolean))];
+      const legacyList = Array.isArray(raw.unlocked?.[type]) ? raw.unlocked[type] : raw.purchased?.[type];
+      next.unlocked[type] = [...new Set((Array.isArray(legacyList) ? legacyList : []).map((id) => String(id)).filter(Boolean))];
       const active = raw.active?.[type];
       next.active[type] = active === null || active === undefined ? null : String(active);
-      if (next.active[type] && !next.purchased[type].includes(next.active[type])) next.active[type] = null;
     });
     next.updatedAt = Number(raw.updatedAt || 0);
     return next;
   }
 
   function load() {
-    try { return normalize(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null')); } catch (_) { return baseState(); }
+    try {
+      const current = localStorage.getItem(STORAGE_KEY);
+      const legacy = localStorage.getItem('admissionHub.experienceStudio.v1');
+      return normalize(JSON.parse(current || legacy || 'null'));
+    } catch (_) {
+      return baseState();
+    }
   }
 
   function save() {
@@ -44,11 +49,6 @@
   function typeKey(type) {
     const key = TYPE_ALIASES[String(type || '').toLowerCase()];
     return key || null;
-  }
-
-  function listFor(type) {
-    const key = typeKey(type);
-    return key ? state.purchased[key] : [];
   }
 
   function catalogFor(type) {
@@ -63,31 +63,27 @@
     return catalogFor(type).find((item) => String(item.id) === String(id)) || null;
   }
 
-  function currencyPath(currency) {
-    const normalized = String(currency || 'XP').toUpperCase();
-    if (normalized === 'XP') return { object: window.CACHE?.settings, key: 'xpBalance' };
-    if (normalized === 'GOLD') {
-      if (typeof window.CACHE?.game?.gold === 'number') return { object: window.CACHE.game, key: 'gold' };
-      return { object: window.CACHE?.settings, key: 'gold' };
-    }
-    if (normalized === 'DIAMOND' || normalized === 'DIAMONDS') {
-      if (typeof window.CACHE?.game?.diamonds === 'number') return { object: window.CACHE.game, key: 'diamonds' };
-      return { object: window.CACHE?.settings, key: 'diamonds' };
-    }
-    return { object: window.CACHE?.settings, key: 'xpBalance' };
+  function profileLevel() {
+    const settings = window.CACHE?.settings || {};
+    return Math.max(1, Number(settings.xpLevel ?? settings.level ?? 1) || 1);
   }
 
-  function balance(currency) {
-    const path = currencyPath(currency);
-    return Number(path.object?.[path.key] || 0);
+  function requiredLevel(item) {
+    const explicit = Number(item?.requiredLevel ?? item?.unlockLevel ?? item?.levelRequired);
+    if (Number.isFinite(explicit) && explicit > 0) return Math.max(1, Math.floor(explicit));
+    const position = Math.max(1, Number(item?.number || 1) || 1);
+    const key = typeKey(item?.kind);
+    const step = key === 'animations' ? 10 : key === 'themes' ? 10 : 10;
+    return 1 + Math.floor((position - 1) / step);
   }
 
-  async function persistCurrency(currency, object) {
-    try {
-      if (typeof window.dbPut === 'function' && object === window.CACHE?.settings) await window.dbPut('settings', object);
-      if (typeof window.dbPut === 'function' && object === window.CACHE?.game) await window.dbPut('game', object);
-      if (typeof window.persistSettings === 'function' && object === window.CACHE?.settings) await window.persistSettings(object);
-    } catch (_) {}
+  function levelUnlocked(item) {
+    return Boolean(item && profileLevel() >= requiredLevel(item));
+  }
+
+  function listFor(type) {
+    const key = typeKey(type);
+    return key ? state.unlocked[key] : [];
   }
 
   function register(type, hook) {
@@ -96,32 +92,32 @@
     hooks[key] = hook;
   }
 
-  async function purchase(type, id) {
+  function unlock(type, id) {
     const key = typeKey(type);
     const item = findItem(key, id);
     if (!key || !item) return { ok: false, reason: 'missing-item' };
-    if (state.purchased[key].includes(String(item.id))) return { ok: false, reason: 'already-owned', item };
-    const price = Math.max(0, Number(item.price || 0));
-    const currency = String(item.currency || 'XP').toUpperCase();
-    const path = currencyPath(currency);
-    if (price > 0 && (!path.object || balance(currency) < price)) return { ok: false, reason: 'insufficient-funds', item, balance: balance(currency), currency, price };
-    if (price > 0) {
-      path.object[path.key] = balance(currency) - price;
-      await persistCurrency(currency, path.object);
+    const level = profileLevel();
+    const required = requiredLevel(item);
+    if (level < required) return { ok: false, reason: 'level-locked', item, level, requiredLevel: required };
+    if (!state.unlocked[key].includes(String(item.id))) {
+      state.unlocked[key].push(String(item.id));
+      save();
     }
-    state.purchased[key].push(String(item.id));
-    save();
-    return { ok: true, item, balance: balance(currency), currency, price };
+    return { ok: true, item, level, requiredLevel: required };
   }
 
   function apply(type, id) {
     const key = typeKey(type);
-    const stringId = String(id);
-    if (!key || !state.purchased[key].includes(stringId)) return { ok: false, reason: 'not-owned' };
-    state.active[key] = stringId;
+    const item = findItem(key, id);
+    if (!key || !item) return { ok: false, reason: 'missing-item' };
+    const level = profileLevel();
+    const required = requiredLevel(item);
+    if (level < required) return { ok: false, reason: 'level-locked', item, level, requiredLevel: required };
+    if (!state.unlocked[key].includes(String(item.id))) state.unlocked[key].push(String(item.id));
+    state.active[key] = String(item.id);
     save();
-    hooks[key]?.apply?.(findItem(key, stringId));
-    return { ok: true, item: findItem(key, stringId) };
+    hooks[key]?.apply?.(item);
+    return { ok: true, item, level, requiredLevel: required };
   }
 
   function remove(type) {
@@ -134,14 +130,14 @@
     return { ok: true, previous };
   }
 
-  function isPurchased(type, id) {
-    const key = typeKey(type);
-    return Boolean(key && state.purchased[key].includes(String(id)));
+  function isUnlocked(type, id) {
+    const item = findItem(type, id);
+    return levelUnlocked(item);
   }
 
   function isActive(type, id) {
     const key = typeKey(type);
-    return Boolean(key && state.active[key] === String(id));
+    return Boolean(key && state.active[key] === String(id) && isUnlocked(key, id));
   }
 
   window.ExperienceStudioStore = {
@@ -150,15 +146,21 @@
     snapshot: () => clone(state),
     catalog: catalogFor,
     findItem,
-    balance,
-    purchase,
+    profileLevel,
+    requiredLevel,
+    levelUnlocked,
+    unlocked: listFor,
+    unlock,
+    purchase: unlock,
     apply,
     remove,
     register,
-    isPurchased,
+    isUnlocked,
+    isPurchased: isUnlocked,
     isActive,
-    resetLocalState: () => { const fresh = baseState(); TYPES.forEach((type) => { state.purchased[type] = fresh.purchased[type]; state.active[type] = fresh.active[type]; }); save(); }
+    resetLocalState: () => { const fresh = baseState(); TYPES.forEach((type) => { state.unlocked[type] = fresh.unlocked[type]; state.active[type] = fresh.active[type]; }); save(); }
   };
 
   window.addEventListener('experience-studio-state-request', () => window.dispatchEvent(new CustomEvent('experience-studio-state-response', { detail: clone(state) })));
+  window.addEventListener('profile-level-change', () => window.dispatchEvent(new CustomEvent('experience-studio-level-change', { detail: { level: profileLevel() } })));
 })();
