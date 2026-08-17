@@ -4740,13 +4740,8 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
   }
   async function registerPwaUpdates(){
     if(!('serviceWorker' in navigator)) return;
-    // Install the reload guard before update checks so no controllerchange is missed.
-    navigator.serviceWorker.addEventListener('controllerchange',()=>{
-      if(!window.__pwaRefreshing){
-        window.__pwaRefreshing=true;
-        window.location.reload();
-      }
-    },{once:false});
+    // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
+    // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
       const registration=await navigator.serviceWorker.register('./sw.js?v=v26-dashboard-default-20260817',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
