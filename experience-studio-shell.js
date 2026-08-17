@@ -20,7 +20,7 @@
   const metrics = () => ({level:Number(window.CACHE?.settings?.xpLevel || window.CACHE?.settings?.level || 1),xp:Number(window.CACHE?.settings?.xpBalance || 0),gold:Number(window.CACHE?.game?.gold ?? window.CACHE?.settings?.gold ?? 0),diamond:Number(window.CACHE?.game?.diamonds ?? window.CACHE?.settings?.diamonds ?? 0)});
   const notify = (message) => { if(typeof window.toast==='function') window.toast(message); else if(typeof window.safeToast==='function') window.safeToast(message); };
   const activeSnapshot = () => store()?.snapshot()?.active || {themes:null,animations:null,cards:null};
-  const stripDashboardNodes = () => { document.querySelectorAll('[data-study-hub-dashboard-card],[data-experience-studio-entry]').forEach((node) => node.remove()); };
+  const stripDashboardNodes = () => { document.querySelectorAll('[data-study-hub-dashboard-card],[data-experience-studio-entry],[data-vocabulary-tool]').forEach((node) => node.remove()); };
   const owned = (item) => Boolean(store()?.isPurchased(typeForItem(item),item.id));
   const active = (item) => Boolean(store()?.isActive(typeForItem(item),item.id));
   const cardPreview = (item) => `<div class="es-card-sample" style="--sample-surface:${esc(item.tokens?.surface||'#18334a')};--sample-accent:${esc(item.tokens?.accent||'#8de5d4')};--sample-radius:${esc(item.tokens?.radius||'18px')}"><span>${esc(item.variant||'structured')}</span><b>${esc(item.name)}</b><small>Interactive study card</small></div>`;
@@ -44,7 +44,7 @@
   window.experienceStudioRender=render; window.experienceStudioCategories=CATEGORIES; window.experienceStudioItemTypes=FUTURE_ITEM_TYPES; window.experienceStudioAssets=catalog(); window.experienceStudioCreateAsset=(data={})=>data;
 
   const keepDashboardEntryLast=()=>{if(isStudio()||route()!=='dashboard') return; const page=document.querySelector('#app .page'); const entry=page?.querySelector('[data-experience-studio-entry]'); if(entry&&page.lastElementChild!==entry) page.appendChild(entry);};
-  const observer=new MutationObserver(()=>keepDashboardEntryLast()); observer.observe(document.body,{childList:true,subtree:true}); [0,80,250,700,1400,2400].forEach((ms)=>setTimeout(keepDashboardEntryLast,ms)); setInterval(keepDashboardEntryLast,900);
+  const observer=new MutationObserver(()=>{if(isStudio()) stripDashboardNodes(); else keepDashboardEntryLast();}); observer.observe(document.body,{childList:true,subtree:true}); [0,80,250,700,1400,2400].forEach((ms)=>setTimeout(keepDashboardEntryLast,ms)); setInterval(keepDashboardEntryLast,900);
   const oldRender=window.render; window.render=function experienceStudioRouteRenderer(){if(isStudio()) return render(); document.body.classList.remove('experience-studio-active'); return typeof oldRender==='function'?oldRender.apply(this,arguments):undefined;};
   window.addEventListener('hashchange',()=>{if(isStudio()) setTimeout(render,0);}); window.addEventListener('load',()=>{if(isStudio()) setTimeout(render,0);}); if(isStudio()) render();
   const style=document.createElement('style'); style.id='experience-studio-shell-style-v2'; style.textContent=`
