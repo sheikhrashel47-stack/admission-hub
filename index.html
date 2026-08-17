@@ -745,7 +745,7 @@ const NAV_TABS=[
   {key:'smart-formatter', icon:'🧩', label:'Parser'},
   {key:'exam', icon:'📝', label:'Exam'},
   {key:'history', icon:'📋', label:'History'},
-  {key:'progress', icon:'📊', label:'Progress'},
+  {key:'profile', icon:'👤', label:'Profile'},
 ];
 
 function baseTab(path){
@@ -757,7 +757,7 @@ function baseTab(path){
   if(path.startsWith('notes')) return '';
   if(path.startsWith('study-hub/quick-notes')) return 'study-hub/quick-notes';
   if(path.startsWith('progress/plan')) return 'dashboard';
-  if(path.startsWith('progress')) return 'progress';
+  if(path.startsWith('profile')||path.startsWith('progress')) return 'profile';
   return 'dashboard';
 }
 
@@ -5089,6 +5089,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="experience-studio-cards.js?v=2"></script>
 <script src="experience-studio-hooks.js?v=1"></script>
 <script src="experience-studio-shell.js?v=6"></script>
+<script src="profile-progress-system.js?v=1"></script>
 <script src="performance-hardening.js?v=1"></script>
 <script>
 (() => {
@@ -5101,7 +5102,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (p === 'dashboard' || p === 'home' || !p) return typeof window.renderDashboard === 'function' ? window.renderDashboard() : undefined;
     if (p === 'question-parser' || p === 'smart-formatter') return typeof window.renderQuestionParser === 'function' ? window.renderQuestionParser() : window.render?.();
     if (p === 'question-bank' || p.startsWith('question-bank/')) return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : window.render?.();
-    if (p === 'progress') return typeof window.renderProgress === 'function' ? window.renderProgress() : window.render?.();
+    if (p === 'profile' || p === 'progress') return typeof window.__admissionIntegratedProfileRender === 'function' ? window.__admissionIntegratedProfileRender() : (typeof window.__advancedProfileRender === 'function' ? window.__advancedProfileRender() : (typeof window.renderProgress === 'function' ? window.renderProgress() : window.render?.()));
     if (p === 'exam') return typeof window.renderExamCenter === 'function' ? window.renderExamCenter() : window.render?.();
     return typeof window.render === 'function' ? window.render() : undefined;
   };

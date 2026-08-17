@@ -169,11 +169,11 @@
   document.head.appendChild(categoryStyleU);
 
   let oldRenderU = window.render;
-  function renderUpgradeRouteU() { const p = (window.Router?.path || currentPathU()); if (p === 'profile') return renderVIPProfileU(); return oldRenderU.apply(this, arguments); }
+  function renderUpgradeRouteU() { const p = (window.Router?.path || currentPathU()); if (p === 'profile' && typeof window.__admissionIntegratedProfileRender === 'function') return window.__admissionIntegratedProfileRender(); if (p === 'profile') return renderVIPProfileU(); return oldRenderU.apply(this, arguments); }
   if (typeof oldRenderU === 'function' && !oldRenderU.__upgrade2026) { renderUpgradeRouteU.__upgrade2026 = true; window.render = renderUpgradeRouteU; try { render = renderUpgradeRouteU; } catch (_) {} }
   window.renderUpgradeRoute = renderUpgradeRouteU;
   function initU() { installXPHooksU(); if (typeof window.loadCache === 'function') setTimeout(installXPHooksU, 1200); }
-  function reconcileUpgradeRouteU() { const p = currentPathU(); if (p !== 'profile') return; if (!document.querySelector('.u-premium-page')) renderUpgradeRouteU(); }
+  function reconcileUpgradeRouteU() { const p = currentPathU(); if (p !== 'profile' || typeof window.__admissionIntegratedProfileRender === 'function') return; if (!document.querySelector('.u-premium-page')) renderUpgradeRouteU(); }
   window.addEventListener('hashchange', () => { setTimeout(reconcileUpgradeRouteU, 0); setTimeout(reconcileUpgradeRouteU, 450); setTimeout(reconcileUpgradeRouteU, 1200); });
   initU(); setInterval(installXPHooksU, 1500); setInterval(reconcileUpgradeRouteU, 700); setTimeout(reconcileUpgradeRouteU, 1250); setTimeout(reconcileUpgradeRouteU, 2200);
 })();

@@ -8,12 +8,14 @@
   const previous = window.render;
   const renderRoute = function () {
     const p = path();
+    if (p === 'profile' && typeof window.__admissionIntegratedProfileRender === 'function') return;
     if (p === 'profile' && typeof window.__advancedProfileRender === 'function') return window.__advancedProfileRender();
     if ((p === 'rewards' || p === 'reward-shop') && typeof window.rewardFirst50Render === 'function') return window.rewardFirst50Render();
     return typeof previous === 'function' ? previous.apply(this, arguments) : undefined;
   };
   const guarded = function () {
     const p = path();
+    if (p === 'profile' && typeof window.__admissionIntegratedProfileRender === 'function') return;
     if (p === 'profile' && typeof window.__advancedProfileRender === 'function') return window.__advancedProfileRender();
     if ((p === 'rewards' || p === 'reward-shop') && typeof window.rewardFirst50Render === 'function') return window.rewardFirst50Render();
     return typeof previous === 'function' ? previous.apply(this, arguments) : undefined;
@@ -22,7 +24,7 @@
   window.render = guarded;
   const needsRepair = () => {
     const p = path();
-    if (p === 'profile') return !!window.__advancedProfileRender && !document.querySelector('[data-reward-profile-render]');
+    if (p === 'profile') return false;
     if (p === 'rewards' || p === 'reward-shop') return !!window.rewardFirst50Render && !document.querySelector('[data-blueprint-shop-render]');
     return false;
   };

@@ -15,6 +15,11 @@ files = {name: (ROOT / name).read_text() for name in [
     'urgent-topic-fix.js',
     'phase12-ui.js',
     'phase1-upgrade.js',
+    'profile-progress-system.js',
+    'feature-upgrade-2026.js',
+    'profile-reward-update.js',
+    'advanced-gamification-v3.js',
+    'reward-profile-route-guard.js',
 ]}
 
 checks = {
@@ -35,6 +40,18 @@ checks = {
     'legacy topic route delegates to final qbank': 'window.renderQuestionBankV2' in files['urgent-topic-fix.js'],
     'progress extras are synchronous': 'window.__phase3ProgressExtras' in files['phase3-intelligence.js'] and "setTimeout(()=>{if(p==='dashboard')injectDashboard" not in files['phase3-intelligence.js'],
     'no destructive startup cleanup restored': 'purgeDuplicateGeneralTopics' in files['index.html'] and 'changed:false' in files['index.html'],
+    'Profile module loaded before coordinator': 'profile-progress-system.js?v=1' in files['index.html'] and 'window.__admissionIntegratedProfileRender' in files['profile-progress-system.js'],
+    'Profile replaces bottom Progress nav': "{key:'profile', icon:'👤', label:'Profile'}" in files['index.html'] and "path.startsWith('profile')||path.startsWith('progress')" in files['index.html'],
+    'Profile and legacy Progress share final route': "p === 'profile' || p === 'progress'" in files['index.html'],
+    'Profile has exactly 50-level engine': 'Array.from({ length: 50 }' in files['profile-progress-system.js'] and 'levels.length' not in files['profile-progress-system.js'],
+    'Profile persists additive profileV1 only': 'profileV1' in files['profile-progress-system.js'] and "dbPut('settings', s)" in files['profile-progress-system.js'] and 'indexedDB.deleteDatabase' not in files['profile-progress-system.js'] and 'localStorage.clear' not in files['profile-progress-system.js'],
+    'Profile uses existing analytics sources': 'computeLifetimeStats' in files['profile-progress-system.js'] and 'CACHE?.examResults' in files['profile-progress-system.js'] and 'CACHE?.mistakes' in files['profile-progress-system.js'] and 'Math.random' not in files['profile-progress-system.js'],
+    'Profile demo sections present': all(marker in files['profile-progress-system.js'] for marker in ['OVERALL ADMISSION PROGRESS','YOUR STUDY COMPANION','LEVEL JOURNEY','LOCKED LEVEL PREVIEW','Customize Profile','Weak Areas','Achievements']),
+    'Profile demo controls present': all(marker in files['profile-progress-system.js'] for marker in ['setAdmissionProgressPeriod','setAdmissionAchievementFilter','setAdmissionCustomizePart','PROFILE_BACKGROUNDS','admission-profile-roadmap']),
+    'feature Profile wrapper defers': '__admissionIntegratedProfileRender' in files['feature-upgrade-2026.js'],
+    'legacy Profile wrapper defers': '__admissionIntegratedProfileRender' in files['profile-reward-update.js'],
+    'advanced Profile timer defers': '__admissionIntegratedProfileRender' in files['advanced-gamification-v3.js'],
+    'route guard skips integrated Profile': "if (p === 'profile') return false;" in files['reward-profile-route-guard.js'],
 }
 
 for label, passed in checks.items():
