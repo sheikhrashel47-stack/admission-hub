@@ -492,20 +492,28 @@ textarea{min-height:96px}
   'use strict';
   const originalTitle=document.title;
   let fallbackVisible=false;
-  function fallback(reason){
+  function componentFallback(target, reason){
+    const component=target&&target.closest ? target.closest('[data-admission-component]') : null;
+    if(!component) return false;
+    const message=reason&&reason.message?String(reason.message):'This component could not be loaded';
+    component.innerHTML=`<section class="card app-fallback" role="alert"><div class="app-fallback-icon">⚠</div><h1>Section unavailable</h1><p>Your saved data remains safe. Other parts of the app are still available.</p><p class="app-fallback-detail">${message.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</p><button class="btn ghost" type="button" onclick="this.closest('[data-admission-component]').remove()">Dismiss</button></section>`;
+    return true;
+  }
+  function fallback(reason, target){
+    if(componentFallback(target, reason)) return;
     if(fallbackVisible)return;
     fallbackVisible=true;
     const app=document.getElementById('app');
     const message=reason&&reason.message?String(reason.message):'Unexpected application error';
     console.error('[Admission Hub] recovered from runtime error:',reason);
-    if(app) app.innerHTML=`<main class="app-fallback" role="alert"><div class="app-fallback-icon">⚠</div><h1>Something went wrong</h1><p>Your saved questions, vocabulary, progress, and settings were not deleted.</p><p class="app-fallback-detail">${message.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</p><div class="app-fallback-actions"><button class="btn" type="button" onclick="window.__admissionRecover()">Try again</button><button class="btn ghost" type="button" onclick="window.__admissionGoDashboard()">Go to Dashboard</button></div></main>`;
+    if(app) app.innerHTML=`<main class="app-fallback" role="alert" data-admission-component="app-fallback"><div class="app-fallback-icon">⚠</div><h1>Something went wrong</h1><p>Your saved questions, vocabulary, progress, and settings were not deleted.</p><p class="app-fallback-detail">${message.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}</p><div class="app-fallback-actions"><button class="btn" type="button" onclick="window.__admissionRecover()">Try again</button><button class="btn ghost" type="button" onclick="window.__admissionGoDashboard()">Go to Dashboard</button></div></main>`;
     document.body.classList.remove('keyboard-open');
     document.title=originalTitle;
   }
   window.__admissionRecover=function(){fallbackVisible=false;try{if(window.Router){Router.path='dashboard';location.hash='dashboard';}if(typeof window.render==='function')window.render();}catch(error){fallback(error);}};
   window.__admissionGoDashboard=function(){fallbackVisible=false;try{location.hash='dashboard';if(window.Router)Router.path='dashboard';if(typeof window.render==='function')window.render();}catch(error){fallback(error);}};
-  window.addEventListener('error',event=>{if(event.error)fallback(event.error);},true);
-  window.addEventListener('unhandledrejection',event=>{fallback(event.reason instanceof Error?event.reason:new Error(String(event.reason||'Async operation failed')));},true);
+  window.addEventListener('error',event=>{if(event.error)fallback(event.error,event.target);},true);
+  window.addEventListener('unhandledrejection',event=>{fallback(event.reason instanceof Error?event.reason:new Error(String(event.reason||'Async operation failed')),event.target);},true);
   window.__admissionShowFallback=fallback;
   const isEditableTarget=target=>target&&target.matches('input,textarea,select,[contenteditable]');
   const keepFocusedFieldVisible=()=>{
@@ -538,6 +546,7 @@ textarea{min-height:96px}
 })();
 </script>
 
+<script src="data-protection.js?v=dp-v1"></script>
 <script>
 'use strict';
 /* ============================================================
@@ -564,26 +573,39 @@ function useMemoryStorage(error){
   DB=null; STORAGE_MODE='memory'; window.__admissionStorageFallback={active:true,error:String(error?.message||error||'IndexedDB unavailable')};
   console.warn('[Admission Hub] IndexedDB unavailable; continuing with an in-memory session store.',error);
 }
-function openDB(){
+async function openDB(){
+  if(!window.indexedDB) throw new Error('IndexedDB is unavailable in this browser context');
+  const protection=window.AdmissionDataProtection;
+  const preparation=protection&&protection.prepareOpen ? await protection.prepareOpen(DB_NAME,DB_VERSION) : null;
   return new Promise((resolve,reject)=>{
-    if(!window.indexedDB){reject(new Error('IndexedDB is unavailable in this browser context'));return;}
     let req;
-    try{req=indexedDB.open(DB_NAME, DB_VERSION);}catch(error){reject(error);return;}
+    try{req=indexedDB.open(DB_NAME,DB_VERSION);}catch(error){reject(error);return;}
     req.onupgradeneeded=(e)=>{
       const db=e.target.result;
-      STORES.forEach(name=>{
-        if(!db.objectStoreNames.contains(name)){
-          const store=db.createObjectStore(name,{keyPath:'id'});
-          if(name==='questions'){store.createIndex('subjectId','subjectId'); store.createIndex('topicId','topicId');}
-          if(name==='topics'){store.createIndex('subjectId','subjectId');}
-          if(name==='examResults'){store.createIndex('date','date');}
-          if(name==='mistakes'){store.createIndex('questionId','questionId');}
-          if(name==='PLAN_DAYS'){store.createIndex('planId','planId'); store.createIndex('actualDate','actualDate');}
-        }
-      });
+      const oldVersion=Number(e.oldVersion||0), newVersion=Number(e.newVersion||DB_VERSION);
+      // Additive migration chain: each version only creates missing stores/indexes.
+      // Existing records are never cleared, replaced, or rewritten here.
+      for(let version=Math.max(1,oldVersion+1);version<=newVersion;version++){
+        STORES.forEach(name=>{
+          if(!db.objectStoreNames.contains(name)){
+            const store=db.createObjectStore(name,{keyPath:'id'});
+            if(name==='questions'){store.createIndex('subjectId','subjectId'); store.createIndex('topicId','topicId');}
+            if(name==='topics'){store.createIndex('subjectId','subjectId');}
+            if(name==='examResults'){store.createIndex('date','date');}
+            if(name==='mistakes'){store.createIndex('questionId','questionId');}
+            if(name==='PLAN_DAYS'){store.createIndex('planId','planId'); store.createIndex('actualDate','actualDate');}
+          }
+        });
+      }
     };
-    req.onsuccess=(e)=>{DB=e.target.result; STORAGE_MODE='indexeddb'; window.__admissionStorageFallback={active:false}; resolve(DB);};
-    req.onerror=(e)=>reject(e.target.error||new Error('IndexedDB open failed'));
+    req.onsuccess=async(e)=>{
+      DB=e.target.result; STORAGE_MODE='indexeddb'; window.__admissionStorageFallback={active:false};
+      try{
+        if(protection&&protection.verifyMigration) await protection.verifyMigration(DB,preparation?.before);
+      }catch(error){console.warn('[Admission Hub] Migration verification skipped; database remains open.',error);}
+      resolve(DB);
+    };
+    req.onerror=(e)=>reject(e.target.error||new Error('IndexedDB open failed; existing database was left untouched'));
     req.onblocked=()=>reject(new Error('IndexedDB is blocked by another browser tab'));
   });
 }
@@ -724,7 +746,7 @@ function renderShell(innerHtml, opts){
   app.classList.toggle('no-nav', !!opts.hideNav);
   app.innerHTML = `
     ${opts.topbar!==false ? topbarHtml(opts) : ''}
-    <div class="page">${innerHtml}</div>
+    <div class="page" data-admission-component="route-${esc(Router.path||'dashboard').replace(/[^a-z0-9_-]/gi,'-')}">${innerHtml}</div>
   `;
   const navRoot=document.getElementById('navRoot');
   if(navRoot) navRoot.innerHTML=showNav ? bottomNavHtml(activeTab) : '';
@@ -825,7 +847,7 @@ function getSmartFocusTopics(){
     const acc = s.total > 0 ? (s.correct / s.total) * 100 : 0;
     const mCount = mistakes[tid] || 0;
     let status = 'strong', label = 'Strong', cls = 'strong';
-    if (acc < 60 || mCount > 5) { status = 'revision'; label = 'Needs Revision'; cls = 'revision'; }
+    if (mCount > 0 && (acc < 60 || mCount > 5)) { status = 'revision'; label = 'Needs Revision'; cls = 'revision'; }
     else if (acc < 85 || mCount > 2) { status = 'improving'; label = 'Improving'; cls = 'improving'; }
     return { id: tid, name: s.name, acc, mCount, status, label, cls };
   });
@@ -841,21 +863,37 @@ async function getUnfinishedExam(){
   return await checkResumableExam();
 }
 
+function resultCounts(r){
+  const snapshot=Array.isArray(r?.snapshot)?r.snapshot:[];
+  if(snapshot.length){
+    const correct=snapshot.filter(q=>q&&q.status==='correct').length;
+    const wrong=snapshot.filter(q=>q&&q.status==='wrong').length;
+    const skipped=snapshot.length-correct-wrong;
+    return {total:snapshot.length,correct,wrong,skipped:Math.max(0,skipped)};
+  }
+  const correct=Math.max(0,Number(r?.correct||0));
+  const wrong=Math.max(0,Number(r?.wrong||0));
+  const declaredTotal=Math.max(correct+wrong,Number(r?.questionCount||r?.totalQuestions||0));
+  const skipped=Math.max(0,declaredTotal-correct-wrong);
+  return {total:correct+wrong+skipped,correct,wrong,skipped};
+}
+function todayPerformance(){
+  const key=todayKey(), out={total:0,correct:0,wrong:0,skipped:0};
+  CACHE.examResults.forEach(r=>{if(todayKey(new Date(r.date))!==key)return;const c=resultCounts(r);out.total+=c.total;out.correct+=c.correct;out.wrong+=c.wrong;out.skipped+=c.skipped;});
+  out.attempted=out.correct+out.wrong; out.accuracy=out.attempted?round2(out.correct/out.attempted*100):0; return out;
+}
 function computeLifetimeStats(){
   const results=CACHE.examResults;
-  const totalQuestions=CACHE.questions.length;
-  let attempted=0, correct=0, wrong=0, skipped=0, exams=results.length, mock=0, flash=0, points=0, negPoints=0;
-  let best=0, bestAcc=0, sumScore=0, sumAcc=0, accCount=0;
+  let totalQuestions=0, attempted=0, correct=0, wrong=0, skipped=0, exams=results.length, mock=0, flash=0, points=0, negPoints=0;
+  let best=0, bestAcc=0, sumScore=0;
   results.forEach(r=>{
-    attempted += (r.correct+r.wrong);
-    correct += r.correct; wrong += r.wrong; skipped += r.skipped;
+    const c=resultCounts(r); totalQuestions+=c.total; attempted+=c.correct+c.wrong; correct+=c.correct; wrong+=c.wrong; skipped+=c.skipped;
     if(r.mode==='mock') mock++; else flash++;
-    points += r.positive; negPoints += r.negative;
-    sumScore += r.score;
-    if(r.score>best) best=r.score;
-    if((r.correct+r.wrong)>0){ const a=r.correct/(r.correct+r.wrong)*100; sumAcc+=a; accCount++; if(a>bestAcc) bestAcc=a; }
+    points += Number(r.positive||0); negPoints += Number(r.negative||r.negativeMarks||0); sumScore += Number(r.score||0);
+    if(Number(r.score||0)>best) best=Number(r.score||0);
+    if(c.correct+c.wrong>0){ const a=c.correct/(c.correct+c.wrong)*100; if(a>bestAcc) bestAcc=a; }
   });
-  const accuracy = (correct+wrong)>0 ? round2(correct/(correct+wrong)*100) : 0;
+  const accuracy = attempted>0 ? round2(correct/attempted*100) : 0;
   const avgScore = exams>0 ? round2(sumScore/exams) : 0;
   return {totalQuestions, attempted, correct, wrong, skipped, exams, mock, flash, points:round2(points), negPoints:round2(negPoints), accuracy, avgScore, best:round2(best), bestAcc:round2(bestAcc)};
 }
@@ -885,9 +923,10 @@ function subjectPerformance(){
 
 function renderDashboard(){
   const stats=computeLifetimeStats();
+  const todayStats=todayPerformance();
   const streak=computeStreak();
   const target=CACHE.settings.dailyTarget||100;
-  const todayCount = todayActivityCount();
+  const todayCount = todayStats.total;
   const pct=Math.min(100, Math.round((todayCount/target)*100));
   const studyTime = getStudyTimeToday();
   const unfinished = CACHE.exams.find(e => e.status === 'running');
@@ -918,7 +957,7 @@ function renderDashboard(){
         <div class="progbar" style="margin-top: 12px; height: 10px;"><div style="width: ${pct}%"></div></div>
         <div class="grid2" style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 16px;">
           <div>
-            <div class="stat-value">${stats.accuracy}%</div>
+            <div class="stat-value">${todayStats.accuracy}%</div>
             <div class="stat-label">Accuracy</div>
           </div>
           <div>
@@ -4718,7 +4757,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       }
     },{once:false});
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v12',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v21-data-safe-20260817',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);

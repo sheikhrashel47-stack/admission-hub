@@ -1,6 +1,8 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v20-profile-level-unlock';
+const BUILD_ID = 'v21-data-safe-20260817';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
+const VERSION_HEADER = 'X-Admission-Hub-Build';
+const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
 const APP_SHELL = [
   './',
   './index.html',
@@ -17,7 +19,10 @@ async function cacheNetworkResponse(request, response) {
   if (!response || !response.ok) return response;
   try {
     const cache = await caches.open(CACHE_NAME);
-    await cache.put(request, response.clone());
+    const headers = new Headers(response.headers);
+    headers.set(VERSION_HEADER, BUILD_ID);
+    const versioned = new Response(await response.clone().blob(), {status: response.status, statusText: response.statusText, headers});
+    await cache.put(request, versioned.clone());
   } catch (_) {
     // Cache failures must never block the fresh network response.
   }
@@ -26,13 +31,14 @@ async function cacheNetworkResponse(request, response) {
 
 async function offlineFallback(request) {
   const cached = await caches.match(request);
-  if (cached) return cached;
+  if (cached && (isCurrentBuild(cached) || !cached.headers.get(VERSION_HEADER))) return cached;
 
   if (isDocumentRequest(request)) {
     const shell = await caches.match('./index.html');
-    if (shell) return shell;
+    if (shell && (isCurrentBuild(shell) || !shell.headers.get(VERSION_HEADER))) return shell;
     const shellUrl = new URL('./index.html', self.location.href).href;
-    return (await caches.match(shellUrl)) || Response.error();
+    const fallback = await caches.match(shellUrl);
+    return fallback || Response.error();
   }
 
   return Response.error();
@@ -74,6 +80,10 @@ self.addEventListener('activate', event => {
 self.addEventListener('message', event => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     event.waitUntil(self.skipWaiting());
+    return;
+  }
+  if (event.data && event.data.type === 'VERSION_CHECK') {
+    event.ports?.[0]?.postMessage({type:'VERSION_CHECK_RESULT', buildId:BUILD_ID, cacheName:CACHE_NAME});
   }
 });
 
@@ -88,6 +98,8 @@ self.addEventListener('fetch', event => {
     try {
       // Network-first for every same-origin HTML, JS, CSS, JSON, and asset request.
       const response = await fetch(request, {cache: 'no-store'});
+      const contentType = response.headers.get('content-type') || '';
+      if (isDocumentRequest(request) && !contentType.includes('text/html')) return offlineFallback(request);
       return cacheNetworkResponse(request, response);
     } catch (_) {
       // Cache is used only when the network is unavailable.
