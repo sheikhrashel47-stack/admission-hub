@@ -20,6 +20,7 @@ files = {name: (ROOT / name).read_text() for name in [
     'profile-reward-update.js',
     'advanced-gamification-v3.js',
     'reward-profile-route-guard.js',
+    'routine90.js',
 ]}
 
 checks = {
@@ -52,6 +53,11 @@ checks = {
     'legacy Profile wrapper defers': '__admissionIntegratedProfileRender' in files['profile-reward-update.js'],
     'advanced Profile timer defers': '__admissionIntegratedProfileRender' in files['advanced-gamification-v3.js'],
     'route guard skips integrated Profile': "if (p === 'profile') return false;" in files['reward-profile-route-guard.js'],
+    'routine90 keeps existing planner shell': 'function shell(){' in files['routine90.js'] and '.r90-day' in files['routine90.js'] and '90 Day Planner' in files['routine90.js'],
+    'routine90 defaults to one card': 'state.showAll=false' in files['routine90.js'] and 'currentDayNumber()' in files['routine90.js'] and 'state.showAll?all' in files['routine90.js'] and 'data-action="morecards"' in files['routine90.js'],
+    'routine90 default subjects exact': "['Bangla 1st','Bangla 2nd','English 2nd','Memorizing','বিরচন','GK']" in files['routine90.js'],
+    'routine90 topic-only parser': 'function parseDayTopics' in files['routine90.js'] and 'function applyParsedPlan' in files['routine90.js'] and 'data-action="parse"' in files['routine90.js'] and 'Day 1' in files['routine90.js'],
+    'routine90 parser is additive local storage': "var STORE_KEY = 'routine90_data'" in files['routine90.js'] and 'indexedDB.deleteDatabase' not in files['routine90.js'] and 'localStorage.clear' not in files['routine90.js'],
 }
 
 for label, passed in checks.items():
