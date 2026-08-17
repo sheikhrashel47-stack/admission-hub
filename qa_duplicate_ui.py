@@ -18,10 +18,9 @@ files = {name: (ROOT / name).read_text() for name in [
 
 checks = {
     'loading gate exists': 'window.__admissionFinalModulesReady=false' in files['index.html'] and 'class="app-loading"' in files['index.html'],
-    'reference Dashboard renderer exists': 'dashboard-reference' in files.get('phase12-ui.js', '') if 'phase12-ui.js' in files else True,
-    'reference Study Hub banner exists': 'reference-study-banner' in files.get('phase12-ui.js', '') if 'phase12-ui.js' in files else True,
-    'reference command center exists': 'reference-command-card' in files.get('phase12-ui.js', '') if 'phase12-ui.js' in files else True,
-    'reference recommended action exists': 'reference-action-card' in files.get('phase12-ui.js', '') if 'phase12-ui.js' in files else True,
+    'historical Dashboard renderer exposed': '__phase3DashboardMarkup = widgetHTML' in files.get('phase3-intelligence.js', '') if 'phase3-intelligence.js' in files else False,
+    'historical Study Hub banner restored': 'sh-dashboard-card' in files.get('study-hub.js', '') and 'dashboard-existing' in files.get('study-hub.js', ''),
+    'new Dashboard patch removed': 'dashboard-reference' not in files.get('phase12-ui.js', ''),
     'hashchange is final coordinator': 'window.__admissionRenderRoute' in files['index.html'] and 'if(typeof window.__admissionRenderRoute===\'function\') window.__admissionRenderRoute();' in files['index.html'],
     'single render lock exists': 'window.__admissionFinalRenderLock' in files['index.html'],
     'parser final renderer exposed': 'window.renderQuestionParser' in files['admission-hub-feature-suite.js'],

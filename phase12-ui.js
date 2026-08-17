@@ -65,68 +65,10 @@
   };
 
   window.renderDashboard = function phase12Dashboard() {
-    const stats = computeLifetimeStats();
-    const today = safeTodayStats();
-    const target = CACHE.settings.dailyTarget || 100;
-    const todayCount = todayActivityCount();
-    const pct = Math.min(100, Math.round((todayCount / target) * 100));
-    const studyTime = getStudyTimeToday();
-    const unfinished = CACHE.exams.find((exam) => exam.status === 'running');
-    const smartFocus = getSmartFocusTopics();
-    const focus = smartFocus[0] || null;
-    const focusQuestion = focus ? CACHE.questions.find((q) => q.topicId === focus.topicId) : null;
-    const fallbackTopic = focusQuestion ? topicName(focusQuestion.topicId) : 'Vocabulary (1-100)';
-    const focusName = focus?.name || fallbackTopic;
-    const mistakeCount = CACHE.mistakes.length;
-    const inboxCount = Math.max(0, mistakeCount + (unfinished ? 1 : 0));
-    const focusDescription = focus
-      ? `${focus.mCount || 0}টি stored mistake আছে। আগে এই topic revise করুন।`
-      : mistakeCount
-        ? `${mistakeCount}টি stored mistake আছে। আগে এই topic revise করুন।`
-        : 'অনুশীলন শুরু করলে আপনার পরবর্তী revision লক্ষ্য এখানে দেখা যাবে।';
-    const focusAccuracy = focus ? `${round2(focus.acc)}%` : `${stats.accuracy || 0}%`;
-    const focusLabel = esc(focusName);
-    const greeting = new Date().getHours() < 12 ? 'সুপ্রভাত' : new Date().getHours() < 18 ? 'শুভ অপরাহ্ণ' : 'শুভ সন্ধ্যা';
-    const todayAccuracy = today.correct + today.wrong ? Math.round((today.correct / (today.correct + today.wrong)) * 100) : stats.accuracy || 0;
-    const ringStyle = `background:conic-gradient(#10b981 ${pct * 3.6}deg,#d9f7e8 0deg)`;
-
-    const html = `<main class="dashboard-reference">
-      <button class="reference-study-banner" type="button" onclick="navigate('study-tools')" aria-label="Open Study Hub">
-        <span class="reference-banner-top"><span class="reference-banner-icon">✦</span><small>6 TOOLS</small></span>
-        <strong>STUDY HUB</strong>
-        <span class="reference-banner-subtitle">Your essential admission toolkit</span>
-        <span class="reference-banner-tools">Mistake Book · Revision · Bookmarks · Quick Notes · Focus · Countdown</span>
-        <span class="reference-banner-divider"></span>
-        <span class="reference-banner-action">Open Study Hub <b>→</b></span>
-      </button>
-
-      <header class="reference-greeting">
-        <span class="reference-crown" aria-hidden="true">♔</span>
-        <div class="reference-greeting-copy"><div class="reference-brand">EMERALD ACADEMIC</div><h1>${greeting}, Scholar</h1><p>"আজকের পরিশ্রমই তোমার আগামীকালের সাফল্য!"</p></div>
-        <button class="reference-inbox" type="button" onclick="navigate('history')" aria-label="Inbox">Inbox<span>${inboxCount}</span></button>
-      </header>
-
-      <section class="reference-command-card" aria-labelledby="reference-command-title">
-        <div class="reference-kicker">TODAY COMMAND CENTER</div>
-        <div class="reference-command-row"><div><h2 id="reference-command-title">${target} MCQ Goal</h2><strong>${todayCount}<small> / ${target}</small></strong></div><div class="reference-ring-wrap"><span class="reference-ring" style="${ringStyle}"><i>${pct}%</i></span><b>${pct}%</b></div></div>
-        <div class="reference-progress"><span style="width:${pct}%"></span></div>
-        <div class="reference-stat-grid">
-          <div class="reference-stat"><span class="reference-stat-icon correct">✓</span><span><b>${today.correct || 0}</b><small>CORRECT</small></span></div>
-          <div class="reference-stat"><span class="reference-stat-icon wrong">×</span><span><b>${today.wrong || 0}</b><small>WRONG</small></span></div>
-          <div class="reference-stat"><span class="reference-stat-icon accuracy">↗</span><span><b>${todayAccuracy}%</b><small>ACCURACY</small></span></div>
-          <div class="reference-stat"><span class="reference-stat-icon time">◷</span><span><b>${fmtTime(studyTime)}</b><small>STUDY TIME</small></span></div>
-        </div>
-      </section>
-
-      <section class="reference-action-card" aria-labelledby="reference-action-title">
-        <div class="reference-action-head"><h2 id="reference-action-title">★ Recommended Next Action</h2><button type="button" onclick="navigate('mistakes')">Open <b>›</b></button></div>
-        <p>${focusLabel} 📖-এ ${focusDescription}</p>
-        <div class="reference-action-line"><span>◎</span><span>Weak area: <b>${focusLabel} 📖</b></span></div>
-        <div class="reference-action-line"><span>▣</span><span>Revision priority: <b>${focusLabel} 📖</b></span></div>
-        <div class="reference-action-meta">Current accuracy: <b>${focusAccuracy}</b></div>
-      </section>
-    </main>`;
-    renderShell(html, { topbar: false });
+    const existingMarkup = typeof window.__phase3DashboardMarkup === 'function'
+      ? window.__phase3DashboardMarkup()
+      : '<div class="app-loading"><div class="app-loading-mark">✦</div><span>Dashboard loading…</span></div>';
+    renderShell(`<main class="dashboard-existing">${existingMarkup}</main>`, { topbar: false });
   };
 })();
 
@@ -186,17 +128,6 @@ phase12Style.textContent = `
   @media(max-width:430px){.command-slide{gap:7px}.command-slide .command-card{min-height:88px;padding:9px}.command-slide .command-icon{font-size:20px}.command-slide .command-title{font-size:11px}.command-slide .command-subtitle{font-size:9px}.section-heading span{font-size:10px}}@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 `;
 document.head.appendChild(phase12Style);
-const dashboardReferenceStyle = document.createElement('style');
-dashboardReferenceStyle.textContent = `
-  .dashboard-reference{padding:0 0 14px;background:linear-gradient(180deg,#eef9f5 0%,#f9fcfb 72%);min-height:calc(100dvh - 78px);color:#132030}
-  .reference-study-banner{display:block;width:100%;border:0;border-radius:28px;padding:29px 28px 22px;margin:0 0 31px;text-align:left;color:#fff;background:radial-gradient(circle at 88% 10%,rgba(116,154,255,.30),transparent 38%),linear-gradient(135deg,#1d42b5 0%,#2053d2 58%,#1760d7 100%);box-shadow:0 16px 28px rgba(29,74,184,.26);cursor:pointer}
-  .reference-banner-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}.reference-banner-icon{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:rgba(255,255,255,.15);font-size:23px}.reference-banner-top small{font-size:12px;letter-spacing:.16em;font-weight:800;opacity:.78}.reference-study-banner>strong{display:block;font-size:26px;letter-spacing:.07em;margin-bottom:11px}.reference-banner-subtitle{display:block;font-size:16px;opacity:.78}.reference-banner-tools{display:block;margin-top:19px;font-size:11px;opacity:.72;white-space:nowrap}.reference-banner-divider{display:block;height:1px;background:rgba(255,255,255,.25);margin:22px 0 20px}.reference-banner-action{display:flex;justify-content:space-between;align-items:center;font-size:17px;font-weight:800}.reference-banner-action b{font-size:34px;line-height:.7;font-weight:500}
-  .reference-greeting{display:flex;align-items:center;gap:16px;padding:0 10px 27px}.reference-crown{display:grid;place-items:center;flex:0 0 66px;width:66px;height:66px;border-radius:50%;background:#11b77e;color:#fff;font-size:38px;box-shadow:0 8px 18px rgba(16,185,129,.2)}.reference-greeting-copy{min-width:0;flex:1}.reference-brand{font-size:11px;letter-spacing:.18em;font-weight:900;color:#0b9f72}.reference-greeting h1{font-size:29px;line-height:1.1;margin:6px 0;color:#0c1926;white-space:nowrap}.reference-greeting p{margin:0;color:#536270;font-size:14px;white-space:nowrap}.reference-inbox{position:relative;align-self:flex-start;border:0;background:transparent;color:#1479d6;font-size:18px;font-weight:800;padding:8px 3px 0;cursor:pointer}.reference-inbox span{position:absolute;right:-10px;top:-4px;display:grid;place-items:center;min-width:21px;height:21px;padding:0 4px;border-radius:50%;background:#0ba879;color:#fff;font-size:11px}
-  .reference-command-card{border-radius:25px;padding:24px 23px 22px;background:rgba(255,255,255,.95);box-shadow:0 9px 23px rgba(38,73,63,.11);border:1px solid rgba(35,77,65,.06)}.reference-kicker{font-size:11px;letter-spacing:.18em;font-weight:900;color:#0a9f70}.reference-command-row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:13px}.reference-command-row h2{font-size:24px;margin:0 0 8px;color:#0b1521}.reference-command-row strong{font-size:43px;line-height:1;color:#08a976;letter-spacing:-.05em}.reference-command-row strong small{font-size:22px;color:#74808c;letter-spacing:0}.reference-ring-wrap{display:flex;flex-direction:column;align-items:center;gap:3px}.reference-ring{display:grid;place-items:center;width:78px;height:78px;border-radius:50%;position:relative}.reference-ring:after{content:'';position:absolute;inset:10px;border-radius:50%;background:#e9fff3}.reference-ring i{position:relative;z-index:1;font-style:normal;font-weight:900;color:#079b70;font-size:13px}.reference-ring-wrap>b{font-size:16px;color:#08a976}.reference-progress{height:14px;margin:27px 0 18px;border-radius:99px;background:#eef2f5;overflow:hidden}.reference-progress span{display:block;height:100%;border-radius:inherit;background:#eef2f5}.reference-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px 28px}.reference-stat{display:flex;align-items:center;gap:12px;min-width:0}.reference-stat-icon{display:grid;place-items:center;flex:0 0 45px;width:45px;height:45px;border-radius:13px;font-size:30px;font-weight:700}.reference-stat-icon.correct{background:#d9f8e7;color:#0ab57a}.reference-stat-icon.wrong{background:#ffe1e4;color:#e34d56}.reference-stat-icon.accuracy{background:#e8f0ff;color:#4488db;font-size:27px}.reference-stat-icon.time{background:#f0e6ff;color:#934edf;font-size:27px}.reference-stat b,.reference-stat small{display:block}.reference-stat b{font-size:19px;line-height:1.05;color:#101c2a}.reference-stat small{margin-top:4px;color:#7b8791;font-size:11px;font-weight:800;letter-spacing:.04em}
-  .reference-action-card{margin-top:27px;border-radius:25px;padding:24px 24px 22px;background:rgba(255,255,255,.96);box-shadow:0 9px 23px rgba(38,73,63,.09);border:1px solid rgba(35,77,65,.06)}.reference-action-head{display:flex;align-items:center;justify-content:space-between;gap:9px}.reference-action-head h2{margin:0;color:#0b9f72;font-size:19px}.reference-action-head button{border:1px solid #dce2e7;background:#fff;border-radius:12px;padding:8px 14px;color:#087bc9;font-size:15px;font-weight:800;cursor:pointer}.reference-action-head button b{font-size:24px;line-height:0;margin-left:5px}.reference-action-card>p{font-size:17px;line-height:1.55;margin:25px 0;color:#17202b}.reference-action-line{display:flex;align-items:center;gap:13px;margin-top:15px;color:#6b7780;font-size:15px}.reference-action-line>span:first-child{display:grid;place-items:center;width:29px;height:29px;color:#0ab57a;font-size:26px}.reference-action-line b{color:#4f5b68}.reference-action-meta{margin-top:18px;padding-top:14px;border-top:1px solid #edf0f1;color:#78838d;font-size:12px}.reference-action-meta b{color:#0a9f70}
-  @media(max-width:430px){.reference-study-banner{padding:25px 25px 20px;border-radius:25px;margin-bottom:26px}.reference-study-banner>strong{font-size:23px}.reference-banner-subtitle{font-size:15px}.reference-banner-tools{font-size:10px;overflow:hidden;text-overflow:ellipsis}.reference-greeting{gap:11px;padding-left:6px;padding-right:6px}.reference-crown{flex-basis:58px;width:58px;height:58px;font-size:32px}.reference-greeting h1{font-size:25px}.reference-greeting p{font-size:12px}.reference-inbox{font-size:16px}.reference-command-card,.reference-action-card{padding:21px 18px}.reference-command-row h2{font-size:20px}.reference-command-row strong{font-size:39px}.reference-ring{width:70px;height:70px}.reference-stat-grid{gap:12px 15px}.reference-stat{gap:8px}.reference-stat-icon{flex-basis:40px;width:40px;height:40px}.reference-stat b{font-size:17px}.reference-action-head h2{font-size:17px}.reference-action-card>p{font-size:15px}}
-`;
-document.head.appendChild(dashboardReferenceStyle);
 
 // Keep the existing router and every non-dashboard feature intact, while making Home deterministic.
 const phase12PreviousRender = window.render;

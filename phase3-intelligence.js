@@ -451,6 +451,8 @@
     </section>`;
   }
 
+  window.__phase3DashboardMarkup = widgetHTML;
+
   function injectDashboard(){
     if(Router.path!=='dashboard')return;
     const page=document.querySelector('#app .page');
