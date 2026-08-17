@@ -408,6 +408,7 @@
   window.renderAdmissionProfile = renderProfile;
 
   const queueRefresh = () => {
+    if (window.__admissionExactProfileReady) return;
     if (currentPath() !== 'profile' || refreshQueued) return;
     refreshQueued = true;
     requestAnimationFrame(() => { refreshQueued = false; if (currentPath() === 'profile') renderProfile(); });

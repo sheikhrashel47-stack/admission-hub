@@ -20,6 +20,7 @@ files = {name: (ROOT / name).read_text() for name in [
     'profile-reward-update.js',
     'advanced-gamification-v3.js',
     'reward-profile-route-guard.js',
+    'profile-exact-visual.js',
 ]}
 
 checks = {
@@ -52,6 +53,11 @@ checks = {
     'legacy Profile wrapper defers': '__admissionIntegratedProfileRender' in files['profile-reward-update.js'],
     'advanced Profile timer defers': '__admissionIntegratedProfileRender' in files['advanced-gamification-v3.js'],
     'route guard skips integrated Profile': "if (p === 'profile') return false;" in files['reward-profile-route-guard.js'],
+    'exact visual Profile is sole renderer': '__admissionExactProfileReady=true' in files['profile-exact-visual.js'] and 'data-exact-profile-render' in files['profile-exact-visual.js'] and 'profile-exact-visual.js?v=2' in files['index.html'],
+    'exact screen map complete': all(marker in files['profile-exact-visual.js'] for marker in ['Level & Progress','Subjects Performance','Achievements','Profile Customization','Level Roadmap','Level Preview','Progress Overview','Your Study Companion','50 Level System']),
+    'exact Profile uses real cache': "typeof CACHE!=='undefined'" in files['profile-exact-visual.js'] and 'computeLifetimeStats' in files['profile-exact-visual.js'] and 'subjectPerformance' in files['profile-exact-visual.js'] and 'topicAnalytics' in files['profile-exact-visual.js'],
+    'exact Profile is non-destructive': "dbPut('settings',s)" in files['profile-exact-visual.js'] and 'dbDel(' not in files['profile-exact-visual.js'] and 'dbClear(' not in files['profile-exact-visual.js'] and 'indexedDB.deleteDatabase' not in files['profile-exact-visual.js'] and 'localStorage.clear' not in files['profile-exact-visual.js'],
+    'exact Profile legacy refresh guarded': '__admissionExactProfileReady' in files.get('profile-progress-system.js', ''),
 }
 
 for label, passed in checks.items():
