@@ -5111,6 +5111,8 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (window.__admissionBootStatus === 'failed') { window.__admissionFinalModulesReady = true; return; }
     if (window.__admissionBootStatus !== 'ready') return;
     window.__admissionFinalModulesReady = true;
+    window.__admissionFinalRenderLock = false;
+    clearTimeout(window.__admissionFinalRenderUnlock);
     const raw = location.hash.replace(/^#\/?/, '') || 'dashboard';
     Router.path = raw.split('?')[0] || 'dashboard';
     if (typeof window.__admissionRenderRoute === 'function') window.__admissionRenderRoute();
