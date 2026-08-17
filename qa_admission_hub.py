@@ -53,7 +53,7 @@ assert "setTopicQuery" in qbank
 assert "visibleQs.map" in qbank
 
 assert re.search(r"const CACHE_PREFIX = ['\"]admission-hub-shell-", sw)
-assert re.search(r"const BUILD_ID = ['\"]v24-routine90-route-20260817['\"]", sw)
+assert re.search(r"const BUILD_ID = ['\"]v25-routine90-no-legacy-flash-20260817['\"]", sw)
 assert sw.count("const CACHE_NAME") == 1
 assert "cache: 'no-store'" in sw
 assert "cache: 'reload'" in sw
@@ -64,13 +64,15 @@ assert "isCurrentBuild(shell)" in sw
 assert "await cacheNetworkResponse(request, response)" in sw
 assert "navigator.serviceWorker.register" in html
 assert html.count("navigator.serviceWorker.register") == 1
-assert "v24-routine90-route-20260817" in html
+assert "v25-routine90-no-legacy-flash-20260817" in html
 assert 'source=pwa#progress/plan' in (ROOT / "manifest.json").read_text(encoding="utf-8")
 assert 'source=pwa#progress/plan' in (ROOT / "manifest.webmanifest").read_text(encoding="utf-8")
 assert "normalizePwaLaunch" in html
 assert "legacy Master Plan" in html
 assert "p === 'progress/plan'" in html
 assert "window.Routine90?.render" in html
+assert "Opening your 90 Day Planner…" in html
+assert "if(Router.path==='progress/plan')return renderPlan()" not in html
 assert "scope:'./'" in html
 assert "activateWaiting(registration)" in html
 assert "indexedDB.deleteDatabase" not in sw

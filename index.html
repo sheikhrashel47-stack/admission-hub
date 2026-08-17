@@ -825,6 +825,10 @@ function render(){
   }
   if(window.__admissionBootStatus==='failed') return;
   const p=Router.path;
+  if(p==='progress/plan'){
+    if(typeof window.Routine90?.render==='function') return window.Routine90.render();
+    return renderShell('<div class="empty" style="padding:56px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">✦</div><b>Opening your 90 Day Planner…</b><div class="muted" style="margin-top:6px">Your saved routine is loading safely.</div></div>',{topbar:false,hideNav:true});
+  }
   if(p==='notes' && window.renderNotesTool) return window.renderNotesTool();
   if(p==='web-chat' && window.renderWebChatV2) return window.renderWebChatV2();
   if(p==='dictionary' && window.renderDictionaryV2) return window.renderDictionaryV2();
@@ -4615,7 +4619,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
   })();
 
   const oldRenderShell=renderShell; renderShell=function(inner,opts){oldRenderShell(inner,opts);if(false&&Router.path==='dashboard'){const page=document.querySelector('#app .page');if(page&&!page.querySelector('[data-phase34-dashboard]')){const p=activePlan();const summary=p?`<div class="card" data-phase34-dashboard onclick="navigate('progress/plan')" style="cursor:pointer;border-left:4px solid var(--emerald)"><div class="row between"><div><b>90-Day Admission Plan</b><div class="muted">Day ${(p.activeDayIndex||0)+1}/90 · Continue your roadmap</div></div><span>›</span></div></div>`:`<div class="card" data-phase34-dashboard onclick="openPlanCreate()" style="cursor:pointer;border-left:4px solid var(--emerald)"><b>90-Day Admission Plan</b><div class="muted">Create your calendar-safe roadmap</div></div>`;page.insertAdjacentHTML('afterbegin',summary+comparisonHtml()+`<div class="card" onclick="navigate('rewards')" style="cursor:pointer;border-left:4px solid var(--orange)"><div class="row between"><div><b>✦ XP Reward Shop</b><div class="muted">${formatXP(CACHE.settings.xpBalance||0)} XP · ${((CACHE.settings.unlockedRewards||[]).length)}/20 unlocked</div></div><span>›</span></div></div>`);}}};
-  const oldRender=render; render=function(){if(Router.path==='progress/plan')return renderPlan();if(Router.path==='rewards')return renderRewards();return oldRender();};
+  const oldRender=render; render=function(){if(Router.path==='progress/plan'){if(typeof window.Routine90?.render==='function')return window.Routine90.render();return renderShell('<div class="empty" style="padding:56px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">✦</div><b>Opening your 90 Day Planner…</b><div class="muted" style="margin-top:6px">Your saved routine is loading safely.</div></div>',{topbar:false,hideNav:true});}if(Router.path==='rewards')return renderRewards();return oldRender();};
   const oldBaseTab=baseTab; baseTab=function(path){if(path==='progress/plan')return 'progress';return oldBaseTab(path);};
   const oldLoad=loadCache; loadCache=async function(){await oldLoad();await refreshPlans();};
 })();
@@ -4744,7 +4748,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       }
     },{once:false});
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v24-routine90-route-20260817',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v25-routine90-no-legacy-flash-20260817',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
