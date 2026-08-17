@@ -116,12 +116,21 @@
 (function(){
   let commandPage=0;
   function updateCommandPage(index){
-    const track=document.getElementById('commandTrack');if(!track)return;
-    commandPage=Math.max(0,Math.min(1,Number(index)||0));requestAnimationFrame(()=>{track.style.transform=`translate3d(${-commandPage*100}%,0,0)`});
-    document.querySelectorAll('.command-dot').forEach((dot,i)=>{dot.classList.toggle('active',i===commandPage);dot.setAttribute('aria-selected',i===commandPage?'true':'false')});
+    const currentPath=String(window.Router?.path||location.hash.replace(/^#\/?/,'').split('?')[0]||'dashboard');
+    if(currentPath!=='dashboard'&&currentPath!=='home'&&currentPath!=='')return;
+    const track=document.getElementById('commandTrack');if(!track||!track.isConnected)return;
+    commandPage=Math.max(0,Math.min(1,Number(index)||0));requestAnimationFrame(()=>{
+      const activePath=String(window.Router?.path||location.hash.replace(/^#\/?/,'').split('?')[0]||'dashboard');
+      if(activePath!=='dashboard'&&activePath!=='home'&&activePath!=='')return;
+      if(!track.isConnected)return;
+      track.style.transform=`translate3d(${-commandPage*100}%,0,0)`;
+      document.querySelectorAll('.command-dot').forEach((dot,i)=>{dot.classList.toggle('active',i===commandPage);dot.setAttribute('aria-selected',i===commandPage?'true':'false')});
+    });
   }
   window.goCommandPage=function(index){updateCommandPage(index)};
   function installCommandCarousel(){
+    const currentPath=String(window.Router?.path||location.hash.replace(/^#\/?/,'').split('?')[0]||'dashboard');
+    if(currentPath!=='dashboard'&&currentPath!=='home'&&currentPath!=='')return;
     const carousel=document.querySelector('.command-carousel'),track=document.getElementById('commandTrack');
     if(!carousel||!track||track.dataset.bound==='1')return;
     track.dataset.bound='1';let startX=0,startY=0,dragging=false;
