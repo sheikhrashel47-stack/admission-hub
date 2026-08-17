@@ -17,6 +17,7 @@ for filename in [
 
 html = (ROOT / "index.html").read_text(encoding="utf-8")
 qbank = (ROOT / "qbank-redesign.js").read_text(encoding="utf-8")
+urgent = (ROOT / "urgent-fix.js").read_text(encoding="utf-8")
 sw = (ROOT / "sw.js").read_text(encoding="utf-8")
 protection = (ROOT / "data-protection.js").read_text(encoding="utf-8")
 performance = (ROOT / "performance-hardening.js").read_text(encoding="utf-8")
@@ -34,6 +35,12 @@ required_html = [
     "SCHEMA_MIGRATIONS",
     "runSchemaMigrations",
     "window.__admissionHubGetActiveExam",
+    "window.__admissionBootStatus='loading'",
+    "window.__admissionBootStatus='ready'",
+    "Preparing your saved study space",
+    "${life.correct+life.wrong}",
+    "${life.skipped}",
+    "Questions presented",
 ]
 missing_html = [item for item in required_html if item not in html]
 assert not missing_html, f"Missing required HTML markers: {missing_html}"
@@ -74,6 +81,10 @@ assert "auditDatabase" in protection
 assert "verifyMigration" in protection
 assert "No automatic data repair was attempted" in protection
 assert "version: 2" in performance
+assert "u-memory-grid" in urgent
+assert "overflow-wrap:anywhere" in urgent
+assert "renderAfterBoot" in urgent
+assert "if(q.status!=='correct'&&q.status!=='wrong')return" in html
 
 payload = json.loads((ROOT / "mcq_final.json").read_text(encoding="utf-8"))
 questions = payload["questions"]
@@ -88,3 +99,4 @@ print("Syntax checks: passed")
 print("PWA/update safety assertions: passed")
 print("Non-destructive startup assertions: passed")
 print("Bounded question rendering/search assertions: passed")
+print("Video regression assertions: passed")
