@@ -564,49 +564,62 @@ function round2(n){return Math.round(n*100)/100;}
 function debounce(fn,ms){let t; return (...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);};}
 
 /* ---------------- IndexedDB layer ---------------- */
-const DB_NAME='admissionHubDB', DB_VERSION=4;
+const DB_NAME='admissionHubDB', DB_VERSION=5;
 const STORES=['appMeta','subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
 let DB=null;
 let STORAGE_MODE='indexeddb';
 const MEMORY_DB=new Map(STORES.map(name=>[name,new Map()]));
 function useMemoryStorage(error){
-  DB=null; STORAGE_MODE='memory'; window.__admissionStorageFallback={active:true,error:String(error?.message||error||'IndexedDB unavailable')};
-  console.warn('[Admission Hub] IndexedDB unavailable; continuing with an in-memory session store.',error);
+  DB=null; STORAGE_MODE='memory'; window.__admissionStorageFallback={active:true,error:String(error?.message||error||'IndexedDB unavailable'),persistent:false};
+  console.warn('[Admission Hub] IndexedDB is unavailable; memory mode is session-only.',error);
+}
+function showStorageRecovery(error){
+  const detail=String(error?.message||error||'The local database could not be opened.').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  window.__admissionStorageFallback={active:true,error:detail,persistent:false,recoveryRequired:true};
+  const app=document.getElementById('app');
+  if(app) app.innerHTML=`<main class="app-fallback storage-recovery" role="alert"><div class="app-fallback-icon">⚠</div><h1>Saved data is protected</h1><p>The local database could not be opened safely, so the app did not switch to an empty session or overwrite anything.</p><p class="app-fallback-detail">${detail}</p><div class="app-fallback-actions"><button class="btn" type="button" onclick="location.reload()">Try again</button><button class="btn ghost" type="button" onclick="alert('Close other Admission Hub tabs, then press Try again. Your saved data is not deleted.')">Recovery help</button></div></main>`;
+}
+const INDEXES={
+  questions:[['subjectId','subjectId'],['topicId','topicId']],
+  topics:[['subjectId','subjectId']],
+  examResults:[['date','date']],
+  mistakes:[['questionId','questionId']],
+  PLAN_DAYS:[['planId','planId'],['actualDate','actualDate']]
+};
+function ensureSchema(db,tx){
+  STORES.forEach(name=>{
+    const store=db.objectStoreNames.contains(name)?tx.objectStore(name):db.createObjectStore(name,{keyPath:'id'});
+    (INDEXES[name]||[]).forEach(([indexName,keyPath])=>{
+      if(!store.indexNames.contains(indexName)) store.createIndex(indexName,keyPath);
+    });
+  });
+}
+const SCHEMA_MIGRATIONS={1:ensureSchema,2:ensureSchema,3:ensureSchema,4:ensureSchema,5:ensureSchema};
+function runSchemaMigrations(db,tx,oldVersion,newVersion){
+  for(let version=Math.max(1,oldVersion+1);version<=newVersion;version++) (SCHEMA_MIGRATIONS[version]||ensureSchema)(db,tx);
 }
 async function openDB(){
   if(!window.indexedDB) throw new Error('IndexedDB is unavailable in this browser context');
   const protection=window.AdmissionDataProtection;
   const preparation=protection&&protection.prepareOpen ? await protection.prepareOpen(DB_NAME,DB_VERSION) : null;
   return new Promise((resolve,reject)=>{
-    let req;
+    let req, blockedTimer=0, settled=false;
     try{req=indexedDB.open(DB_NAME,DB_VERSION);}catch(error){reject(error);return;}
     req.onupgradeneeded=(e)=>{
       const db=e.target.result;
-      const oldVersion=Number(e.oldVersion||0), newVersion=Number(e.newVersion||DB_VERSION);
-      // Additive migration chain: each version only creates missing stores/indexes.
-      // Existing records are never cleared, replaced, or rewritten here.
-      for(let version=Math.max(1,oldVersion+1);version<=newVersion;version++){
-        STORES.forEach(name=>{
-          if(!db.objectStoreNames.contains(name)){
-            const store=db.createObjectStore(name,{keyPath:'id'});
-            if(name==='questions'){store.createIndex('subjectId','subjectId'); store.createIndex('topicId','topicId');}
-            if(name==='topics'){store.createIndex('subjectId','subjectId');}
-            if(name==='examResults'){store.createIndex('date','date');}
-            if(name==='mistakes'){store.createIndex('questionId','questionId');}
-            if(name==='PLAN_DAYS'){store.createIndex('planId','planId'); store.createIndex('actualDate','actualDate');}
-          }
-        });
-      }
+      runSchemaMigrations(db,e.target.transaction,Number(e.oldVersion||0),Number(e.newVersion||DB_VERSION));
     };
     req.onsuccess=async(e)=>{
+      if(blockedTimer) clearTimeout(blockedTimer);
       DB=e.target.result; STORAGE_MODE='indexeddb'; window.__admissionStorageFallback={active:false};
+      DB.onversionchange=()=>{try{DB.close();}catch(_){} showStorageRecovery(new Error('Another app tab requested a database update. Close old tabs and try again.'));};
       try{
         if(protection&&protection.verifyMigration) await protection.verifyMigration(DB,preparation?.before);
-      }catch(error){console.warn('[Admission Hub] Migration verification skipped; database remains open.',error);}
-      resolve(DB);
+      }catch(error){console.warn('[Admission Hub] Migration verification reported a warning; database remains open.',error);}
+      settled=true; resolve(DB);
     };
-    req.onerror=(e)=>reject(e.target.error||new Error('IndexedDB open failed; existing database was left untouched'));
-    req.onblocked=()=>reject(new Error('IndexedDB is blocked by another browser tab'));
+    req.onerror=(e)=>{if(!settled) reject(e.target.error||new Error('IndexedDB open failed; existing database was left untouched'));};
+    req.onblocked=()=>{blockedTimer=window.setTimeout(()=>{if(!settled) reject(new Error('IndexedDB is blocked by another browser tab. Close other app tabs and retry.'));},5000);};
   });
 }
 function tx(store,mode='readonly'){
@@ -2605,6 +2618,8 @@ async function beginExam(){
 
 /* ================= ACTIVE EXAM ENGINE ================= */
 let ActiveExam=null;
+// Expose a read-only getter for additive reliability modules; the exam object remains owned by the existing engine.
+window.__admissionHubGetActiveExam=()=>ActiveExam;
 let timerHandle=null;
 
 async function checkResumableExam(){
@@ -3514,8 +3529,7 @@ function resetAll(){
   confirmModal('Reset All Data','This permanently deletes EVERYTHING — subjects, topics, questions, exams, vocabulary, settings. This cannot be undone.', async ()=>{
     for(const store of STORES) await dbClear(store);
     await seedIfEmpty();
-    await purgeImportedSubjects();
-    await purgeDuplicateGeneralTopics();
+    // Startup is read/validate-only; no automatic cleanup may alter user records.
     await loadCache();
     closeModal(); toast('All data reset'); navigate('dashboard');
   }, 'Delete Everything', true);
@@ -3533,92 +3547,35 @@ async function setTheme(theme){
   applyTheme();
   render();
 }
-/* ---------------- cleanup duplicate junk "General" topics (auto-heal on every boot) ---------------- */
+/* ---------------- read-only startup diagnostics ----------------
+ * These legacy names remain available for compatibility, but startup must never
+ * delete, re-home, merge, or rewrite a user's subject, topic, or question. */
 async function purgeDuplicateGeneralTopics(){
-  try{
-    const subjects = await dbGetAll('subjects');
-    if(!subjects || subjects.length === 0) return;
-    const topics = await dbGetAll('topics');
-    if(!topics || topics.length === 0) return;
-    const questions = await dbGetAll('questions');
-    let totalDeletedTopics = 0;
-    let totalDeletedQuestions = 0;
-    for(const sub of subjects){
-      const subId = sub.id;
-      const subTopics = topics.filter(t => t.subjectId === subId && (t.name||'').trim().toLowerCase() === 'general');
-      if(subTopics.length <= 1) continue;
-      // Sort descending by question count; the first one is the survivor (most questions, tie-broken by latest updatedAt)
-      const sorted = subTopics.slice().sort((a,b)=>{
-        const ca = CACHE.questions.filter(q => q.topicId === a.id).length;
-        const cb = CACHE.questions.filter(q => q.topicId === b.id).length;
-        if(cb !== ca) return cb - ca;
-        return (b.updatedAt||0) - (a.updatedAt||0);
-      });
-      const survivor = sorted[0];
-      const dupes = sorted.slice(1);
-      // Decide whether to merge dupe questions into the survivor or drop everything
-      // Each of these "General" topics is assumed junk from the import/parser; keep the
-      // single "General" topic but absorb its own questions only if any dupe has content.
-      const qByTopic = {};
-      for(const q of questions){ if(dupes.some(d => d.id === q.topicId)) (qByTopic[q.topicId] = qByTopic[q.topicId] || []).push(q); }
-      const hasContent = Object.values(qByTopic).some(arr => arr.length > 0);
-      if(hasContent){
-        // Merge: move each dupe's questions onto the survivor topic, then delete dupes
-        for(const q of questions){
-          if(dupes.some(d => d.id === q.topicId) && q.topicId !== survivor.id){
-            q.topicId = survivor.id; q.updatedAt = Date.now(); await dbPut('questions', q);
-          }
-        }
-      }else{
-        // All dupes are empty — safe to just delete them
-      }
-      for(const d of dupes){ await dbDel('topics', d.id); totalDeletedTopics++; }
-    }
-    // Second pass: remove any orphaned questions that pointed at deleted (duplicate General) topics
-    const liveTopicIds = new Set((await dbGetAll('topics')).map(t => t.id));
-    for(const q of questions){
-      if(q.topicId && !liveTopicIds.has(q.topicId)){
-        await dbDel('questions', q.id); totalDeletedQuestions++;
-      }
-    }
-    if(totalDeletedTopics) console.log('purgeDuplicateGeneralTopics: deleted', totalDeletedTopics, 'duplicate General topic(s) and', totalDeletedQuestions, 'orphaned question(s); survivor topics kept with their questions merged.');
-  }catch(err){
-    console.error('purgeDuplicateGeneralTopics failed', err);
-  }
+  const topics=await dbGetAll('topics').catch(()=>[]);
+  const groups={};
+  topics.filter(t=>String(t?.name||'').trim().toLowerCase()==='general').forEach(t=>{(groups[t.subjectId]||(groups[t.subjectId]=[])).push(t.id);});
+  const duplicateGroups=Object.values(groups).filter(ids=>ids.length>1);
+  if(duplicateGroups.length) console.warn('[Admission Hub] Duplicate General topics detected; no records were changed.',duplicateGroups);
+  return {changed:false,duplicateGroups};
 }
-/* ---------------- cleanup junk "Imported" subjects (auto-heal on every boot) ---------------- */
 async function purgeImportedSubjects(){
-  try{
-    const subs = await dbGetAll('subjects');
-    const imported = subs.filter(s => (s.name||'').trim().toLowerCase() === 'imported');
-    if(imported.length === 0) return;
-    const kept = subs.filter(s => (s.name||'').trim().toLowerCase() !== 'imported');
-    // Re-home any questions/topics under deleted subjects to the first original subject
-    const fallbackSub = kept.length ? kept.sort((a,b)=>a.order-b.order)[0].id : null;
-    if(fallbackSub){
-      const topics = await dbGetAll('topics');
-      const movedTopics = topics.filter(t => imported.some(s => s.id === t.subjectId));
-      for(const t of movedTopics){ t.subjectId = fallbackSub; t.updatedAt = Date.now(); await dbPut('topics', t); }
-      const questions = await dbGetAll('questions');
-      const movedQ = questions.filter(q => imported.some(s => s.id === q.subjectId));
-      for(const q of movedQ){ q.subjectId = fallbackSub; q.updatedAt = Date.now(); await dbPut('questions', q); }
-    }
-    for(const s of imported){ await dbDel('subjects', s.id); }
-    console.log('Purged', imported.length, 'junk "Imported" subject(s);', (movedTopics||[]).length, 'topics and', (movedQ||[]).length, 'questions re-homed.');
-  }catch(err){
-    console.error('purgeImportedSubjects failed', err);
-  }
+  const subjects=await dbGetAll('subjects').catch(()=>[]);
+  const imported=subjects.filter(s=>String(s?.name||'').trim().toLowerCase()==='imported').map(s=>s.id);
+  if(imported.length) console.warn('[Admission Hub] Imported subjects detected; no records were changed.',imported);
+  return {changed:false,imported};
 }
 async function boot(){
   try{
     await openDB();
   }catch(err){
-    useMemoryStorage(err);
+    // Never hide a real database/migration failure behind an empty in-memory store.
+    showStorageRecovery(err);
+    console.error('[Admission Hub] Safe database open failed; existing data was not changed.',err);
+    return;
   }
   try{
     await seedIfEmpty();
-    await purgeImportedSubjects();
-    await purgeDuplicateGeneralTopics();
+    // Startup is read/validate-only; no automatic cleanup may alter user records.
     await loadCache();
   }catch(err){
     console.error('Data load failed',err);
@@ -4757,7 +4714,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       }
     },{once:false});
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v21-data-safe-20260817',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v22-safe-migration-20260817',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);

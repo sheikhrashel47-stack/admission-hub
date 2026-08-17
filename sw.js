@@ -1,8 +1,14 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v21-data-safe-20260817';
+const BUILD_ID = 'v22-safe-migration-20260817';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
+function markBuild(response) {
+  if (!response || !response.ok) return response;
+  const headers = new Headers(response.headers);
+  headers.set(VERSION_HEADER, BUILD_ID);
+  return response.clone().blob().then(blob => new Response(blob, {status: response.status, statusText: response.statusText, headers}));
+}
 const APP_SHELL = [
   './',
   './index.html',
@@ -19,9 +25,7 @@ async function cacheNetworkResponse(request, response) {
   if (!response || !response.ok) return response;
   try {
     const cache = await caches.open(CACHE_NAME);
-    const headers = new Headers(response.headers);
-    headers.set(VERSION_HEADER, BUILD_ID);
-    const versioned = new Response(await response.clone().blob(), {status: response.status, statusText: response.statusText, headers});
+    const versioned = await markBuild(response);
     await cache.put(request, versioned.clone());
   } catch (_) {
     // Cache failures must never block the fresh network response.
@@ -31,11 +35,11 @@ async function cacheNetworkResponse(request, response) {
 
 async function offlineFallback(request) {
   const cached = await caches.match(request);
-  if (cached && (isCurrentBuild(cached) || !cached.headers.get(VERSION_HEADER))) return cached;
+  if (cached && isCurrentBuild(cached)) return cached;
 
   if (isDocumentRequest(request)) {
     const shell = await caches.match('./index.html');
-    if (shell && (isCurrentBuild(shell) || !shell.headers.get(VERSION_HEADER))) return shell;
+    if (shell && isCurrentBuild(shell)) return shell;
     const shellUrl = new URL('./index.html', self.location.href).href;
     const fallback = await caches.match(shellUrl);
     return fallback || Response.error();
@@ -52,7 +56,7 @@ self.addEventListener('install', event => {
         const url = new URL(asset, self.location.href).href;
         const request = new Request(url, {cache: 'reload'});
         const response = await fetch(request, {cache: 'no-store'});
-        if (response.ok) await cache.put(request, response);
+        if (response.ok) await cacheNetworkResponse(request, response);
       } catch (_) {
         // The worker can still activate if an optional shell asset is unavailable.
       }

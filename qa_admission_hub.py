@@ -5,44 +5,75 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent
 
-for filename in ["mcq-qbank-import.js", "qbank-redesign.js", "phase1-upgrade.js", "sw.js"]:
+for filename in [
+    "mcq-qbank-import.js",
+    "qbank-redesign.js",
+    "phase1-upgrade.js",
+    "data-protection.js",
+    "performance-hardening.js",
+    "sw.js",
+]:
     subprocess.run(["node", "--check", filename], cwd=ROOT, check=True)
 
 html = (ROOT / "index.html").read_text(encoding="utf-8")
-assert 'maximum-scale=1' in html
-assert 'viewport-fit=cover' in html
-assert 'font-size:16px!important' in html
-assert 'app-fallback' in html
-assert '__admissionBootPromise = boot()' in html
-assert 'Local database is still starting' in html
-assert 'visual-viewport-height' in html
-
 qbank = (ROOT / "qbank-redesign.js").read_text(encoding="utf-8")
-assert 'visibleCount: 100' in qbank
-assert '|| 100) + 100' in qbank
-assert 'Math.max(100' in qbank
-assert 'loadMoreTopicQuestions' in qbank
-assert 'setTopicQuery' in qbank
-assert 'visibleQs.map' in qbank
-
 sw = (ROOT / "sw.js").read_text(encoding="utf-8")
+protection = (ROOT / "data-protection.js").read_text(encoding="utf-8")
+performance = (ROOT / "performance-hardening.js").read_text(encoding="utf-8")
+
+required_html = [
+    "maximum-scale=1",
+    "viewport-fit=cover",
+    "font-size:16px!important",
+    "app-fallback",
+    "__admissionBootPromise = boot()",
+    "Saved data is protected",
+    "visual-viewport-height",
+    "const DB_NAME='admissionHubDB', DB_VERSION=5",
+    "const STORES=['appMeta','subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS']",
+    "SCHEMA_MIGRATIONS",
+    "runSchemaMigrations",
+    "window.__admissionHubGetActiveExam",
+]
+missing_html = [item for item in required_html if item not in html]
+assert not missing_html, f"Missing required HTML markers: {missing_html}"
+
+assert "visibleCount: 100" in qbank
+assert "|| 100) + 100" in qbank
+assert "Math.max(100" in qbank
+assert "loadMoreTopicQuestions" in qbank
+assert "setTopicQuery" in qbank
+assert "visibleQs.map" in qbank
+
 assert re.search(r"const CACHE_PREFIX = ['\"]admission-hub-shell-", sw)
-assert re.search(r"const BUILD_ID = ['\"]v\d+['\"]", sw)
+assert re.search(r"const BUILD_ID = ['\"]v22-safe-migration-20260817['\"]", sw)
 assert sw.count("const CACHE_NAME") == 1
 assert "cache: 'no-store'" in sw
 assert "cache: 'reload'" in sw
 assert "self.skipWaiting()" in sw
 assert "self.clients.claim()" in sw
-assert "caches.match('./index.html')" in sw
+assert "isCurrentBuild(cached)" in sw
+assert "isCurrentBuild(shell)" in sw
+assert "await cacheNetworkResponse(request, response)" in sw
 assert "navigator.serviceWorker.register" in html
 assert html.count("navigator.serviceWorker.register") == 1
+assert "v22-safe-migration-20260817" in html
 assert "scope:'./'" in html
 assert "activateWaiting(registration)" in html
-assert "const DB_NAME='admissionHubDB', DB_VERSION=3" in html
-assert "const STORES=['appMeta','subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','ADMISSION_PLANS','PLAN_DAYS']" in html
-assert "if(subs.length===0 && !meta)" in html
 assert "indexedDB.deleteDatabase" not in sw
 assert "localStorage.clear" not in sw
+
+# Startup must not invoke legacy destructive cleanup routines.
+assert "await purgeImportedSubjects();" not in html
+assert "await purgeDuplicateGeneralTopics();" not in html
+assert "read-only startup diagnostics" in html
+assert "dbDel('topics', d.id)" not in html
+assert "dbDel('questions', q.id); totalDeletedQuestions++" not in html
+
+assert "auditDatabase" in protection
+assert "verifyMigration" in protection
+assert "No automatic data repair was attempted" in protection
+assert "version: 2" in performance
 
 payload = json.loads((ROOT / "mcq_final.json").read_text(encoding="utf-8"))
 questions = payload["questions"]
@@ -54,5 +85,6 @@ assert all(isinstance(q.get("answer"), int) and 0 <= q["answer"] <= 3 for q in q
 print("QA PASS")
 print(f"MCQ records preserved: {len(questions)}")
 print("Syntax checks: passed")
-print("PWA/iOS stability assertions: passed")
+print("PWA/update safety assertions: passed")
+print("Non-destructive startup assertions: passed")
 print("Bounded question rendering/search assertions: passed")

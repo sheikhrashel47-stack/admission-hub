@@ -1,12 +1,12 @@
 /* Admission Hub data protection layer.
- * This file is intentionally additive: it never clears storage, deletes records,
- * or replaces user-created content. It stores only recovery metadata and summaries.
+ * This module is intentionally additive: it never clears storage, deletes records,
+ * or replaces user-created content. Migration failures are surfaced for recovery.
  */
 (function (global) {
   'use strict';
 
-  const PROTECTION_VERSION = 1;
-  const BACKUP_KEY = 'admissionHub:data-protection:snapshots:v1';
+  const PROTECTION_VERSION = 2;
+  const BACKUP_KEY = 'admissionHub:data-protection:snapshots:v2';
   const MAX_SNAPSHOTS = 8;
   const STORE_NAMES = ['appMeta','subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
 
@@ -20,7 +20,8 @@
   }
 
   function readSnapshots() {
-    const raw = localStorage.getItem(BACKUP_KEY);
+    let raw = null;
+    try { raw = localStorage.getItem(BACKUP_KEY); } catch (_) { return []; }
     if (raw == null) return [];
     const parsed = safeParse(raw, null);
     if (!Array.isArray(parsed)) {
@@ -65,6 +66,51 @@
     return summary;
   }
 
+  function recordIssues(storeName, record) {
+    const issues = [];
+    if (!record || typeof record !== 'object' || Array.isArray(record)) {
+      issues.push('record is not an object');
+      return issues;
+    }
+    if (record.id === undefined || record.id === null || String(record.id).trim() === '') issues.push('missing id');
+    if (storeName === 'subjects' && !String(record.name || '').trim()) issues.push('missing subject name');
+    if (storeName === 'topics' && (!String(record.name || '').trim() || !record.subjectId)) issues.push('missing topic identity');
+    if (storeName === 'questions') {
+      if (!String(record.question || '').trim()) issues.push('missing question text');
+      if (!Array.isArray(record.options) || record.options.length < 2) issues.push('invalid options');
+      const answer = record.answerIndex ?? record.answer;
+      if (answer !== undefined && (!Number.isInteger(Number(answer)) || Number(answer) < 0)) issues.push('invalid answer index');
+    }
+    if (storeName === 'settings' && String(record.id) !== 'main') issues.push('unexpected settings identity');
+    return issues;
+  }
+
+  async function auditDatabase(db) {
+    const audit = { stores: {}, totalRecords: 0, corruptRecords: [] };
+    for (const name of Array.from(db.objectStoreNames)) {
+      const result = { count: 0, corrupt: [] };
+      await new Promise((resolve, reject) => {
+        let tx;
+        try { tx = db.transaction(name, 'readonly'); } catch (error) { reject(error); return; }
+        const request = tx.objectStore(name).openCursor();
+        request.onsuccess = event => {
+          const cursor = event.target.result;
+          if (!cursor) { resolve(); return; }
+          result.count += 1;
+          const issues = recordIssues(name, cursor.value);
+          if (issues.length && result.corrupt.length < 50) result.corrupt.push({ key: cursor.key, issues });
+          cursor.continue();
+        };
+        request.onerror = () => reject(request.error || new Error('IndexedDB audit failed'));
+        tx.onerror = () => reject(tx.error || new Error('IndexedDB audit transaction failed'));
+      });
+      audit.stores[name] = result;
+      audit.totalRecords += result.count;
+      result.corrupt.forEach(item => audit.corruptRecords.push({ store: name, ...item }));
+    }
+    return audit;
+  }
+
   async function openForSummary(dbName) {
     if (!global.indexedDB) return null;
     return new Promise((resolve) => {
@@ -91,10 +137,14 @@
       dbName,
       dbVersion: dbInfo?.version || 0,
       summary: dbInfo?.summary || { stores: {}, totalRecords: 0, unavailable: true },
-      localStorageKeys: Object.keys(localStorage).filter(k => k !== BACKUP_KEY).sort(),
+      localStorageKeys: storageKeys().filter(k => k !== BACKUP_KEY).sort(),
       extra: extra && typeof extra === 'object' ? extra : undefined
     };
     return writeSnapshot(snapshot);
+  }
+
+  function storageKeys() {
+    try { return Object.keys(localStorage); } catch (_) { return []; }
   }
 
   function localStorageHealth() {
@@ -160,17 +210,22 @@
     Object.keys(beforeStores).forEach(name => {
       const beforeCount = Number(beforeStores[name]);
       const afterCount = Number(after.stores[name]);
-      if (Number.isFinite(beforeCount) && Number.isFinite(afterCount) && afterCount < beforeCount) {
-        losses.push({ store: name, before: beforeCount, after: afterCount });
-      }
+      if (Number.isFinite(beforeCount) && Number.isFinite(afterCount) && afterCount < beforeCount) losses.push({ store: name, before: beforeCount, after: afterCount });
     });
-    if (losses.length) {
-      console.error('[Admission Hub] Migration count verification detected a possible loss.', losses);
-      await snapshot(db.name, 'migration-count-warning', { losses, after });
-    } else {
-      await snapshot(db.name, 'after-open-or-migration', { after });
+    const beforeVersion = Number(beforeSnapshot?.dbVersion || 0);
+    let audit = { skipped: true, reason: 'no schema version change' };
+    if (beforeVersion > 0 && Number(db.version) > beforeVersion) {
+      try { audit = await auditDatabase(db); }
+      catch (error) { audit = { skipped: false, failed: true, error: String(error?.message || error) }; }
     }
-    return { ok: losses.length === 0, losses, after };
+    const warnings = { losses, corruptRecords: audit.corruptRecords || [], auditFailure: audit.failed ? audit.error : null };
+    if (losses.length || warnings.corruptRecords.length || warnings.auditFailure) {
+      console.error('[Admission Hub] Migration verification detected a possible safety issue. No automatic data repair was attempted.', warnings);
+      await snapshot(db.name, 'migration-safety-warning', { warnings, after, dbVersion: db.version });
+    } else {
+      await snapshot(db.name, 'after-open-or-migration', { after, dbVersion: db.version, audit });
+    }
+    return { ok: !losses.length && !warnings.corruptRecords.length && !warnings.auditFailure, losses, after, audit };
   }
 
   global.AdmissionDataProtection = {
@@ -179,6 +234,7 @@
     snapshot,
     prepareOpen,
     summarizeDatabase,
+    auditDatabase,
     verifyMigration,
     validateImport,
     dedupeRecords,

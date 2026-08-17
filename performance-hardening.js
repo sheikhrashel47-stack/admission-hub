@@ -108,15 +108,15 @@
   function lazyRender(container, items, renderItem, options = {}) {
     if (!container || !Array.isArray(items) || typeof renderItem !== 'function') return;
     const chunk = Math.max(1, Number(options.chunkSize || 20));
-    const fragment = document.createDocumentFragment();
     let cursor = 0;
     const append = () => {
+      const fragment = document.createDocumentFragment();
       const end = Math.min(items.length, cursor + chunk);
       for (; cursor < end; cursor += 1) {
         const node = renderItem(items[cursor], cursor);
         if (node) fragment.appendChild(node);
       }
-      container.appendChild(fragment.cloneNode(true));
+      container.appendChild(fragment);
       if (cursor < items.length) window.requestAnimationFrame(append);
     };
     append();
@@ -147,13 +147,20 @@
   }
 
   function activeExam() {
+    try {
+      if (typeof window.__admissionHubGetActiveExam === 'function') return window.__admissionHubGetActiveExam();
+    } catch (_) {}
     return window.ActiveExam || window.activeExam || null;
   }
 
   function backupExamState(reason = 'answer') {
     const exam = activeExam();
     if (!exam || typeof exam !== 'object') return false;
-    const payload = { version: 1, reason, savedAt: Date.now(), route: routeName(), exam };
+    const safeExam = {...exam,
+      bookmarks: Array.from(exam.bookmarks || []),
+      flags: Array.from(exam.flags || [])
+    };
+    const payload = { version: 2, reason, savedAt: Date.now(), route: routeName(), exam: safeExam };
     const serialized = safeJson(payload);
     if (!serialized) return false;
     try { sessionStorage.setItem(EXAM_BACKUP_KEY, serialized); return true; } catch (_) { return false; }
