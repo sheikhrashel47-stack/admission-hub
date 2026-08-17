@@ -79,6 +79,7 @@
   window.openStudyTools = () => navigate('study-tools');
   window.render = function restoredStudyToolsRouter() {
     const path = (typeof Router !== 'undefined' ? Router.path : location.hash.slice(1)) || 'dashboard';
+    if ((path === 'dashboard' || path === 'home' || path === 'question-bank' || path.startsWith('question-bank/') || path === 'question-parser' || path === 'smart-formatter' || path === 'progress' || path === 'exam') && typeof window.__admissionRenderRoute === 'function') return window.__admissionFinalRenderLock ? document.querySelector('#app .page') : window.__admissionRenderRoute();
     if (path === 'study-tools') return renderStudyTools();
     if (path === 'web-search') return renderWebSearch();
     if (path === 'calculator') return renderCalculatorRestore();

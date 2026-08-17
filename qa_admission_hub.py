@@ -83,7 +83,8 @@ assert "No automatic data repair was attempted" in protection
 assert "version: 2" in performance
 assert "u-memory-grid" in urgent
 assert "overflow-wrap:anywhere" in urgent
-assert "renderAfterBoot" in urgent
+assert "renderAfterBoot" not in urgent
+assert "window.__admissionFinalModulesReady" in html
 assert "if(q.status!=='correct'&&q.status!=='wrong')return" in html
 
 payload = json.loads((ROOT / "mcq_final.json").read_text(encoding="utf-8"))

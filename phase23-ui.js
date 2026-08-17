@@ -107,10 +107,7 @@
   const oldNavigate=window.navigate;
   window.navigate=function phase23Navigate(path){
     if(path==='web-chat'||path==='dictionary'){
-      Router.path=path; location.hash=path;
-      if(path==='web-chat') renderWebChatV2(); else renderDictionaryV2();
-      setTimeout(()=>{if(Router.path===path){if(path==='web-chat')renderWebChatV2();else renderDictionaryV2()}},0);
-      window.scrollTo(0,0); return;
+      return oldNavigate(path);
     }
     return oldNavigate(path);
   };

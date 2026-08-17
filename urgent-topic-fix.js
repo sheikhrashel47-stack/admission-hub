@@ -111,20 +111,20 @@
   window.renderSubjectDetail = function urgentSubjectDetailOverride(subjectId) {
     if (subjectId) {
       Router.path = `question-bank/subject/${subjectId}`;
-      return renderUrgentTopicList();
+      return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : previousRenderSubjectDetail(subjectId);
     }
     return previousRenderSubjectDetail(subjectId);
   };
   const previousRenderQuestionBank = window.renderQuestionBank;
   window.renderQuestionBank = function urgentQuestionBankOverride() {
-    if (typeof ExplorerState !== 'undefined' && ExplorerState.subjectId && !ExplorerState.topicId) return renderUrgentTopicList();
+    if (typeof ExplorerState !== 'undefined' && ExplorerState.subjectId && !ExplorerState.topicId) return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : previousRenderQuestionBank();
     return previousRenderQuestionBank();
   };
   const previousRender = window.render;
   window.render = function urgentTopicRouteOverride() {
     const path = (typeof Router !== 'undefined' ? Router.path : location.hash.slice(1)) || 'dashboard';
-    if (path.startsWith('question-bank/subject/')) return renderUrgentTopicList();
-    if (path === 'question-bank' && typeof ExplorerState !== 'undefined' && ExplorerState.subjectId && !ExplorerState.topicId) return renderUrgentTopicList();
+    if (path.startsWith('question-bank/subject/') || path.startsWith('question-bank/topic/')) return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : previousRender();
+    if (path === 'question-bank' && typeof ExplorerState !== 'undefined' && ExplorerState.subjectId && !ExplorerState.topicId) return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : previousRender();
     return previousRender();
   };
 

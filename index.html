@@ -483,7 +483,7 @@ textarea{min-height:96px}
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app"><main class="app-loading" role="status"><div class="app-loading-mark">✦</div><b>Preparing your study space…</b><span>Loading your saved data safely.</span></main></div>
 <div id="navRoot" aria-label="Primary navigation"></div>
 <div id="toast" class="toast"></div>
 <div id="modalRoot"></div>
@@ -637,6 +637,7 @@ async function dbPutMany(store,arr){for(const o of arr) await dbPut(store,o); re
 /* ---------------- in-memory cache (mirrors DB, refreshed on write) ---------------- */
 const CACHE={subjects:[],topics:[],questions:[],exams:[],examResults:[],mistakes:[],vocabulary:[],dailyStats:[],activityLogs:[],notes:[],settings:{}};
 window.__admissionBootStatus='loading';
+window.__admissionFinalModulesReady=false;
 
 function normalizeExamResult(r){
   if(!r) return r;
@@ -719,14 +720,22 @@ async function logActivity(kind, count){
 /* ================= ROUTER ================= */
 const Router={ path:(location.hash.slice(1).split('?')[0]||'dashboard'), params:{}, };
 function navigate(path){
-  Router.path=path;
-  location.hash=path;
-  render();
+  const next=String(path||'dashboard').replace(/^#\/?/,'');
+  const current=location.hash.replace(/^#\/?/,'');
+  Router.path=next.split('?')[0]||'dashboard';
+  if(current===next){
+    if(typeof window.__admissionRenderRoute==='function') window.__admissionRenderRoute();
+    else if(typeof window.render==='function') window.render();
+  }else{
+    location.hash=next;
+  }
   window.scrollTo(0,0);
 }
 window.addEventListener('hashchange',()=>{
-  Router.path=location.hash.slice(1)||'dashboard';
-  render();
+  const raw=location.hash.replace(/^#\/?/,'')||'dashboard';
+  Router.path=raw.split('?')[0]||'dashboard';
+  if(typeof window.__admissionRenderRoute==='function') window.__admissionRenderRoute();
+  else if(typeof window.render==='function') window.render();
 });
 
 /* ================= APP SHELL ================= */
@@ -755,6 +764,10 @@ function baseTab(path){
 function renderShell(innerHtml, opts){
   opts=opts||{};
   const app=document.getElementById('app');
+  if(window.__admissionFinalModulesReady===false){
+    app.innerHTML='<main class="app-loading" role="status"><div class="app-loading-mark">✦</div><b>Preparing your study space…</b><span>Loading your saved data safely.</span></main>';
+    return;
+  }
   const activeTab=baseTab(Router.path);
   const showNav = !opts.hideNav;
   app.classList.toggle('no-nav', !!opts.hideNav);
@@ -3612,7 +3625,7 @@ async function boot(){
         </div>`);
     }
   }
-  render();
+  window.__admissionCoreBootComplete=true;
 }
 async function discardActiveExam(){
   await dbDel('exams', ActiveExam.id);
@@ -4256,7 +4269,7 @@ async function executeAIAction(act){
   window.startMistakeExam=async function(mode){startMistakeCount(Math.min(20,mistakeRows().length),mode);};
 
   function topicAnalytics(){const map={}; CACHE.examResults.forEach(r=>(r.snapshot||[]).forEach(q=>{const key=q.topicId||'unknown'; if(!map[key])map[key]={id:key,name:topicName(key),correct:0,wrong:0,time:0}; if(q.status==='correct')map[key].correct++; if(q.status==='wrong')map[key].wrong++; map[key].time+=(q.timing&&q.timing.ms||0)/1000;})); return Object.values(map).map(x=>({...x,attempts:x.correct+x.wrong,acc:accuracyOf(x),avgTime:x.attempts?round2(x.time/x.attempts):0})).sort((a,b)=>a.acc-b.acc);}
-  renderProgress=function(){const life=aggregateResults(CACHE.examResults), today=aggregateResults(dayResults()), week=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const a=aggregateResults(dayResults(todayKey(d)));return {d,a,label:new Intl.DateTimeFormat('en',{weekday:'short'}).format(d)}}), monthly=Array.from({length:6},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-5+i,1);const rows=CACHE.examResults.filter(r=>{const x=new Date(r.date);return x.getFullYear()===d.getFullYear()&&x.getMonth()===d.getMonth()});return {label:new Intl.DateTimeFormat('en',{month:'short'}).format(d),a:aggregateResults(rows)}}), subs=subjectPerformance(), topics=topicAnalytics(), weak=topics.filter(t=>t.attempts>=3&&t.acc<70).slice(0,5), max=Math.max(1,...week.map(x=>x.a.questions)); const html=`<div class="explorer-head"><div class="explorer-kicker">Analytics Center</div><div class="explorer-title">Progress & Analytics 2.0</div><div class="explorer-subtitle">Every figure below is calculated from your saved attempts and results.</div></div><div class="h2" style="margin-top:0">Lifetime</div><div class="metric-grid"><div class="metric-card"><div class="metric-value">${life.questions}</div><div class="metric-label">Questions presented</div></div><div class="metric-card"><div class="metric-value">${life.correct+life.wrong}</div><div class="metric-label">Answered</div></div><div class="metric-card"><div class="metric-value">${life.skipped}</div><div class="metric-label">Skipped</div></div><div class="metric-card"><div class="metric-value">${life.exams}</div><div class="metric-label">Exams</div></div><div class="metric-card"><div class="metric-value">${life.correct}</div><div class="metric-label">Correct</div></div><div class="metric-card"><div class="metric-value">${life.wrong}</div><div class="metric-label">Wrong</div></div><div class="metric-card"><div class="metric-value">${accuracyOf(life)}%</div><div class="metric-label">Accuracy</div></div><div class="metric-card"><div class="metric-value">${fmtTime(life.time)}</div><div class="metric-label">Study time</div></div></div><div class="h2">Today</div><div class="card"><div class="row between"><b>${today.questions} questions</b><b>${accuracyOf(today)}%</b></div><div class="muted" style="margin-top:6px">${today.correct} correct · ${today.wrong} wrong · ${today.skipped} skipped · ${today.correct+today.wrong} answered · ${today.exams} exams · score ${round2(today.score)} · ${fmtTime(today.time)}</div></div><div class="h2">Last 7 days</div><div class="card"><div class="analytics-bars">${week.map(x=>`<div class="analytics-bar"><i style="height:${Math.max(4,Math.round(x.a.questions/max*90))}px"></i><span>${x.label}</span><small class="muted">${x.a.questions}</small></div>`).join('')}</div></div><div class="h2">Monthly trend</div><div class="card"><div class="filter-row">${monthly.map(x=>`<span class="chip">${x.label}: ${x.a.questions} Q · ${accuracyOf(x.a)}%</span>`).join('')}</div></div><div class="h2">Subject analysis</div>${subs.length?subs.map(s=>`<div class="card"><div class="row between"><b>${s.icon||'📘'} ${esc(s.name)}</b><b>${s.acc}%</b></div><div class="progbar" style="margin-top:7px"><div style="width:${s.acc}%"></div></div><div class="muted" style="margin-top:6px">${s.correct+s.wrong} attempts · ${s.correct} correct · ${s.wrong} mistakes</div></div>`).join(''):'<div class="empty">No subject attempts yet.</div>'}<div class="h2">Topic analysis & weakness engine</div>${topics.length?topics.slice(0,12).map(t=>`<div class="card"><div class="row between"><span>${esc(t.name)}</span><span class="pill ${t.acc<70&&t.attempts>=3?'red':t.acc<85?'orange':''}">${t.acc}%</span></div><div class="muted" style="margin-top:5px">${t.attempts} attempts · ${t.wrong} mistakes · avg ${t.avgTime}s</div>${t.acc<70&&t.attempts>=3?`<div style="margin-top:7px;color:var(--red);font-size:12px;font-weight:700">Today you should revise ${esc(t.name)}.</div>`:''}</div>`).join(''):'<div class="empty">Complete real attempts to detect weak topics.</div>'}${weak.length?`<div class="card premium-card"><b>Recommended next step</b><div style="margin-top:7px">${esc(weak[0].name)} is currently your highest-priority weak topic at ${weak[0].acc}% accuracy.</div><button class="btn" style="margin-top:12px;background:#fff;color:var(--emerald-d)" onclick="startWeakTopicPractice('${weak[0].id}')">Practice weak topic</button></div>`:''}`; renderShell(html,{title:'Progress'});};
+  renderProgress=function(){const life=aggregateResults(CACHE.examResults), today=aggregateResults(dayResults()), week=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const a=aggregateResults(dayResults(todayKey(d)));return {d,a,label:new Intl.DateTimeFormat('en',{weekday:'short'}).format(d)}}), monthly=Array.from({length:6},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-5+i,1);const rows=CACHE.examResults.filter(r=>{const x=new Date(r.date);return x.getFullYear()===d.getFullYear()&&x.getMonth()===d.getMonth()});return {label:new Intl.DateTimeFormat('en',{month:'short'}).format(d),a:aggregateResults(rows)}}), subs=subjectPerformance(), topics=topicAnalytics(), weak=topics.filter(t=>t.attempts>=3&&t.acc<70).slice(0,5), max=Math.max(1,...week.map(x=>x.a.questions)); const html=`${typeof window.__phase3ProgressExtras==='function'?window.__phase3ProgressExtras():''}<div class="explorer-head"><div class="explorer-kicker">Analytics Center</div><div class="explorer-title">Progress & Analytics 2.0</div><div class="explorer-subtitle">Every figure below is calculated from your saved attempts and results.</div></div><div class="h2" style="margin-top:0">Lifetime</div><div class="metric-grid"><div class="metric-card"><div class="metric-value">${life.questions}</div><div class="metric-label">Questions presented</div></div><div class="metric-card"><div class="metric-value">${life.correct+life.wrong}</div><div class="metric-label">Answered</div></div><div class="metric-card"><div class="metric-value">${life.skipped}</div><div class="metric-label">Skipped</div></div><div class="metric-card"><div class="metric-value">${life.exams}</div><div class="metric-label">Exams</div></div><div class="metric-card"><div class="metric-value">${life.correct}</div><div class="metric-label">Correct</div></div><div class="metric-card"><div class="metric-value">${life.wrong}</div><div class="metric-label">Wrong</div></div><div class="metric-card"><div class="metric-value">${accuracyOf(life)}%</div><div class="metric-label">Accuracy</div></div><div class="metric-card"><div class="metric-value">${fmtTime(life.time)}</div><div class="metric-label">Study time</div></div></div><div class="h2">Today</div><div class="card"><div class="row between"><b>${today.questions} questions</b><b>${accuracyOf(today)}%</b></div><div class="muted" style="margin-top:6px">${today.correct} correct · ${today.wrong} wrong · ${today.skipped} skipped · ${today.correct+today.wrong} answered · ${today.exams} exams · score ${round2(today.score)} · ${fmtTime(today.time)}</div></div><div class="h2">Last 7 days</div><div class="card"><div class="analytics-bars">${week.map(x=>`<div class="analytics-bar"><i style="height:${Math.max(4,Math.round(x.a.questions/max*90))}px"></i><span>${x.label}</span><small class="muted">${x.a.questions}</small></div>`).join('')}</div></div><div class="h2">Monthly trend</div><div class="card"><div class="filter-row">${monthly.map(x=>`<span class="chip">${x.label}: ${x.a.questions} Q · ${accuracyOf(x.a)}%</span>`).join('')}</div></div><div class="h2">Subject analysis</div>${subs.length?subs.map(s=>`<div class="card"><div class="row between"><b>${s.icon||'📘'} ${esc(s.name)}</b><b>${s.acc}%</b></div><div class="progbar" style="margin-top:7px"><div style="width:${s.acc}%"></div></div><div class="muted" style="margin-top:6px">${s.correct+s.wrong} attempts · ${s.correct} correct · ${s.wrong} mistakes</div></div>`).join(''):'<div class="empty">No subject attempts yet.</div>'}<div class="h2">Topic analysis & weakness engine</div>${topics.length?topics.slice(0,12).map(t=>`<div class="card"><div class="row between"><span>${esc(t.name)}</span><span class="pill ${t.acc<70&&t.attempts>=3?'red':t.acc<85?'orange':''}">${t.acc}%</span></div><div class="muted" style="margin-top:5px">${t.attempts} attempts · ${t.wrong} mistakes · avg ${t.avgTime}s</div>${t.acc<70&&t.attempts>=3?`<div style="margin-top:7px;color:var(--red);font-size:12px;font-weight:700">Today you should revise ${esc(t.name)}.</div>`:''}</div>`).join(''):'<div class="empty">Complete real attempts to detect weak topics.</div>'}${weak.length?`<div class="card premium-card"><b>Recommended next step</b><div style="margin-top:7px">${esc(weak[0].name)} is currently your highest-priority weak topic at ${weak[0].acc}% accuracy.</div><button class="btn" style="margin-top:12px;background:#fff;color:var(--emerald-d)" onclick="startWeakTopicPractice('${weak[0].id}')">Practice weak topic</button></div>`:''}`; renderShell(html,{title:'Progress'});};
   window.startWeakTopicPractice=async function(topicId){const pool=CACHE.questions.filter(q=>q.topicId===topicId);if(pool.length)beginExamFromPool(pool.slice(0,20),'flash');else toast('No questions in this topic');};
 
   window.openSmartPracticeModal=function(){openModal(`<h3>Smart Practice</h3><div class="muted">The engine prioritizes frequent mistakes, weak topics, recent mistakes, unattempted, then older questions.</div><label class="flabel">Questions</label><div class="filter-row">${[10,20,50,100].map(n=>`<button class="chip" onclick="startSmartPractice(${n},'flash')">${n}</button>`).join('')}</div><label class="flabel">Mode</label><div class="filter-row"><button class="chip" onclick="startSmartPractice(20,'flash')">⚡ Flash</button><button class="chip" onclick="startSmartPractice(20,'mock')">📝 Mock</button><button class="chip" onclick="startSmartPractice(20,'flash')">🔁 Revision</button></div>`);};
@@ -5038,13 +5051,9 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
   }
   function update() { const root=document.querySelector('.dashboard-v2,.p3-dashboard-v3,.page'); if (!root) return; if (!isDashboardPage()) return; const header=root.querySelector('.dashboard-header,.p3-header-v3,.p3-header-text')||root; const h1=header.querySelector('h1,h2'); const d=new Date(); if(h1)h1.textContent=greeting(d.getHours())+', Scholar'; let p=header.querySelector('.p3-live-clock'); if(!p && root.matches('.p3-dashboard-v3,.page')) { p=document.createElement('p'); p.className='p3-live-clock'; p.style.cssText='margin:4px 0 0;color:#78958c;font-size:12px;line-height:1.5'; h1?.insertAdjacentElement('afterend',p); } if(!p) p=header.querySelector('.dashboard-header p'); if(p) p.textContent=clockText(d); }
   const previous = window.renderDashboard;
-  if (typeof previous === 'function') { window.renderDashboard = function(){ const out=previous.apply(this,arguments); setTimeout(update,0); return out; }; }
+  if (typeof previous === 'function') { window.renderDashboard = function(){ return previous.apply(this,arguments); }; }
   window.updateDashboardGreeting = update;
-  setInterval(update, 60000);
-  setTimeout(update, 0);
 })();
-
-  (() => { let n=0; const reconcile=setInterval(() => { n++; if (document.querySelector('.dashboard-v2,.p3-dashboard-v3,.page')) window.updateDashboardGreeting(); if (n >= 20) clearInterval(reconcile); }, 100); })();
 </script>
 <script src="mcq-qbank-import.js?v=1"></script>
 <script src="admission-hub-feature-suite.js?v=question-parser-v4"></script>
@@ -5081,5 +5090,41 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="experience-studio-hooks.js?v=1"></script>
 <script src="experience-studio-shell.js?v=6"></script>
 <script src="performance-hardening.js?v=1"></script>
+<script>
+(() => {
+  const renderFinalRoute = () => {
+    if (window.__admissionFinalRenderLock) return document.querySelector('#app .page');
+    window.__admissionFinalRenderLock = true;
+    clearTimeout(window.__admissionFinalRenderUnlock);
+    window.__admissionFinalRenderUnlock = setTimeout(() => { window.__admissionFinalRenderLock = false; }, 80);
+    const p = String(window.Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
+    if (p === 'dashboard' || p === 'home' || !p) return typeof window.renderDashboard === 'function' ? window.renderDashboard() : undefined;
+    if (p === 'question-parser' || p === 'smart-formatter') return typeof window.renderQuestionParser === 'function' ? window.renderQuestionParser() : window.render?.();
+    if (p === 'question-bank' || p.startsWith('question-bank/')) return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : window.render?.();
+    if (p === 'progress') return typeof window.renderProgress === 'function' ? window.renderProgress() : window.render?.();
+    if (p === 'exam') return typeof window.renderExamCenter === 'function' ? window.renderExamCenter() : window.render?.();
+    return typeof window.render === 'function' ? window.render() : undefined;
+  };
+  window.__admissionRenderRoute = renderFinalRoute;
+  const startFinalRender = () => {
+    if (window.__admissionFinalModulesReady) return;
+    if (window.__admissionBootStatus === 'failed') { window.__admissionFinalModulesReady = true; return; }
+    if (window.__admissionBootStatus !== 'ready') return;
+    window.__admissionFinalModulesReady = true;
+    const raw = location.hash.replace(/^#\/?/, '') || 'dashboard';
+    Router.path = raw.split('?')[0] || 'dashboard';
+    if (typeof window.__admissionRenderRoute === 'function') window.__admissionRenderRoute();
+    else if (typeof window.render === 'function') window.render();
+  };
+  window.addEventListener('load', () => {
+    const promise = window.__admissionBootPromise;
+    if (promise && typeof promise.then === 'function') promise.then(startFinalRender).catch(() => {});
+    else startFinalRender();
+  }, { once: true });
+})();
+</script>
+<style>
+.app-loading{min-height:100dvh;display:grid;place-content:center;justify-items:center;gap:8px;padding:24px;color:var(--text,#17211c);background:var(--bg,#fbfaf7);text-align:center}.app-loading-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:var(--emerald,#0f6b4f);color:#fff;font-size:25px;box-shadow:0 10px 24px rgba(15,107,79,.18)}.app-loading span{font-size:12px;color:var(--sub,#65716b)}
+</style>
 </body>
 </html>

@@ -82,15 +82,7 @@
     if (currentRoute !== 'dashboard') return;
     const page = document.querySelector('#app .page');
     if (!page) return;
-    const cards = [...page.querySelectorAll('[data-study-hub-dashboard-card]')];
-    cards.slice(1).forEach((node) => node.remove());
-    const current = page.querySelector('[data-study-hub-dashboard-card]');
-    if (current) current.remove();
-    const section = document.createElement('section');
-    section.className = 'sh-dashboard-entry';
-    section.dataset.studyHubDashboardCard = '';
-    section.innerHTML = `<div class="sh-dashboard-card" role="button" tabindex="0" onclick="navigate('study-hub')" onkeydown="if(event.key==='Enter'||event.key===' ')navigate('study-hub')"><div class="sh-dashboard-card-glow"></div><div class="sh-dashboard-card-top"><span class="sh-dashboard-icon">✦</span><span class="sh-dashboard-badge">6 TOOLS</span></div><strong>STUDY HUB</strong><p>Your essential admission toolkit</p><div class="sh-preview">Mistake Book <i>·</i> Revision <i>·</i> Bookmarks <i>·</i> Quick Notes <i>·</i> Focus <i>·</i> Countdown</div><span class="sh-dashboard-cta">Open Study Hub <b>→</b></span></div>`;
-    page.insertBefore(section, page.firstChild || null);
+    page.querySelectorAll('[data-study-hub-dashboard-card]').forEach((node) => node.remove());
     const existingStudio = page.querySelector('[data-experience-studio-entry]');
     if (existingStudio) existingStudio.remove();
     const studioSection = document.createElement('section');
