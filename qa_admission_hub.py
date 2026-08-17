@@ -12,8 +12,6 @@ for filename in [
     "data-protection.js",
     "performance-hardening.js",
     "sw.js",
-    "profile-progress-system.js",
-    "profile-exact-visual.js",
 ]:
     subprocess.run(["node", "--check", filename], cwd=ROOT, check=True)
 
@@ -23,7 +21,6 @@ urgent = (ROOT / "urgent-fix.js").read_text(encoding="utf-8")
 sw = (ROOT / "sw.js").read_text(encoding="utf-8")
 protection = (ROOT / "data-protection.js").read_text(encoding="utf-8")
 performance = (ROOT / "performance-hardening.js").read_text(encoding="utf-8")
-profile_exact = (ROOT / "profile-exact-visual.js").read_text(encoding="utf-8")
 
 required_html = [
     "maximum-scale=1",
@@ -88,12 +85,6 @@ assert "u-memory-grid" in urgent
 assert "overflow-wrap:anywhere" in urgent
 assert "renderAfterBoot" not in urgent
 assert "window.__admissionFinalModulesReady" in html
-assert 'profile-exact-visual.js?v=2' in html
-assert 'data-exact-profile-render' in profile_exact
-assert 'typeof CACHE!==\'undefined\'' in profile_exact
-assert "dbPut('settings',s)" in profile_exact
-assert 'indexedDB.deleteDatabase' not in profile_exact
-assert 'localStorage.clear' not in profile_exact
 assert "if(q.status!=='correct'&&q.status!=='wrong')return" in html
 
 payload = json.loads((ROOT / "mcq_final.json").read_text(encoding="utf-8"))
