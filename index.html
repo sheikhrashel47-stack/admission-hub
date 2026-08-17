@@ -558,10 +558,17 @@ function debounce(fn,ms){let t; return (...a)=>{clearTimeout(t); t=setTimeout(()
 const DB_NAME='admissionHubDB', DB_VERSION=4;
 const STORES=['appMeta','subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
 let DB=null;
-
+let STORAGE_MODE='indexeddb';
+const MEMORY_DB=new Map(STORES.map(name=>[name,new Map()]));
+function useMemoryStorage(error){
+  DB=null; STORAGE_MODE='memory'; window.__admissionStorageFallback={active:true,error:String(error?.message||error||'IndexedDB unavailable')};
+  console.warn('[Admission Hub] IndexedDB unavailable; continuing with an in-memory session store.',error);
+}
 function openDB(){
   return new Promise((resolve,reject)=>{
-    const req=indexedDB.open(DB_NAME, DB_VERSION);
+    if(!window.indexedDB){reject(new Error('IndexedDB is unavailable in this browser context'));return;}
+    let req;
+    try{req=indexedDB.open(DB_NAME, DB_VERSION);}catch(error){reject(error);return;}
     req.onupgradeneeded=(e)=>{
       const db=e.target.result;
       STORES.forEach(name=>{
@@ -575,20 +582,21 @@ function openDB(){
         }
       });
     };
-    req.onsuccess=(e)=>{DB=e.target.result; resolve(DB);};
-    req.onerror=(e)=>reject(e.target.error);
+    req.onsuccess=(e)=>{DB=e.target.result; STORAGE_MODE='indexeddb'; window.__admissionStorageFallback={active:false}; resolve(DB);};
+    req.onerror=(e)=>reject(e.target.error||new Error('IndexedDB open failed'));
+    req.onblocked=()=>reject(new Error('IndexedDB is blocked by another browser tab'));
   });
 }
 function tx(store,mode='readonly'){
-  if(!DB) throw new Error('Local database is still starting');
+  if(!DB) return null;
   if(!DB.objectStoreNames.contains(store)) throw new Error(`Missing local data store: ${store}`);
   return DB.transaction(store,mode).objectStore(store);
 }
-function dbGetAll(store){return new Promise((res,rej)=>{const r=tx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
-function dbGet(store,id){return new Promise((res,rej)=>{const r=tx(store).get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
-function dbPut(store,obj){return new Promise((res,rej)=>{const r=tx(store,'readwrite').put(obj); r.onsuccess=()=>res(obj); r.onerror=()=>rej(r.error);});}
-function dbDel(store,id){return new Promise((res,rej)=>{const r=tx(store,'readwrite').delete(id); r.onsuccess=()=>res(true); r.onerror=()=>rej(r.error);});}
-function dbClear(store){return new Promise((res,rej)=>{const r=tx(store,'readwrite').clear(); r.onsuccess=()=>res(true); r.onerror=()=>rej(r.error);});}
+function dbGetAll(store){if(!DB)return Promise.resolve([...MEMORY_DB.get(store).values()]);return new Promise((res,rej)=>{const r=tx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
+function dbGet(store,id){if(!DB)return Promise.resolve(MEMORY_DB.get(store).get(id));return new Promise((res,rej)=>{const r=tx(store).get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
+function dbPut(store,obj){if(!DB){MEMORY_DB.get(store).set(obj.id,obj);return Promise.resolve(obj);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').put(obj); r.onsuccess=()=>res(obj); r.onerror=()=>rej(r.error);});}
+function dbDel(store,id){if(!DB){MEMORY_DB.get(store).delete(id);return Promise.resolve(true);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').delete(id); r.onsuccess=()=>res(true); r.onerror=()=>rej(r.error);});}
+function dbClear(store){if(!DB){MEMORY_DB.get(store).clear();return Promise.resolve(true);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').clear(); r.onsuccess=()=>res(true); r.onerror=()=>rej(r.error);});}
 async function dbPutMany(store,arr){for(const o of arr) await dbPut(store,o); return true;}
 
 /* ---------------- in-memory cache (mirrors DB, refreshed on write) ---------------- */
@@ -3566,9 +3574,7 @@ async function boot(){
   try{
     await openDB();
   }catch(err){
-    console.error('IndexedDB open failed',err);
-    document.body.innerHTML=`<div style="padding:40px 20px; text-align:center; max-width:480px; margin:0 auto;"><div style="font-size:36px; margin-bottom:10px;">⚠️</div><h3 style="margin:0 0 8px;">Storage not available</h3><p style="color:#6b7370; font-size:14px;">Your browser could not open its local database. This usually happens in private/incognito mode or when storage is blocked. Your existing data has NOT been deleted — try opening this site in a regular tab or refresh the page.</p><p style="color:#6b7370; font-size:13px;">Error: ${esc(String(err&&err.message||err))}</p></div>`;
-    return;
+    useMemoryStorage(err);
   }
   try{
     await seedIfEmpty();
@@ -5066,10 +5072,10 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="reward-batch4-effects.js?v=purchase-gated-1"></script>
 <script src="reward-profile-route-guard.js?v=5"></script>
 <script src="experience-studio-store.js?v=1"></script>
-<script src="experience-studio-themes.js?v=1"></script>
-<script src="experience-studio-animations.js?v=1"></script>
-<script src="experience-studio-cards.js?v=1"></script>
+<script src="experience-studio-themes.js?v=2"></script>
+<script src="experience-studio-animations.js?v=2"></script>
+<script src="experience-studio-cards.js?v=2"></script>
 <script src="experience-studio-hooks.js?v=1"></script>
-<script src="experience-studio-shell.js?v=3"></script>
+<script src="experience-studio-shell.js?v=4"></script>
 </body>
 </html>
