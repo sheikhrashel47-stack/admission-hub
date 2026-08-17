@@ -2,7 +2,7 @@
   "name":"My Admission Hub",
   "short_name":"Admission Hub",
   "description":"Privacy-first admission preparation hub with smart importing and real progress tracking.",
-  "start_url":"./?source=pwa#dashboard",
+  "start_url":"./?source=pwa#progress/plan",
   "scope":"./",
   "display":"standalone",
   "display_override":["window-controls-overlay","standalone"],

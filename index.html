@@ -719,6 +719,16 @@ async function logActivity(kind, count){
 
 /* ================= ROUTER ================= */
 const Router={ path:(location.hash.slice(1).split('?')[0]||'dashboard'), params:{}, };
+// PWA launch must open the existing 90 Day Planner, never a legacy Master Plan/dashboard route.
+(function normalizePwaLaunch(){
+  try{
+    const source=new URLSearchParams(location.search).get('source');
+    if(source==='pwa' && location.hash.replace(/^#\/?/,'').split('?')[0] !== 'progress/plan'){
+      history.replaceState(null,document.title,location.pathname+location.search+'#progress/plan');
+      Router.path='progress/plan';
+    }
+  }catch(_){/* keep normal startup safe if URL parsing is unavailable */}
+})();
 function navigate(path){
   const next=String(path||'dashboard').replace(/^#\/?/,'');
   const current=location.hash.replace(/^#\/?/,'');
@@ -4734,7 +4744,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       }
     },{once:false});
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v22-safe-migration-20260817',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v23-pwa-launch-20260817',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
