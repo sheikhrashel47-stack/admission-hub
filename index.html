@@ -752,7 +752,7 @@ window.addEventListener('hashchange',()=>{
 const NAV_TABS=[
   {key:'dashboard', icon:'🏠', label:'Home'},
   {key:'question-bank', icon:'📚', label:'Bank'},
-  {key:'smart-formatter', icon:'🧩', label:'Parser'},
+  {key:'routine-parser', icon:'🧩', label:'Parser'},
   {key:'exam', icon:'📝', label:'Exam'},
   {key:'history', icon:'📋', label:'History'},
   {key:'profile', icon:'👤', label:'Profile'},
@@ -760,6 +760,7 @@ const NAV_TABS=[
 
 function baseTab(path){
   if(path.startsWith('ai-chat')) return 'history';
+  if(path.startsWith('routine-parser')) return 'routine-parser';
   if(path.startsWith('smart-formatter')) return 'smart-formatter';
   if(path.startsWith('exam')) return 'exam';
   if(path.startsWith('question-bank')||path.startsWith('subject')||path.startsWith('topic')||path.startsWith('question')||path.startsWith('add-question')||path.startsWith('edit-question')) return 'question-bank';
@@ -825,6 +826,7 @@ function render(){
   }
   if(window.__admissionBootStatus==='failed') return;
   const p=Router.path;
+  if(p==='routine-parser' && window.Routine90Parser?.render) return window.Routine90Parser.render();
   if(p==='progress/plan'){
     if(typeof window.Routine90?.render==='function') return window.Routine90.render();
     return renderShell('<div class="empty" style="padding:56px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">✦</div><b>Opening your 90 Day Planner…</b><div class="muted" style="margin-top:6px">Your saved routine is loading safely.</div></div>',{topbar:false,hideNav:true});
@@ -4924,7 +4926,8 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
 <script src="phase2-dictionary-parser.js?v=5"></script>
 <script src="phase3-systems.js?v=2"></script>
 <script src="phase3-question-bank-route.js?v=practice10"></script>
-<script src="routine90.js?v=remove-parser-1"></script>
+<script src="routine90.js?v=parser-v2"></script>
+<script src="routine90-parser.js?v=1"></script>
 <link rel="stylesheet" href="premium-reward-styles.css?v=1">
 <script src="reward-quest-upgrade.js?v=3"></script>
 
@@ -5110,6 +5113,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     clearTimeout(window.__admissionFinalRenderUnlock);
     window.__admissionFinalRenderUnlock = setTimeout(() => { window.__admissionFinalRenderLock = false; }, 80);
     if (p === 'dashboard' || p === 'home' || !p) return typeof window.renderDashboard === 'function' ? window.renderDashboard() : undefined;
+    if (p === 'routine-parser') return typeof window.Routine90Parser?.render === 'function' ? window.Routine90Parser.render() : window.render?.();
     if (p === 'question-parser' || p === 'smart-formatter') return typeof window.renderQuestionParser === 'function' ? window.renderQuestionParser() : window.render?.();
     if (p === 'question-bank' || p.startsWith('question-bank/')) return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : window.render?.();
     if (p === 'progress/plan') return typeof window.Routine90?.render === 'function' ? window.Routine90.render() : (typeof window.render === 'function' ? window.render() : undefined);
