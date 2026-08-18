@@ -35,16 +35,6 @@
     return String(value || '').replace(/\u00a0/g, ' ').replace(/[ \t]+/g, ' ').trim();
   }
 
-  function classify(line) {
-    var text = clean(line).toLowerCase();
-    if (/vocabulary|vocab|word list|word meaning|memorizing|শব্দার্থ|ভোকাবুলারি/.test(text)) return 'Memorizing';
-    if (/noun|pronoun|verb|adjective|adverb|preposition|conjunction|article|tense|voice|narration|right form|transformation|translation|sentence|parts of speech|synonym|antonym|phrase|idiom|english/.test(text)) return 'English 2nd';
-    if (/রচনা|composition|paragraph|অনুচ্ছেদ|essay|letter|চিঠি|application|আবেদন|report|প্রতিবেদন|dialogue|সংলাপ|story writing|ভাবসম্প্রসারণ|সারাংশ|সারমর্ম/.test(text)) return 'বিরচন';
-    if (/কারক|বিভক্তি|সন্ধি|সমাস|পদ প্রকরণ|বর্ণ|ধ্বনি|বানান|বাক্য|ক্রিয়া|ক্রিয়া|প্রত্যয়|প্রত্যয়|উপসর্গ|লিঙ্গ|বচন|পুরুষ|শুদ্ধ|বাগধারা|প্রবাদ|এক কথায়|এককথায়|সমার্থক|বিপরীত|পারিভাষিক|বাংলা ব্যাকরণ|ব্যাকরণ/.test(text)) return 'Bangla 2nd';
-    if (/বাংলাদেশ|মুক্তিযুদ্ধ|সংবিধান|ইতিহাস|ভূগোল|বিজ্ঞান|আন্তর্জাতিক|সাধারণ জ্ঞান|রাজনীতি|অর্থনীতি|রাষ্ট্র|জাতীয়|জাতীয়|বিশ্ব|current affairs|gk|general knowledge|geography|history|science|biology|physics|chemistry|math|গণিত/.test(text)) return 'GK';
-    return 'Bangla 1st';
-  }
-
   function isDayHeader(line) {
     var match = clean(line).match(/^(?:day|দিন)\s*[-:]?\s*([0-9০-৯]{1,3})\s*[:：]?$/i);
     return match ? Number(digits(match[1])) : 0;
@@ -55,6 +45,7 @@
     var errors = [];
     var warnings = [];
     var activeDay = 0;
+    var linePositions = {};
     var topicCount = 0;
     var lines = String(raw || '').split(/\r?\n/);
 
@@ -71,6 +62,7 @@
         }
         activeDay = headerDay;
         if (!days[activeDay]) days[activeDay] = [];
+        if (linePositions[activeDay] == null) linePositions[activeDay] = 0;
         return;
       }
       if (!activeDay) {
@@ -79,12 +71,18 @@
       }
       var topics = line.split(/[,،，]/).map(clean).filter(Boolean);
       if (!topics.length) return;
-      var subject = classify(line);
+      var position = linePositions[activeDay] || 0;
+      if (position >= SUBJECTS.length) {
+        errors.push('Line ' + lineNumber + ': Day ' + activeDay + ' has more than 6 topic lines. Use comma-separated topics on one line for the same Subject.');
+        return;
+      }
+      var subject = SUBJECTS[position];
+      linePositions[activeDay] = position + 1;
       topics.forEach(function (topic) {
-        days[activeDay].push({ subject: subject, topic: topic, line: lineNumber });
+        days[activeDay].push({ subject: subject, topic: topic, line: lineNumber, position: position + 1 });
         topicCount += 1;
       });
-      if (topics.length > 1) warnings.push('Line ' + lineNumber + ': ' + topics.length + ' topics kept under ' + subject + '.');
+      if (topics.length > 1) warnings.push('Line ' + lineNumber + ': ' + topics.length + ' topics kept under serial ' + (position + 1) + ' — ' + subject + '.');
     });
 
     var dayKeys = Object.keys(days).map(Number).sort(function (a, b) { return a - b; });
@@ -116,9 +114,9 @@
         return '<div class="r90p-group"><span class="r90p-subject">' + esc(subject) + '</span><div class="r90p-topics">' + groups[subject].map(function (topic) { return '<span>' + esc(topic) + '</span>'; }).join('') + '</div></div>';
       }).join('');
       return '<section class="r90p-day"><div class="r90p-daynum">' + String(day).padStart(2, '0') + '</div><div><div class="r90p-daytitle">Day ' + day + '</div>' + groupHtml + '</div></section>';
-    }).join('') : '<div class="r90p-empty"><span>⌘</span><b>Your parsed routine preview will appear here.</b><small>Day sections and automatically detected subjects will be shown before saving.</small></div>';
+    }).join('') : '<div class="r90p-empty"><span>⌘</span><b>Your parsed routine preview will appear here.</b><small>Day sections এবং serial অনুযায়ী Subject preview save করার আগে এখানে দেখা যাবে।</small></div>';
     var canApply = !!preview && !preview.errors.length && preview.dayCount > 0;
-    return '<main class="r90p-page"><div class="r90p-shell"><header class="r90p-header"><button class="r90p-back" data-parser-action="back">← Back</button><div class="r90p-kicker">90-day admission planner</div><div class="r90p-mark">⌘</div></header><section class="r90p-hero"><div><div class="r90p-eyebrow">SMART ROUTINE IMPORT</div><h1>Build your 90-day routine</h1><p>শুধু Day নম্বর আর topic লিখুন। Subject নিজে থেকে শনাক্ত হয়ে প্রতিটি topic সঠিক routine card-এ বসবে।</p></div><div class="r90p-hero-badge"><b>90</b><span>days<br>ready</span></div></section><section class="r90p-grid"><section class="r90p-panel r90p-input-panel"><div class="r90p-panelhead"><div><span class="r90p-label">STEP 01</span><h2>Paste your routine</h2></div><button class="r90p-link" data-parser-action="sample">Load example</button></div><p class="r90p-help">প্রতি section-এ <b>Day 1</b>, <b>Day 2</b> এভাবে লিখুন। Subject লিখতে হবে না। একই লাইনে কমা দিয়ে একাধিক topic লিখলে সবগুলো একই subject-এর অধীনে থাকবে।</p><textarea id="r90p-input" spellcheck="false" placeholder="Day 1\nমাসি- পিসি\nকারক + বিভক্তি\nNoun\nVocabulary\nবাগধারা\nবাংলাদেশ পরিচিতি\n\nDay 2\nঅপরিচিতা , গন্তব্য কাবুল\n..."></textarea><div class="r90p-actions"><button class="r90p-secondary" data-parser-action="clear">Clear</button><button class="r90p-primary" data-parser-action="preview">Parse preview →</button></div></section><section class="r90p-panel r90p-preview-panel"><div class="r90p-panelhead"><div><span class="r90p-label">STEP 02</span><h2>Review and save</h2></div><span class="r90p-live">LIVE PREVIEW</span></div>' + summary + errors + warnings + '<div class="r90p-preview" id="r90p-preview">' + previewBody + '</div><div class="r90p-savebar"><div><b>Ready to fill your routine?</b><span>Existing completion marks are kept when the topic matches.</span></div><button class="r90p-apply" data-parser-action="apply" ' + (canApply ? '' : 'disabled') + '>Fill 90-day cards</button></div></section></section><section class="r90p-legend"><span><i class="r90p-dot green"></i>Bangla 1st: literature and chapters</span><span><i class="r90p-dot blue"></i>Bangla 2nd: grammar</span><span><i class="r90p-dot purple"></i>English 2nd: English grammar</span><span><i class="r90p-dot gold"></i>GK: Bangladesh, history and general knowledge</span></section></div></main>';
+    return '<main class="r90p-page"><div class="r90p-shell"><header class="r90p-header"><button class="r90p-back" data-parser-action="back">← Back</button><div class="r90p-kicker">90-day admission planner</div><div class="r90p-mark">⌘</div></header><section class="r90p-hero"><div><div class="r90p-eyebrow">SMART ROUTINE IMPORT</div><h1>Build your 90-day routine</h1><p>শুধু Day নম্বর আর topic লিখুন। serial অনুযায়ী Subject বসে প্রতিটি topic সঠিক routine card-এ বসবে।</p></div><div class="r90p-hero-badge"><b>90</b><span>days<br>ready</span></div></section><section class="r90p-grid"><section class="r90p-panel r90p-input-panel"><div class="r90p-panelhead"><div><span class="r90p-label">STEP 01</span><h2>Paste your routine</h2></div><button class="r90p-link" data-parser-action="sample">Load example</button></div><p class="r90p-help">প্রতি section-এ <b>Day 1</b>, <b>Day 2</b> এভাবে লিখুন। Subject লিখতে হবে না। প্রতি Day-এর ১ম line থেকে ৬ষ্ঠ line ক্রমে Subject হবে: Bangla 1st, Bangla 2nd, English 2nd, Memorizing, বিরচন, GK। একই line-এ কমা দিয়ে একাধিক topic লিখলে সবগুলো সেই serial Subject-এর অধীনে থাকবে।</p><textarea id="r90p-input" spellcheck="false" placeholder="Day 1\nমাসি- পিসি\nকারক + বিভক্তি\nNoun\nVocabulary\nবাগধারা\nবাংলাদেশ পরিচিতি\n\nDay 2\nঅপরিচিতা , গন্তব্য কাবুল\n..."></textarea><div class="r90p-actions"><button class="r90p-secondary" data-parser-action="clear">Clear</button><button class="r90p-primary" data-parser-action="preview">Parse preview →</button></div></section><section class="r90p-panel r90p-preview-panel"><div class="r90p-panelhead"><div><span class="r90p-label">STEP 02</span><h2>Review and save</h2></div><span class="r90p-live">LIVE PREVIEW</span></div>' + summary + errors + warnings + '<div class="r90p-preview" id="r90p-preview">' + previewBody + '</div><div class="r90p-savebar"><div><b>Ready to fill your routine?</b><span>Existing completion marks are kept when the topic matches.</span></div><button class="r90p-apply" data-parser-action="apply" ' + (canApply ? '' : 'disabled') + '>Fill 90-day cards</button></div></section></section><section class="r90p-legend"><span><i class="r90p-dot green"></i>1 · Bangla 1st</span><span><i class="r90p-dot blue"></i>2 · Bangla 2nd</span><span><i class="r90p-dot purple"></i>3 · English 2nd</span><span><i class="r90p-dot gold"></i>4 · Memorizing</span><span><i class="r90p-dot green"></i>5 · বিরচন</span><span><i class="r90p-dot blue"></i>6 · GK</span></section></div></main>';
   }
 
   function bind() {
