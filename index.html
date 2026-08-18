@@ -825,7 +825,7 @@ function render(){
   }
   if(window.__admissionBootStatus==='failed') return;
   const p=Router.path;
-  if(p==='progress/plan'||p==='progress/plan/parse'){
+  if(p==='progress/plan'){
     if(typeof window.Routine90?.render==='function') return window.Routine90.render();
     return renderShell('<div class="empty" style="padding:56px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">✦</div><b>Opening your 90 Day Planner…</b><div class="muted" style="margin-top:6px">Your saved routine is loading safely.</div></div>',{topbar:false,hideNav:true});
   }
@@ -5112,7 +5112,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (p === 'dashboard' || p === 'home' || !p) return typeof window.renderDashboard === 'function' ? window.renderDashboard() : undefined;
     if (p === 'question-parser' || p === 'smart-formatter') return typeof window.renderQuestionParser === 'function' ? window.renderQuestionParser() : window.render?.();
     if (p === 'question-bank' || p.startsWith('question-bank/')) return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : window.render?.();
-    if (p === 'progress/plan' || p === 'progress/plan/parse') return typeof window.Routine90?.render === 'function' ? window.Routine90.render() : (typeof window.render === 'function' ? window.render() : undefined);
+    if (p === 'progress/plan') return typeof window.Routine90?.render === 'function' ? window.Routine90.render() : (typeof window.render === 'function' ? window.render() : undefined);
     if (p === 'profile' || p === 'progress') return typeof window.__admissionIntegratedProfileRender === 'function' ? window.__admissionIntegratedProfileRender() : (typeof window.__advancedProfileRender === 'function' ? window.__advancedProfileRender() : (typeof window.renderProgress === 'function' ? window.renderProgress() : window.render?.()));
     if (p === 'exam') return typeof window.renderExamCenter === 'function' ? window.renderExamCenter() : window.render?.();
     return typeof window.render === 'function' ? window.render() : undefined;
