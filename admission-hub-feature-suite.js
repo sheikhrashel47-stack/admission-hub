@@ -7,7 +7,7 @@
   const uidA = () => typeof uid === 'function' ? uid() : `ah-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
   const refresh = async () => { if (typeof loadCache === 'function') await loadCache(); if (typeof render === 'function') render(); };
   const put = (table, value) => dbPut(table, value);
-  const state = { format: 'text', text: '', fileName: '', rows: [], rejected: [], parserMode: false, subjectId: '', rootTopicId: '', subTopicId: '', topicId: '', successMessage: '', successAdded: 0, successSkipped: 0 };
+  const state = { format: 'text', text: '', fileName: '', rows: [], rejected: [], parserMode: false, subjectId: '', rootTopicId: '', subTopicId: '', topicId: '', successMessage: '', successAdded: 0, successSkipped: 0, importing: false };
 
   function cleanLabel(s) { return String(s || '').replace(/^\s*(question|প্রশ্ন|q)\s*\d*\s*[:.)-]?\s*/i, '').trim(); }
   function answerIndex(value, options) {
@@ -34,17 +34,28 @@
   }
   function parseHtml(text) {
     const doc = new DOMParser().parseFromString(text, 'text/html');
-    const blocks = [...doc.querySelectorAll('article, section, li, .question, .mcq, .card, p')].filter(x => /[?؟]/.test(x.textContent) || /\b[ABCD][.)]/i.test(x.textContent));
-    return (blocks.length ? blocks : [doc.body]).map(block => parseText(block.textContent || '')).flat();
+    const explicit = [...doc.querySelectorAll('[data-question], .question, .mcq, .quiz-question')];
+    if (explicit.length) return explicit.map(block => parseText(typeof htmlToText === 'function' ? htmlToText(block) : block.textContent || '')).flat();
+    return parseText(typeof htmlToText === 'function' ? htmlToText(doc.body) : doc.body?.textContent || '');
   }
   function parseText(text) {
-    const lines = String(text || '').replace(/\r/g, '').split('\n').map(x => x.trim()).filter(Boolean);
-    const starts = []; lines.forEach((line, i) => { if (/^(?:q(?:uestion)?\s*\d*|প্রশ্ন\s*\d+|\d+\s*[.)])\s*/i.test(line) || (/[?؟]$/.test(line) && !/^[A-D][.)]/i.test(line))) starts.push(i); });
-    const chunks = starts.length ? starts.map((s, i) => lines.slice(s, starts[i + 1] ?? lines.length)) : [lines];
+    const source = String(text || '').replace(/\r/g, '');
+    const rawLines = source.split('\n');
+    const numbered = /^\s*(?:q(?:uestion)?\s*\d+|প্রশ্ন\s*[০-৯\d]+|\d+)\s*[.)।:-]\s*/i;
+    const numberedStarts = [];
+    rawLines.forEach((line, i) => { if (numbered.test(line)) numberedStarts.push(i); });
+    let chunks;
+    if (numberedStarts.length) {
+      chunks = numberedStarts.map((start, i) => rawLines.slice(start, numberedStarts[i + 1] ?? rawLines.length));
+    } else {
+      chunks = source.split(/\n\s*\n+/).map(part => part.split('\n')).filter(hasContent);
+      if (!chunks.length) chunks = [rawLines];
+    }
     return chunks.map(chunk => {
+      const lines = chunk.map(x => String(x || '').trim()).filter(Boolean);
       const item = { question: '', options: ['', '', '', ''], answer: -1, explanation: '', subject: 'Imported', topic: 'General' };
       const qLines = []; let field = '';
-      chunk.forEach(line => {
+      lines.forEach(line => {
         const om = line.match(/^\s*([A-D])\s*[.)\-:]\s*(.*)$/i);
         const fm = line.match(/^\s*(answer|correct answer|উত্তর|explanation|ব্যাখ্যা|subject|বিষয়|topic|টপিক)\s*[:：-]\s*(.*)$/i);
         if (om) { item.options['ABCD'.indexOf(om[1].toUpperCase())] = om[2].trim(); field = ''; return; }
@@ -96,56 +107,62 @@
   window.ahSetFormat = v => { state.format = v; state.rows = []; state.rejected = []; state.successMessage = ''; render(); };
   window.ahReadFile = input => { const f = input.files?.[0]; if (!f) return; state.fileName = f.name; state.format = /json$/i.test(f.name) ? 'json' : /html?$/i.test(f.name) ? 'html' : 'txt'; const reader = new FileReader(); reader.onload = () => { state.text = String(reader.result || ''); render(); }; reader.readAsText(f); };
   window.ahDetect = () => { state.text = document.getElementById('ahInput')?.value || state.text; state.successMessage = ''; try { const result = validRows(parseSource(state.format, state.text)); state.rows = result.accepted.concat(result.rejected); state.rejected = result.rejected; if (!state.rows.length) throw Error('No questions detected'); render(); } catch (e) { toast?.(`Parser error: ${e.message}`); } };
-  window.ahResetParser = () => { state.rows = []; state.rejected = []; state.text = ''; state.subjectId = ''; state.rootTopicId = ''; state.subTopicId = ''; state.topicId = ''; state.successMessage = ''; render(); };
+  window.ahResetParser = () => { state.rows = []; state.rejected = []; state.text = ''; state.subjectId = ''; state.rootTopicId = ''; state.subTopicId = ''; state.topicId = ''; state.successMessage = ''; state.importing = false; render(); };
   window.ahConfirmImport = async () => {
+    if (state.importing) return toast?.('Import is already running. Please wait.');
+    state.importing = true;
     const selection = Object.freeze({
       subjectId: String(state.subjectId || ''),
       rootTopicId: String(state.rootTopicId || ''),
       subTopicId: String(state.subTopicId || ''),
-      topicId: String(state.subTopicId || state.topicId || ''),
+      topicId: String(state.subTopicId || state.topicId || state.rootTopicId || ''),
     });
-    if (typeof loadCache === 'function') await loadCache();
-    const subject = CACHE.subjects.find(s => s.id === selection.subjectId);
-    const root = CACHE.topics.find(t => t.id === selection.rootTopicId && t.subjectId === selection.subjectId);
-    const targetId = selection.topicId;
-    const topic = CACHE.topics.find(t => t.id === targetId && t.subjectId === selection.subjectId);
-    const targetIsValid = root && topic && (targetId === root.id || (typeof window.topicHierarchy?.descendantIds === 'function' && window.topicHierarchy.descendantIds(root.id).includes(targetId)));
-    if (!subject || !root || !topic || !targetIsValid) return toast?.('Destination changed or is invalid. Select Subject, Topic and Sub-topic again.');
-    const candidateRows = state.rows.filter(x => x.answer >= 0 && x.options.filter(Boolean).length === 4);
-    const validation = window.AdmissionDataProtection?.validateImport ? window.AdmissionDataProtection.validateImport(candidateRows, {keyOf: row => String(row.question || '').trim().toLowerCase()}) : {records: candidateRows};
-    const rows = validation.records || [];
-    if (!rows.length) return toast?.('No valid questions to import');
-    const existing = new Set((CACHE.questions || []).filter(q => q.subjectId === selection.subjectId && q.topicId === targetId).map(q => parserQuestionKey(q.question)));
-    const seenInImport = new Set();
-    const duplicateRows = rows.filter(row => {
-      const key = parserQuestionKey(row.question);
-      const duplicate = !key || existing.has(key) || seenInImport.has(key);
-      if (!duplicate && key) seenInImport.add(key);
-      return duplicate;
-    });
-    const duplicateKeys = new Set(duplicateRows.map(row => parserQuestionKey(row.question)).filter(Boolean));
-    if (duplicateRows.length && !confirm(`${duplicateRows.length} duplicate question পাওয়া গেছে.
-
-OK চাপলে duplicate বাদ দিয়ে শুধু নতুন প্রশ্ন import হবে.
-Cancel চাপলে import বন্ধ থাকবে এবং তুমি আগে review করতে পারবে.`)) return;
-    let added = 0, skipped = 0;
-    let nextNumber = nextQuestionNumberForTopic(targetId);
-    for (const row of rows) {
-      const key = parserQuestionKey(row.question);
-      if (!key || existing.has(key) || duplicateKeys.has(key)) { skipped++; continue; }
-      await put('questions', {
-        id: uidA(), subjectId: selection.subjectId, topicId: targetId, questionNumber: nextNumber++,
-        question: row.question, options: row.options, answer: row.answer, explanation: row.explanation,
-        stats: { attempts: 0, correct: 0, wrong: 0 }, bookmarked: false, createdAt: Date.now(), updatedAt: Date.now(), source: 'question-parser'
+    try {
+      if (typeof loadCache === 'function') await loadCache();
+      const subject = CACHE.subjects.find(s => s.id === selection.subjectId);
+      const root = CACHE.topics.find(t => t.id === selection.rootTopicId && t.subjectId === selection.subjectId);
+      const topic = CACHE.topics.find(t => t.id === selection.topicId && t.subjectId === selection.subjectId);
+      const belongsToRoot = (targetId, rootId) => {
+        const seen = new Set(); let current = CACHE.topics.find(t => t.id === targetId);
+        while (current && !seen.has(current.id)) {
+          if (current.id === rootId) return true;
+          seen.add(current.id); current = CACHE.topics.find(t => t.id === current.parentTopicId);
+        }
+        return false;
+      };
+      const hasChildren = CACHE.topics.some(t => t.parentTopicId === selection.rootTopicId);
+      const targetIsValid = Boolean(subject && root && topic && belongsToRoot(topic.id, root.id) && (selection.subTopicId || !hasChildren));
+      if (!targetIsValid) { state.importing = false; return toast?.('Destination changed or is invalid. Select Subject, Topic and Sub-topic again.'); }
+      const candidateRows = state.rows.filter(x => x && x.answer >= 0 && Array.isArray(x.options) && x.options.filter(Boolean).length === 4 && parserQuestionKey(x.question));
+      if (!candidateRows.length) { state.importing = false; return toast?.('No valid questions to import'); }
+      const existing = new Set((CACHE.questions || []).filter(q => q.subjectId === selection.subjectId && q.topicId === selection.topicId).map(q => parserQuestionKey(q.question)).filter(Boolean));
+      const seenInImport = new Set(); const rows = []; const duplicateRows = [];
+      candidateRows.forEach(row => {
+        const key = parserQuestionKey(row.question);
+        if (existing.has(key) || seenInImport.has(key)) duplicateRows.push(row);
+        else { seenInImport.add(key); rows.push(row); }
       });
-      existing.add(key); added++;
-    }
-    await loadCache();
-    state.successAdded = added;
-    state.successSkipped = skipped;
-    state.successMessage = `${added} questions successfully added to ${subject.name} → ${parserTopicName(selection.rootTopicId)} → ${topic.name}${skipped ? ` (${skipped} duplicate skipped after your confirmation)` : ''}`;
-    state.rows = []; state.rejected = []; state.text = '';
-    render();
+      if (duplicateRows.length && !confirm(`${duplicateRows.length}টি exact duplicate প্রশ্ন পাওয়া গেছে।\n\nOK চাপলে শুধু নতুন প্রশ্নগুলো import হবে।\nCancel চাপলে import বন্ধ থাকবে।`)) { state.importing = false; return; }
+      if (!rows.length) { state.importing = false; return toast?.('সব প্রশ্ন duplicate; নতুন কিছু import করা হয়নি।'); }
+      let added = 0; let nextNumber = nextQuestionNumberForTopic(selection.topicId);
+      for (const row of rows) {
+        await put('questions', {
+          id: uidA(), subjectId: selection.subjectId, topicId: selection.topicId, questionNumber: nextNumber++,
+          question: String(row.question || '').trim(), options: row.options.map(o => String(o || '').trim()), answer: row.answer,
+          explanation: String(row.explanation || '').trim(), stats: { attempts: 0, correct: 0, wrong: 0 }, bookmarked: false,
+          createdAt: Date.now(), updatedAt: Date.now(), source: 'question-parser-v6'
+        });
+        existing.add(parserQuestionKey(row.question)); added++;
+      }
+      await loadCache();
+      state.successAdded = added; state.successSkipped = duplicateRows.length;
+      state.successMessage = `${added} questions successfully added to ${subject.name} → ${parserTopicName(selection.rootTopicId)} → ${topic.name}${duplicateRows.length ? ` (${duplicateRows.length} exact duplicate skipped)` : ''}`;
+      state.rows = []; state.rejected = []; state.text = '';
+      render();
+    } catch (error) {
+      console.error('[Admission Hub] Question import failed', error);
+      toast?.(`Import failed: ${error?.message || error}`);
+    } finally { state.importing = false; }
   };
 
   function subjectRows() { return [...(CACHE.subjects || [])].sort((a, b) => (a.order || 0) - (b.order || 0)); }
