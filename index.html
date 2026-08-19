@@ -1147,10 +1147,12 @@ async function setTarget(v){
 /* ================= SUBJECTS / TOPICS / QUESTION BANK ================= */
 function subjectQCount(subId){return CACHE.questions.filter(q=>q.subjectId===subId).length;}
 function topicQCount(topId){return CACHE.questions.filter(q=>q.topicId===topId).length;}
-function topicsOf(subId){return CACHE.topics.filter(t=>t.subjectId===subId).sort((a,b)=>a.order-b.order);}
+function topicsOf(subId){const key=String(subId||'');return CACHE.topics.filter(t=>String(t.subjectId||'')===key).sort((a,b)=>a.order-b.order);}
 function nextQuestionNumberForTopic(topicId, excludeId=''){
-  const numbers=CACHE.questions.filter(q=>q.topicId===topicId && q.id!==excludeId).map(q=>Number(q.questionNumber ?? q.number)).filter(Number.isFinite);
-  return (numbers.length ? Math.max(...numbers) : CACHE.questions.filter(q=>q.topicId===topicId).length) + 1;
+  const topicKey=String(topicId||'');
+  const scoped=CACHE.questions.filter(q=>String(q.topicId||'')===topicKey && String(q.id||'')!==String(excludeId||''));
+  const numbers=scoped.map(q=>Number(q.questionNumber ?? q.number)).filter(Number.isFinite);
+  return (numbers.length ? Math.max(...numbers) : scoped.length) + 1;
 }
 
 const ExplorerState={
@@ -1704,7 +1706,7 @@ let ImportState = {
   mode:null,                // 'text' | 'json' | 'html'
   validated:[],             // [{raw, issues[], infoOnly[], isDuplicate, matchedSubjectId, matchedTopicId, status, selected:true}]
   destSubjectId:'', destTopicId:'', useIndividual:false,
-  dupStrategy:'ask',       // 'skip' | 'keep' | 'replace'
+  dupStrategy:'skip',      // 'skip' | 'keep' — keep imports duplicates as new records
   visibleCount:20,
   lastSavedCount:0, lastSubjectId:null, lastTopicId:null,
   parseErrorFile:null
@@ -1712,7 +1714,7 @@ let ImportState = {
 
 function openImportTool(){
   ImportState = {screen:'home', mode:null, validated:[], destSubjectId:'', destTopicId:'', useIndividual:false,
-    dupStrategy:'ask', visibleCount:20, lastSavedCount:0, lastSkippedCount:0, lastWarningCount:0, lastSubjectId:null, lastTopicId:null};
+    dupStrategy:'skip', visibleCount:20, lastSavedCount:0, lastSkippedCount:0, lastImportedDuplicateCount:0, lastWarningCount:0, lastSubjectId:null, lastTopicId:null};
   navigate('import-questions');
 }
 function openImportToolFor(subjectId, topicId){
@@ -2059,9 +2061,9 @@ function buildValidated(raws){
   ImportState.validated=validated;
   ImportState.visibleCount=20;
   // Keep destination selection explicit. The parser must never silently choose a subject/topic.
-  const selectedSubject = CACHE.subjects.some(s=>s.id===ImportState.destSubjectId);
+  const selectedSubject = CACHE.subjects.some(s=>String(s.id||'')===String(ImportState.destSubjectId||''));
   if(!selectedSubject) ImportState.destSubjectId = '';
-  const selectedTopic = CACHE.topics.some(t=>t.id===ImportState.destTopicId && t.subjectId===ImportState.destSubjectId);
+  const selectedTopic = CACHE.topics.some(t=>String(t.id||'')===String(ImportState.destTopicId||'') && String(t.subjectId||'')===String(ImportState.destSubjectId||''));
   if(!selectedTopic) ImportState.destTopicId = '';
 }
 function reValidateOne(idx){
@@ -2081,14 +2083,16 @@ function importStats(){
   const invalidCount=total-validCount;
   const dupCount=v.filter(x=>x.isDuplicate).length;
   const selectedCount=v.filter(x=>x.selected && x.status==='valid').length;
-  const readyCount = v.filter(x=>x.selected && x.status==='valid' && !x.isDuplicate).length;
-  return {total,validCount,invalidCount,dupCount,selectedCount,readyCount};
+  const readyCount = v.filter(x=>x.selected && x.status==='valid' && (ImportState.dupStrategy==='keep' || !x.isDuplicate)).length;
+  const duplicateAction = ImportState.dupStrategy==='keep' ? 'imported as new questions' : 'skipped';
+  return {total,validCount,invalidCount,dupCount,selectedCount,readyCount,duplicateAction};
 }
 function renderImportPreview(){
   const st=ImportState;
   const stats=importStats();
   const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order);
   const topics=topicsOf(st.destSubjectId);
+  const previewStart=st.destTopicId ? nextQuestionNumberForTopic(st.destTopicId) : 1;
   const hasIndividual = st.validated.some(v=>v.matchedSubjectId);
   const invalidItems = st.validated.map((v,i)=>({v,i})).filter(x=>x.v.status==='invalid');
   const list = st.validated.map((v,i)=>({v,i})).slice(0, st.visibleCount);
@@ -2101,14 +2105,14 @@ function renderImportPreview(){
       <div class="stat-card"><div class="v">${stats.total}</div><div class="l">Total Questions</div></div>
       <div class="stat-card"><div class="v">${stats.validCount}</div><div class="l">Valid Questions</div></div>
       <div class="stat-card"><div class="v">${stats.invalidCount}</div><div class="l">Invalid Questions</div></div>
-      <div class="stat-card"><div class="v">${stats.dupCount}</div><div class="l">Duplicates Skipped</div></div>
+      <div class="stat-card"><div class="v">${stats.dupCount}</div><div class="l">Duplicates Found</div></div>
     </div>
     <div class="muted" style="margin-top:8px;">Ready to save: <b>${stats.readyCount}</b> / ${stats.selectedCount} selected</div>
   </div>
 
   ${stats.dupCount>0? `<div class="card">
-    <div class="row between"><b>⚠️ Duplicate Detection</b></div>
-    <div class="muted" style="margin-top:6px; font-size:11px;">${stats.dupCount} duplicate question${stats.dupCount===1?'':'s'} detected. They will be skipped automatically so existing Question Bank data is never overwritten.</div>
+    <div class="row between"><b>⚠️ Duplicate Detection</b><span class="pill">${stats.dupCount} found</span></div>
+    <div class="muted" style="margin-top:6px; font-size:11px;">${stats.dupCount} exact duplicate question${stats.dupCount===1?'':'s'} detected. Current setting: <b>${stats.duplicateAction}</b>. Duplicate import never overwrites the existing question; it creates a new record with the next serial.</div>
   </div>` : ''}
 
   <div class="card">
@@ -2124,11 +2128,17 @@ function renderImportPreview(){
       ${topics.map(t=>`<option value="${t.id}" ${t.id===st.destTopicId?'selected':''}>${esc(t.name)}</option>`).join('')}
     </select>
     <div class="muted" style="margin-top:8px;">Selected Subject: <b>${esc(subjectName(st.destSubjectId))}</b><br>Selected Topic: <b>${esc(topicName(st.destTopicId))}</b></div>
+    <label class="flabel">Duplicate handling</label>
+    <select onchange="ImportState.dupStrategy=this.value; render()">
+      <option value="skip" ${st.dupStrategy!=='keep'?'selected':''}>Skip duplicates (safe default)</option>
+      <option value="keep" ${st.dupStrategy==='keep'?'selected':''}>Import duplicates as new questions</option>
+    </select>
+    <div class="muted" style="margin-top:6px;font-size:11px;">${st.dupStrategy==='keep'?'Duplicates will be saved as separate new questions with new serial numbers.':'Duplicates will be detected and skipped; existing questions will not be changed.'}</div>
   </div>
 
   ${invalidItems.length>0? `<div class="h2">Needs Fixing (${invalidItems.length})</div>
     ${invalidItems.slice(0,50).map(({v,i})=>`<div class="card" style="border-left:4px solid var(--red);">
-      <div class="row between"><b>Q${i+1}</b><button class="btn ghost sm" onclick="openFixModal(${i})">Fix</button></div>
+      <div class="row between"><b>Q${previewStart+i}</b><button class="btn ghost sm" onclick="openFixModal(${i})">Fix</button></div>
       <div class="muted">${esc((v.raw.question||'(no text)').slice(0,80))}</div>
       ${v.issues.map(iss=>`<div class="errbox">⚠️ ${esc(iss)}</div>`).join('')}
     </div>`).join('')}
@@ -2144,7 +2154,7 @@ function renderImportPreview(){
   </div>
   ${list.map(({v,i})=>`<div class="card ${v.selected?'':'muted'} ${v.status==='valid'?(v.isDuplicate?'import-card-duplicate':'import-card-valid'):'import-card-invalid'}" style="opacity:${v.selected?1:0.6}">
     <div class="row between">
-      <div class="row"><input type="checkbox" ${v.selected?'checked':''} onchange="ImportState.validated[${i}].selected=this.checked; render()"><b>Q${i+1}</b></div>
+      <div class="row"><input type="checkbox" ${v.selected?'checked':''} onchange="ImportState.validated[${i}].selected=this.checked; render()"><b>Q${previewStart+i}</b></div>
       <span class="pill ${v.status==='valid'?'':'red'}">${v.status==='valid'?(v.isDuplicate?'Duplicate':'Valid'):'Invalid'}</span>
     </div>
     <div style="margin:4px 0; font-weight:600;">${esc((v.raw.question||'(no text)').slice(0,100))}</div>
@@ -2156,7 +2166,7 @@ function renderImportPreview(){
   <div class="row" style="position:sticky; bottom:calc(74px + var(--safe-b)); background:var(--bg); padding:10px 0; z-index:10;">
     <button class="btn ghost" style="flex:1" onclick="cancelImport()">Cancel</button>
     <button class="btn secondary" style="flex:1" onclick="selectValidImport(true)" ${(!st.destSubjectId || !st.destTopicId || stats.validCount===0)?'disabled':''}>Import All Valid</button>
-    <button class="btn" style="flex:1" onclick="saveImportedQuestions()" ${(!st.destSubjectId || !st.destTopicId || stats.readyCount===0)?'disabled':''}>Import ${stats.readyCount} Questions to Selected Topic</button>
+    <button class="btn" style="flex:1" onclick="saveImportedQuestions()" ${(!st.destSubjectId || !st.destTopicId || stats.readyCount===0)?'disabled':''}>Import ${stats.readyCount} Questions to Selected Topic${st.destTopicId?` · starts Q${previewStart}`:''}</button>
   </div>
   `;
   renderShell(html, {title:'Import Preview', back:"importGoHome()"});
@@ -2251,22 +2261,23 @@ async function saveImportedQuestions(){
   st.saving=true;
   const destination=Object.freeze({subjectId:String(st.destSubjectId||''),topicId:String(st.destTopicId||'')});
   try{
-  const subject = CACHE.subjects.find(s=>s.id===destination.subjectId);
-  const topic = CACHE.topics.find(t=>t.id===destination.topicId && t.subjectId===destination.subjectId);
+  const subject = CACHE.subjects.find(s=>String(s.id||'')===destination.subjectId);
+  const topic = CACHE.topics.find(t=>String(t.id||'')===destination.topicId && String(t.subjectId||'')===destination.subjectId);
   if(!subject || !topic){ toast('Select a Subject and Topic before importing'); return; }
   // Re-check destination-scoped duplicates immediately before writing.
   const selected=(st.validated||[]).map(v=>v.selected!==false); const raws=(st.validated||[]).map(v=>v.raw);
   buildValidated(raws); st.validated.forEach((v,i)=>{v.selected=selected[i]!==false});
   // Imports are additive. Existing questions and duplicates in this exact destination are skipped.
-  const toSave = st.validated.filter(v=> v.selected && v.status==='valid' && !v.isDuplicate);
+  const toSave = st.validated.filter(v=> v.selected && v.status==='valid' && (st.dupStrategy==='keep' || !v.isDuplicate));
   if(toSave.length===0){ toast('No questions to save'); return; }
+  let nextNumber=nextQuestionNumberForTopic(destination.topicId);
   openModal(`<h3>Importing…</h3>
     <div class="progbar"><div id="impProgFill" style="width:0%"></div></div>
     <div class="muted" id="impProgLabel" style="margin-top:8px;">0 / ${toSave.length}</div>`);
   let saved=0;
   for(const v of toSave){
-    const subjectId = st.destSubjectId;
-    const topicId = st.destTopicId;
+    const subjectId = subject.id;
+    const topicId = topic.id;
     const obj={
       id: uid(), subjectId, topicId,
       question: v.raw.question.trim(),
@@ -2276,9 +2287,10 @@ async function saveImportedQuestions(){
       tags: v.raw.tags||[], difficulty:'medium',
       source: 'import', createdAt: Date.now(), updatedAt: Date.now(),
       stats: {attempts:0,correct:0,wrong:0},
-      bookmarked: false
-    };;
-    try{ await dbPut('questions', obj); saved++; }
+      bookmarked: false,
+      questionNumber: nextNumber
+    };
+    try{ await dbPut('questions', obj); saved++; nextNumber++; }
     catch(e){ console.error(e); }
     if(saved % 20 === 0 || saved===toSave.length){
       const fill=document.getElementById('impProgFill'); const lbl=document.getElementById('impProgLabel');
@@ -2294,7 +2306,8 @@ async function saveImportedQuestions(){
   }catch(e){}
   closeModal();
   st.lastSavedCount=saved;
-  st.lastSkippedCount=st.validated.filter(v=>v.selected && v.status==='valid' && v.isDuplicate).length;
+  st.lastSkippedCount=st.dupStrategy==='keep' ? 0 : st.validated.filter(v=>v.selected && v.status==='valid' && v.isDuplicate).length;
+  st.lastImportedDuplicateCount=st.dupStrategy==='keep' ? st.validated.filter(v=>v.selected && v.status==='valid' && v.isDuplicate).length : 0;
   st.lastWarningCount=st.validated.filter(v=>v.infoOnly&&v.infoOnly.length).length;
   st.lastSubjectId=st.destSubjectId; st.lastTopicId=st.destTopicId;
   importSetScreen('success');
@@ -2309,8 +2322,8 @@ function renderImportSuccess(){
     <div style="font-size:34px;">🎉</div>
     <div class="h2" style="margin-top:6px;">Import Complete</div>
     <div class="big">${st.lastSavedCount} questions successfully added to ${esc(subjectName(st.lastSubjectId))} → ${esc(topicName(st.lastTopicId))}</div>
-    <div class="stat-grid" style="margin-top:12px;text-align:left;"><div class="stat-card"><div class="v">${st.lastSkippedCount||0}</div><div class="l">Skipped duplicates</div></div><div class="stat-card"><div class="v">${st.lastWarningCount||0}</div><div class="l">Warnings</div></div></div>
-    <div class="muted" style="margin-top:6px;">Existing questions were preserved; duplicates were skipped.</div>
+    <div class="stat-grid" style="margin-top:12px;text-align:left;"><div class="stat-card"><div class="v">${st.lastSkippedCount||0}</div><div class="l">Skipped duplicates</div></div><div class="stat-card"><div class="v">${st.lastImportedDuplicateCount||0}</div><div class="l">Imported duplicates</div></div><div class="stat-card"><div class="v">${st.lastWarningCount||0}</div><div class="l">Warnings</div></div></div>
+    <div class="muted" style="margin-top:6px;">Existing questions were preserved. Imported duplicates were saved as new records; skipped duplicates were not changed.</div>
   </div>
   <button class="btn" onclick="navigate('question-bank/topic/${st.lastTopicId}')">View Questions</button>
   <div style="height:8px;"></div>
@@ -4663,7 +4676,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
 /* ================= PHASE 5 + DAILY INTELLIGENCE ADDITIVE MODULE ================= */
 (function(){
   const ORIGINAL = {renderDashboard:renderDashboard, renderImportHome:renderImportHome, render:render, baseTab:baseTab};
-  const FEATURE = {screen:'home',items:[],format:'unknown',sourceText:'',subjectId:'',rootTopicId:'',topicId:'',destStrategy:'single',dupStrategy:'ask',progress:0,aiBusy:false};
+  const FEATURE = {screen:'home',items:[],format:'unknown',sourceText:'',subjectId:'',rootTopicId:'',topicId:'',destStrategy:'single',dupStrategy:'skip',progress:0,aiBusy:false};
   window.Phase5State=FEATURE;
 
   function esc5(v){return esc(v==null?'':v)}
@@ -4723,15 +4736,18 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       const belongs=(id,rootId)=>{const seen=new Set();let cur=CACHE.topics.find(t=>String(t.id)===String(id));while(cur&&!seen.has(String(cur.id))){if(String(cur.id)===String(rootId))return true;seen.add(String(cur.id));cur=CACHE.topics.find(t=>String(t.id)===String(cur.parentTopicId))}return false};
       if(!subject||!root||!topic||!belongs(topic.id,root.id)){toast('Destination changed or is invalid. Select it again.');return}
       const selected=FEATURE.items.filter(x=>x.selected&&!x.errors.length); const duplicates=selected.filter(x=>x.duplicate);
-      if(duplicates.length&&!confirm(`${duplicates.length} duplicate question পাওয়া গেছে।\n\nOK চাপলে duplicate বাদ দিয়ে শুধু নতুন প্রশ্ন save হবে।\nCancel চাপলে save বন্ধ থাকবে।`))return;
       const ready=selected.filter(x=>!x.duplicate||FEATURE.dupStrategy==='keep'||(FEATURE.dupStrategy==='replace'&&x.duplicate.id));
       if(!ready.length){toast('No safe questions selected');return}
-      const total=ready.length;let done=0;openModal(`<h3>Saving safely…</h3><div class="progbar"><div id="p5SaveFill" style="width:0%"></div></div><div id="p5SaveLabel" class="muted" style="margin-top:8px">0 / ${total}</div>`);
-      for(let n=0;n<ready.length;n+=25){const chunk=ready.slice(n,n+25);await Promise.all(chunk.map(async x=>{let id=uid();if(x.duplicate&&FEATURE.dupStrategy==='replace'&&x.duplicate.id)id=x.duplicate.id;await dbPut('questions',{id,subjectId:destination.subjectId,topicId:destination.topicId,question:x.raw.question.trim(),options:x.raw.options.map(o=>String(o||'').trim()),answer:x.raw.answerIndex,explanation:x.raw.explanation||'',tags:x.raw.tags||[],difficulty:'medium',source:'smart-formatter-v3',createdAt:Date.now(),updatedAt:Date.now(),stats:{attempts:0,correct:0,wrong:0},bookmarked:false});done++}));const f=document.getElementById('p5SaveFill');const l=document.getElementById('p5SaveLabel');if(f)f.style.width=Math.round(done/total*100)+'%';if(l)l.textContent=done+' / '+total;await new Promise(r=>setTimeout(r,0))}
+      const total=ready.length;let done=0;
+      const existingById=new Map((CACHE.questions||[]).map(q=>[String(q.id),q]));
+      let nextNumber=nextQuestionNumberForTopic(destination.topicId);
+      const serials=ready.map(x=>{const replaceId=x.duplicate&&FEATURE.dupStrategy==='replace'&&x.duplicate.id?String(x.duplicate.id):'';const old=replaceId?existingById.get(replaceId):null;const oldNumber=Number(old?.questionNumber??old?.number);return replaceId&&Number.isFinite(oldNumber)?oldNumber:nextNumber++});
+      openModal(`<h3>Saving safely…</h3><div class="progbar"><div id="p5SaveFill" style="width:0%"></div></div><div id="p5SaveLabel" class="muted" style="margin-top:8px">0 / ${total}</div>`);
+      for(let n=0;n<ready.length;n+=25){const chunk=ready.slice(n,n+25);await Promise.all(chunk.map(async (x,offset)=>{let id=uid();if(x.duplicate&&FEATURE.dupStrategy==='replace'&&x.duplicate.id)id=x.duplicate.id;await dbPut('questions',{id,subjectId:destination.subjectId,topicId:destination.topicId,questionNumber:serials[n+offset],question:x.raw.question.trim(),options:x.raw.options.map(o=>String(o||'').trim()),answer:x.raw.answerIndex,explanation:x.raw.explanation||'',tags:x.raw.tags||[],difficulty:'medium',source:'smart-formatter-v3',createdAt:Date.now(),updatedAt:Date.now(),stats:{attempts:0,correct:0,wrong:0},bookmarked:false});done++}));const f=document.getElementById('p5SaveFill');const l=document.getElementById('p5SaveLabel');if(f)f.style.width=Math.round(done/total*100)+'%';if(l)l.textContent=done+' / '+total;await new Promise(r=>setTimeout(r,0))}
       await loadCache();closeModal();toast(done+' questions saved safely');FEATURE.screen='success';FEATURE.saved=done;render();
     }catch(error){console.error('[Admission Hub] Smart Formatter import failed',error);toast(`Import failed: ${error?.message||error}`)}finally{FEATURE.saving=false}
   }
-  function renderFormatter(){const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order), roots=parserRootTopics(FEATURE.subjectId||subs[0]?.id||''), subtopics=parserLeafTopics(FEATURE.rootTopicId);if(FEATURE.screen==='home')return renderShell(`<div class="card phase5-panel"><div class="explorer-kicker">Phase 5 · deterministic preprocessing</div><div class="explorer-title">Smart Formatter 2.0</div><div class="explorer-subtitle">Raw Questions → layered detection → safe standard output → existing parser/storage. AI is optional and never required.</div><div class="formatter-step"><b>1</b><span>Numbering, option, answer, explanation, and boundary detection.</span></div><div class="formatter-step"><b>2</b><span>Preserves option order and answer mapping; low confidence never auto-saves.</span></div><div class="formatter-step"><b>3</b><span>Preview, duplicate decisions, manual correction, and chunked IndexedDB save.</span></div></div><div class="card"><label class="flabel" for="p5Raw">Paste raw questions</label><textarea id="p5Raw" style="min-height:280px" placeholder="Q1. Question text\nA. First option\nB. Second option\nC. Third option\nD. Fourth option\nAnswer: B\nExplanation: Why B is correct"></textarea><div class="row between" style="margin-top:10px"><span id="p5Progress" class="muted">Auto-detects JSON, plain text, or HTML-like input.</span><button class="btn sm" onclick="p5Start()">Detect & format</button></div></div>`,{title:'Smart Formatter',back:"navigate('import-questions')"});if(FEATURE.screen==='success')return renderShell(`<div class="card phase5-panel" style="text-align:center"><div style="font-size:36px">✓</div><div class="big">${FEATURE.saved||0} questions saved</div><div class="muted" style="margin-top:6px">Existing Question Bank and exam behavior were preserved.</div></div><button class="btn" onclick="FEATURE.screen='home';render()">Format more</button>`,{title:'Formatter complete',back:"navigate('question-bank')"});const st=formatterStats();return renderShell(`<div class="card"><div class="row between"><div><div class="explorer-kicker">Detected format</div><b>${FEATURE.format.toUpperCase()}</b></div><span class="pill">${st.total} items</span></div><div class="phase5-grid three" style="margin-top:12px"><div class="phase5-kpi"><b>${st.formatted}</b><span>Formatted</span></div><div class="phase5-kpi"><b>${st.review}</b><span>Needs review</span></div><div class="phase5-kpi"><b>${st.failed}</b><span>Failed</span></div></div><div class="muted" style="margin-top:8px">${st.duplicates} exact/near duplicates detected · ${esc5(FEATURE.format)} detection is rule-based.</div></div><div class="card"><label class="flabel">Smart destination</label><select onchange="p5SelectSubject(this.value)">${subs.map(s=>`<option value="${s.id}" ${(FEATURE.subjectId||subs[0]?.id)===s.id?'selected':''}>${esc5(s.name)}</option>`).join('')}</select><label class="flabel">Topic</label><select onchange="p5SelectTopic(this.value)"><option value="">Select Topic</option>${roots.map(t=>`<option value="${t.id}" ${FEATURE.rootTopicId===t.id?'selected':''}>${esc5(t.name)}</option>`).join('')}</select><label class="flabel">Sub-topic</label><select onchange="p5SelectSubTopic(this.value)" ${FEATURE.rootTopicId?'':'disabled'}><option value="">Select Sub-topic</option>${subtopics.map(t=>`<option value="${t.id}" ${FEATURE.topicId===t.id?'selected':''}>${esc5(t.name)}</option>`).join('')}</select><button class="btn secondary sm" style="margin-top:10px" onclick="p5AddSubTopic()" ${FEATURE.rootTopicId?'':'disabled'}>+ Add Sub-topic</button><div class="row wrap" style="margin-top:10px"><button class="chip ${FEATURE.dupStrategy==='ask'?'active':''}" onclick="FEATURE.dupStrategy='ask';render()">Ask before save</button><button class="chip ${FEATURE.dupStrategy==='skip'?'active':''}" onclick="FEATURE.dupStrategy='skip';render()">Skip without asking</button><button class="chip ${FEATURE.dupStrategy==='replace'?'active':''}" onclick="FEATURE.dupStrategy='replace';render()">Replace exact</button><button class="chip ${FEATURE.dupStrategy==='keep'?'active':''}" onclick="FEATURE.dupStrategy='keep';render()">Keep both</button></div></div><div class="h2">Review before save</div>${FEATURE.items.slice(0,80).map((x,i)=>`<article class="card ${x.errors.length?'phase5-panel danger':x.duplicate?'phase5-panel warn':'phase5-panel'}"><div class="row between"><label><input type="checkbox" ${x.selected?'checked':''} onchange="FEATURE.items[${i}].selected=this.checked"> Q${i+1}</label><span class="${x.confidence==='high'?'confidence-high':x.confidence==='medium'?'confidence-medium':'confidence-low'}">${x.confidence} confidence</span></div><div style="font-weight:700;margin-top:6px">${esc5(x.raw.question||'(missing)')}</div><div class="muted" style="margin-top:5px">${x.raw.options.map((o,j)=>String.fromCharCode(65+j)+'. '+esc5(o||'—')+(j===x.raw.answerIndex?' ✓':'')).join(' · ')}</div>${x.errors.map(e=>`<div class="errbox">${esc5(e)}</div>`).join('')}${x.warnings.map(w=>`<div class="muted" style="margin-top:4px">Warning: ${esc5(w)}</div>`).join('')}${x.duplicate?`<div class="muted" style="margin-top:4px">Duplicate (${x.duplicate.type}) of: ${esc5(x.duplicate.question)}</div>`:''}<button class="btn ghost sm" style="margin-top:8px" onclick="p5Fix(${i})">Manual correction</button></article>`).join('')}${FEATURE.items.length>80?`<div class="muted">Showing first 80 of ${FEATURE.items.length}; all items are included in validation/save.</div>`:''}<div class="row" style="position:sticky;bottom:calc(74px + var(--safe-b));background:var(--bg);padding:10px 0"><button class="btn ghost" style="flex:1" onclick="FEATURE.screen='home';render()">Back</button><button class="btn" style="flex:1" onclick="p5Save()">Save safe items</button></div>`,{title:'Formatter preview',back:"navigate('import-questions')"})}
+  function renderFormatter(){const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order), roots=parserRootTopics(FEATURE.subjectId||subs[0]?.id||''), subtopics=parserLeafTopics(FEATURE.rootTopicId);const previewStart=FEATURE.topicId?nextQuestionNumberForTopic(FEATURE.topicId):1;if(FEATURE.screen==='home')return renderShell(`<div class="card phase5-panel"><div class="explorer-kicker">Phase 5 · deterministic preprocessing</div><div class="explorer-title">Smart Formatter 2.0</div><div class="explorer-subtitle">Raw Questions → layered detection → safe standard output → existing parser/storage. AI is optional and never required.</div><div class="formatter-step"><b>1</b><span>Numbering, option, answer, explanation, and boundary detection.</span></div><div class="formatter-step"><b>2</b><span>Preserves option order and answer mapping; low confidence never auto-saves.</span></div><div class="formatter-step"><b>3</b><span>Preview, duplicate decisions, manual correction, and chunked IndexedDB save.</span></div></div><div class="card"><label class="flabel" for="p5Raw">Paste raw questions</label><textarea id="p5Raw" style="min-height:280px" placeholder="Q1. Question text\nA. First option\nB. Second option\nC. Third option\nD. Fourth option\nAnswer: B\nExplanation: Why B is correct"></textarea><div class="row between" style="margin-top:10px"><span id="p5Progress" class="muted">Auto-detects JSON, plain text, or HTML-like input.</span><button class="btn sm" onclick="p5Start()">Detect & format</button></div></div>`,{title:'Smart Formatter',back:"navigate('import-questions')"});if(FEATURE.screen==='success')return renderShell(`<div class="card phase5-panel" style="text-align:center"><div style="font-size:36px">✓</div><div class="big">${FEATURE.saved||0} questions saved</div><div class="muted" style="margin-top:6px">Existing Question Bank and exam behavior were preserved.</div></div><button class="btn" onclick="FEATURE.screen='home';render()">Format more</button>`,{title:'Formatter complete',back:"navigate('question-bank')"});const st=formatterStats();return renderShell(`<div class="card"><div class="row between"><div><div class="explorer-kicker">Detected format</div><b>${FEATURE.format.toUpperCase()}</b></div><span class="pill">${st.total} items</span></div><div class="phase5-grid three" style="margin-top:12px"><div class="phase5-kpi"><b>${st.formatted}</b><span>Formatted</span></div><div class="phase5-kpi"><b>${st.review}</b><span>Needs review</span></div><div class="phase5-kpi"><b>${st.failed}</b><span>Failed</span></div></div><div class="muted" style="margin-top:8px">${st.duplicates} exact/near duplicates detected · ${esc5(FEATURE.format)} detection is rule-based. Current mode: <b>${FEATURE.dupStrategy==='keep'?'Import duplicates as new':FEATURE.dupStrategy==='replace'?'Replace exact':'Skip duplicates'}</b>.</div></div><div class="card"><label class="flabel">Smart destination</label><select onchange="p5SelectSubject(this.value)">${subs.map(s=>`<option value="${s.id}" ${(FEATURE.subjectId||subs[0]?.id)===s.id?'selected':''}>${esc5(s.name)}</option>`).join('')}</select><label class="flabel">Topic</label><select onchange="p5SelectTopic(this.value)"><option value="">Select Topic</option>${roots.map(t=>`<option value="${t.id}" ${FEATURE.rootTopicId===t.id?'selected':''}>${esc5(t.name)}</option>`).join('')}</select><label class="flabel">Sub-topic</label><select onchange="p5SelectSubTopic(this.value)" ${FEATURE.rootTopicId?'':'disabled'}><option value="">Select Sub-topic</option>${subtopics.map(t=>`<option value="${t.id}" ${FEATURE.topicId===t.id?'selected':''}>${esc5(t.name)}</option>`).join('')}</select><button class="btn secondary sm" style="margin-top:10px" onclick="p5AddSubTopic()" ${FEATURE.rootTopicId?'':'disabled'}>+ Add Sub-topic</button><div class="row wrap" style="margin-top:10px"><button class="chip ${FEATURE.dupStrategy==='skip'?'active':''}" onclick="FEATURE.dupStrategy='skip';render()">Skip duplicates</button><button class="chip ${FEATURE.dupStrategy==='keep'?'active':''}" onclick="FEATURE.dupStrategy='keep';render()">Import duplicates as new</button><button class="chip ${FEATURE.dupStrategy==='replace'?'active':''}" onclick="FEATURE.dupStrategy='replace';render()">Replace exact</button></div></div><div class="h2">Review before save</div>${FEATURE.items.slice(0,80).map((x,i)=>`<article class="card ${x.errors.length?'phase5-panel danger':x.duplicate?'phase5-panel warn':'phase5-panel'}"><div class="row between"><label><input type="checkbox" ${x.selected?'checked':''} onchange="FEATURE.items[${i}].selected=this.checked"> Q${previewStart+i}</label><span class="${x.confidence==='high'?'confidence-high':x.confidence==='medium'?'confidence-medium':'confidence-low'}">${x.confidence} confidence</span></div><div style="font-weight:700;margin-top:6px">${esc5(x.raw.question||'(missing)')}</div><div class="muted" style="margin-top:5px">${x.raw.options.map((o,j)=>String.fromCharCode(65+j)+'. '+esc5(o||'—')+(j===x.raw.answerIndex?' ✓':'')).join(' · ')}</div>${x.errors.map(e=>`<div class="errbox">${esc5(e)}</div>`).join('')}${x.warnings.map(w=>`<div class="muted" style="margin-top:4px">Warning: ${esc5(w)}</div>`).join('')}${x.duplicate?`<div class="muted" style="margin-top:4px">Duplicate (${x.duplicate.type}) of: ${esc5(x.duplicate.question)}</div>`:''}<button class="btn ghost sm" style="margin-top:8px" onclick="p5Fix(${i})">Manual correction</button></article>`).join('')}${FEATURE.items.length>80?`<div class="muted">Showing first 80 of ${FEATURE.items.length}; all items are included in validation/save.</div>`:''}<div class="row" style="position:sticky;bottom:calc(74px + var(--safe-b));background:var(--bg);padding:10px 0"><button class="btn ghost" style="flex:1" onclick="FEATURE.screen='home';render()">Back</button><button class="btn" style="flex:1" onclick="p5Save()">Save safe items</button></div>`,{title:'Formatter preview',back:"navigate('import-questions')"})}
   window.p5Start=p5Start;window.p5Save=p5Save;window.p5SaveFix=p5SaveFix;window.p5Fix=p5Fix;window.p5SelectSubject=p5SelectSubject;window.p5SelectTopic=p5SelectTopic;window.p5SelectSubTopic=p5SelectSubTopic;window.p5AddSubTopic=p5AddSubTopic;window.FEATURE=FEATURE;
   renderImportHome=function(){ORIGINAL.renderImportHome();const page=document.querySelector('#app .page');if(page&&!page.querySelector('[data-smart-formatter]'))page.insertAdjacentHTML('afterbegin',`<div class="card phase5-panel" data-smart-formatter><div class="row between"><div><b>Smart Formatter 2.0</b><div class="muted">Detect and safely normalize 1000+ raw questions before the existing parser.</div></div><button class="btn sm" onclick="FEATURE.screen='home';navigate('smart-formatter')">Open</button></div></div>`)};
 
@@ -4796,7 +4812,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v29-three-fixes-20260819',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v32-duplicate-choice-20260819',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5120,7 +5136,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 </script>
 <script src="mcq-qbank-import.js?v=1"></script>
 <script src="vocabulary-range-cleanup.js?v=v1-20260819"></script>
-<script src="admission-hub-feature-suite.js?v=question-parser-v5-lock-destination"></script>
+<script src="admission-hub-feature-suite.js?v=question-parser-v8-duplicate-choice"></script>
 <script src="profile-reward-update.js?v=purchase-blueprint-2"></script>
 <script src="advanced-gamification-v3.js?v=purchase-blueprint-5"></script>
 <script src="ai-agents.js?v=gemini-v6-0816"></script>
