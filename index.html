@@ -668,17 +668,14 @@ async function loadCache(){
     try{const value=await dbGetAll(store);return Array.isArray(value)?value.filter(Boolean):fallback;}
     catch(error){console.warn(`[Admission Hub] Could not read ${store}; keeping the app usable.`,error);return fallback;}
   };
-  CACHE.subjects=await read('subjects',CACHE.subjects);
-  CACHE.topics=await read('topics',CACHE.topics);
-  CACHE.questions=await read('questions',CACHE.questions);
-  CACHE.exams=await read('exams',CACHE.exams);
-  CACHE.examResults=(await read('examResults',CACHE.examResults)).map(normalizeExamResult).filter(Boolean);
-  CACHE.mistakes=await read('mistakes',CACHE.mistakes);
-  CACHE.vocabulary=await read('vocabulary',CACHE.vocabulary);
-  CACHE.dailyStats=await read('dailyStats',CACHE.dailyStats);
-  CACHE.activityLogs=await read('activityLogs',CACHE.activityLogs);
-  CACHE.notes=await read('notes',CACHE.notes);
-  const settings=await read('settings',[]);
+  const [subjects,topics,questions,exams,examResults,mistakes,vocabulary,dailyStats,activityLogs,notes,settings]=await Promise.all([
+    read('subjects',CACHE.subjects), read('topics',CACHE.topics), read('questions',CACHE.questions), read('exams',CACHE.exams),
+    read('examResults',CACHE.examResults), read('mistakes',CACHE.mistakes), read('vocabulary',CACHE.vocabulary), read('dailyStats',CACHE.dailyStats),
+    read('activityLogs',CACHE.activityLogs), read('notes',CACHE.notes), read('settings',[])
+  ]);
+  CACHE.subjects=subjects; CACHE.topics=topics; CACHE.questions=questions; CACHE.exams=exams;
+  CACHE.examResults=examResults.map(normalizeExamResult).filter(Boolean); CACHE.mistakes=mistakes; CACHE.vocabulary=vocabulary;
+  CACHE.dailyStats=dailyStats; CACHE.activityLogs=activityLogs; CACHE.notes=notes;
   CACHE.settings=(settings[0]&&typeof settings[0]==='object')?settings[0]:defaultSettings();
 }
 
@@ -3598,18 +3595,25 @@ async function purgeImportedSubjects(){
   return {changed:false,imported};
 }
 async function boot(){
+  // Paint the dashboard immediately with the safe in-memory defaults. The real
+  // IndexedDB data replaces it as soon as the background boot read completes.
+  if(!window.__admissionFastPainted){
+    window.__admissionFastPainted=true;
+    window.__admissionFinalModulesReady=true;
+    Router.path=location.hash.slice(1)||'dashboard';
+    try { applyTheme(); renderDashboard(); } catch (paintError) { console.warn('[Admission Hub] Fast dashboard paint deferred.',paintError); }
+  }
   try{
     await openDB();
   }catch(err){
-    // Never hide a real database/migration failure behind an empty in-memory store.
     window.__admissionBootStatus='failed';
     showStorageRecovery(err);
-    console.error('[Admission Hub] Safe database open failed; existing data was not changed.',err);
+    console.error('[Admission Hub] Safe database open failed; existing data was left untouched.',err);
     return;
   }
   try{
     await seedIfEmpty();
-    // Startup is read/validate-only; no automatic cleanup may alter user records.
+    // Startup remains read/validate-only; no automatic content migration runs here.
     await loadCache();
   }catch(err){
     console.error('Data load failed',err);
@@ -3619,7 +3623,11 @@ async function boot(){
   window.__admissionBootStatus='ready';
   applyTheme();
   Router.path=location.hash.slice(1)||'dashboard';
+  // Replace the fast shell with real counts before any resume modal is considered.
+  try { if(typeof window.__admissionRenderRoute==='function') window.__admissionRenderRoute(); else render(); } catch (renderError) { console.warn('[Admission Hub] Data-backed render deferred.',renderError); }
+  window.__admissionCoreBootComplete=true;
 
+  // Resume handling is non-critical for first paint and must never block the dashboard.
   const resumable=await checkResumableExam();
   let returningFromManualAi=false;
   try {
@@ -3629,7 +3637,6 @@ async function boot(){
   if(resumable){
     ActiveExam=resumable;
     if(resumable.mode==='mock' && computeRemaining(resumable)<=0){
-      // time expired while the app was closed/backgrounded — auto-submit through the existing pipeline, don't reset to full time
       await submitExam(true);
     } else if(!returningFromManualAi) {
       openModal(`<h3>Resume Active Exam?</h3>
@@ -3640,7 +3647,6 @@ async function boot(){
         </div>`);
     }
   }
-  window.__admissionCoreBootComplete=true;
 }
 async function discardActiveExam(){
   await dbDel('exams', ActiveExam.id);
@@ -4744,7 +4750,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v27-vocab-cleanup-20260819',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v28-integrity-performance-20260819',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5068,7 +5074,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 </script>
 <script src="mcq-qbank-import.js?v=1"></script>
 <script src="vocabulary-range-cleanup.js?v=v1-20260819"></script>
-<script src="admission-hub-feature-suite.js?v=question-parser-v4"></script>
+<script src="admission-hub-feature-suite.js?v=question-parser-v5-lock-destination"></script>
 <script src="profile-reward-update.js?v=purchase-blueprint-2"></script>
 <script src="advanced-gamification-v3.js?v=purchase-blueprint-5"></script>
 <script src="ai-agents.js?v=gemini-v6-0816"></script>
@@ -5081,6 +5087,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="study-hub.js?v=2"></script>
 <script src="question-bank-performance.js?v=10-note-return"></script>
 <script src="hierarchy-and-exam-fix.js?v=15"></script>
+<script src="content-integrity-fix.js?v=content-integrity-v1-20260819"></script>
 <script src="global-app-fix.js?v=3"></script>
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
