@@ -4744,7 +4744,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v26-dashboard-default-20260817',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v27-vocab-cleanup-20260819',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5067,6 +5067,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 })();
 </script>
 <script src="mcq-qbank-import.js?v=1"></script>
+<script src="vocabulary-range-cleanup.js?v=v1-20260819"></script>
 <script src="admission-hub-feature-suite.js?v=question-parser-v4"></script>
 <script src="profile-reward-update.js?v=purchase-blueprint-2"></script>
 <script src="advanced-gamification-v3.js?v=purchase-blueprint-5"></script>
