@@ -51,5 +51,12 @@
     if ((path === 'inbox' || path === 'notifications' || path === 'settings') && typeof window.__admissionRenderRoute === 'function') window.__admissionRenderRoute();
   };
   window.addEventListener('load', () => setTimeout(bootRoute, 0), { once: true });
+  window.addEventListener('hashchange', () => setTimeout(bootRoute, 0));
+  let bootAttempts = 0;
+  const bootTimer = setInterval(() => {
+    bootRoute();
+    bootAttempts += 1;
+    if (bootAttempts >= 40 || !/^(inbox|notifications|settings)$/.test(location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard')) clearInterval(bootTimer);
+  }, 250);
   setTimeout(bootRoute, 0);
 })();
