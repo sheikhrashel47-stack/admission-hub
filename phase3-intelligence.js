@@ -290,11 +290,11 @@
           <span class="p3-dashboard-only-v3">Review & analysis</span>
         </div>
         <div class="p3-special-grid-v3">
-          <button class="p3-special-card-v3" onclick="navigate('bhul-khata')">
-            <span class="p3-special-icon-v3">📒</span>
+          <button class="p3-special-card-v3 p3-notes-card-v3" data-notes-tool-card onclick="navigate('notes')" type="button">
+            <span class="p3-special-icon-v3">📝</span>
             <div class="p3-special-info-v3">
-              <strong>ভুল খাতা</strong>
-              <small>Mistake Analysis — ভুলের structured analysis card</small>
+              <strong>নোট</strong>
+              <small>ভুল প্রশ্ন ও AI Explain সংরক্ষণ</small>
             </div>
             <span class="p3-special-arrow-v3">${ICONS.arrow}</span>
           </button>
@@ -442,6 +442,9 @@
     .p3-special-grid-v3{display:grid;gap:10px}
     .p3-special-card-v3{background:#fff;border:1px solid #f1f5f9;border-radius:18px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:15px;box-shadow:0 4px 15px rgba(0,0,0,0.03);cursor:pointer;text-align:left;transition:transform 0.1s ease}
     .p3-special-card-v3:active{transform:scale(0.98)}
+    .p3-notes-card-v3{background:linear-gradient(135deg,#0f6b4f,#0b4f3b);border-color:#0b4f3b;color:#fff;box-shadow:0 14px 28px rgba(15,107,79,.2)}
+    .p3-notes-card-v3 .p3-special-info-v3 strong,.p3-notes-card-v3 .p3-special-info-v3 small,.p3-notes-card-v3 .p3-special-arrow-v3{color:#fff}
+    .p3-notes-card-v3 .p3-special-info-v3 small{opacity:.8}
     .p3-special-icon-v3{font-size:28px}
     .p3-special-info-v3 strong{display:block;font-size:15px;color:#0f172a;font-weight:800}
     .p3-special-info-v3 small{display:block;font-size:12px;color:#64748b;margin-top:2px}
