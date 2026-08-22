@@ -2813,7 +2813,9 @@ async function selectMockAnswer(qid,idx){
     if(!e.timing[qid]) e.timing[qid]={ms:Math.max(0,Date.now()-(e.questionStartedAt&&e.questionStartedAt[qid]||e.startTime)),startedAt:e.questionStartedAt&&e.questionStartedAt[qid]||e.startTime,answeredAt:Date.now()};
   }
   await dbPut('exams',e);
+  const keepY=window.scrollY||document.documentElement.scrollTop||0;
   render();
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{window.scrollTo({top:keepY,left:0,behavior:'auto'});setTimeout(()=>window.scrollTo(0,keepY),80)}));
 }
 function mockNav(dir){
   const e=ActiveExam;
@@ -5027,6 +5029,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
 <script src="vocabulary-phase2.js?v=1"></script>
 <script src="vocabulary-upgrade.js?v=phase2-3"></script>
 
+<script src="qbank-redesign.js?v=fix-questions"></script>
 <script src="question-bank-performance.js?v=10-note-return"></script>
 <script src="hierarchy-and-exam-fix.js?v=15"></script>
 

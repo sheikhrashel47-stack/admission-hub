@@ -190,7 +190,7 @@
 
   window.toggleQSearch = () => { const box = document.getElementById('qSearchBox'); if (box) { box.classList.toggle('hide'); if (!box.classList.contains('hide')) box.querySelector('input')?.focus(); } };
   window.renderQuestionBankV2 = () => {
-    const p = Router.path;
+    const p = String((typeof Router !== 'undefined' && Router.path) || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
     if (p.startsWith('question-bank/topic/')) { const tid = decodeURIComponent(p.split('/')[2] || ''); ExplorerState.topicId = tid; const t = CACHE.topics.find(x => x.id === tid); ExplorerState.subjectId = t?.subjectId || ''; return renderFeed(); }
     if (p.startsWith('question-bank/subject/')) { const sid = decodeURIComponent(p.split('/')[2] || ''); ExplorerState.subjectId = sid; ExplorerState.topicId = ''; return renderTopicList(); }
     ExplorerState.subjectId = ''; ExplorerState.topicId = ''; return renderSubjectList();
