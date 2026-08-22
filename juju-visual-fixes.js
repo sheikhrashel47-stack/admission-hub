@@ -106,11 +106,26 @@
     </section>`;
   };
   const enhanceDashboard = () => {
+    /* Dashboard rollback: keep the original dashboard renderer and existing cards. */
+    return;
     if (path() !== 'dashboard' && path() !== 'home' && path() !== '') return;
     const root = document.querySelector('#app .p3-dashboard-v3');
     if (!root || root.querySelector('[data-juju-gamified]')) return;
     const anchor = root.querySelector('.p3-command-section-v3') || root.firstElementChild;
     if (anchor) anchor.insertAdjacentHTML('beforebegin', dashboardMarkup());
+  };
+  const restoreRoutine90Card = () => {
+    if (path() !== 'progress/plan') return;
+    const root = document.querySelector('#app');
+    if (!root || root.querySelector('.r90-day') || root.querySelector('[data-juju-r90-fallback]')) return;
+    const anchor = root.querySelector('[data-action="morecards"]');
+    if (!anchor) return;
+    let raw = null; try { raw = JSON.parse(localStorage.getItem('routine90_data') || '{}'); } catch (_) {}
+    const d = raw?.days?.[1] || {date:new Date().toISOString().slice(0,10),items:[]};
+    const items = Array.isArray(d.items) && d.items.length ? d.items : [{subject:'Bangla 1st',topic:''},{subject:'Bangla 2nd',topic:''},{subject:'English 2nd',topic:''},{subject:'GK',topic:''}];
+    const rows = items.slice(0,8).map(x => `<div class="r90-subject"><div class="r90-subjectname">${escV(x.subject || 'Study')}</div><div class="r90-topic" style="opacity:.72"><span class="r90-topictext">${escV(x.topic || 'No topic added yet')}</span></div></div>`).join('');
+    const card = `<section class="r90-list" data-juju-r90-fallback><article class="r90-day today r90-v1"><aside class="r90-date"><span class="r90-today">TODAY</span><div class="r90-daynum">01</div><div class="r90-daylabel">DAY</div></aside><div class="r90-cardbody"><div class="r90-cardtop"><span class="r90-cardtitle">90 DAY PLAN</span></div>${rows}</div></article></section>`;
+    anchor.insertAdjacentHTML('beforebegin', card);
   };
   const hydrateQuestionBank = async () => {
     if (!path().startsWith('question-bank')) return;
@@ -168,18 +183,13 @@
     const app = document.getElementById('app');
     if (!app || app.__jujuVisualObserver) return;
     app.__jujuVisualObserver = true;
-    const run = () => { installAnswerStability(); enhanceDashboard(); cleanResult(); };
+    const run = () => { installAnswerStability(); enhanceDashboard(); cleanResult(); restoreRoutine90Card(); };
     new MutationObserver(run).observe(app,{childList:true,subtree:true});
     run();
   };
-  const init = () => { observe(); installAnswerStability(); enhanceDashboard(); cleanResult(); hydrateQuestionBank(); ensureQuestionBankRoot(); ensureQuestionBankTopic(); setTimeout(hydrateQuestionBank, 900); setTimeout(ensureQuestionBankRoot, 1200); setTimeout(ensureQuestionBankTopic, 1200); };
-  window.addEventListener('hashchange', () => setTimeout(() => { hydrateQuestionBank(); ensureQuestionBankRoot(); ensureQuestionBankTopic(); }, 250));
-  try {
-    if (!localStorage.getItem('admission_theme_v2_seen')) {
-      localStorage.setItem('admission_theme_v2_seen', '1');
-      setTimeout(() => { if (typeof window.setTheme === 'function') window.setTheme('midnight-academic'); }, 180);
-    }
-  } catch (_) {}
+  const init = () => { observe(); installAnswerStability(); enhanceDashboard(); cleanResult(); restoreRoutine90Card(); hydrateQuestionBank(); ensureQuestionBankRoot(); ensureQuestionBankTopic(); setTimeout(restoreRoutine90Card, 120); setTimeout(hydrateQuestionBank, 900); setTimeout(ensureQuestionBankRoot, 1200); setTimeout(ensureQuestionBankTopic, 1200); };
+  window.addEventListener('hashchange', () => setTimeout(() => { restoreRoutine90Card(); hydrateQuestionBank(); ensureQuestionBankRoot(); ensureQuestionBankTopic(); }, 250));
+  /* Theme rollback is handled by phase1-upgrade.js; do not auto-switch the user's theme here. */
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once:true}); else init();
   window.addEventListener('load', () => setTimeout(init, 120));
 })();
@@ -187,5 +197,5 @@
 /* Ensure the user's requested profile fallback is available without erasing stored stats. */
 try {
   const s = appCache()?.settings;
-  if (s && (!s.userName || s.userName === 'Scholar')) s.userName = 'Zayan';
+  /* Preserve the existing profile name during Dashboard rollback. */
 } catch (_) {}
