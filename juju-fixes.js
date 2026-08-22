@@ -46,4 +46,10 @@
     const render = function() { const path = String(window.Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard'); if (path === 'inbox' || path === 'notifications') return renderInbox(); if (path === 'settings') return renderJujuSettings(); return oldRender.apply(this, arguments); };
     render.__jujuRoute = true; window.render = render;
   }
+  const bootRoute = () => {
+    const path = String(location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
+    if ((path === 'inbox' || path === 'notifications' || path === 'settings') && typeof window.__admissionRenderRoute === 'function') window.__admissionRenderRoute();
+  };
+  window.addEventListener('load', () => setTimeout(bootRoute, 0), { once: true });
+  setTimeout(bootRoute, 0);
 })();
