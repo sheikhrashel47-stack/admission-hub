@@ -2778,7 +2778,7 @@ function renderMockRunning(){
               <div class="let">${String.fromCharCode(65+i)}</div><div>${esc(o)}</div>
             </div>`).join('')}
         </div>
-        ${e.selectedAnswers[q.id]!==undefined ? `<button class="btn ghost sm" style="margin-top:12px; font-size:11px; padding:4px 8px;" onclick="selectMockAnswer('${q.id}',${e.selectedAnswers[q.id]})">Clear Selection</button>` : ''}
+        <div class="exam-clear-slot">${e.selectedAnswers[q.id]!==undefined ? `<button class="btn ghost sm" style="margin-top:12px; font-size:11px; padding:4px 8px;" onclick="selectMockAnswer('${q.id}',${e.selectedAnswers[q.id]})">Clear Selection</button>` : ''}</div>
       </div>
     `).join('')}
   </div>
@@ -2890,6 +2890,10 @@ function renderFlashRunning(){
           <span class="row"><span class="ic">⏱</span> <b>18:45</b> Time Left</span>
         </div>
         <div class="progbar flash-prog"><div style="width:${progress}%"></div></div>
+      </div>
+      <div class="flash-nav flash-nav-top">
+        <button class="btn secondary" onclick="flashPrev()" ${e.currentIndex===0?'disabled':''}>&lt; Previous</button>
+        <button class="btn" onclick="flashNext()">${e.currentIndex===total-1?'Finish':'Next Question &gt;'}</button>
       </div>
 
       <article class="card flash-q-card">
@@ -5091,5 +5095,6 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
 </style>
 <script src="requested-removals.js?v=1"></script>
 <script src="juju-fixes.js?v=1"></script>
+<script src="juju-visual-fixes.js?v=2"></script>
 </body>
 </html>
