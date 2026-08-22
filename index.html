@@ -752,6 +752,7 @@ const NAV_TABS=[
   {key:'smart-formatter', icon:'🧩', label:'Parser'},
   {key:'exam', icon:'📝', label:'Exam'},
   {key:'history', icon:'📋', label:'History'},
+  {key:'profile', icon:'👤', label:'Profile'},
 ];
 
 function baseTab(path){
@@ -760,6 +761,7 @@ function baseTab(path){
   if(path.startsWith('exam')) return 'exam';
   if(path.startsWith('question-bank')||path.startsWith('subject')||path.startsWith('topic')||path.startsWith('question')||path.startsWith('add-question')||path.startsWith('edit-question')) return 'question-bank';
   if(path.startsWith('history')) return 'history';
+  if(path.startsWith('profile')) return 'profile';
   if(path.startsWith('notes')) return '';
   if(path.startsWith('study-hub/quick-notes')) return 'study-hub/quick-notes';
   if(path.startsWith('progress/plan')) return 'dashboard';
@@ -4831,6 +4833,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
 <script src="master-update.js?v=perf1"></script>
 <script src="upgrade-features.js?v=4"></script>
 <script src="phase3-intelligence.js?v=4"></script>
+<script src="profile-progress-system.js?v=restore-profile"></script>
 <script src="phase1-upgrade.js?v=2"></script>
 <script src="web-search-fix.js?v=1"></script>
 <script src="study-tools-restore.js?v=3"></script>
@@ -5043,16 +5046,16 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 (() => {
   const removedRoute = (path) => {
     const p = String(path || '').replace(/^#\/?/, '').split('?')[0];
-    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || p.startsWith('memorizing') || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history' || p === 'notifications' || p === 'inbox';
+    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || p.startsWith('memorizing') || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history';
   };
   const purgeRemovedData = async () => {
-    ['admission_phase3_notifications','admission_phase3_notification_settings','admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','xp'].forEach((key) => { try { localStorage.removeItem(key); } catch (_) {} });
+    ['admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','xp'].forEach((key) => { try { localStorage.removeItem(key); } catch (_) {} });
     try {
       if (typeof dbClear === 'function') { await dbClear('vocabulary'); if (typeof CACHE !== 'undefined') CACHE.vocabulary = []; }
       if (typeof dbGetAll === 'function' && typeof dbPut === 'function') {
         const records = await dbGetAll('settings');
         for (const settings of records) {
-          ['profileV1','gamificationV3','rewardInventory','rewardBlueprint200','rewardQuestVersion','dailyQuestV2','phase3Quests','xpBalance','totalXpEarned','xpLevel','xpLedger','xpDaily','unlockedRewards','totalXpSpent','totalGoldSpent','totalDiamondSpent','gold','diamonds','userName','name','avatar'].forEach((key) => delete settings[key]);
+          ['gamificationV3','rewardInventory','rewardBlueprint200','rewardQuestVersion','dailyQuestV2','phase3Quests','xpBalance','totalXpEarned','xpLevel','xpLedger','xpDaily','unlockedRewards','totalXpSpent','totalGoldSpent','totalDiamondSpent','gold','diamonds'].forEach((key) => delete settings[key]);
           await dbPut('settings', settings);
         }
         if (typeof CACHE !== 'undefined' && records[0]) CACHE.settings = records[0];
@@ -5064,7 +5067,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (currentPath() !== 'dashboard') return;
     const page = document.querySelector('#app .page');
     if (!page) return;
-    page.querySelectorAll('[data-study-hub-dashboard-card],[data-ai-dashboard],.ai-dashboard-card,[data-special-study-tools],[data-profile-entry],[data-phase3-entry],.p3-inbox-btn,.p3-recommend-v3,.p3-tasks-v3,.p3-bottom-row-v3,.p3-focus-section-v3,.p3-start-card-v3').forEach((node) => node.remove());
+    page.querySelectorAll('[data-study-hub-dashboard-card],[data-ai-dashboard],.ai-dashboard-card,[data-special-study-tools],[data-profile-entry],[data-phase3-entry],.p3-recommend-v3,.p3-tasks-v3,.p3-bottom-row-v3,.p3-focus-section-v3,.p3-start-card-v3').forEach((node) => node.remove());
     [...page.querySelectorAll('section')].forEach((section) => {
       const heading = section.querySelector('.p3-section-head-v3 b, .section-heading h2');
       if (heading && heading.textContent.trim() === 'Special Study Tools') section.remove();
