@@ -3,7 +3,7 @@
 */
 (function(){
   'use strict';
-  const LS={tasks:'admission_phase3_tasks', notifications:'admission_phase3_notifications', notificationSettings:'admission_phase3_notification_settings', motivation:'admission_phase3_motivation_state'};
+  const LS={tasks:'admission_phase3_tasks', motivation:'admission_phase3_motivation_state'};
   const CATEGORIES=['Study','Revision','Exam','Result','Streak','Progress','Achievement','System'];
   const MOTIVATIONS=[
     ['আজকের ফলাফল তোমার অগ্রগতি দেখাচ্ছে।','এই ধারাবাহিকতাই তোমার শক্তি।','আরও এক ধাপ এগিয়ে যাও।'],
@@ -45,22 +45,6 @@
   function summary(){const s=snaps(),answered=s.filter(x=>x.status!=='skipped'),correct=s.filter(x=>x.status==='correct'),wrong=s.filter(x=>x.status==='wrong'),skipped=s.filter(x=>x.status==='skipped'),rs=results();const days=new Set(s.map(x=>keyOf(x.examDate)));const ordered=[...days].sort();let streak=0,run=0,last='';ordered.forEach(k=>{if(last&&dateMs(k)-dateMs(last)===86400000)run++;else run=1;streak=Math.max(streak,run);last=k});const today=keyOf(Date.now()),todayItems=s.filter(x=>keyOf(x.examDate)===today),recent=rs.slice(-5),scores=rs.map(r=>Number(r.score)||0);return {s,answered,correct,wrong,skipped,rs,days,streak,todayItems,recent,scores,accuracy:pct(correct.length,answered.length),todayAnswered:todayItems.filter(x=>x.status!=='skipped').length,todayCorrect:todayItems.filter(x=>x.status==='correct').length}};
   function tasks(){const v=read(LS.tasks,[]);return Array.isArray(v)?v:[]}
   function saveTasks(v){write(LS.tasks,v)}
-  function settings(){const s=read(LS.notificationSettings,{});return Object.fromEntries(CATEGORIES.map(c=>[c,s[c]!==false]))}
-  function saveSettings(v){write(LS.notificationSettings,v)}
-  function notifications(){const v=read(LS.notifications,[]);return Array.isArray(v)?v:[]}
-  function addNotification(category,title,body,dedupe){
-    if(!settings()[category])return;
-    let ns=notifications();
-    if(ns.some(n=>n.dedupeKey===dedupe))return;
-    const item={id:'n-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),category,title,body,dedupeKey:dedupe,read:false,createdAt:Date.now()};
-    ns=[item,...ns].slice(0,100);
-    write(LS.notifications,ns);
-    
-    // Dispatch the in-app notification event without any external messaging dependency.
-    try {
-      window.dispatchEvent(new CustomEvent('admission:notify',{detail:{category,title,body,dedupeKey:dedupe}}));
-    } catch(e) { console.warn('Notification dispatch failed', e); }
-  }
   function derive(){const z=summary(),bySubject=aggregate(z.s,'subjectId'),byTopic=aggregate(z.s,'topicId');const weakTopics=byTopic.filter(x=>x.answered>0).sort((a,b)=>a.accuracy-b.accuracy||b.wrong-a.wrong);const weakSubjects=bySubject.filter(x=>x.answered>0).sort((a,b)=>a.accuracy-b.accuracy);const mistakeMap={};(CACHE.mistakes||[]).forEach(m=>{const id=m.topicId||m.questionId;mistakeMap[id]=(mistakeMap[id]||0)+Number(m.wrongCount||1)});const repeated=Object.entries(mistakeMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({name:topicLabel(id),count,id}));const target=Number(CACHE.settings?.dailyTarget||read('dailyTarget',20))||20;const done=z.todayAnswered;const pending=Math.max(0,target-done);const recent=z.recent.map(r=>({date:keyOf(r.date||r.createdAt),score:Number(r.score)||0,accuracy:Number(r.accuracy)||0}));const todayActivity=z.todayItems.reduce((acc,item)=>{const sub=subjectLabel(item.subjectId);if(!acc[sub])acc[sub]={correct:0,total:0};if(item.status==='correct')acc[sub].correct++;if(item.status!=='skipped')acc[sub].total++;return acc},{});const activityText=Object.entries(todayActivity).map(([name,stats])=>`${name}: ${stats.correct}/${stats.total}`).join(', ')||'No activity yet';const last=recent.at(-1),prev=recent.at(-2);let recommendation='প্রথমে একটি ছোট practice set সম্পূর্ণ করুন।',action="navigate('exam/setup')";if(repeated[0]){recommendation=`${repeated[0].name}-এ ${repeated[0].count}টি stored mistake আছে। আগে এই topic revise করুন।`;action=`startPhase3Topic('${String(repeated[0].id).replace(/'/g,"\\'")}')`}else if(weakTopics[0]){recommendation=`${weakTopics[0].name}-এর accuracy ${weakTopics[0].accuracy}%। focused revision দিয়ে শুরু করুন।`;action=`startPhase3Topic('${String(weakTopics[0].id).replace(/'/g,"\\'")}')`}else if(pending>0){recommendation=`আজকের target পূরণে আরও ${pending}টি প্রশ্ন বাকি।`;action="navigate('exam/setup')"}else if(last&&prev&&last.score>prev.score){recommendation='সাম্প্রতিক score বেড়েছে। এই momentum ধরে একটি revision করুন।';action="navigate('progress')"}return {z,bySubject,byTopic,weakTopics,weakSubjects,repeated,target,done,pending,recent,recommendation,action,activityText}};
   function streak(){return summary().streak}
   function motivation(){const d=derive(),z=d.z;let idx=0;if(z.s.length===0)idx=16;else if(z.scores.at(-1)>=80)idx=0;else if(z.accuracy<60)idx=5;else if(d.repeated[0])idx=6;else if(z.recent.length<2)idx=3;else if(z.recent.at(-1).score>z.recent.at(-2).score)idx=4;else if(streak()>=3)idx=7;else if(d.weakTopics[0])idx=18;const state=read(LS.motivation,{last:-1});if(idx===state.last)idx=(idx+1)%MOTIVATIONS.length;write(LS.motivation,{last:idx,updatedAt:Date.now()});return MOTIVATIONS[idx]}
@@ -74,7 +58,6 @@
   function bars(items,label){if(!items.length)return '<div class="p3-empty">এই সময়সীমায় কোনো stored data নেই।</div>';return items.map(x=>`<div class="p3-bar-row"><div class="p3-bar-label"><span>${esc3(x.name)}</span><b>${x.accuracy}%</b></div><div class="p3-bar"><i style="width:${Math.min(100,Math.max(0,x.accuracy))}%"></i></div><small>${x.answered||0} answered · ${x.wrong||0} wrong</small></div>`).join('')}
   const ICONS = {
     crown: `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"></path></svg>`,
-    inbox: `<svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>`,
     target: `<svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>`,
     tasks: `<svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><path d="M9 14l2 2 4-4"></path></svg>`,
     accuracy: `<svg viewBox="0 0 24 24" width="24" height="24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>`,
@@ -96,7 +79,6 @@
     const mock=z.rs.length,xp=Number(localStorage.getItem('xp')||CACHE.settings?.xp||0);
     const targetPct = Math.min(100, Math.round(d.done/Math.max(1,d.target)*100));
     const tasksPct = Math.min(100, Math.round(done/Math.max(1,t.length||1)*100));
-    const unread = notifications().filter(n=>!n.read).length;
     
     // Original data points
     const unfinished = typeof CACHE !== 'undefined' && Array.isArray(CACHE.exams) ? CACHE.exams.find((exam) => exam.status === 'running') : null;
@@ -111,7 +93,6 @@
       ['📊', 'Progress', 'অগ্রগতি দেখুন', 'progress'],
       ['🎯', 'Goals', 'দৈনিক লক্ষ্য', 'progress/plan'],
       ['🔄', 'Revision', 'স্মার্ট রিভিশন', 'mistakes'],
-      ['📖', 'Vocab', 'ভোকাবুলারি', 'vocabulary'],
       ['🕐', 'History', 'পরীক্ষার ইতিহাস', 'history'],
       ['🔍', 'Search', 'প্রশ্ন খুঁজুন', 'question-bank'],
       ['⚙️', 'Settings', 'অ্যাপ সেটিংস', 'settings'],
@@ -153,12 +134,6 @@
             <h2>সুপ্রভাত, Scholar</h2>
             <p>"আজকের পরিশ্রমই তোমার আগামীকালের সাফল্য!"</p>
           </div>
-        </div>
-        <div class="p3-header-right">
-          <button class="p3-inbox-btn" onclick="navigate('notifications')">
-            <span>Inbox</span>
-            ${unread ? `<i class="p3-badge">${unread}</i>` : ''}
-          </button>
         </div>
       </header>
 
@@ -208,7 +183,7 @@
       <section class="p3-card-v3 p3-command-section-v3">
         <div class="p3-section-head-v3">
           <b>Your Command Center</b>
-          <span class="p3-swipe-hint-v3">Swipe to explore · 12 tools</span>
+          <span class="p3-swipe-hint-v3">Swipe to explore · 11 tools</span>
         </div>
         <div class="command-carousel" aria-label="Quick access study tools">
           <div class="command-track" id="commandTrack">
@@ -343,18 +318,13 @@
     if(typeof installCarousel === 'function') installCarousel(page);
   }
   let analyticsRange=7;window.phase3SetAnalyticsRange=function(n){analyticsRange=Number(n)||7;render()};function analyticsHTML(){const d=derive(),z=d.z,bySubject=d.bySubject,byTopic=d.byTopic;const daily=Array.from({length:analyticsRange},(_,i)=>{const dt=new Date();dt.setDate(dt.getDate()-(analyticsRange-1-i));const k=keyOf(dt);const s=z.s.filter(x=>keyOf(x.examDate)===k);return {name:k.slice(5),accuracy:pct(s.filter(x=>x.status==='correct').length,s.filter(x=>x.status!=='skipped').length),answered:s.filter(x=>x.status!=='skipped').length}});const weekly=(CACHE.dailyStats||[]).slice(-7).reduce((a,x)=>a+Number(x.timeMs||0),0);const monthly=(CACHE.dailyStats||[]).slice(-30).reduce((a,x)=>a+Number(x.timeMs||0),0);const best=z.scores.length?Math.max(...z.scores):0,low=z.scores.length?Math.min(...z.scores):0;return `<div class="explorer-head"><div class="explorer-kicker">Stored Learning Intelligence</div><div class="explorer-title">Advanced Analytics</div><div class="explorer-subtitle">শুধু তোমার IndexedDB ও localStorage-এর বাস্তব record থেকে গণনা করা হয়েছে।</div></div><div class="p3-analytics-tabs"><button class="chip ${analyticsRange===7?'active':''}" onclick="phase3SetAnalyticsRange(7)">Last 7 days</button><button class="chip ${analyticsRange===30?'active':''}" onclick="phase3SetAnalyticsRange(30)">Last 30 days</button><button class="chip ${analyticsRange===90?'active':''}" onclick="phase3SetAnalyticsRange(90)">Last 90 days</button></div><div class="phase5-grid three"><div class="phase5-kpi"><b>${z.rs.length}</b><span>Mock tests</span></div><div class="phase5-kpi"><b>${z.accuracy}%</b><span>Average accuracy</span></div><div class="phase5-kpi"><b>${best||0}</b><span>Best score</span></div><div class="phase5-kpi"><b>${low||0}</b><span>Lowest score</span></div><div class="phase5-kpi"><b>${z.correct.length}</b><span>Correct</span></div><div class="phase5-kpi"><b>${z.wrong.length}</b><span>Wrong · ${z.skipped.length} skipped</span></div></div><div class="p3-analytics-grid"><section class="card"><div class="p3-section-head"><b>Accuracy trend</b><span>${z.s.length?'Last 7 stored days':'Zero state'}</span></div>${bars(daily,'accuracy')}</section><section class="card"><div class="p3-section-head"><b>Time analysis</b><span>${fmtTime(weekly)} / ${fmtTime(monthly)}</span></div><div class="p3-time-cards"><span><b>${fmtTime(weekly)}</b>Last 7 days</span><span><b>${fmtTime(monthly)}</b>Last 30 days</span><span><b>${z.days.size}</b>Active days</span><span><b>${z.rs.length?Math.round(z.rs.reduce((a,r)=>a+Number(r.duration||0),0)/z.rs.length/60000):0} min</b>Avg session</span></div></section><section class="card"><div class="p3-section-head"><b>Subject performance</b><span>${bySubject.length} subjects</span></div>${bars(bySubject,'accuracy')}</section><section class="card"><div class="p3-section-head"><b>Topic performance & mistakes</b><span>${byTopic.length} topics</span></div>${bars(byTopic.slice(0,10),'accuracy')}${!byTopic.length?'<div class="p3-empty">Practice data জমা হলে topic insight দেখা যাবে।</div>':''}</section></div><div class="card"><div class="p3-section-head"><b>Recent performance</b><span>${z.recent.length} stored results</span></div>${z.recent.length?`<div class="p3-result-list">${z.recent.slice().reverse().map(r=>`<span><b>${r.score}</b><small>${r.date} · ${r.accuracy||0}% accuracy</small></span>`).join('')}</div>`:'<div class="p3-empty">কোনো mock result নেই। প্রথম real result submit হলে এখানে trend তৈরি হবে।</div>'}</div><button class="btn secondary" onclick="exportAnalytics()">Export analytics CSV</button>`}
-  function notificationsHTML(){const ns=notifications(),unread=ns.filter(n=>!n.read).length,s=settings();return `<div class="explorer-head"><div class="explorer-kicker">Unified Inbox</div><div class="explorer-title">Notification Center</div><div class="explorer-subtitle">Study, revision, exam, result, streak, progress, achievement ও system alerts এক জায়গায়।</div></div><div class="p3-notify-toolbar"><span>${unread} unread · ${ns.length} history</span><button class="btn secondary sm" onclick="phase3MarkAllRead()">Mark all as read</button></div><section class="card p3-settings-card"><div class="p3-section-head"><b>Category settings</b><span>Persisted</span></div><div class="p3-category-grid">${CATEGORIES.map(c=>`<label><span>${c}</span><input type="checkbox" ${s[c]?'checked':''} onchange="phase3ToggleCategory('${c}',this.checked)"></label>`).join('')}</div></section>${ns.length?`<div class="p3-notification-list">${ns.map(n=>`<article class="card ${n.read?'':'is-unread'}"><div class="row between"><span class="pill ${n.category==='Revision'?'orange':n.category==='Achievement'?'green':''}">${esc3(n.category)}</span><small>${new Date(n.createdAt).toLocaleString()}</small></div><b>${esc3(n.title)}</b><p>${esc3(n.body)}</p><button class="linkbtn" onclick="phase3MarkRead('${n.id}')">${n.read?'Read':'Mark read'}</button></article>`).join('')}</div>`:'<div class="card p3-empty">এখনও কোনো notification তৈরি হয়নি। নতুন stored activity হলে এখানে history তৈরি হবে।</div>'}`}
   function motivationHTML(){const m=motivation();return `<section class="card p3-motivation"><div class="p3-kicker">আজকের অনুপ্রেরণা</div>${m.map(x=>`<div>${esc3(x)}</div>`).join('')}</section>`}
   window.__phase3ProgressExtras=()=>motivationHTML()+`<section class="card" data-p3-progress><div class="p3-section-head"><b>Learning intelligence</b><button class="btn secondary sm" onclick="navigate('analytics')">Open analytics</button></div><p>${esc3(derive().recommendation)}</p></section>`;
-  function hookRender(){const old=window.render;if(window.__phase3RenderHook)return;window.__phase3RenderHook=true;window.render=function(){const p=Router.path;if(p==='analytics')return renderShell(analyticsHTML(),{title:'Analytics',back:"navigate('dashboard')"});if(p==='notifications')return renderShell(notificationsHTML(),{title:'Notifications',back:"navigate('dashboard')"});return old.apply(this,arguments);};}
+  function hookRender(){const old=window.render;if(window.__phase3RenderHook)return;window.__phase3RenderHook=true;window.render=function(){const p=Router.path;if(p==='analytics')return renderShell(analyticsHTML(),{title:'Analytics',back:"navigate('dashboard')"});return old.apply(this,arguments);};}
   window.startPhase3Topic=function(id){const pool=(CACHE.questions||[]).filter(q=>q.topicId===id);if(pool.length&&typeof beginExamFromPool==='function')return beginExamFromPool(pool.slice(0,20),'flash');toast('এই topic-এ practice question নেই');};
-  window.phase3MarkRead=function(id){write(LS.notifications,notifications().map(n=>n.id===id?{...n,read:true}:n));render()};
-  window.phase3MarkAllRead=function(){write(LS.notifications,notifications().map(n=>({...n,read:true})));render()};
-  window.phase3ToggleCategory=function(c,v){const s=settings();s[c]=!!v;saveSettings(s);render()};
   window.phase3AddTask=function(){const title=prompt('আজকের task লিখুন');if(!title?.trim())return;saveTasks([...tasks(),{id:'t-'+Date.now(),title:title.trim(),completed:false,createdAt:Date.now()}]);render()};
   window.phase3CompleteTask=function(id){saveTasks(tasks().map(t=>t.id===id?{...t,completed:!t.completed,completedAt:Date.now()}:t));render()};
-  function observeResult(){if(window.__phase3Observed)return;window.__phase3Observed=true;const old=window.navigate;window.navigate=function(path){const before=Router.path;const r=old.apply(this,arguments);if(before==='exam/result'||path==='exam/result')setTimeout(()=>{const d=derive(),z=d.z;if(z.rs.length){addNotification('Result','নতুন result সংরক্ষিত হয়েছে',`Score ${z.rs.at(-1).score||0}; accuracy ${z.rs.at(-1).accuracy||0}%`,'result-'+z.rs.at(-1).id);if(d.repeated[0])addNotification('Revision','Revision priority শনাক্ত হয়েছে',`${d.repeated[0].name}-এ repeated mistake বেশি।`,'revision-'+d.repeated[0].id+'-'+keyOf(Date.now()))}},200);return r};}
-  function init(){hookRender();observeResult();try{const d=derive();if(d.z.s.length){if(d.z.todayAnswered>0)addNotification('Progress','আজকের progress update',`${d.z.todayAnswered}টি প্রশ্নের stored activity পাওয়া গেছে।`,'progress-'+keyOf(Date.now()));if(d.repeated[0])addNotification('Revision','Weak area ready for revision',`${d.repeated[0].name} আগে revise করা ভালো।`,'weak-'+d.repeated[0].id+'-'+keyOf(Date.now()))}}catch(e){console.warn('Phase 3 intelligence init failed',e)}}
+  function init(){hookRender();try{derive()}catch(e){console.warn('Phase 3 intelligence init failed',e)}}
   const style=document.createElement('style');style.textContent=`
     .p3-dashboard-v3{padding:10px 0;color:#1e293b;max-width:600px;margin:0 auto}
     .p3-header-v3{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding:0 5px}
@@ -364,8 +334,6 @@
     .p3-header-text p{margin:0;font-size:12px;color:#64748b}
     .p3-kicker-v3{font-size:10px;font-weight:800;letter-spacing:0.1em;color:#10b981}
     .p3-header-right{display:flex;gap:8px;align-items:center}
-    .p3-inbox-btn{background:#f1f5f9;border:0;padding:8px 15px;border-radius:20px;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;position:relative;cursor:pointer}
-    .p3-badge{position:absolute;top:-5px;right:-5px;background:#10b981;color:#fff;font-size:9px;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-style:normal;border:2px solid #fff}
     .p3-live-badge{font-size:9px;font-weight:800;padding:5px 10px;border:1.5px solid #cbd5e1;border-radius:20px;color:#64748b}
 
     .p3-card-v3{background:#fff;border-radius:20px;padding:16px;box-shadow:0 4px 20px rgba(0,0,0,0.04);border:1px solid #f1f5f9;margin-bottom:12px}

@@ -752,7 +752,6 @@ const NAV_TABS=[
   {key:'smart-formatter', icon:'🧩', label:'Parser'},
   {key:'exam', icon:'📝', label:'Exam'},
   {key:'history', icon:'📋', label:'History'},
-  {key:'profile', icon:'👤', label:'Profile'},
 ];
 
 function baseTab(path){
@@ -764,7 +763,7 @@ function baseTab(path){
   if(path.startsWith('notes')) return '';
   if(path.startsWith('study-hub/quick-notes')) return 'study-hub/quick-notes';
   if(path.startsWith('progress/plan')) return 'dashboard';
-  if(path.startsWith('profile')||path.startsWith('progress')) return 'profile';
+  if(path.startsWith('progress')) return 'dashboard';
   return 'dashboard';
 }
 
@@ -849,7 +848,6 @@ function render(){
   if(p==='mistakes') return renderMistakes();
   if(p==='ai-chat') return renderAIChat();
   if(p==='progress') return renderProgress();
-  if(p==='vocabulary') return renderVocabulary();
   if(p==='settings') return renderSettings();
   renderDashboard();
 }
@@ -3421,47 +3419,6 @@ function renderProgress(){
   renderShell(html, {title:'Progress'});
 }
 
-/* ================= VOCABULARY ================= */
-let VocabTab='english';
-function renderVocabulary(){
-  const items=CACHE.vocabulary.filter(v=>v.category===VocabTab);
-  const html=`
-  <div class="tabs">
-    ${[['english','English'],['bangla','বাংলা শব্দার্থ'],['idiom','Idiom/বাগধারা'],['prep','Preposition']].map(([k,l])=>`<div class="tab ${VocabTab===k?'active':''}" onclick="VocabTab='${k}'; render();">${l}</div>`).join('')}
-  </div>
-  <button class="btn" style="margin-bottom:12px;" onclick="openVocabForm(null)">+ Add Word</button>
-  ${items.length===0? emptyState('📖','এখনো কোনো শব্দ নেই','প্রথম শব্দ যোগ করুন।','+ Add Word','openVocabForm(null)') :
-    items.map(v=>`<div class="card">
-      <div class="row between"><b>${esc(v.word)}</b><div class="row"><button class="iconbtn" onclick="openVocabForm('${v.id}')">✏️</button><button class="iconbtn" onclick="deleteVocab('${v.id}')">🗑️</button></div></div>
-      <div class="muted">${esc(v.meaning||'')}</div>
-      ${v.example? `<div class="muted" style="margin-top:4px;"><i>${esc(v.example)}</i></div>`:''}
-    </div>`).join('')}
-  `;
-  renderShell(html, {title:'Vocabulary'});
-}
-function openVocabForm(id){
-  const v=id? CACHE.vocabulary.find(x=>x.id===id): null;
-  openModal(`<h3>${v?'Edit':'Add'} Word</h3>
-    <label class="flabel">Word / Term</label><input type="text" id="vWord" value="${v?esc(v.word):''}">
-    <label class="flabel">Meaning</label><input type="text" id="vMeaning" value="${v?esc(v.meaning||''):''}">
-    <label class="flabel">Example (optional)</label><input type="text" id="vExample" value="${v?esc(v.example||''):''}">
-    <button class="btn" style="margin-top:14px;" onclick="saveVocab(${v?`'${id}'`:'null'})">Save</button>`);
-}
-async function saveVocab(id){
-  const word=document.getElementById('vWord').value.trim();
-  const meaning=document.getElementById('vMeaning').value.trim();
-  const example=document.getElementById('vExample').value.trim();
-  if(!word){toast('Word required'); return;}
-  if(id){ const v=CACHE.vocabulary.find(x=>x.id===id); Object.assign(v,{word,meaning,example}); await dbPut('vocabulary',v); }
-  else { await dbPut('vocabulary',{id:uid(),category:VocabTab,word,meaning,example,status:'new',createdAt:Date.now()}); }
-  CACHE.vocabulary=await dbGetAll('vocabulary');
-  closeModal(); toast('Saved'); render();
-}
-function deleteVocab(id){
-  confirmModal('Delete Word','Remove this word from your vocabulary list?', async ()=>{
-    await dbDel('vocabulary',id); CACHE.vocabulary=await dbGetAll('vocabulary'); toast('Deleted'); render();
-  },'Delete',true);
-}
 
 /* ================= SETTINGS / BACKUP / RESTORE ================= */
 function renderSettings(){
@@ -4491,18 +4448,11 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
   window.togglePlanTask=async function(dayId,taskId){const d=CACHE.planDays.find(x=>x.id===dayId);if(!d)return;const t=d.tasks.find(x=>x.id===taskId);if(!t)return;t.done=!t.done;d.completed=dayProgress(d)===100;if(d.completed){d.archivedAt=Date.now();const p=activePlan();if(p){p.activeDayIndex=Math.min(89,d.index+1);await dbPut(planStore,p);}}await dbPut(dayStore,d);await refreshPlans();render();};
   window.planTodayMock=function(){const d=(CACHE.planDays||[]).find(x=>x.planId===activePlan()?.id&&x.index===activePlan()?.activeDayIndex);const pool=(d?.topics||[]).flatMap(n=>CACHE.questions.filter(q=>topicName(q.topicId)===n));if(pool.length)beginExamFromPool(pool.slice(0,20),'mock');else navigate('exam/setup');};
   function planDayCard(d,active){return `<article class="card plan-day ${d.completed?'complete':''} ${active?'active':''}"><div class="row between" style="align-items:flex-start"><div><div class="explorer-kicker">DAY ${String(d.dayNumber).padStart(2,'0')} · ${esc(d.dayName)}</div><h3 style="margin:3px 0">${planTitle(new Date(d.actualDate+'T12:00:00'))}</h3></div><span class="pill ${d.completed?'green':''}">${dayProgress(d)}%</span></div><div class="progbar" style="margin:10px 0 5px"><div style="width:${dayProgress(d)}%"></div></div><div class="muted">${planDoneCount(d)}/${planTaskCount(d)} topics/tasks · ${d.mcqCompleted||0}/${d.mcqTarget} MCQs · ${d.studyMinutes} min study</div><div style="margin-top:8px">${(d.tasks||[]).map(t=>`<label class="plan-task ${t.done?'done':''}"><input type="checkbox" ${t.done?'checked':''} onchange="togglePlanTask('${d.id}','${t.id}')"><span>${esc(t.label)}</span></label>`).join('')||'<div class="muted">No tasks yet. Add them with Edit Day.</div>'}</div>${d.notes?`<div class="muted" style="margin-top:10px">Note: ${esc(d.notes)}</div>`:''}<div class="row wrap" style="gap:7px;margin-top:12px"><button class="btn ghost sm" onclick="editPlanDay('${d.id}')">Edit Day</button>${active&&!d.completed?'<button class="btn secondary sm" onclick="planTodayMock()">Today\'s Mock</button>':''}</div></article>`;}
-  function renderPlan(){const p=activePlan();if(!p){renderShell(`<div class="explorer-head"><div class="explorer-kicker">Admission Roadmap</div><div class="explorer-title">90-Day Master Plan</div><div class="explorer-subtitle">Build a calendar-safe study roadmap connected to your existing subjects, topics, and Mock Test flow.</div></div><div class="card premium-hero"><h2 style="margin:0">Your next 90 days, organized.</h2><p style="opacity:.8">Create a plan to generate every date, day name, task checklist, MCQ target, and progress record.</p><button class="btn" style="background:#fff;color:var(--emerald-d)" onclick="openPlanCreate()">Create 90-Day Plan</button></div>`,{title:'Master Plan'});return;}const days=(CACHE.planDays||[]).filter(d=>d.planId===p.id).sort((a,b)=>a.index-b.index);const a=planAnalysis(p,days), activeIndex=Math.min(89,p.activeDayIndex||0);planWindowStart=Math.max(0,Math.min(80,planWindowStart));const visible=days.slice(planWindowStart,planWindowStart+10);renderShell(`<div class="explorer-head"><div class="explorer-kicker">Admission Roadmap</div><div class="explorer-title">90-Day Master Plan</div><div class="explorer-subtitle">${p.paused?'Paused · ':''}Day ${activeIndex+1}/90 · ${a.recommendation}</div></div><section class="premium-hero"><div class="row between"><div><div style="font-size:11px;letter-spacing:.08em;font-weight:800;opacity:.8">PLAN HEALTH ${a.health[0]}</div><div style="font-size:22px;font-weight:800;margin-top:4px">${a.health[1]}</div></div><button class="xp-badge" onclick="navigate('rewards')">✦ ${formatXP(CACHE.settings.xpBalance||0)} XP</button></div><div class="phase-grid" style="margin-top:16px"><div><b>${Math.max(0,90-a.completed)}</b><small>Days remaining</small></div><div><b>${a.actual}%</b><small>Overall progress</small></div><div><b>${a.topics}</b><small>Tasks completed</small></div><div><b>${computeStreak()}</b><small>Study streak</small></div></div></section><div class="row wrap" style="gap:7px;margin-bottom:10px"><button class="btn sm" onclick="changePlanStart()">Change start</button><button class="btn sm" onclick="openWidgetSyncModal()">📲 Widget Sync</button><button class="btn ghost sm" onclick="pauseAdmissionPlan()">${p.paused?'Resume':'Pause'}</button><button class="btn ghost sm" onclick="resetFuturePlan()">Reset future</button></div><div class="plan-window"><button class="chip" onclick="planWindowStart=Math.max(0,planWindowStart-10);render()">← Earlier</button>${[0,10,20,30,40,50,60,70,80].map(n=>`<button class="chip ${planWindowStart===n?'active':''}" onclick="planWindowStart=${n};render()">Days ${n+1}-${Math.min(90,n+10)}</button>`).join('')}<button class="chip" onclick="planWindowStart=Math.min(80,planWindowStart+10);render()">Later →</button></div>${visible.map(d=>planDayCard(d,d.index===activeIndex)).join('')}`,{title:'90-Day Master Plan'});}
+  function renderPlan(){const p=activePlan();if(!p){renderShell(`<div class="explorer-head"><div class="explorer-kicker">Admission Roadmap</div><div class="explorer-title">90-Day Master Plan</div><div class="explorer-subtitle">Build a calendar-safe study roadmap connected to your existing subjects, topics, and Mock Test flow.</div></div><div class="card premium-hero"><h2 style="margin:0">Your next 90 days, organized.</h2><p style="opacity:.8">Create a plan to generate every date, day name, task checklist, MCQ target, and progress record.</p><button class="btn" style="background:#fff;color:var(--emerald-d)" onclick="openPlanCreate()">Create 90-Day Plan</button></div>`,{title:'Master Plan'});return;}const days=(CACHE.planDays||[]).filter(d=>d.planId===p.id).sort((a,b)=>a.index-b.index);const a=planAnalysis(p,days), activeIndex=Math.min(89,p.activeDayIndex||0);planWindowStart=Math.max(0,Math.min(80,planWindowStart));const visible=days.slice(planWindowStart,planWindowStart+10);renderShell(`<div class="explorer-head"><div class="explorer-kicker">Admission Roadmap</div><div class="explorer-title">90-Day Master Plan</div><div class="explorer-subtitle">${p.paused?'Paused · ':''}Day ${activeIndex+1}/90 · ${a.recommendation}</div></div><section class="premium-hero"><div class="row between"><div><div style="font-size:11px;letter-spacing:.08em;font-weight:800;opacity:.8">PLAN HEALTH ${a.health[0]}</div><div style="font-size:22px;font-weight:800;margin-top:4px">${a.health[1]}</div></div></div><div class="phase-grid" style="margin-top:16px"><div><b>${Math.max(0,90-a.completed)}</b><small>Days remaining</small></div><div><b>${a.actual}%</b><small>Overall progress</small></div><div><b>${a.topics}</b><small>Tasks completed</small></div><div><b>${computeStreak()}</b><small>Study streak</small></div></div></section><div class="row wrap" style="gap:7px;margin-bottom:10px"><button class="btn sm" onclick="changePlanStart()">Change start</button><button class="btn sm" onclick="openWidgetSyncModal()">📲 Widget Sync</button><button class="btn ghost sm" onclick="pauseAdmissionPlan()">${p.paused?'Resume':'Pause'}</button><button class="btn ghost sm" onclick="resetFuturePlan()">Reset future</button></div><div class="plan-window"><button class="chip" onclick="planWindowStart=Math.max(0,planWindowStart-10);render()">← Earlier</button>${[0,10,20,30,40,50,60,70,80].map(n=>`<button class="chip ${planWindowStart===n?'active':''}" onclick="planWindowStart=${n};render()">Days ${n+1}-${Math.min(90,n+10)}</button>`).join('')}<button class="chip" onclick="planWindowStart=Math.min(80,planWindowStart+10);render()">Later →</button></div>${visible.map(d=>planDayCard(d,d.index===activeIndex)).join('')}`,{title:'90-Day Master Plan'});}
   window.renderAdmissionPlan=renderPlan;
 
   function comparisonHtml(){const today=phaseAggregate(phaseDayResults()), yesterday=phaseAggregate(phaseDayResults(localDayKey(addDays(new Date(),-1))));const rows=[['Questions',today.questions,yesterday.questions],['Accuracy',phaseAccuracy(today)+'%',phaseAccuracy(yesterday)+'%'],['Study time',fmtTime(today.time),fmtTime(yesterday.time)],['Mock tests',today.exams,yesterday.exams]];const delta=(a,b)=>{if(a===b)return '<span class="change-flat">→ 0%</span>';const n=typeof a==='number'&&typeof b==='number'?(b?Math.round((a-b)/b*100):100):null;return `<span class="${a>b?'change-up':'change-down'}">${a>b?'↑':'↓'} ${n===null?'':Math.abs(n)+'%'}</span>`};const message=today.questions===0&&yesterday.questions===0?'আজ ও গতকাল কোনো সংরক্ষিত অনুশীলন নেই—প্রথম একটি বাস্তব সেশন শুরু করুন।':today.questions>=yesterday.questions?'আজকের অনুশীলন গতকালের চেয়ে ভালো—এই ধারাটি বজায় রাখুন।':'আজকের গতি গতকালের তুলনায় কম; একটি ছোট ১০ প্রশ্নের সেশন দিয়ে শুরু করুন।';return `<div class="h2">Today vs Yesterday</div><div class="card"><div class="muted">বাস্তব সংরক্ষিত ডেটা · ${planTitle(new Date())}</div>${rows.map((r,i)=>`<div class="row between" style="padding:11px 0;border-bottom:${i<rows.length-1?'1px solid var(--line)':'0'}"><span>${r[0]}</span><span><b>${r[1]}</b> <span class="muted">vs ${r[2]}</span> &nbsp;${delta(r[1],r[2])}</span></div>`).join('')}<div class="insight-card" style="margin:10px 0 0">${message}</div></div>`;}
 
-  const rewards=[['Premium Theme','✦','A polished emerald theme'],['Premium Dashboard Skin','▦','A refined command center skin'],['Premium Card Style','▰','Elevated study cards'],['Special Exam Theme','◈','A focused exam palette'],['Animated Background','✺','Subtle ambient motion'],['Special XP Animation','⚡','A brighter XP reveal'],['Premium Result Animation','★','Celebrate result moments'],['Special Progress Animation','◒','A richer progress state'],['Celebration Effect','✹','Confetti-free glow effect'],['Rare Profile Badge','◆','Rare scholar badge'],['Special Streak Badge','🔥','Streak milestone badge'],['Golden Achievement Badge','🏆','Golden achievement badge'],['Emerald Premium Mode','●','Deep emerald workspace'],['Focus Mode Skin','◉','Distraction-free focus skin'],['Midnight Academic Theme','☾','Midnight academic contrast'],['Premium Typography Style','Aa','Enhanced type hierarchy'],['Special Loading Animation','◌','Premium loading state'],['Result Reveal Animation','◇','Dramatic result reveal'],['Exam Completion Animation','✓','Completion celebration'],['Ultimate Legend Visual Theme','♛','The highest visual tier']];
-  const rewardCost=i=>100+(Number(i)||0)*200; function formatXP(n){n=Number(n)||0;const units=[['Q',1e15],['T',1e12],['B',1e9],['M',1e6],['K',1e3]];for(const [u,v] of units){if(n>=v)return (n/v).toFixed(1).replace('.0','')+u;}return String(n);}
-  window.formatXP=formatXP;
-  async function awardXP(r){if(!r||r.testType!=='mock'||r.xpAwarded)return;const s=CACHE.settings;s.xpBalance=Math.max(0,Number(s.xpBalance||0)+Number(r.correct||0)-Number(r.wrong||0)*5);s.totalXpEarned=Number(s.totalXpEarned||0)+Math.max(0,Number(r.correct||0));s.xpLedger=[...(s.xpLedger||[]),{id:uid(),date:Date.now(),resultId:r.id,correct:r.correct,wrong:r.wrong,delta:Number(r.correct||0)-Number(r.wrong||0)*5}];r.xpAwarded=true;await dbPut('settings',s);await dbPut('examResults',r);CACHE.settings=s;}
-  const oldSubmit=submitExam; submitExam=async function(auto){await oldSubmit(auto);if(LastResult)await awardXP(LastResult);};
-  window.purchaseReward=async function(index){const s=CACHE.settings;const unlocked=s.unlockedRewards||[];if(unlocked.includes(index)){toast('Already unlocked');return;}const cost=rewardCost(index),balance=Number(s.xpBalance||0);if(balance<cost){toast(`${formatXP(cost-balance)} XP more needed`);return;}s.xpBalance=balance-cost;s.unlockedRewards=[...unlocked,index];s.xpLedger=[...(s.xpLedger||[]),{id:uid(),date:Date.now(),reward:index,delta:-cost}];await dbPut('settings',s);CACHE.settings=s;toast('Reward unlocked');render();setTimeout(()=>document.querySelector(`[data-reward="${index}"]`)?.classList.add('reward-glow'),40);};
-  function renderRewards(){const s=CACHE.settings,balance=Number(s.xpBalance||0),unlocked=s.unlockedRewards||[];renderShell(`<div class="explorer-head"><div class="explorer-kicker">Tools · Rewards</div><div class="explorer-title">XP Reward Shop</div><div class="explorer-subtitle">XP is earned only from completed Mock Tests: correct +1, wrong −5, skipped 0.</div></div><section class="premium-hero"><div class="row between"><div><div style="font-size:11px;letter-spacing:.08em;font-weight:800;opacity:.8">YOUR BALANCE</div><div style="font-size:32px;font-weight:900;margin-top:3px">${formatXP(balance)} <span style="font-size:14px;opacity:.7">XP</span></div></div><div style="font-size:42px">✦</div></div><div class="muted" style="color:rgba(255,255,255,.78);margin-top:10px">${unlocked.length}/20 rewards unlocked · Complete a Mock Test to earn XP.</div></section><div class="phase-grid" style="margin-bottom:12px"><div class="phase-metric"><b>${formatXP(s.totalXpEarned||0)}</b><span>Total XP earned</span></div><div class="phase-metric"><b>${unlocked.length}</b><span>Unlocked rewards</span></div></div><div class="grid2">${rewards.map((r,i)=>{const cost=rewardCost(i),is=unlocked.includes(i),can=balance>=cost;return `<article class="card reward-card ${is?'unlocked':'locked'}" data-reward="${i}"><div class="row" style="gap:10px"><div class="reward-icon">${r[1]}</div><div style="min-width:0"><b>${r[0]}</b><div class="muted" style="font-size:11px;margin-top:3px">${r[2]}</div></div></div><div class="row between" style="margin-top:14px"><span class="reward-price">${is?'Unlocked':formatXP(cost)+' XP'}</span>${is?'<span class="pill green">✓ Active</span>':`<button class="btn sm ${can?'':'ghost'}" onclick="purchaseReward(${i})">${can?'Unlock':'Need '+formatXP(cost-balance)}</button>`}</div></article>`;}).join('')}</div>`,{title:'Rewards'});}
 
   /* ---------- Planner Today JSON API (for the iOS widget) ---------- */
   function daySubjectsOfDay(d){
@@ -4635,8 +4585,8 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     }catch(_){}
   })();
 
-  const oldRenderShell=renderShell; renderShell=function(inner,opts){oldRenderShell(inner,opts);if(false&&Router.path==='dashboard'){const page=document.querySelector('#app .page');if(page&&!page.querySelector('[data-phase34-dashboard]')){const p=activePlan();const summary=p?`<div class="card" data-phase34-dashboard onclick="navigate('progress/plan')" style="cursor:pointer;border-left:4px solid var(--emerald)"><div class="row between"><div><b>90-Day Admission Plan</b><div class="muted">Day ${(p.activeDayIndex||0)+1}/90 · Continue your roadmap</div></div><span>›</span></div></div>`:`<div class="card" data-phase34-dashboard onclick="openPlanCreate()" style="cursor:pointer;border-left:4px solid var(--emerald)"><b>90-Day Admission Plan</b><div class="muted">Create your calendar-safe roadmap</div></div>`;page.insertAdjacentHTML('afterbegin',summary+comparisonHtml()+`<div class="card" onclick="navigate('rewards')" style="cursor:pointer;border-left:4px solid var(--orange)"><div class="row between"><div><b>✦ XP Reward Shop</b><div class="muted">${formatXP(CACHE.settings.xpBalance||0)} XP · ${((CACHE.settings.unlockedRewards||[]).length)}/20 unlocked</div></div><span>›</span></div></div>`);}}};
-  const oldRender=render; render=function(){if(Router.path==='progress/plan'){if(typeof window.Routine90?.render==='function')return window.Routine90.render();return renderShell('<div class="empty" style="padding:56px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">✦</div><b>Opening your 90 Day Planner…</b><div class="muted" style="margin-top:6px">Your saved routine is loading safely.</div></div>',{topbar:false,hideNav:true});}if(Router.path==='rewards')return renderRewards();return oldRender();};
+  const oldRenderShell=renderShell; renderShell=function(inner,opts){oldRenderShell(inner,opts);};
+  const oldRender=render; render=function(){if(Router.path==='progress/plan'){if(typeof window.Routine90?.render==='function')return window.Routine90.render();return renderShell('<div class="empty" style="padding:56px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">✦</div><b>Opening your 90 Day Planner…</b><div class="muted" style="margin-top:6px">Your saved routine is loading safely.</div></div>',{topbar:false,hideNav:true});}return oldRender();};
   const oldBaseTab=baseTab; baseTab=function(path){if(path==='progress/plan')return 'progress';return oldBaseTab(path);};
   const oldLoad=loadCache; loadCache=async function(){await oldLoad();await refreshPlans();};
 })();
@@ -4755,12 +4705,10 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     }
     const comparison=page.querySelector('[data-dashboard-comparison]');
     const main=Array.from(page.children).find(el=>el.classList?.contains('fade-in') && !el.dataset.phase5Dashboard);
-    const xp=Array.from(page.children).find(el=>el.getAttribute?.('onclick')?.includes("navigate('rewards')") || (el.textContent||'').includes('✦ XP Reward Shop'));
     const plan=page.querySelector('[data-phase34-dashboard]');
     const quick=page.querySelector('[data-phase5-quicklinks]');
     const intel=page.querySelector('[data-phase5-dashboard]');
     if(main) page.appendChild(main);
-    if(xp) page.appendChild(xp);
     if(comparison) page.appendChild(comparison);
     if(plan) page.appendChild(plan);
     if(quick) page.appendChild(quick);
@@ -4871,80 +4819,8 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     }
   };
 
-  function vocabDefaults(v){
-    const now=Date.now();
-    return {...v, learned:v.learned===true, revisionStatus:v.revisionStatus||'new', mistakeCount:Number(v.mistakeCount||0), reviewCount:Number(v.reviewCount||0), intervalDays:Number(v.intervalDays||0), ease:Number(v.ease||2.5), dueAt:Number(v.dueAt||now), createdAt:Number(v.createdAt||now), updatedAt:Date.now()};
-  }
-  function vocabDue(v){return Number(v.dueAt||0)<=Date.now()&&!v.learned;}
-  function vocabRows(){return [...CACHE.vocabulary].map(vocabDefaults).sort((a,b)=>(vocabDue(b)-vocabDue(a))||(b.updatedAt||0)-(a.updatedAt||0));}
-  function vocabStatus(v){return v.learned?'Learned':vocabDue(v)?'Due for review':(v.revisionStatus||'New');}
-  function parseVocabularyText(text){
-    const raw=String(text||'').trim(); if(!raw) return [];
-    let values=[];
-    try{const parsed=JSON.parse(raw); values=Array.isArray(parsed)?parsed:[parsed];}
-    catch(_){values=raw.split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{const p=line.split(/\s*\|\s*/);return {word:p[0],meaning:p[1],example:p[2],synonym:p[3],antonym:p[4]};});}
-    return values.map(x=>({word:String(x.word||x.term||'').trim(),meaning:String(x.meaning||x.bengaliMeaning||x.bangla||'').trim(),example:String(x.example||x.exampleSentence||'').trim(),synonym:String(x.synonym||x.synonyms||'').trim(),antonym:String(x.antonym||x.antonyms||'').trim(),category:String(x.category||'english').trim()})).filter(x=>x.word);
-  }
-  let VocabParserState={rows:[],text:''};
-  window.openVocabularyParser=function(){
-    VocabParserState={rows:[],text:''};
-    openModal(`<h3>Smart Vocabulary Parser</h3><p class="muted">Vocabulary-only parser. Use JSON objects or one item per line: <b>word | Bengali meaning | example | synonym | antonym</b>.</p><textarea id="vocabParserInput" rows="9" placeholder="abundant | প্রচুর | The harvest was abundant. | plentiful | scarce"></textarea><div class="row" style="margin-top:12px;gap:8px"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" onclick="previewVocabularyImport()">Preview</button></div>`);
-  };
-  window.previewVocabularyImport=function(){
-    const rows=parseVocabularyText(document.getElementById('vocabParserInput')?.value||'');
-    if(!rows.length){toast('No vocabulary items found');return;}
-    VocabParserState.rows=rows; closeModal(); renderVocabularyParserPreview();
-  };
-  function renderVocabularyParserPreview(){
-    const rows=VocabParserState.rows;
-    renderShell(`<div class="explorer-head"><div class="explorer-kicker">Vocabulary Tools</div><div class="explorer-title">Parser Preview</div><div class="explorer-subtitle">${rows.length} vocabulary item${rows.length===1?'':'s'} ready for safe import.</div></div><div class="card" style="overflow:auto"><div class="vocab-parser-row" style="font-weight:800"><span>Word</span><span>Meaning</span><span>Example</span><span>Synonym</span><span>Antonym</span></div>${rows.map((r,i)=>`<div class="vocab-parser-row"><b>${esc(r.word)}</b><span>${esc(r.meaning||'—')}</span><span class="wide">${esc(r.example||'—')}</span><span>${esc(r.synonym||'—')}</span><span>${esc(r.antonym||'—')}</span></div>`).join('')}</div><div class="row" style="margin-top:12px;gap:8px"><button class="btn ghost" onclick="navigate('vocabulary')">Cancel</button><button class="btn" onclick="saveVocabularyImport()">Save ${rows.length} Items</button></div>`,{title:'Vocabulary Parser',back:"navigate('vocabulary')"});
-  }
-  window.saveVocabularyImport=async function(){
-    const existing=new Map(CACHE.vocabulary.map(v=>[String(v.word||'').toLowerCase(),v])); let count=0;
-    for(const row of VocabParserState.rows){const key=row.word.toLowerCase();const v=vocabDefaults(existing.get(key)||{id:uid(),category:row.category||'english',createdAt:Date.now()});Object.assign(v,row,{updatedAt:Date.now()});await dbPut('vocabulary',v);count++;}
-    CACHE.vocabulary=await dbGetAll('vocabulary'); toast(`${count} vocabulary item${count===1?'':'s'} saved`); navigate('vocabulary');
-  };
-  window.reviewVocab=async function(id,grade){
-    const v=CACHE.vocabulary.find(x=>x.id===id); if(!v)return; const n=vocabDefaults(v), now=Date.now();
-    if(grade==='again'){n.learned=false;n.revisionStatus='weak';n.mistakeCount=(n.mistakeCount||0)+1;n.intervalDays=1;n.ease=Math.max(1.3,(n.ease||2.5)-.2);}
-    else if(grade==='hard'){n.learned=false;n.revisionStatus='reviewing';n.intervalDays=Math.max(1,Math.round((n.intervalDays||1)*1.5));n.ease=Math.max(1.3,(n.ease||2.5)-.05);}
-    else {n.learned=true;n.revisionStatus='learned';n.intervalDays=Math.max(1,Math.round((n.intervalDays||1)*(n.ease||2.5)));n.ease=Math.min(3.2,(n.ease||2.5)+.1);}
-    n.reviewCount=(n.reviewCount||0)+1;n.lastReviewedAt=now;n.dueAt=now+n.intervalDays*86400000;n.updatedAt=now;await dbPut('vocabulary',n);CACHE.vocabulary=await dbGetAll('vocabulary');render();
-  };
-  window.openVocabForm=function(id){
-    const v=id?CACHE.vocabulary.find(x=>x.id===id):null;
-    openModal(`<h3>${v?'Edit':'Add'} Vocabulary</h3><label class="flabel">Word</label><input id="vWord" value="${v?esc(v.word):''}" autofocus><label class="flabel">Bengali Meaning</label><input id="vMeaning" value="${v?esc(v.meaning||''):''}"><label class="flabel">Example Sentence</label><textarea id="vExample" rows="3">${v?esc(v.example||''):''}</textarea><label class="flabel">Synonym</label><input id="vSynonym" value="${v?esc(v.synonym||''):''}"><label class="flabel">Antonym</label><input id="vAntonym" value="${v?esc(v.antonym||''):''}"><div class="row" style="margin-top:14px;gap:8px"><button class="btn ghost" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveVocab('${id||''}')">Save</button></div>`);
-  };
-  window.saveVocab=async function(id){
-    const word=document.getElementById('vWord')?.value.trim(); if(!word){toast('Word required');return;} const old=id?CACHE.vocabulary.find(x=>x.id===id):null;
-    const v=vocabDefaults(old||{id:uid(),category:'english'});Object.assign(v,{word,meaning:document.getElementById('vMeaning').value.trim(),example:document.getElementById('vExample').value.trim(),synonym:document.getElementById('vSynonym').value.trim(),antonym:document.getElementById('vAntonym').value.trim(),updatedAt:Date.now()});await dbPut('vocabulary',v);CACHE.vocabulary=await dbGetAll('vocabulary');closeModal();toast('Vocabulary saved');render();
-  };
-  window.deleteVocab=function(id){confirmModal('Delete Vocabulary','Remove this vocabulary item?',async()=>{await dbDel('vocabulary',id);CACHE.vocabulary=await dbGetAll('vocabulary');toast('Deleted');render();},'Delete',true)};
-  window.startVocabularyPractice=function(){navigate('vocabulary/practice')};
-  window.renderVocabulary=function(){
-    const rows=vocabRows(),due=rows.filter(vocabDue),learned=rows.filter(v=>v.learned),pct=rows.length?Math.round(learned.length/rows.length*100):0;
-    const cards=rows.map(v=>`<article class="card vocab-card"><div class="row between" style="align-items:flex-start;gap:8px"><div><div class="vocab-word">${esc(v.word)}</div><div class="vocab-meaning">${esc(v.meaning||'Meaning not added')}</div></div><div class="row"><button class="iconbtn" aria-label="Edit vocabulary" onclick="openVocabForm('${v.id}')">✏️</button><button class="iconbtn" aria-label="Delete vocabulary" onclick="deleteVocab('${v.id}')">🗑️</button></div></div><div class="vocab-detail"><div><b>Example:</b> ${esc(v.example||'—')}</div><div><b>Synonym:</b> ${esc(v.synonym||'—')} · <b>Antonym:</b> ${esc(v.antonym||'—')}</div></div><div class="vocab-meta"><span class="pill ${v.learned?'green':vocabDue(v)?'red':''}">${esc(vocabStatus(v))}</span><span class="pill">${v.reviewCount||0} reviews</span><span class="pill">Next: ${v.dueAt?new Date(v.dueAt).toLocaleDateString():'Today'}</span></div><div class="vocab-actions"><button class="btn secondary sm" onclick="reviewVocab('${v.id}','again')">Again</button><button class="btn ghost sm" onclick="reviewVocab('${v.id}','hard')">Hard</button><button class="btn sm" onclick="reviewVocab('${v.id}','good')">Learned</button></div></article>`).join('');
-    const html=`<div class="explorer-head"><div class="explorer-kicker">Daily Revision</div><div class="explorer-title">Smart Vocabulary</div><div class="explorer-subtitle">Learn, revise and practice words with spaced repetition.</div></div><div class="card"><div class="row between"><div><b>${learned.length} of ${rows.length} learned</b><div class="muted">${due.length} due for revision</div></div><b style="color:var(--emerald)">${pct}%</b></div><div class="vocab-progress" style="margin-top:12px"><div style="width:${pct}%"></div></div></div><div class="row wrap" style="margin-bottom:10px"><button class="btn sm" onclick="openVocabForm(null)">+ Add Word</button><button class="btn secondary sm" onclick="navigate('vocabulary/parser')">Import Parser</button><button class="btn ghost sm" onclick="startVocabularyPractice()">Practice Due</button></div>${cards||emptyState('📖','No vocabulary yet','Add or import a word with meaning, example, synonym and antonym.','+ Add Word',"openVocabForm('')")}`;renderShell(html,{title:'Smart Vocabulary'});
-  };;
-  let VocabPracticeIndex=0;
-  window.renderVocabularyPractice=function(){
-    const due=vocabRows().filter(vocabDue); if(!due.length){renderShell(emptyState('✅','No vocabulary due','Add words or wait for the next spaced-review date.','Back to Vocabulary',"navigate('vocabulary')"),{title:'Vocabulary Practice',back:"navigate('vocabulary')"});return;}
-    const v=due[Math.min(VocabPracticeIndex,due.length-1)];renderShell(`<div class="explorer-head"><div class="explorer-kicker">Spaced Review · ${VocabPracticeIndex+1}/${due.length}</div><div class="explorer-title">Vocabulary Practice</div><div class="explorer-subtitle">Recall the meaning, then reveal the answer.</div></div><article class="card practice-vocab-card"><div class="practice-vocab-word">${esc(v.word)}</div><details style="margin-top:20px"><summary class="btn ghost" style="display:inline-block;cursor:pointer">Reveal meaning</summary><div class="practice-vocab-meaning">${esc(v.meaning||'—')}</div><div class="vocab-detail"><div><b>Example:</b> ${esc(v.example||'—')}</div><div><b>Synonym:</b> ${esc(v.synonym||'—')} · <b>Antonym:</b> ${esc(v.antonym||'—')}</div></div></details><div class="vocab-actions" style="justify-content:center"><button class="btn secondary" onclick="reviewVocab('${v.id}','again');VocabPracticeIndex=Math.min(VocabPracticeIndex+1,${due.length-1});renderVocabularyPractice()">Again</button><button class="btn ghost" onclick="reviewVocab('${v.id}','hard');VocabPracticeIndex=Math.min(VocabPracticeIndex+1,${due.length-1});renderVocabularyPractice()">Hard</button><button class="btn" onclick="reviewVocab('${v.id}','good');VocabPracticeIndex=Math.min(VocabPracticeIndex+1,${due.length-1});renderVocabularyPractice()">Good</button></div></article>`,{title:'Vocabulary Practice',back:"navigate('vocabulary')"});
-  };
-
-  function mistakeRows(){return [...CACHE.mistakes].map(m=>{const q=CACHE.questions.find(x=>x.id===m.questionId);return {...m,question:m.question||q?.question||'',options:m.options||q?.options||[],correctAnswer:m.correctAnswer||((m.options||q?.options||[])[m.correctAnswerIndex??q?.answer]||''),explanation:m.explanation||q?.explanation||'',subjectId:m.subjectId||q?.subjectId,topicId:m.topicId||q?.topicId};}).filter(m=>m.question).sort((a,b)=>(a.mastered-b.mastered)||(b.wrongCount||0)-(a.wrongCount||0));}
-  window.markMistakeStatus=async function(id,status){const m=CACHE.mistakes.find(x=>x.id===id);if(!m)return;m.revisionStatus=status;m.mastered=status==='mastered';m.reviewedAt=Date.now();if(status==='mastered')m.masteredAt=Date.now();await dbPut('mistakes',m);CACHE.mistakes=await dbGetAll('mistakes');toast(status==='mastered'?'Marked mastered':'Marked reviewed');render();};
-  window.startMistakeFlashReview=function(){const rows=mistakeRows().filter(m=>!m.mastered);const pool=CACHE.questions.filter(q=>rows.some(m=>m.questionId===q.id));if(!pool.length){toast('No active mistakes to review');return;}beginExamFromPool(pool,'flash');};
-  window.startMistakeRetry=function(){const rows=mistakeRows().filter(m=>!m.mastered);const pool=CACHE.questions.filter(q=>rows.some(m=>m.questionId===q.id));if(!pool.length){toast('No active mistakes to retry');return;}ExamSetup=freshSetup();ExamSetup.mode='mock';ExamSetup.totalCount=pool.length;ExamSetup.onlyQuestionIds=pool.map(q=>q.id);beginExam();};
-  window.startWeakTopicPractice=function(){const rows=mistakeRows().filter(m=>!m.mastered);const counts={};rows.forEach(m=>{counts[m.topicId]=(counts[m.topicId]||0)+(m.wrongCount||1)});const topicId=Object.keys(counts).sort((a,b)=>counts[b]-counts[a])[0];const pool=CACHE.questions.filter(q=>q.topicId===topicId);if(!pool.length){toast('No weak topic questions available');return;}beginExamFromPool(pool,'weak');};
-  window.renderMistakes=function(){
-    const rows=mistakeRows(),active=rows.filter(m=>!m.mastered),mastered=rows.filter(m=>m.mastered);
-    const cards=rows.map(m=>`<article class="card mistake-book-card ${m.mastered?'mastered':''}"><div class="row between" style="align-items:flex-start;gap:8px"><div class="mistake-question">${esc(m.question)}</div><span class="pill ${m.mastered?'green':'red'}">${m.mastered?'Mastered':((m.wrongCount||0)>=3?'Needs Review':'Review')}</span></div><div class="muted" style="margin-top:8px">${esc(subjectName(m.subjectId))} · ${esc(topicName(m.topicId))} · Wrong ${m.wrongCount||0}× · ${m.lastWrongAt?new Date(m.lastWrongAt).toLocaleString():'Time not recorded'}</div><div class="mistake-answer"><b>Wrong answer:</b> ${esc(m.wrongAnswer||m.selectedAnswer||'Not recorded')}<br><b>Correct answer:</b> ${esc(m.correctAnswer||'—')}<br><span class="muted">${esc(m.explanation||'No explanation stored')}</span></div><div class="mistake-actions"><button class="btn secondary sm" onclick="startQuestionPractice(['${m.questionId}'])">Retry Wrong</button><button class="btn ghost sm" onclick="startMistakeFlashReview()">Flash Review</button><button class="btn ghost sm" onclick="startWeakTopicPractice()">Weak Topic</button><button class="btn sm" onclick="markMistakeStatus('${m.id}','${m.mastered?'reviewed':'mastered'}')">${m.mastered?'Needs Review':'Mastered'}</button></div></article>`).join('');
-    const html=`<div class="explorer-head"><div class="explorer-kicker">Revision Tools</div><div class="explorer-title">Smart Mistake Book</div><div class="explorer-subtitle">Every mistake is preserved with its question, subject, topic, answers, count, time and revision status.</div></div><div class="phase-grid"><div class="phase-metric"><b>${active.length}</b><span>Needs review</span></div><div class="phase-metric"><b>${mastered.length}</b><span>Mastered</span></div><div class="phase-metric"><b>${rows.reduce((n,m)=>n+(m.wrongCount||0),0)}</b><span>Wrong attempts</span></div></div><div class="grid2" style="margin:12px 0"><button class="btn" onclick="startMistakeRetry()">Retry Wrong</button><button class="btn secondary" onclick="startMistakeFlashReview()">Flash Review</button><button class="btn ghost" onclick="startWeakTopicPractice()">Practice Weak Topic</button><button class="btn ghost" onclick="navigate('question-bank')">Browse Bank</button></div>${cards||emptyState('✅','No mistakes yet','Wrong questions will be added automatically after completed attempts.','Start Practice',"navigate('exam')")}`;renderShell(html,{title:'Smart Mistake Book',back:"navigate('dashboard')"});
-  };;
-
   const oldRenderFinal=render;
-  render=function(){if(Router.path==='vocabulary/practice')return renderVocabularyPractice();if(Router.path==='vocabulary/parser')return openVocabularyParser();return oldRenderFinal();};
+  render=function(){return oldRenderFinal();};
 })();
 </script>
 <script src="phase345.patch.js"></script>
@@ -4960,12 +4836,9 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
 <script src="study-tools-restore.js?v=3"></script>
 <script src="urgent-topic-fix.js?v=practice10"></script>
 <script src="phase2-dictionary-parser.js?v=5"></script>
-<script src="phase3-systems.js?v=2"></script>
 <script src="phase3-question-bank-route.js?v=practice10"></script>
 <script src="routine90.js?v=parser-v2"></script>
 <script src="routine90-parser.js?v=1"></script>
-<link rel="stylesheet" href="premium-reward-styles.css?v=1">
-<script src="reward-quest-upgrade.js?v=3"></script>
 
 
 <!-- INLINE FINAL FIX: web-chat-rebuild.js -->
@@ -5104,40 +4977,25 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 })();
 </script>
 <script src="mcq-qbank-import.js?v=1"></script>
-<script src="vocabulary-range-cleanup.js?v=v1-20260819"></script>
 <script src="admission-hub-feature-suite.js?v=question-parser-v8-duplicate-choice"></script>
-<script src="profile-reward-update.js?v=purchase-blueprint-2"></script>
-<script src="advanced-gamification-v3.js?v=purchase-blueprint-5"></script>
 <script src="ai-mentor-integration.js?v=gemini-v2-0816"></script>
 <script src="mistake-analysis.js?v=gemini-v4-0816"></script>
-<script src="phase2-daily-quest-2.js?v=5"></script>
-<script src="vocabulary-master.js?v=1"></script>
-<script src="vocabulary-phase2.js?v=1"></script>
-<script src="vocabulary-upgrade.js?v=phase2-3"></script>
 <script src="question-bank-performance.js?v=10-note-return"></script>
 <script src="hierarchy-and-exam-fix.js?v=15"></script>
 
 <script src="global-app-fix.js?v=3"></script>
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
-<script src="feature-upgrade-2026.js?v=4"></script>
 <script src="notes-tool.js?v=dashboard-notes-v4-0816"></script>
 <script src="manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816"></script>
 <script src="nav-resume-fix.js?v=1"></script>
 <script src="mistake-note-icon.js?v=14"></script>
-<script src="reward-batch1-effects.js?v=2"></script>
-<script src="reward-shop-first50.js?v=purchase-gated-200-1"></script>
-<script src="reward-batch2-effects.js?v=1"></script>
-<script src="reward-batch3-effects.js?v=purchase-gated-2"></script>
-<script src="reward-batch4-effects.js?v=purchase-gated-1"></script>
-<script src="reward-profile-route-guard.js?v=5"></script>
 <script src="experience-studio-store.js?v=2"></script>
 <script src="experience-studio-themes.js?v=2"></script>
 <script src="experience-studio-animations.js?v=2"></script>
 <script src="experience-studio-cards.js?v=2"></script>
 <script src="experience-studio-hooks.js?v=1"></script>
 <script src="experience-studio-shell.js?v=6"></script>
-<script src="profile-progress-system.js?v=1"></script>
 <script src="performance-hardening.js?v=1"></script>
 <script>
 (() => {
@@ -5153,7 +5011,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (p === 'question-parser' || p === 'smart-formatter') return typeof window.renderQuestionParser === 'function' ? window.renderQuestionParser() : window.render?.();
     if (p === 'question-bank' || p.startsWith('question-bank/')) return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : window.render?.();
     if (p === 'progress/plan') return typeof window.Routine90?.render === 'function' ? window.Routine90.render() : (typeof window.render === 'function' ? window.render() : undefined);
-    if (p === 'profile' || p === 'progress') return typeof window.__admissionIntegratedProfileRender === 'function' ? window.__admissionIntegratedProfileRender() : (typeof window.__advancedProfileRender === 'function' ? window.__advancedProfileRender() : (typeof window.renderProgress === 'function' ? window.renderProgress() : window.render?.()));
+    if (p === 'progress') return typeof window.renderProgress === 'function' ? window.renderProgress() : window.render?.();
     if (p === 'exam') return typeof window.renderExamCenter === 'function' ? window.renderExamCenter() : window.render?.();
     return typeof window.render === 'function' ? window.render() : undefined;
   };
@@ -5185,14 +5043,28 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 (() => {
   const removedRoute = (path) => {
     const p = String(path || '').replace(/^#\/?/, '').split('?')[0];
-    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || p.startsWith('memorizing') || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/');
+    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || p.startsWith('memorizing') || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history' || p === 'notifications' || p === 'inbox';
+  };
+  const purgeRemovedData = async () => {
+    ['admission_phase3_notifications','admission_phase3_notification_settings','admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','xp'].forEach((key) => { try { localStorage.removeItem(key); } catch (_) {} });
+    try {
+      if (typeof dbClear === 'function') { await dbClear('vocabulary'); if (typeof CACHE !== 'undefined') CACHE.vocabulary = []; }
+      if (typeof dbGetAll === 'function' && typeof dbPut === 'function') {
+        const records = await dbGetAll('settings');
+        for (const settings of records) {
+          ['profileV1','gamificationV3','rewardInventory','rewardBlueprint200','rewardQuestVersion','dailyQuestV2','phase3Quests','xpBalance','totalXpEarned','xpLevel','xpLedger','xpDaily','unlockedRewards','totalXpSpent','totalGoldSpent','totalDiamondSpent','gold','diamonds','userName','name','avatar'].forEach((key) => delete settings[key]);
+          await dbPut('settings', settings);
+        }
+        if (typeof CACHE !== 'undefined' && records[0]) CACHE.settings = records[0];
+      }
+    } catch (_) {}
   };
   const currentPath = () => String(location.hash.replace(/^#\/?/, '').split('?')[0] || (typeof Router !== 'undefined' ? Router.path : '') || 'dashboard');
   const cleanDashboard = () => {
     if (currentPath() !== 'dashboard') return;
     const page = document.querySelector('#app .page');
     if (!page) return;
-    page.querySelectorAll('[data-study-hub-dashboard-card],[data-ai-dashboard],.ai-dashboard-card,[data-special-study-tools],.p3-recommend-v3,.p3-tasks-v3,.p3-bottom-row-v3,.p3-focus-section-v3,.p3-start-card-v3').forEach((node) => node.remove());
+    page.querySelectorAll('[data-study-hub-dashboard-card],[data-ai-dashboard],.ai-dashboard-card,[data-special-study-tools],[data-profile-entry],[data-phase3-entry],.p3-inbox-btn,.p3-recommend-v3,.p3-tasks-v3,.p3-bottom-row-v3,.p3-focus-section-v3,.p3-start-card-v3').forEach((node) => node.remove());
     [...page.querySelectorAll('section')].forEach((section) => {
       const heading = section.querySelector('.p3-section-head-v3 b, .section-heading h2');
       if (heading && heading.textContent.trim() === 'Special Study Tools') section.remove();
@@ -5234,6 +5106,9 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (removedRoute(currentPath())) redirectRemoved();
     else if (currentPath() === 'dashboard') { setTimeout(cleanDashboard, 0); setTimeout(cleanDashboard, 80); }
   });
+  purgeRemovedData().catch(() => {});
+  if (removedRoute(currentPath())) redirectRemoved();
+  window.addEventListener('load', () => { purgeRemovedData().catch(() => {}); if (removedRoute(currentPath())) redirectRemoved(); }, { once: false });
 })();
 </script>
 </body>
