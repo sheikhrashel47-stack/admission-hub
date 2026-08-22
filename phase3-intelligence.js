@@ -92,7 +92,7 @@
   };
 
   function widgetHTML(){
-    const d=derive(),z=d.z,st=streak(),t=tasks(),done=t.filter(x=>x.completed).length,pending=t.length-done,study=(CACHE.dailyStats||[]).reduce((a,x)=>a+Number(x.timeMs||0),0);
+    const d=derive(),z=d.z,st=streak(),t=tasks(),done=t.filter(x=>x.completed).length,pending=t.length-done,study=(CACHE.dailyStats||[]).reduce((a,x)=>a+Number(x.timeMs||0),0),profile=typeof profileState==='function'?profileState():{},profileName=String(profile.name||CACHE.settings?.userName||'Zayan')==='Scholar'?'Zayan':String(profile.name||CACHE.settings?.userName||'Zayan');
     const mock=z.rs.length,xp=Number(localStorage.getItem('xp')||CACHE.settings?.xp||0);
     const targetPct = Math.min(100, Math.round(d.done/Math.max(1,d.target)*100));
     const tasksPct = Math.min(100, Math.round(done/Math.max(1,t.length||1)*100));
@@ -109,7 +109,7 @@
       ['⚡', 'Quick', 'দ্রুত অনুশীলন', 'exam/setup'],
       ['❌', 'Mistakes', 'ভুলের খাতা', 'mistakes'],
       ['📊', 'Progress', 'অগ্রগতি দেখুন', 'progress'],
-      ['📅', '90 Days', '৯০ দিনের রুটিন', 'progress/plan'],
+      ['🎯', 'Goals', 'দৈনিক লক্ষ্য', 'progress/plan'],
       ['🔄', 'Revision', 'স্মার্ট রিভিশন', 'mistakes'],
       ['📖', 'Vocab', 'ভোকাবুলারি', 'vocabulary'],
       ['🕐', 'History', 'পরীক্ষার ইতিহাস', 'history'],
@@ -150,7 +150,7 @@
           <div class="p3-crown-circle">${ICONS.crown}</div>
           <div class="p3-header-text">
             <div class="p3-kicker-v3">EMERALD ACADEMIC</div>
-            <h2>সুপ্রভাত, Scholar</h2>
+            <h2>সুপ্রভাত, ${esc3(profileName)}</h2>
             <p>"আজকের পরিশ্রমই তোমার আগামীকালের সাফল্য!"</p>
           </div>
         </div>
