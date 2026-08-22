@@ -92,7 +92,7 @@
   };
 
   function widgetHTML(){
-    const d=derive(),z=d.z,st=streak(),t=tasks(),done=t.filter(x=>x.completed).length,pending=t.length-done,study=(CACHE.dailyStats||[]).reduce((a,x)=>a+Number(x.timeMs||0),0),profile=typeof profileState==='function'?profileState():{},profileName=String(profile.name||CACHE.settings?.userName||'Zayan')==='Scholar'?'Zayan':String(profile.name||CACHE.settings?.userName||'Zayan');
+    const d=derive(),z=d.z,st=streak(),t=tasks(),done=t.filter(x=>x.completed).length,pending=t.length-done,study=(CACHE.dailyStats||[]).reduce((a,x)=>a+Number(x.timeMs||0),0);
     const mock=z.rs.length,xp=Number(localStorage.getItem('xp')||CACHE.settings?.xp||0);
     const targetPct = Math.min(100, Math.round(d.done/Math.max(1,d.target)*100));
     const tasksPct = Math.min(100, Math.round(done/Math.max(1,t.length||1)*100));
@@ -125,7 +125,12 @@
         <span class="p3-command-subtitle-v3">${subtitle}</span>
       </button>`).join(''));
 
-    const specialTools = [];
+    const specialTools = [
+      ['🧠', 'Daily GK', 'আজকের গুরুত্বপূর্ণ সাধারণ জ্ঞান', 'daily-gk'],
+      ['🌐', 'Web Chat', 'দ্রুত তথ্য খুঁজুন', 'web-chat'],
+      ['📖', 'Dictionary', 'শব্দের অর্থ ও Vocabulary', 'dictionary'],
+      ['🧩', 'Memorizing', 'Smart memorization tools', 'memorizing']
+    ];
 
     const focusMarkup = smartFocus.length
       ? smartFocus.map((item) => `
@@ -150,7 +155,7 @@
           <div class="p3-crown-circle">${ICONS.crown}</div>
           <div class="p3-header-text">
             <div class="p3-kicker-v3">EMERALD ACADEMIC</div>
-            <h2>সুপ্রভাত, ${esc3(profileName)}</h2>
+            <h2>সুপ্রভাত, Scholar</h2>
             <p>"আজকের পরিশ্রমই তোমার আগামীকালের সাফল্য!"</p>
           </div>
         </div>
@@ -195,10 +200,53 @@
             </div>
             <div class="p3-accuracy-popup">${esc3(d.activityText)}</div>
           </div>
+          <div class="p3-hero-stat-item">
+            <span class="p3-stat-badge purple">${ICONS.clock}</span>
+            <div><b>${studyClock}</b><small>Study Time</small></div>
+          </div>
         </div>
       </article>
 
 
+
+      <section class="p3-card-v3 p3-recommend-v3">
+        <div class="p3-recommend-content">
+          <div class="p3-recommend-header">
+            <div class="p3-recommend-title">
+              <span class="p3-star-icon">${ICONS.star}</span>
+              Recommended Next Action
+            </div>
+            <button class="p3-open-btn" onclick="${d.action}">Open ${ICONS.arrow}</button>
+          </div>
+          <p class="p3-recommend-text">${esc3(d.recommendation)}</p>
+          <div class="p3-recommend-list">
+            <div class="p3-rec-item">
+              <span class="p3-rec-icon target">${ICONS.target}</span>
+              Weak area: <b>${esc3(d.weakTopics[0]?.name||'Not enough data')}</b>
+            </div>
+            <div class="p3-rec-item">
+              <span class="p3-rec-icon book">${ICONS.tasks}</span>
+              Revision priority: <b>${esc3(d.repeated[0]?.name||d.weakTopics[0]?.name||'No priority yet')}</b>
+            </div>
+            <div class="p3-rec-item">
+              <span class="p3-rec-icon trend">${ICONS.trend}</span>
+              Recent performance: <b>${z.recent.length?`${z.recent.at(-1).score||0} score`:'No mock result yet'}</b>
+            </div>
+          </div>
+        </div>
+        <div class="p3-recommend-illustration">
+          <div class="p3-3d-placeholder">
+            <div class="p3-3d-clipboard">
+              <div class="p3-3d-lines"></div>
+            </div>
+            <div class="p3-3d-books">
+              <div class="p3-book-1"></div>
+              <div class="p3-book-2"></div>
+              <div class="p3-book-3"></div>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section class="p3-card-v3 p3-command-section-v3">
         <div class="p3-section-head-v3">
@@ -213,6 +261,21 @@
         <div class="command-dots" role="tablist" aria-label="Command Center pages">
           <button class="command-dot active" type="button" role="tab" aria-label="Page 1" aria-selected="true" onclick="goCommandPage(0)"></button>
           <button class="command-dot" type="button" role="tab" aria-label="Page 2" aria-selected="false" onclick="goCommandPage(1)"></button>
+        </div>
+      </section>
+
+      <section class="p3-card-v3 p3-tasks-v3">
+        <div class="p3-section-head-v3">
+          <b>Today's Tasks</b>
+          <button class="p3-add-task-btn" onclick="phase3AddTask()">+ Add Task</button>
+        </div>
+        <div class="p3-task-list-v3">
+          ${t.length ? t.slice(-4).map(x=>`
+            <label class="p3-task-item-v3">
+              <input type="checkbox" ${x.completed?'checked':''} onchange="phase3CompleteTask('${x.id}')">
+              <span class="${x.completed?'done':''}">${esc3(x.title)}</span>
+            </label>
+          `).join('') : '<div class="p3-empty-tasks">No tasks added yet.</div>'}
         </div>
       </section>
 
@@ -235,6 +298,13 @@
                 <div>
                   <small>Questions solved</small>
                   <b>${z.answered.length||0}</b>
+                </div>
+              </div>
+              <div class="p3-prog-stat">
+                <div class="p3-prog-icon-box">${ICONS.clock}</div>
+                <div>
+                  <small>Study time</small>
+                  <b>${fmtTime(study)}</b>
                 </div>
               </div>
               <div class="p3-prog-stat">
@@ -286,8 +356,82 @@
         </section>
       </div>
 
-      ${unfinished ? `` : ``}
+      <div class="p3-bottom-row-v3">
+        <div class="p3-card-v3 p3-bottom-card">
+          <div class="p3-bottom-icon-row">
+            <div class="p3-bottom-icon b1">${ICONS.lightbulb}</div>
+            <div class="p3-bottom-arrow">${ICONS.arrow}</div>
+          </div>
+          <div class="p3-bottom-label">Today's Focus</div>
+          <div class="p3-bottom-value">${esc3(d.weakTopics[0]?.name||'Revision')}</div>
+          <div class="p3-bottom-sub">Revision & Practice</div>
+        </div>
+        <div class="p3-card-v3 p3-bottom-card">
+          <div class="p3-bottom-icon-row">
+            <div class="p3-bottom-icon b2">${ICONS.clock}</div>
+            <div class="p3-bottom-arrow">${ICONS.arrow}</div>
+          </div>
+          <div class="p3-bottom-label">Study Time</div>
+          <div class="p3-bottom-value">${fmtTime(study)}</div>
+          <div class="p3-bottom-sub">Keep it up!</div>
+        </div>
+        <div class="p3-card-v3 p3-bottom-card">
+          <div class="p3-bottom-icon-row">
+            <div class="p3-bottom-icon b3">${ICONS.trophy}</div>
+            <div class="p3-bottom-arrow">${ICONS.arrow}</div>
+          </div>
+          <div class="p3-bottom-label">Motivation</div>
+          <div class="p3-bottom-value">আজকের ছোট প্রচেষ্টা, আগামীর বড় সাফল্য। 💚</div>
+        </div>
+      </div>
 
+      <section class="p3-special-section-v3">
+        <div class="p3-section-head-v3">
+          <b>Special Study Tools</b>
+          <span class="p3-dashboard-only-v3">Dashboard only</span>
+        </div>
+        <div class="p3-special-grid-v3">
+          ${specialTools.map(([icon, title, subtitle, route]) => `
+            <button class="p3-special-card-v3" onclick="navigate('${route}')">
+              <span class="p3-special-icon-v3">${icon}</span>
+              <div class="p3-special-info-v3">
+                <strong>${title}</strong>
+                <small>${subtitle}</small>
+              </div>
+              <span class="p3-special-arrow-v3">${ICONS.arrow}</span>
+            </button>
+          `).join('')}
+        </div>
+      </section>
+
+      ${unfinished ? `
+        <section class="p3-card-v3 p3-resume-card-v3">
+          <div class="p3-resume-info-v3">
+            <strong>${unfinished.mode === 'mock' ? '📝 Mock Exam' : '⚡ Flash Practice'}</strong>
+            <p>${unfinished.currentIndex + 1} / ${unfinished.questions.length} Questions</p>
+          </div>
+          <button class="p3-resume-btn-v3" onclick="navigate('exam/running')">Continue</button>
+        </section>
+      ` : `
+        <section class="p3-card-v3 p3-start-card-v3">
+          <div class="p3-start-info-v3">
+            <strong>আজকের প্রস্তুতি শুরু করুন</strong>
+            <p>আপনার admission journey-তে আরেকটি focused session যোগ করুন।</p>
+          </div>
+          <button class="p3-resume-btn-v3" onclick="navigate('exam/setup')">Start Practice</button>
+        </section>
+      `}
+
+      <section class="p3-card-v3 p3-focus-section-v3">
+        <div class="p3-section-head-v3">
+          <b>Today's Smart Focus</b>
+          <span class="p3-focus-count-v3">${stats.totalQuestions} questions</span>
+        </div>
+        <div class="p3-focus-list-v3">
+          ${focusMarkup}
+          <button class="p3-btn-v3 p3-btn-secondary-v3" onclick="navigate('mistakes')">Start Smart Revision</button>
+        </div>
+      </section>
       <section class="p3-special-section-v3">
         <div class="p3-section-head-v3">
           <b>Study Tools</b>
