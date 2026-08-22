@@ -564,8 +564,8 @@ function round2(n){return Math.round(n*100)/100;}
 function debounce(fn,ms){let t; return (...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);};}
 
 /* ---------------- IndexedDB layer ---------------- */
-const DB_NAME='admissionHubDB', DB_VERSION=5;
-const STORES=['appMeta','subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
+const DB_NAME='admissionHubDB', DB_VERSION=6;
+const STORES=['appMeta','subjects','topics','questions','deletedQuestions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
 let DB=null;
 let STORAGE_MODE='indexeddb';
 const MEMORY_DB=new Map(STORES.map(name=>[name,new Map()]));
@@ -594,7 +594,7 @@ function ensureSchema(db,tx){
     });
   });
 }
-const SCHEMA_MIGRATIONS={1:ensureSchema,2:ensureSchema,3:ensureSchema,4:ensureSchema,5:ensureSchema};
+const SCHEMA_MIGRATIONS={1:ensureSchema,2:ensureSchema,3:ensureSchema,4:ensureSchema,5:ensureSchema,6:ensureSchema};
 function runSchemaMigrations(db,tx,oldVersion,newVersion){
   for(let version=Math.max(1,oldVersion+1);version<=newVersion;version++) (SCHEMA_MIGRATIONS[version]||ensureSchema)(db,tx);
 }
@@ -630,12 +630,23 @@ function tx(store,mode='readonly'){
 function dbGetAll(store){if(!DB)return Promise.resolve([...MEMORY_DB.get(store).values()]);return new Promise((res,rej)=>{const r=tx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
 function dbGet(store,id){if(!DB)return Promise.resolve(MEMORY_DB.get(store).get(id));return new Promise((res,rej)=>{const r=tx(store).get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
 function dbPut(store,obj){if(!DB){MEMORY_DB.get(store).set(obj.id,obj);return Promise.resolve(obj);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').put(obj); r.onsuccess=()=>res(obj); r.onerror=()=>rej(r.error);});}
-function dbDel(store,id){if(!DB){MEMORY_DB.get(store).delete(id);return Promise.resolve(true);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').delete(id); r.onsuccess=()=>res(true); r.onerror=()=>rej(r.error);});}
+function dbDelRaw(store,id){if(!DB){MEMORY_DB.get(store).delete(id);return Promise.resolve(true);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').delete(id); r.onsuccess=()=>res(true); r.onerror=()=>rej(r.error);});}
+async function dbDel(store,id){
+  if(store==='questions'){
+    const question=await dbGet(store,id);
+    if(question){
+      await dbPut('deletedQuestions',{...question,deletedAt:Date.now(),deletedFrom:'question-bank'});
+      return dbDelRaw(store,id);
+    }
+  }
+  return dbDelRaw(store,id);
+}
+function dbDelPermanent(store,id){return dbDelRaw(store,id);}
 function dbClear(store){if(!DB){MEMORY_DB.get(store).clear();return Promise.resolve(true);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').clear(); r.onsuccess=()=>res(true); r.onerror=()=>rej(r.error);});}
 async function dbPutMany(store,arr){for(const o of arr) await dbPut(store,o); return true;}
 
 /* ---------------- in-memory cache (mirrors DB, refreshed on write) ---------------- */
-const CACHE={subjects:[],topics:[],questions:[],exams:[],examResults:[],mistakes:[],vocabulary:[],dailyStats:[],activityLogs:[],notes:[],settings:{}};
+const CACHE={subjects:[],topics:[],questions:[],deletedQuestions:[],exams:[],examResults:[],mistakes:[],vocabulary:[],dailyStats:[],activityLogs:[],notes:[],settings:{}};
 window.__admissionBootStatus='loading';
 window.__admissionFinalModulesReady=false;
 
@@ -668,12 +679,12 @@ async function loadCache(){
     try{const value=await dbGetAll(store);return Array.isArray(value)?value.filter(Boolean):fallback;}
     catch(error){console.warn(`[Admission Hub] Could not read ${store}; keeping the app usable.`,error);return fallback;}
   };
-  const [subjects,topics,questions,exams,examResults,mistakes,vocabulary,dailyStats,activityLogs,notes,settings]=await Promise.all([
-    read('subjects',CACHE.subjects), read('topics',CACHE.topics), read('questions',CACHE.questions), read('exams',CACHE.exams),
+  const [subjects,topics,questions,deletedQuestions,exams,examResults,mistakes,vocabulary,dailyStats,activityLogs,notes,settings]=await Promise.all([
+    read('subjects',CACHE.subjects), read('topics',CACHE.topics), read('questions',CACHE.questions), read('deletedQuestions',CACHE.deletedQuestions), read('exams',CACHE.exams),
     read('examResults',CACHE.examResults), read('mistakes',CACHE.mistakes), read('vocabulary',CACHE.vocabulary), read('dailyStats',CACHE.dailyStats),
     read('activityLogs',CACHE.activityLogs), read('notes',CACHE.notes), read('settings',[])
   ]);
-  CACHE.subjects=subjects; CACHE.topics=topics; CACHE.questions=questions; CACHE.exams=exams;
+  CACHE.subjects=subjects; CACHE.topics=topics; CACHE.questions=questions; CACHE.deletedQuestions=deletedQuestions; CACHE.exams=exams;
   CACHE.examResults=examResults.map(normalizeExamResult).filter(Boolean); CACHE.mistakes=mistakes; CACHE.vocabulary=vocabulary;
   CACHE.dailyStats=dailyStats; CACHE.activityLogs=activityLogs; CACHE.notes=notes;
   CACHE.settings=(settings[0]&&typeof settings[0]==='object')?settings[0]:defaultSettings();
@@ -827,6 +838,7 @@ function render(){
     return renderShell('<div class="empty" style="padding:56px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">✦</div><b>Opening your 90 Day Planner…</b><div class="muted" style="margin-top:6px">Your saved routine is loading safely.</div></div>',{topbar:false,hideNav:true});
   }
   if(p==='notes' && window.renderNotesTool) return window.renderNotesTool();
+  if(p==='deleted-questions' && window.renderDeletedQuestions) return window.renderDeletedQuestions();
   if(p==='web-chat' && window.renderWebChatV2) return window.renderWebChatV2();
   if(p==='dictionary' && window.renderDictionaryV2) return window.renderDictionaryV2();
   if((p==='question-bank'||p.startsWith('question-bank/')) && window.renderQuestionBankV2) return window.renderQuestionBankV2();
@@ -1361,7 +1373,7 @@ async function applyBulkTags(){
 }
 function bulkDeleteExplorer(){
   const ids=[...ExplorerState.selected]; if(!ids.length){toast('Select at least one question'); return;}
-  confirmModal('Delete selected questions',`Delete ${ids.length} selected question${ids.length===1?'':'s'} permanently? Existing exam history and other questions will remain unchanged.`,async()=>{
+  confirmModal('Move selected questions to Trash',`Move ${ids.length} selected question${ids.length===1?'':'s'} to Deleted Questions? You can permanently delete them later from Trash.`,async()=>{
     for(const id of ids) await dbDel('questions',id);
     await loadCache(); ExplorerState.selected.clear(); toast(`${ids.length} question${ids.length===1?'':'s'} deleted`); renderQuestionBank();
   },'Delete',true);
@@ -1586,11 +1598,11 @@ function renderQuestionDetail(qid){
   renderShell(html, {title:'Question', back:`navigate('question-bank/topic/${q.topicId}')`});
 }
 function deleteQuestion(id){
-  confirmModal('Delete Question','Delete this question permanently?', async ()=>{
+  confirmModal('Move Question to Trash','Move this question to Deleted Questions? You can permanently delete it later from Trash.', async ()=>{
     const q=await dbGet('questions',id);
     await dbDel('questions',id);
     await loadCache();
-    toast('Question deleted');
+    toast('Question moved to Deleted Questions');
     render();
   }, 'Delete', true);
 }
@@ -4823,12 +4835,10 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
   render=function(){return oldRenderFinal();};
 })();
 </script>
-<script src="phase345.patch.js"></script>
 <script src="qbank-redesign.js?v=practice15"></script>
 <script src="urgent-fix.js?v=practice13"></script>
 <script src="phase12-ui.js?v=nav-viewport-pwa-v6-0816"></script>
 <script src="phase23-ui.js?v=multi3"></script>
-<script src="master-update.js?v=perf1"></script>
 <script src="upgrade-features.js?v=4"></script>
 <script src="phase3-intelligence.js?v=4"></script>
 <script src="phase1-upgrade.js?v=2"></script>
@@ -4987,6 +4997,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
 <script src="notes-tool.js?v=dashboard-notes-v4-0816"></script>
+<script src="deleted-questions.js?v=trash1"></script>
 <script src="manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816"></script>
 <script src="nav-resume-fix.js?v=1"></script>
 <script src="mistake-note-icon.js?v=14"></script>
@@ -5012,6 +5023,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (p === 'question-bank' || p.startsWith('question-bank/')) return typeof window.renderQuestionBankV2 === 'function' ? window.renderQuestionBankV2() : window.render?.();
     if (p === 'progress/plan') return typeof window.Routine90?.render === 'function' ? window.Routine90.render() : (typeof window.render === 'function' ? window.render() : undefined);
     if (p === 'progress') return typeof window.renderProgress === 'function' ? window.renderProgress() : window.render?.();
+    if (p === 'deleted-questions') return typeof window.renderDeletedQuestions === 'function' ? window.renderDeletedQuestions() : window.render?.();
     if (p === 'exam') return typeof window.renderExamCenter === 'function' ? window.renderExamCenter() : window.render?.();
     return typeof window.render === 'function' ? window.render() : undefined;
   };
@@ -5046,7 +5058,13 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || p.startsWith('memorizing') || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history';
   };
   const purgeRemovedData = async () => {
-    ['admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','xp'].forEach((key) => { try { localStorage.removeItem(key); } catch (_) {} });
+    ['admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','daily-gk-live-v1','admission_phase345_v1','memory-system-v2','xp','admission-phase2-dictionary-v1','admission-phase2-dictionary-v2','admission_memorizing_v1','admission_dict_v1','admission-hub-web-chat-v5'].forEach((key) => { try { localStorage.removeItem(key); } catch (_) {} });
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i -= 1) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('dictionary-api-v2:') || key.startsWith('admission-hub-google-web-v5:'))) localStorage.removeItem(key);
+      }
+    } catch (_) {}
     try {
       if (typeof dbClear === 'function') { await dbClear('vocabulary'); if (typeof CACHE !== 'undefined') CACHE.vocabulary = []; }
       if (typeof dbGetAll === 'function' && typeof dbPut === 'function') {
@@ -5056,6 +5074,10 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
           await dbPut('settings', settings);
         }
         if (typeof CACHE !== 'undefined' && records[0]) CACHE.settings = records[0];
+        if (typeof dbDelPermanent === 'function') {
+          await dbDelPermanent('appMeta', 'backup-vocabulary-1-100-question-range-cleanup-v1');
+          await dbDelPermanent('appMeta', 'vocabulary-1-100-question-range-cleanup-v1');
+        }
       }
     } catch (_) {}
   };

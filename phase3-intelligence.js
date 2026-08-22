@@ -298,6 +298,14 @@
             </div>
             <span class="p3-special-arrow-v3">${ICONS.arrow}</span>
           </button>
+          <button class="p3-special-card-v3 p3-trash-card-v3" data-deleted-questions-card onclick="navigate('deleted-questions')" type="button">
+            <span class="p3-special-icon-v3">🗑️</span>
+            <div class="p3-special-info-v3">
+              <strong>Deleted Questions</strong>
+              <small>মুছে ফেলা প্রশ্ন স্থায়ীভাবে ডিলিট করুন</small>
+            </div>
+            <span class="p3-special-arrow-v3">${ICONS.arrow}</span>
+          </button>
         </div>
       </section>
     </section>`;
@@ -445,6 +453,8 @@
     .p3-notes-card-v3{background:linear-gradient(135deg,#0f6b4f,#0b4f3b);border-color:#0b4f3b;color:#fff;box-shadow:0 14px 28px rgba(15,107,79,.2)}
     .p3-notes-card-v3 .p3-special-info-v3 strong,.p3-notes-card-v3 .p3-special-info-v3 small,.p3-notes-card-v3 .p3-special-arrow-v3{color:#fff}
     .p3-notes-card-v3 .p3-special-info-v3 small{opacity:.8}
+    .p3-trash-card-v3{background:linear-gradient(135deg,#fff7f5,#fff);border-color:#f4c9c2;color:#7f1d1d;box-shadow:0 10px 24px rgba(127,29,29,.08)}
+    .p3-trash-card-v3 .p3-special-info-v3 strong{color:#7f1d1d}.p3-trash-card-v3 .p3-special-info-v3 small{color:#9f1239}.p3-trash-card-v3 .p3-special-arrow-v3{color:#dc2626}
     .p3-special-icon-v3{font-size:28px}
     .p3-special-info-v3 strong{display:block;font-size:15px;color:#0f172a;font-weight:800}
     .p3-special-info-v3 small{display:block;font-size:12px;color:#64748b;margin-top:2px}

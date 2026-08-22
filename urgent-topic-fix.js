@@ -97,14 +97,14 @@
     if (!topic) return;
     const questions = topicQuestions(topicId);
     const message = questions.length
-      ? `This topic has ${questions.length} question${questions.length === 1 ? '' : 's'}. Delete the topic and its questions? This cannot be undone.`
+      ? `This topic has ${questions.length} question${questions.length === 1 ? '' : 's'}. Delete the topic and move its questions to Deleted Questions? You can permanently remove them later from Trash.`
       : `Delete topic “${topic.name}”?`;
     if (!window.confirm(message)) return;
     for (const question of questions) await dbDel('questions', question.id);
     await dbDel('topics', topicId);
     await refreshCache();
     renderUrgentTopicList();
-    if (typeof toast === 'function') toast('Topic deleted safely');
+    if (typeof toast === 'function') toast(questions.length ? 'Topic deleted; linked questions moved to Deleted Questions' : 'Topic deleted safely');
   };
 
   const previousRenderSubjectDetail = window.renderSubjectDetail;
