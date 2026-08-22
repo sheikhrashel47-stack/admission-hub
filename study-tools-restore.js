@@ -18,7 +18,6 @@
       ${card('📚', 'Study Helper', 'Source-only explanations', 'study-helper')}
       ${card('🧮', 'Calculator', 'Unified calculations', 'calculator')}
       ${card('🌐', 'Web Search', 'Real public search', 'web-search')}
-      ${card('📖', 'Dictionary', 'Free Dictionary API', 'dictionary')}
       ${card('🧠', 'Memorizing 33', 'Category practice', 'memorizing-33')}
       ${card('🎯', 'Exam Modes', 'Nine modes', 'exam-modes')}
     </div>`, { title: 'Study Tools', back: "navigate('dashboard')" });

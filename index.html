@@ -1044,29 +1044,9 @@ function renderDashboard(){
             <button class="btn sm btn-press" onclick="navigate('exam/running')">Continue</button>
           </div>
         </div>
-      ` : `
-        <div class="card fade-in stagger-2" style="text-align: center; padding: 20px;">
-          <div class="muted" style="margin-bottom: 12px;">No active session. Ready to start?</div>
-          <button class="btn btn-press" onclick="navigate('exam/setup')">Start Today's Practice</button>
-        </div>
-      `}
+      ` : ''}
 
-      <div class="h2">Recommended for you</div><div class="card recommend-card fade-in stagger-2"><div class="row" style="align-items:flex-start;gap:12px"><div class="recommend-icon">✦</div><div style="flex:1"><b>${smartFocus.length?`Revise ${esc(smartFocus[0].name)}`:'Build your first study streak'}</b><div class="muted" style="margin-top:5px">${smartFocus.length?`${smartFocus[0].mCount} mistakes and ${round2(smartFocus[0].acc)}% accuracy make this your highest-impact next step.`:'Complete a short practice set so your dashboard can recommend weak topics and less-practiced subjects.'}</div></div></div><button class="btn sm" style="margin-top:14px" onclick="${smartFocus.length?`startWeakTopicPractice()`:`navigate('exam/setup')`}">${smartFocus.length?'Practice weak topic':'Start practice'}</button></div>
 
-      <!-- Smart Focus -->
-      <div class="h2">Today's Smart Focus</div>
-      <div class="card fade-in stagger-3">
-        ${smartFocus.length ? smartFocus.map(f => `
-          <div class="listitem">
-            <div>
-              <div style="font-weight: 600;">${esc(f.name)}</div>
-              <div class="muted">${f.mCount} mistakes · ${round2(f.acc)}% accuracy</div>
-            </div>
-            <div class="focus-tag ${f.cls}">${f.label}</div>
-          </div>
-        `).join('') : '<div class="empty" style="padding: 10px 0;">Start practicing to get smart focus insights.</div>'}
-        <button class="btn secondary btn-press" style="margin-top: 12px;" onclick="navigate('mistakes')">Start Smart Revision</button>
-      </div>
 
       <!-- Quick Actions -->
       <div class="grid2 fade-in stagger-3">
@@ -2353,12 +2333,6 @@ function renderExamCenter(){
     {id:'mock', icon:'📝', name:'Mock Test', desc:'Real exam simulation — timed, no feedback.'},
     {id:'flash', icon:'⚡', name:'Flash Test', desc:'Instant feedback after each question.'},
     {id:'mistake', icon:'❌', name:'Mistake Test', desc:'Practice only from your Mistake Bank.'},
-    {id:'weak', icon:'🎯', name:'Weak Topic Test', desc:'Focus on topics with lowest accuracy.'},
-    {id:'bookmarked', icon:'🔖', name:'Bookmarked', desc:'Review questions you have saved.'},
-    {id:'unattempted', icon:'🧠', name:'Unattempted', desc:'Explore new questions you haven\'t seen.'},
-    {id:'random', icon:'🎲', name:'Random Challenge', desc:'A surprise mix of questions.'},
-    {id:'subject', icon:'📚', name:'Subject Test', desc:'Focused practice on specific subjects.'},
-    {id:'topic', icon:'📂', name:'Topic Test', desc:'Master specific topics one by one.'}
   ];
 
   const html = `
@@ -2429,9 +2403,7 @@ function renderExamSetup(){
         ${[
           {id:'mock', icon:'📝', name:'Mock Test'},
           {id:'flash', icon:'⚡', name:'Flash Test'},
-          {id:'mistake', icon:'❌', name:'Mistake Test'},
-          {id:'weak', icon:'🎯', name:'Weak Topic Test'},
-          {id:'custom', icon:'⚙️', name:'Custom Test'}
+          {id:'mistake', icon:'❌', name:'Mistake Test'}
         ].map(m => `
           <div class="exam-mode-card ${st.mode===m.id?'active':''}" onclick="setExamMode('${m.id}')">
             <div class="icon">${m.icon}</div>
@@ -2459,9 +2431,6 @@ function renderExamSetup(){
   } else if(step === 4){
     stepHtml = `
       <div class="h2" style="margin-top:0;">Step 4 — Exam Configuration</div>
-
-      <label class="flabel">Question Selection</label>
-      <div class="row wrap">${[['random','Random'],['unattempted','Unattempted'],['wrong','Wrong'],['bookmarked','Bookmarked'],['weak','Weak'],['newest','Newest'],['mixed','Mixed']].map(([v,l])=>`<button class="chip ${st.selectionMode===v?'active':''}" onclick="setExamSelectionMode('${v}')">${l}</button>`).join('')}</div>
 
       <label class="flabel">Question Count (Available: ${availQ})</label>
       <div class="row wrap">${[10,20,30,50,100].map(c=>`<button class="chip ${st.totalCount===c?'active':''}" onclick="ExamSetup.totalCount=${c}; render()">${c}</button>`).join('')}</div>
@@ -5139,14 +5108,12 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="admission-hub-feature-suite.js?v=question-parser-v8-duplicate-choice"></script>
 <script src="profile-reward-update.js?v=purchase-blueprint-2"></script>
 <script src="advanced-gamification-v3.js?v=purchase-blueprint-5"></script>
-<script src="ai-agents.js?v=gemini-v6-0816"></script>
 <script src="ai-mentor-integration.js?v=gemini-v2-0816"></script>
 <script src="mistake-analysis.js?v=gemini-v4-0816"></script>
 <script src="phase2-daily-quest-2.js?v=5"></script>
 <script src="vocabulary-master.js?v=1"></script>
 <script src="vocabulary-phase2.js?v=1"></script>
 <script src="vocabulary-upgrade.js?v=phase2-3"></script>
-<script src="study-hub.js?v=2"></script>
 <script src="question-bank-performance.js?v=10-note-return"></script>
 <script src="hierarchy-and-exam-fix.js?v=15"></script>
 
@@ -5213,5 +5180,61 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <style>
 .app-loading{min-height:100dvh;display:grid;place-content:center;justify-items:center;gap:8px;padding:24px;color:var(--text,#17211c);background:var(--bg,#fbfaf7);text-align:center}.app-loading-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:var(--emerald,#0f6b4f);color:#fff;font-size:25px;box-shadow:0 10px 24px rgba(15,107,79,.18)}.app-loading span{font-size:12px;color:var(--sub,#65716b)}
 </style>
+<script>
+/* User-requested removals: keep all unrelated app behavior unchanged. */
+(() => {
+  const removedRoute = (path) => {
+    const p = String(path || '').replace(/^#\/?/, '').split('?')[0];
+    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || p.startsWith('memorizing') || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/');
+  };
+  const currentPath = () => String(location.hash.replace(/^#\/?/, '').split('?')[0] || (typeof Router !== 'undefined' ? Router.path : '') || 'dashboard');
+  const cleanDashboard = () => {
+    if (currentPath() !== 'dashboard') return;
+    const page = document.querySelector('#app .page');
+    if (!page) return;
+    page.querySelectorAll('[data-study-hub-dashboard-card],[data-ai-dashboard],.ai-dashboard-card,[data-special-study-tools],.p3-recommend-v3,.p3-tasks-v3,.p3-bottom-row-v3,.p3-focus-section-v3,.p3-start-card-v3').forEach((node) => node.remove());
+    [...page.querySelectorAll('section')].forEach((section) => {
+      const heading = section.querySelector('.p3-section-head-v3 b, .section-heading h2');
+      if (heading && heading.textContent.trim() === 'Special Study Tools') section.remove();
+    });
+  };
+  const redirectRemoved = () => {
+    if (typeof Router !== 'undefined') Router.path = 'dashboard';
+    const target = `${location.pathname}${location.search}#dashboard`;
+    if (location.href !== `${location.origin}${target}`) history.replaceState(null, document.title, target);
+    if (typeof window.renderDashboard === 'function') window.renderDashboard();
+    setTimeout(cleanDashboard, 0);
+  };
+  const previousRender = window.render;
+  if (typeof previousRender === 'function') {
+    window.render = function finalRemovalRender() {
+      if (removedRoute(currentPath())) return redirectRemoved();
+      const result = previousRender.apply(this, arguments);
+      if (currentPath() === 'dashboard') { setTimeout(cleanDashboard, 0); setTimeout(cleanDashboard, 80); }
+      return result;
+    };
+  }
+  const previousRoute = window.__admissionRenderRoute;
+  if (typeof previousRoute === 'function') {
+    window.__admissionRenderRoute = function finalRemovalRoute() {
+      if (removedRoute(currentPath())) return redirectRemoved();
+      return previousRoute.apply(this, arguments);
+    };
+  }
+  const previousDashboard = window.renderDashboard;
+  if (typeof previousDashboard === 'function') {
+    window.renderDashboard = function finalRemovalDashboard() {
+      const result = previousDashboard.apply(this, arguments);
+      setTimeout(cleanDashboard, 0);
+      setTimeout(cleanDashboard, 80);
+      return result;
+    };
+  }
+  window.addEventListener('hashchange', () => {
+    if (removedRoute(currentPath())) redirectRemoved();
+    else if (currentPath() === 'dashboard') { setTimeout(cleanDashboard, 0); setTimeout(cleanDashboard, 80); }
+  });
+})();
+</script>
 </body>
 </html>
