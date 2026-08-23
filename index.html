@@ -2785,7 +2785,6 @@ function updateMockCardControls(qid){
 }
 function renderMockRunning(){
   const e=ActiveExam;
-  if(window.__mockVirtualCleanup) { try { window.__mockVirtualCleanup(); } catch(_) {} window.__mockVirtualCleanup=null; }
   const remaining=computeRemaining(e);
   const timerCls=timerVisualClass(remaining);
   const answeredCount=Object.keys(e.selectedAnswers).length;
@@ -2801,75 +2800,22 @@ function renderMockRunning(){
       <button class="btn sm danger" style="margin-left:12px;width:auto;" onclick="confirmSubmitExam()">Submit</button>
     </div>
   </div>
-  <div id="examScrollContainer" style="position:relative;padding-bottom:140px;overflow:visible;contain:layout style;">
-    <div id="examVirtualSpacer" aria-hidden="true"></div>
-    <div id="examVirtualItems" style="position:absolute;left:0;right:0;top:75px;"></div>
-  </div>`;
+  <div id="examScrollContainer" style="padding-top:75px;padding-bottom:140px;"></div>`;
   renderShell(html,{topbar:false,hideNav:true});
   const container=document.getElementById('examScrollContainer');
-  const spacer=document.getElementById('examVirtualSpacer');
-  const items=document.getElementById('examVirtualItems');
-  if(!container||!spacer||!items) return;
+  if(!container) return;
   const renderId=String(e.id||Date.now()); container.dataset.examRenderId=renderId;
-  const total=e.questions.length, defaultHeight=285, overscan=7;
-  const heights=new Map();
-  let raf=0, measureRaf=0, destroyed=false, highlightedIndex=-1;
-  const getHeight=i=>Math.max(180,Number(heights.get(i)||defaultHeight));
-  const getOffset=i=>{let sum=0;for(let n=0;n<i;n++)sum+=getHeight(n);return sum;};
-  const totalHeight=()=>getOffset(total);
-  const documentTop=()=>container.getBoundingClientRect().top+window.scrollY;
-  const visibleRange=()=>{
-    const first=Math.max(0,window.scrollY-(documentTop()+75));
-    const viewport=Math.max(480,window.innerHeight||700);
-    let start=0,passed=0;
-    while(start<total&&passed+getHeight(start)<first){passed+=getHeight(start);start++;}
-    let end=start,covered=passed;
-    while(end<total&&covered<first+viewport){covered+=getHeight(end);end++;}
-    return {start:Math.max(0,start-overscan),end:Math.min(total,end+overscan)};
+  let cursor=0; const chunkSize=24;
+  const append=()=>{
+    if(ActiveExam!==e||Router.path!=='exam/running'||container.dataset.examRenderId!==renderId) return;
+    const end=Math.min(e.questions.length,cursor+chunkSize);
+    const fragment=document.createRange().createContextualFragment(e.questions.slice(cursor,end).map((q,i)=>mockQuestionMarkup(q,cursor+i,e)).join(''));
+    container.appendChild(fragment); cursor=end;
+    if(cursor<e.questions.length) requestAnimationFrame(append);
   };
-  const updateSpacer=()=>{spacer.style.height=(75+totalHeight())+'px';};
-  const highlight=()=>{
-    if(highlightedIndex<0)return;
-    const card=document.getElementById('q-row-'+highlightedIndex);
-    if(card){card.style.borderLeftColor='var(--emerald)';}
-  };
-  const measure=range=>{
-    const anchor=range.start, before=getOffset(anchor), wasNearBottom=window.scrollY+window.innerHeight>=document.documentElement.scrollHeight-32; let changed=false;
-    items.querySelectorAll('[data-virtual-index]').forEach(row=>{
-      const i=Number(row.dataset.virtualIndex), card=row.firstElementChild;
-      if(!card)return;
-      const h=Math.ceil(card.getBoundingClientRect().height+16);
-      if(Math.abs(getHeight(i)-h)>1){heights.set(i,h);changed=true;}
-    });
-    if(changed){updateSpacer();if(wasNearBottom)window.scrollTo(0,Math.max(0,document.documentElement.scrollHeight-window.innerHeight));else{const delta=getOffset(anchor)-before;if(delta&&window.scrollY>documentTop())window.scrollBy(0,delta);}}
-    return changed;
-  };
-  const renderWindow=()=>{
-    if(destroyed||ActiveExam!==e||Router.path!=='exam/running'||container.dataset.examRenderId!==renderId)return;
-    const range=visibleRange();
-    const keep=new Set();
-    for(let i=range.start;i<range.end;i++)keep.add(i);
-    items.querySelectorAll('[data-virtual-index]').forEach(row=>{if(!keep.has(Number(row.dataset.virtualIndex)))row.remove();});
-    const missing=[];
-    for(let i=range.start;i<range.end;i++)if(!items.querySelector(`[data-virtual-index="${i}"]`))missing.push(i);
-    missing.forEach(i=>{
-      const row=document.createElement('div');row.dataset.virtualIndex=i;row.style.cssText=`position:absolute;left:0;right:0;top:${75+getOffset(i)}px;`;
-      row.innerHTML=mockQuestionMarkup(e.questions[i],i,e);items.appendChild(row);
-    });
-    items.querySelectorAll('[data-virtual-index]').forEach(row=>{const i=Number(row.dataset.virtualIndex);row.style.top=(75+getOffset(i))+'px';});
-    updateSpacer();highlight();
-    if(measureRaf)cancelAnimationFrame(measureRaf);
-    measureRaf=requestAnimationFrame(()=>{if(measure(range)){items.querySelectorAll('[data-virtual-index]').forEach(row=>{const i=Number(row.dataset.virtualIndex);row.style.top=(75+getOffset(i))+'px';});requestAnimationFrame(updateSpacer);}});
-  };
-  const onScroll=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;renderWindow();});};
-  window.addEventListener('scroll',onScroll,{passive:true});
-  window.addEventListener('resize',onScroll,{passive:true});
-  window.__mockVirtualScrollTo=idx=>{const i=Math.max(0,Math.min(total-1,Number(idx)||0));highlightedIndex=i;window.scrollTo({top:documentTop()+75+getOffset(i)-80,behavior:'smooth'});setTimeout(renderWindow,80);};
-  window.__mockVirtualCleanup=()=>{destroyed=true;window.removeEventListener('scroll',onScroll);window.removeEventListener('resize',onScroll);if(raf)cancelAnimationFrame(raf);if(measureRaf)cancelAnimationFrame(measureRaf);if(window.__mockVirtualScrollTo)window.__mockVirtualScrollTo=null;};
-  renderWindow();
+  append();
 }
 function scrollToQuestion(idx){
-  if(typeof window.__mockVirtualScrollTo==='function'){window.__mockVirtualScrollTo(idx);return;}
   const el=document.getElementById('q-row-'+idx);
   if(el){
     window.scrollTo({top: el.offsetTop - 80, behavior:'smooth'});
