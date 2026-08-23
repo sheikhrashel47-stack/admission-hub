@@ -2839,7 +2839,7 @@ function mockPage(dir){
   renderMockPagedRunning();
 }
 function scrollToQuestion(idx){
-  if(ActiveExam&&ActiveExam.questions.length>80){MockPage=Math.floor(Math.max(0,Math.min(ActiveExam.questions.length-1,Number(idx)||0))/MOCK_PAGE_SIZE);renderMockPagedRunning();return;}
+  if(ActiveExam&&ActiveExam.questions.length>80){const target=Math.max(0,Math.min(ActiveExam.questions.length-1,Number(idx)||0)),lastPage=Math.floor(target/MOCK_PAGE_SIZE)===Math.ceil(ActiveExam.questions.length/MOCK_PAGE_SIZE)-1;MockPage=Math.floor(target/MOCK_PAGE_SIZE);renderMockPagedRunning();requestAnimationFrame(()=>window.scrollTo(0,lastPage?document.documentElement.scrollHeight:0));return;}
   const el=document.getElementById('q-row-'+idx);
   if(el){
     document.querySelectorAll('.exam-q-card').forEach(c=>c.style.borderLeftColor='transparent');
