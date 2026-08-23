@@ -2783,8 +2783,12 @@ function updateMockCardControls(qid){
   const bookmark=card.querySelector('[data-exam-bookmark]'); if(bookmark){bookmark.textContent=e.bookmarks.has(qid)?'★':'☆'; bookmark.classList.toggle('explorer-bookmark',e.bookmarks.has(qid));}
   const flag=card.querySelector('[data-exam-flag]'); if(flag) flag.style.color=e.flags.has(qid)?'var(--red)':'var(--sub)';
 }
+const MOCK_PAGE_SIZE=20;
+let MockPage=0;
+let MockPagedExamId='';
 function renderMockRunning(){
   const e=ActiveExam;
+  if(e.questions.length>80) return renderMockPagedRunning();
   const remaining=computeRemaining(e);
   const timerCls=timerVisualClass(remaining);
   const answeredCount=Object.keys(e.selectedAnswers).length;
@@ -2797,30 +2801,51 @@ function renderMockRunning(){
         <div class="exam-answer-meta"><span id="examAnsweredCount">${answeredCount}</span> answered · <span>${e.questions.length}</span> questions</div>
         <div class="progbar" style="margin-top:6px;height:4px;"><div id="examProgressBar" style="width:${progress}%"></div></div>
       </div>
-      <button class="btn sm danger" style="margin-left:12px;width:auto;" onclick="confirmSubmitExam()">Submit</button>
+      <div class="row" style="gap:6px;margin-left:10px;flex-shrink:0;"><button class="btn sm secondary" style="width:auto;padding-left:9px;padding-right:9px;" onclick="scrollToQuestion(ActiveExam.questions.length-1)">শেষে যান</button><button class="btn sm danger" style="width:auto;padding-left:9px;padding-right:9px;" onclick="confirmSubmitExam()">Submit</button></div>
     </div>
   </div>
-  <div id="examScrollContainer" style="padding-top:75px;padding-bottom:140px;"></div>`;
+  <div id="examScrollContainer" style="padding-top:75px;padding-bottom:140px;"><div id="examEndMarker" aria-hidden="true" style="height:1px;"></div></div>`;
   renderShell(html,{topbar:false,hideNav:true});
   const container=document.getElementById('examScrollContainer');
   if(!container) return;
   const renderId=String(e.id||Date.now()); container.dataset.examRenderId=renderId;
-  let cursor=0; const chunkSize=24;
-  const append=()=>{
-    if(ActiveExam!==e||Router.path!=='exam/running'||container.dataset.examRenderId!==renderId) return;
-    const end=Math.min(e.questions.length,cursor+chunkSize);
-    const fragment=document.createRange().createContextualFragment(e.questions.slice(cursor,end).map((q,i)=>mockQuestionMarkup(q,cursor+i,e)).join(''));
-    container.appendChild(fragment); cursor=end;
-    if(cursor<e.questions.length) requestAnimationFrame(append);
-  };
-  append();
+  // Build the complete normal-flow layout in one pass. Progressive append made
+  // the document height change during fast swipes, which could strand iOS at a
+  // stale scroll boundary. The card CSS below keeps paint/compositing light.
+  if(ActiveExam!==e||Router.path!=='exam/running'||container.dataset.examRenderId!==renderId) return;
+  const fragment=document.createRange().createContextualFragment(e.questions.map((q,i)=>mockQuestionMarkup(q,i,e)).join(''));
+  container.appendChild(fragment);
+}
+function renderMockPagedRunning(){
+  const e=ActiveExam;
+  if(MockPagedExamId!==String(e.id)){MockPagedExamId=String(e.id);MockPage=0;}
+  const total=e.questions.length,totalPages=Math.max(1,Math.ceil(total/MOCK_PAGE_SIZE));
+  MockPage=Math.max(0,Math.min(totalPages-1,MockPage));
+  const start=MockPage*MOCK_PAGE_SIZE,end=Math.min(total,start+MOCK_PAGE_SIZE),remaining=computeRemaining(e),timerCls=timerVisualClass(remaining),answeredCount=Object.keys(e.selectedAnswers).length,progress=total?Math.round(answeredCount/total*100):0;
+  const html=`
+  <div class="topbar" style="position:fixed;top:0;left:0;right:0;max-width:560px;margin:0 auto;z-index:100;background:var(--card);border-bottom:1px solid var(--line);padding:10px 16px;">
+    <div class="row between" style="width:100%;"><div style="flex:1;min-width:0;"><div class="row between"><b style="font-size:14px;">${e.mode.toUpperCase()} TEST</b><div class="timerbox ${timerCls}" id="examTimer" style="font-size:16px;">${e.duration?fmtTime(remaining):'∞'}</div></div><div class="exam-answer-meta"><span id="examAnsweredCount">${answeredCount}</span> answered · ${start+1}–${end} / ${total}</div><div class="progbar" style="margin-top:6px;height:4px;"><div id="examProgressBar" style="width:${progress}%"></div></div></div><div class="row" style="gap:6px;margin-left:10px;flex-shrink:0;"><button class="btn sm secondary" style="width:auto;padding:7px 8px;font-size:11px;" onclick="scrollToQuestion(ActiveExam.questions.length-1)">শেষে যান</button><button class="btn sm danger" style="width:auto;padding:7px 8px;font-size:11px;" onclick="confirmSubmitExam()">Submit</button></div></div>
+  </div>
+  <div id="examScrollContainer" style="padding-top:75px;padding-bottom:140px;">
+    ${e.questions.slice(start,end).map((q,i)=>mockQuestionMarkup(q,start+i,e)).join('')}
+    <div class="card" style="margin-top:4px;padding:12px 10px;box-shadow:none;border:1px solid var(--line);"><div class="row between" style="gap:8px;"><button class="btn secondary sm" ${MockPage===0?'disabled':''} onclick="mockPage(-1)">← আগের ২০</button><span class="muted" style="font-size:11px;text-align:center;">পৃষ্ঠা ${MockPage+1} / ${totalPages}<br>${start+1}–${end}</span><button class="btn sm" ${MockPage===totalPages-1?'disabled':''} onclick="mockPage(1)">পরের ২০ →</button></div></div>
+  </div>`;
+  renderShell(html,{topbar:false,hideNav:true});
+  requestAnimationFrame(()=>window.scrollTo(0,0));
+}
+function mockPage(dir){
+  if(!ActiveExam||ActiveExam.questions.length<=80)return;
+  MockPage=Math.max(0,Math.min(Math.ceil(ActiveExam.questions.length/MOCK_PAGE_SIZE)-1,MockPage+Number(dir||0)));
+  renderMockPagedRunning();
 }
 function scrollToQuestion(idx){
+  if(ActiveExam&&ActiveExam.questions.length>80){MockPage=Math.floor(Math.max(0,Math.min(ActiveExam.questions.length-1,Number(idx)||0))/MOCK_PAGE_SIZE);renderMockPagedRunning();return;}
   const el=document.getElementById('q-row-'+idx);
   if(el){
-    window.scrollTo({top: el.offsetTop - 80, behavior:'smooth'});
-    document.querySelectorAll('.exam-q-card').forEach(c=>c.style.borderColor='transparent');
-    el.style.borderColor='var(--emerald)';
+    document.querySelectorAll('.exam-q-card').forEach(c=>c.style.borderLeftColor='transparent');
+    el.style.borderLeftColor='var(--emerald)';
+    el.scrollIntoView({behavior:'auto',block:'start'});
+    window.scrollBy(0,-82);
   }
 }
 async function toggleExamBookmark(qid){

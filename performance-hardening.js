@@ -315,12 +315,6 @@
     wrapped.__ahScrollStable = true;
     wrapped.__ahOriginal = originalShell;
     window.renderShell = wrapped;
-    on(document, 'click', event => {
-      if (event.target?.closest?.('.q-opt-v2, .opt, .qbank-page-btn, [data-option], .flash-option')) {
-        const y = saveScroll();
-        window.requestAnimationFrame(() => window.scrollTo(0, y));
-      }
-    }, { capture: true, passive: true });
   }
 
   function injectPerformanceStyles() {
@@ -328,8 +322,10 @@
     const style = document.createElement('style');
     style.id = 'admission-hub-performance-style';
     style.textContent = `
-      .q-card-v2,.explorer-card,.exam-q-card,.flash-card,.q-feed-body > * { content-visibility:auto; contain-intrinsic-size:240px; }
-      .q-card-v2,.explorer-card,.exam-q-card,.flash-card { will-change:transform,opacity; }
+      .q-card-v2,.explorer-card,.flash-card,.q-feed-body > * { content-visibility:auto; contain-intrinsic-size:240px; }
+      .q-card-v2,.explorer-card,.flash-card { will-change:transform,opacity; }
+      /* Mock cards must stay in a stable native flow on iOS/PWA. */
+      .exam-q-card,.exam-q-card:active { content-visibility:visible !important; contain:none !important; will-change:auto !important; transform:none !important; transition:none !important; }
       .qbank-page-btn,.q-opt-v2,.opt,.btn,.iconbtn,.navbtn { backface-visibility:hidden; transform:translateZ(0); }
       body.ah-is-scrolling .card, body.ah-is-scrolling .q-card-v2, body.ah-is-scrolling .explorer-card { box-shadow:none !important; filter:none !important; }
       @media (prefers-reduced-motion: reduce) {
