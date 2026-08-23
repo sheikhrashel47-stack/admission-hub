@@ -2783,7 +2783,7 @@ function updateMockCardControls(qid){
   const bookmark=card.querySelector('[data-exam-bookmark]'); if(bookmark){bookmark.textContent=e.bookmarks.has(qid)?'★':'☆'; bookmark.classList.toggle('explorer-bookmark',e.bookmarks.has(qid));}
   const flag=card.querySelector('[data-exam-flag]'); if(flag) flag.style.color=e.flags.has(qid)?'var(--red)':'var(--sub)';
 }
-const MOCK_PAGE_SIZE=20;
+const MOCK_PAGE_SIZE=50;
 let MockPage=0;
 let MockPagedExamId='';
 function renderMockRunning(){
@@ -2828,7 +2828,7 @@ function renderMockPagedRunning(){
   </div>
   <div id="examScrollContainer" style="padding-top:75px;padding-bottom:140px;">
     ${e.questions.slice(start,end).map((q,i)=>mockQuestionMarkup(q,start+i,e)).join('')}
-    <div class="card" style="margin-top:4px;padding:12px 10px;box-shadow:none;border:1px solid var(--line);"><div class="row between" style="gap:8px;"><button class="btn secondary sm" ${MockPage===0?'disabled':''} onclick="mockPage(-1)">← আগের ২০</button><span class="muted" style="font-size:11px;text-align:center;">পৃষ্ঠা ${MockPage+1} / ${totalPages}<br>${start+1}–${end}</span><button class="btn sm" ${MockPage===totalPages-1?'disabled':''} onclick="mockPage(1)">পরের ২০ →</button></div></div>
+    <div class="card" style="margin-top:4px;padding:12px 10px;box-shadow:none;border:1px solid var(--line);"><div class="row between" style="gap:8px;"><button class="btn secondary sm" ${MockPage===0?'disabled':''} onclick="mockPage(-1)">← আগের ৫০</button><span class="muted" style="font-size:11px;text-align:center;">পৃষ্ঠা ${MockPage+1} / ${totalPages}<br>${start+1}–${end}</span><button class="btn sm" ${MockPage===totalPages-1?'disabled':''} onclick="mockPage(1)">পরের ৫০ →</button></div></div>
   </div>`;
   renderShell(html,{topbar:false,hideNav:true});
   requestAnimationFrame(()=>window.scrollTo(0,0));
@@ -2839,7 +2839,7 @@ function mockPage(dir){
   renderMockPagedRunning();
 }
 function scrollToQuestion(idx){
-  if(ActiveExam&&ActiveExam.questions.length>80){const target=Math.max(0,Math.min(ActiveExam.questions.length-1,Number(idx)||0)),lastPage=Math.floor(target/MOCK_PAGE_SIZE)===Math.ceil(ActiveExam.questions.length/MOCK_PAGE_SIZE)-1;MockPage=Math.floor(target/MOCK_PAGE_SIZE);renderMockPagedRunning();requestAnimationFrame(()=>window.scrollTo(0,lastPage?document.documentElement.scrollHeight:0));return;}
+  if(ActiveExam&&ActiveExam.questions.length>80){const target=Math.max(0,Math.min(ActiveExam.questions.length-1,Number(idx)||0)),lastPage=Math.floor(target/MOCK_PAGE_SIZE)===Math.ceil(ActiveExam.questions.length/MOCK_PAGE_SIZE)-1;MockPage=Math.floor(target/MOCK_PAGE_SIZE);renderMockPagedRunning();const align=()=>{if(!ActiveExam||Router.path!=='exam/running')return;const max=Math.max(0,document.scrollingElement.scrollHeight-document.scrollingElement.clientHeight);window.scrollTo({top:lastPage?max:0,left:0,behavior:'auto'});document.scrollingElement.scrollTop=lastPage?max:0;};requestAnimationFrame(()=>requestAnimationFrame(align));window.setTimeout(align,80);return;}
   const el=document.getElementById('q-row-'+idx);
   if(el){
     document.querySelectorAll('.exam-q-card').forEach(c=>c.style.borderLeftColor='transparent');
