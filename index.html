@@ -2837,6 +2837,9 @@ function mockPage(dir){
   if(!ActiveExam||ActiveExam.questions.length<=80)return;
   MockPage=Math.max(0,Math.min(Math.ceil(ActiveExam.questions.length/MOCK_PAGE_SIZE)-1,MockPage+Number(dir||0)));
   renderMockPagedRunning();
+  const resetPageScroll=()=>{if(ActiveExam&&Router.path==='exam/running')window.scrollTo({top:0,left:0,behavior:'auto'});};
+  requestAnimationFrame(()=>requestAnimationFrame(resetPageScroll));
+  window.setTimeout(resetPageScroll,90);
 }
 function scrollToQuestion(idx){
   if(ActiveExam&&ActiveExam.questions.length>80){const target=Math.max(0,Math.min(ActiveExam.questions.length-1,Number(idx)||0)),lastPage=Math.floor(target/MOCK_PAGE_SIZE)===Math.ceil(ActiveExam.questions.length/MOCK_PAGE_SIZE)-1;MockPage=Math.floor(target/MOCK_PAGE_SIZE);renderMockPagedRunning();const align=()=>{if(!ActiveExam||Router.path!=='exam/running')return;const max=Math.max(0,document.scrollingElement.scrollHeight-document.scrollingElement.clientHeight);window.scrollTo({top:lastPage?max:0,left:0,behavior:'auto'});document.scrollingElement.scrollTop=lastPage?max:0;};requestAnimationFrame(()=>requestAnimationFrame(align));window.setTimeout(align,80);return;}
