@@ -20,6 +20,10 @@
   let lastRoute = routeName();
   let lastScrollY = window.scrollY || 0;
   let examFrame = 0;
+  let examTickTimer = 0;
+  let examPersistTimer = 0;
+  let examPersistInFlight = false;
+  let examPersistDirty = false;
   let submissionLock = null;
 
   function routeName() {
@@ -52,6 +56,9 @@
     timers.clear(); intervals.clear();
     observers.forEach(observer => { try { observer.disconnect(); } catch (_) {} });
     observers.clear();
+    if (examTickTimer) { window.clearInterval(examTickTimer); examTickTimer = 0; }
+    if (examPersistDirty) void flushExamPersist();
+    if (examPersistTimer) { window.clearTimeout(examPersistTimer); examPersistTimer = 0; }
   }
 
   function on(target, type, handler, options = {}) {
@@ -156,11 +163,18 @@
   function backupExamState(reason = 'answer') {
     const exam = activeExam();
     if (!exam || typeof exam !== 'object') return false;
-    const safeExam = {...exam,
-      bookmarks: Array.from(exam.bookmarks || []),
-      flags: Array.from(exam.flags || [])
+    // Keep this emergency backup intentionally lightweight. The full question
+    // snapshot already lives in IndexedDB; serializing 500 questions on every
+    // answer tap makes long tests lag and can trigger mobile tab eviction.
+    const safeExam = {
+      id: exam.id, mode: exam.mode, questionIds: Array.isArray(exam.questionIds) ? exam.questionIds : [],
+      currentIndex: Number(exam.currentIndex || 0), selectedAnswers: {...(exam.selectedAnswers || {})},
+      startTime: exam.startTime, duration: exam.duration, endTime: exam.endTime, negative: exam.negative,
+      status: exam.status, configuration: exam.configuration || {}, timing: {...(exam.timing || {})},
+      questionStartedAt: {...(exam.questionStartedAt || {})}, flashResults: {...(exam.flashResults || {})},
+      bookmarks: Array.from(exam.bookmarks || []), flags: Array.from(exam.flags || [])
     };
-    const payload = { version: 2, reason, savedAt: Date.now(), route: routeName(), exam: safeExam };
+    const payload = { version: 3, reason, savedAt: Date.now(), route: routeName(), exam: safeExam };
     const serialized = safeJson(payload);
     if (!serialized) return false;
     try { sessionStorage.setItem(EXAM_BACKUP_KEY, serialized); return true; } catch (_) { return false; }
@@ -178,6 +192,25 @@
     return Math.max(0, duration - Math.floor((Date.now() - start) / 1000));
   }
 
+  // Persist only the latest in-memory exam state. A full 500-question exam
+  // object does not need a separate IndexedDB transaction for every tap.
+  function queueExamPersist() {
+    examPersistDirty = true;
+    if (examPersistInFlight || examPersistTimer) return;
+    examPersistTimer = window.setTimeout(flushExamPersist, 180);
+  }
+  async function flushExamPersist() {
+    examPersistTimer = 0;
+    if (!examPersistDirty) return;
+    examPersistDirty = false;
+    const exam = activeExam();
+    if (!exam) return;
+    examPersistInFlight = true;
+    try { await dbPut('exams', exam); } catch (_) {}
+    examPersistInFlight = false;
+    if (examPersistDirty) queueExamPersist();
+  }
+
   function accurateClock(exam, callback) {
     const start = Number(exam?.startTime || Date.now());
     const duration = Math.max(0, Number(exam?.duration || 0));
@@ -190,9 +223,8 @@
   }
 
   function startExamWatch() {
-    if (examFrame) return;
+    if (examTickTimer) return;
     const tick = () => {
-      examFrame = window.requestAnimationFrame(tick);
       const exam = activeExam();
       if (!exam || routeName() !== 'exam/running') return;
       const remaining = nowRemaining(exam);
@@ -203,7 +235,8 @@
         try { window.submitExam(true); } catch (_) {}
       }
     };
-    examFrame = window.requestAnimationFrame(tick);
+    tick();
+    examTickTimer = window.setInterval(tick, 1000);
   }
 
   function wrapSubmission() {
@@ -228,8 +261,10 @@
   function wrapAnswerFunction(name) {
     const original = window[name];
     if (typeof original !== 'function' || original.__ahPerformanceBackedUp) return;
+    let lastBackupAt = 0;
     const wrapped = function (...args) {
-      backupExamState(`before:${name}`);
+      const now = Date.now();
+      if (now - lastBackupAt > 450) { backupExamState(`before:${name}`); lastBackupAt = now; }
       const result = original.apply(this, args);
       backupExamState(`after:${name}`);
       return result;
@@ -351,6 +386,8 @@
     NS.accurateClock = accurateClock;
     NS.getRemainingSeconds = () => nowRemaining(activeExam());
     NS.SEARCH_DEBOUNCE = SEARCH_DEBOUNCE;
+    NS.queueExamPersist = queueExamPersist;
+    NS.flushExamPersist = flushExamPersist;
     window.AdmissionHubPerformance = NS;
 
     injectPerformanceStyles();

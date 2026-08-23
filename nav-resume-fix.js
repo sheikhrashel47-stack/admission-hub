@@ -19,8 +19,10 @@
     if (!editing) {
       document.body.classList.remove('keyboard-open');
     }
-    // Reset scroll position if it's somehow offset
-    if (window.scrollY > 0 && !editing) {
+    // Never force the page to the top while a running exam is open. The
+    // exam's scroll position is meaningful and must survive app resume.
+    const runningExam = String(window.Router?.path || location.hash.slice(1) || '') === 'exam/running';
+    if (!runningExam && window.scrollY > 0 && !editing) {
       window.scrollTo(0, 0);
     }
   }
