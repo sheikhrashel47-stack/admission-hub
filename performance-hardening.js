@@ -97,6 +97,9 @@
     const position = saveScroll();
     return () => {
       const routeAfter = routeName();
+      // A running mock page transition intentionally resets to the first
+      // question; restoring the previous page's bottom would undo that.
+      if (routeAfter === routeBefore && routeAfter === 'exam/running') return;
       if (routeAfter === routeBefore && isStabilityRoute(routeAfter)) restoreScroll(position);
       else if (routeAfter !== routeBefore) window.requestAnimationFrame(() => window.scrollTo(0, 0));
     };
