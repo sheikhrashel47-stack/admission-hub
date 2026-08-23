@@ -416,7 +416,7 @@ body.no-motion *,body.no-motion *::before,body.no-motion *::after{animation:none
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
   @media(max-width:390px){.phase5-grid,.phase5-grid.three{grid-template-columns:1fr 1fr}.phase5-grid.three .phase5-kpi:last-child{grid-column:1/-1}}
   /* Flash Test Redesign - Light Theme */
-  .flash-container { padding: 10px 16px 40px; background: var(--bg); min-height: 100vh; }
+  .flash-container { padding: 10px 16px calc(150px + var(--safe-b)); background: var(--bg); min-height: 100vh; }
   .flash-header { margin-bottom: 20px; }
   .flash-title { font-size: 18px; font-weight: 800; margin: 0; }
   .flash-subtitle { font-size: 12px; color: var(--emerald); font-weight: 600; }
@@ -458,8 +458,20 @@ body.no-motion *,body.no-motion *::before,body.no-motion *::after{animation:none
   .flash-stat-val.streak { color: #f57c00; }
   .flash-stat-lab { font-size: 10px; text-transform: uppercase; color: var(--sub); font-weight: 800; letter-spacing: 0.05em; }
   
-  .flash-nav { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
+  /* Keep Flash navigation reachable without scrolling past feedback. It sits above the app bottom nav. */
+  .flash-nav { position: fixed; left: 0; right: 0; bottom: calc(74px + var(--safe-b)); z-index: 900; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 10px max(16px, calc((100vw - 960px) / 2 + 16px)); margin: 0; background: color-mix(in srgb, var(--bg) 94%, transparent); box-shadow: 0 -8px 24px rgba(20,55,38,.10); backdrop-filter: blur(10px); }
+  .flash-nav .btn { min-height: 46px; }
+  #app.no-nav .flash-nav { bottom: var(--safe-b); }
   .flash-footer { text-align: center; font-size: 12px; color: var(--sub); opacity: 0.8; padding: 20px 0; }
+</style>
+<style id="flash-summary-styles">
+  .flash-summary-page{min-height:100vh;padding:24px 16px 40px;background:var(--bg)}
+  .flash-summary-hero{background:linear-gradient(135deg,#0d6b50,#084331);color:#fff;border-radius:24px;padding:24px 20px;box-shadow:0 14px 30px rgba(8,67,49,.18)}
+  .flash-summary-kicker{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+  .flash-summary-hero h1{font-size:24px;line-height:1.35;margin:12px 0 7px}.flash-summary-hero p{font-size:13px;line-height:1.6;opacity:.86;margin:0}
+  .flash-summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:14px 0}.flash-summary-stat{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px 7px;text-align:center;box-shadow:0 5px 16px rgba(15,107,79,.05)}.flash-summary-stat b{display:block;font-size:22px;color:var(--emerald-d)}.flash-summary-stat span{display:block;font-size:10px;color:var(--sub);font-weight:800;margin-top:4px}.flash-summary-stat.correct b{color:var(--green)}.flash-summary-stat.wrong b{color:var(--red)}.flash-summary-stat.streak b{color:#f57c00}
+  .flash-summary-note{padding:16px;margin-bottom:12px}.flash-summary-note p{font-size:13px;line-height:1.6;margin:10px 0 0}.flash-summary-continue{width:100%;margin-bottom:9px;min-height:48px}
+  @media(max-width:420px){.flash-summary-grid{grid-template-columns:repeat(2,1fr)}.flash-summary-hero h1{font-size:21px}}
 </style>
 <style id="premium-result-system-styles">
 .result-page{display:flex;flex-direction:column;gap:14px;padding-bottom:24px}.result-hero{background:linear-gradient(135deg,#0d6b50,#084331);color:#fff;border-radius:24px;padding:22px 18px;box-shadow:0 14px 30px rgba(8,67,49,.2)}.result-kicker{font-size:11px;font-weight:800;letter-spacing:.08em;opacity:.72;text-transform:uppercase}.result-hero-main{display:flex;align-items:center;gap:18px;margin-top:20px}.result-score-ring{width:112px;height:112px;flex:0 0 112px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;border:8px solid rgba(255,255,255,.22);box-shadow:inset 0 0 0 6px rgba(255,255,255,.09)}.result-score-ring b{font-size:25px}.result-score-ring span{font-size:10px;opacity:.75}.result-score{font-size:42px;font-weight:950;line-height:1}.result-score small{font-size:14px;opacity:.72}.result-hero p{font-size:13px;line-height:1.55;opacity:.86;margin:8px 0 0}.result-stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.result-stat-grid>div{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:13px 8px;text-align:center;box-shadow:0 5px 16px rgba(15,107,79,.05)}.result-stat-grid b{display:block;font-size:20px;color:var(--emerald-d)}.result-stat-grid span{display:block;font-size:10px;color:var(--sub);margin-top:4px}.result-insight,.result-next{background:var(--mint);border-radius:18px;padding:16px;border:1px solid color-mix(in srgb,var(--emerald) 15%,transparent)}.result-insight p,.result-next p{margin:7px 0;font-size:13px;line-height:1.6}.result-highlight-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}.result-highlight-grid span{background:rgba(255,255,255,.7);border-radius:10px;padding:9px;font-size:10px;color:var(--sub)}.result-highlight-grid b{display:block;color:var(--text);font-size:12px;margin-top:3px;overflow-wrap:anywhere}.result-section-title{font-size:16px;font-weight:900;margin-top:4px;color:var(--text)}.result-section-title small{font-size:11px;color:var(--sub);font-weight:700}.result-analysis-card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:10px;box-shadow:0 5px 18px rgba(15,107,79,.04)}.analysis-row{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:12px 5px;border-bottom:1px solid var(--line)}.analysis-row:last-child{border-bottom:0}.analysis-row small{display:block;color:var(--sub);font-size:11px;margin-top:4px}.analysis-score{font-size:16px;color:var(--emerald-d)}.analysis-score.weak{color:var(--red)}.analysis-score.strong{color:var(--green)}.result-weak-callout{margin:8px 3px 2px;padding:10px;border-radius:10px;background:#fff8e8;color:#865b00;font-size:12px}.result-time-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.result-time-grid span{font-size:11px;color:var(--sub)}.result-time-grid b{display:block;font-size:16px;color:var(--text);margin-top:3px}.result-time-list{margin-top:16px;display:flex;flex-direction:column;gap:8px}.result-time-list>div{display:grid;grid-template-columns:55px 1fr 42px;align-items:center;gap:7px;font-size:11px}.result-time-list i{height:7px;border-radius:8px;background:var(--mint);overflow:hidden}.result-time-list em{height:100%;display:block;border-radius:8px;background:var(--emerald)}.result-filter-bar{position:sticky;top:8px;z-index:5;display:grid;grid-template-columns:repeat(4,1fr);gap:5px;background:var(--bg);padding:6px 0}.result-filter{border:1px solid var(--line);background:var(--card);color:var(--sub);border-radius:12px;padding:9px 4px;font-size:11px;font-weight:800;cursor:pointer}.result-filter span{display:block;font-size:12px;color:var(--text);margin-top:2px}.result-filter.active{background:var(--emerald);border-color:var(--emerald);color:#fff}.result-filter.active span{color:#fff}.result-review-list{display:flex;flex-direction:column;gap:12px}.result-review-card{background:linear-gradient(145deg,var(--card),color-mix(in srgb,var(--mint) 22%,var(--card)));border:1px solid var(--line);border-left:5px solid var(--sub);border-radius:20px;padding:17px;box-shadow:0 8px 24px rgba(15,107,79,.07)}.result-review-card.correct{border-left-color:var(--green)}.result-review-card.wrong{border-left-color:var(--red)}.result-review-card.skipped{border-left-color:#d09a21}.result-review-head,.result-tags,.result-actions{display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap}.result-q-number{font-weight:900;color:var(--emerald-d);font-size:12px}.result-time{font-size:11px;color:var(--sub);font-weight:700}.result-question{font-size:17px;line-height:1.6;margin:12px 0 14px;color:var(--text);overflow-wrap:anywhere}.result-review-card .result-status{margin-left:auto}.result-review-card .result-options{gap:8px}.result-review-card .result-option{padding:13px 12px;min-height:50px;font-size:15.5px;line-height:1.55;background:rgba(255,255,255,.78)}.result-review-card .result-option-text{font-weight:600}.result-time-analysis-title,.result-time-analysis{display:none!important}.result-tags{justify-content:flex-start;margin-bottom:11px}.result-tags>span{font-size:10px;color:var(--sub);background:var(--mint);padding:5px 8px;border-radius:8px}.result-status{font-size:10px;padding:5px 8px;border-radius:8px}.result-status.correct{background:#dcfce7;color:#15803d}.result-status.wrong{background:#fee2e2;color:#b91c1c}.result-status.skipped{background:#fff4cf;color:#8a6100}.result-options{display:flex;flex-direction:column;gap:7px}.result-option{display:flex;align-items:flex-start;gap:9px;padding:10px;border:1px solid var(--line);border-radius:11px;font-size:13px;line-height:1.45}.result-option-letter{font-weight:900;color:var(--sub);min-width:20px}.result-option-text{flex:1;overflow-wrap:anywhere}.result-option-note{font-size:9px;font-weight:900;color:var(--green);white-space:nowrap}.result-option-note.wrong-note{color:var(--red)}.result-option.is-correct{background:#effbf3;border-color:#9ddbb0}.result-option.is-wrong{background:#fff4f4;border-color:#efb1b1}.result-option.is-correct-soft{background:#f8fff9;border-color:#b9ddc2}.result-answer-line{font-size:12px;line-height:1.7;margin-top:11px;padding:10px;border-radius:10px;background:var(--mint);color:var(--sub)}.result-answer-line b{color:var(--text)}.result-explanation{margin-top:9px;padding:10px;border-radius:10px;background:#fff8e8;color:#664c18;font-size:12px;line-height:1.55}.result-explanation b{display:block;margin-bottom:3px}.result-actions{justify-content:flex-start;margin-top:11px}.result-action{border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;padding:8px 9px;font-size:10px;font-weight:800;cursor:pointer}.result-action.saved{background:var(--mint);color:var(--emerald-d);border-color:#a5d4bf}.result-action.primary{background:var(--emerald);border-color:var(--emerald);color:#fff}.result-empty{text-align:center;padding:22px 14px;background:var(--card);border:1px dashed var(--line);border-radius:16px;color:var(--sub);font-size:13px}.result-next-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.result-next-actions .btn{flex:1;min-width:140px}.result-back{margin-top:2px}@media(max-width:420px){.result-stat-grid{grid-template-columns:repeat(2,1fr)}.result-hero-main{gap:12px}.result-score-ring{width:95px;height:95px;flex-basis:95px}.result-score{font-size:34px}.result-question{font-size:15px}.result-action{flex:1}}
@@ -865,6 +877,7 @@ function render(){
   if(p==='exam') return renderExamCenter();
   if(p==='exam/setup') return renderExamSetup();
   if(p==='exam/running') return renderExamRunning();
+  if(p==='exam/flash-summary') return renderFlashSummary();
   if(p==='exam/result') return renderExamResult();
   if(p==='history') return renderHistory();
   if(p.startsWith('history/')) return renderHistoryDetail(p.split('/')[1]);
@@ -2909,19 +2922,6 @@ function renderFlashRunning(){
   const e=ActiveExam, q=e.questions[e.currentIndex], answered=e.flashResults[q.id];
   const total = e.questions.length, current = e.currentIndex + 1;
   const progress = Math.round((current / total) * 100);
-  
-  // Calculate stats
-  const results = Object.values(e.flashResults);
-  const correctCount = results.filter(r=>r.correct).length;
-  const wrongCount = results.filter(r=>!r.correct).length;
-  const accuracy = results.length ? Math.round((correctCount / results.length) * 100) : 0;
-  
-  // Calculate streak
-  let streak = 0;
-  for(let i=e.currentIndex; i>=0; i--){
-    const res = e.flashResults[e.questions[i].id];
-    if(res && res.correct) streak++; else if(res && !res.correct) break;
-  }
 
   const html = `
     <div class="flash-container">
@@ -2986,24 +2986,6 @@ function renderFlashRunning(){
         ` : ''}
       </article>
 
-      <div class="flash-stats-bar">
-        <div class="flash-stat-box">
-          <div class="flash-stat-val correct">${correctCount}</div>
-          <div class="flash-stat-lab">Correct</div>
-        </div>
-        <div class="flash-stat-box">
-          <div class="flash-stat-val wrong">${wrongCount}</div>
-          <div class="flash-stat-lab">Wrong</div>
-        </div>
-        <div class="flash-stat-box">
-          <div class="flash-stat-val">${accuracy}%</div>
-          <div class="flash-stat-lab">Accuracy</div>
-        </div>
-        <div class="flash-stat-box">
-          <div class="flash-stat-val streak">${streak}</div>
-          <div class="flash-stat-lab">Streak</div>
-        </div>
-      </div>
 
       <div class="flash-nav">
         <button class="btn secondary" onclick="flashPrev()" ${e.currentIndex===0?'disabled':''}>&lt; Previous</button>
@@ -3018,9 +3000,14 @@ function renderFlashRunning(){
   renderShell(html, {topbar:false, hideNav:false});
 }
 
+function resetFlashScroll(){
+  const reset=()=>{ window.scrollTo({top:0,left:0,behavior:'auto'}); if(document.scrollingElement) document.scrollingElement.scrollTop=0; document.body.scrollTop=0; };
+  requestAnimationFrame(()=>{ reset(); requestAnimationFrame(reset); });
+  setTimeout(reset,90);
+}
 function flashPrev(){
   const e=ActiveExam;
-  if(e.currentIndex>0){ e.currentIndex--; dbPut('exams',e); render(); }
+  if(e.currentIndex>0){ e.currentIndex--; dbPut('exams',e); render(); resetFlashScroll(); }
 }
 
 async function selectFlashAnswer(qid,idx){
@@ -3035,8 +3022,46 @@ async function selectFlashAnswer(qid,idx){
 }
 function flashNext(){
   const e=ActiveExam;
-  if(e.currentIndex<e.questions.length-1){ e.currentIndex++; dbPut('exams',e); render(); }
+  if(e.currentIndex<e.questions.length-1){ e.currentIndex++; dbPut('exams',e); render(); resetFlashScroll(); }
   else submitExam(false);
+}
+
+let FlashSummaryResult=null;
+function flashSummaryStreak(r){
+  let streak=0;
+  for(let i=(r.snapshot||[]).length-1;i>=0;i--){
+    if(r.snapshot[i].status==='correct') streak++;
+    else break;
+  }
+  return streak;
+}
+function renderFlashSummary(){
+  const r=FlashSummaryResult || LastResult || [...(CACHE.examResults||[])].reverse().find(x=>x.mode==='flash'||x.testType==='flash');
+  if(!r){ navigate('exam/result'); return; }
+  const answered=(r.correct||0)+(r.wrong||0);
+  const accuracy=Number.isFinite(Number(r.accuracy)) ? Math.round(Number(r.accuracy)) : (answered ? Math.round((r.correct||0)/answered*100) : 0);
+  renderShell(`
+    <div class="flash-summary-page">
+      <div class="flash-summary-hero">
+        <div class="flash-summary-kicker">Flash Test Complete</div>
+        <h1>আপনার Flash Test শেষ হয়েছে</h1>
+        <p>Detailed result দেখার আগে আপনার test summary একবার দেখে নিন।</p>
+      </div>
+      <div class="flash-summary-grid">
+        <div class="flash-summary-stat correct"><b>${r.correct||0}</b><span>Correct</span></div>
+        <div class="flash-summary-stat wrong"><b>${r.wrong||0}</b><span>Wrong</span></div>
+        <div class="flash-summary-stat"><b>${accuracy}%</b><span>Accuracy</span></div>
+        <div class="flash-summary-stat streak"><b>${flashSummaryStreak(r)}</b><span>Streak</span></div>
+      </div>
+      <div class="card flash-summary-note">
+        <div class="row between"><b>Test overview</b><span class="pill">${answered}/${r.questionCount||r.snapshot?.length||0} answered</span></div>
+        <p class="muted">এখন Detailed Result-এ গিয়ে প্রতিটি প্রশ্ন, সঠিক উত্তর ও explanation দেখতে পারবেন।</p>
+      </div>
+      <button class="btn flash-summary-continue" onclick="navigate('exam/result')">Detailed Result দেখুন →</button>
+      <button class="btn secondary" onclick="navigate('exam')">Exam Center-এ যান</button>
+    </div>
+  `,{topbar:false,hideNav:true});
+  resetFlashScroll();
 }
 
 /* ---- submit & scoring (shared) ---- */
@@ -3123,8 +3148,9 @@ async function submitExam(autoSubmit){
   await loadCache();
 
   LastResult=result;
+  FlashSummaryResult = e.mode==='flash' ? result : null;
   ActiveExam=null;
-  navigate('exam/result');
+  navigate(e.mode==='flash' ? 'exam/flash-summary' : 'exam/result');
 }
 
 let LastResult=null;
@@ -4414,8 +4440,9 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     const s = settingsWithFeedback(CACHE.settings);
     if (s.feedback.visual !== false) return phaseOldRenderFlash();
     const e = ActiveExam, q = e.questions[e.currentIndex], answered = e.flashResults[q.id];
-    const html = `<div class="row between" style="margin-bottom:10px;"><div class="muted">Flash ${e.currentIndex+1} / ${e.questions.length}</div><div class="pill">✓ ${Object.values(e.flashResults).filter(r=>r.correct).length} &nbsp; ✕ ${Object.values(e.flashResults).filter(r=>!r.correct).length}</div></div><div class="card"><div style="font-size:15.5px;font-weight:600;margin-bottom:12px;">${esc(q.question)}</div>${q.options.map((o,i)=>`<div class="opt" onclick="${answered?'':`selectFlashAnswer('${q.id}',${i})`}"><div class="let">${String.fromCharCode(65+i)}</div><div>${esc(o)}</div></div>`).join('')}</div>${answered?`<button class="btn" onclick="flashNext()">${e.currentIndex===e.questions.length-1?'Finish':'Next Question →'}</button>`:''}`;
+    const html = `<div class="flash-container"><div class="row between" style="margin-bottom:10px;"><div class="muted">Flash ${e.currentIndex+1} / ${e.questions.length}</div></div><div class="card"><div style="font-size:15.5px;font-weight:600;margin-bottom:12px;">${esc(q.question)}</div>${q.options.map((o,i)=>`<div class="opt" onclick="${answered?'':`selectFlashAnswer('${q.id}',${i})`}"><div class="let">${String.fromCharCode(65+i)}</div><div>${esc(o)}</div></div>`).join('')}</div><div class="flash-nav"><button class="btn secondary" onclick="flashPrev()" ${e.currentIndex===0?'disabled':''}>&lt; Previous</button><button class="btn" onclick="flashNext()">${e.currentIndex===e.questions.length-1?'Finish':'Next Question &gt;'}</button></div></div>`;
     renderShell(html, {title:'Flash Test', hideNav:true});
+    resetFlashScroll();
   };
 
   // One default back affordance for every non-root page; active exam already uses hideNav/topbar:false.
