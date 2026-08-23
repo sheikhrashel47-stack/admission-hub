@@ -289,20 +289,20 @@
           <b>Study Tools</b>
           <span class="p3-dashboard-only-v3">Review & analysis</span>
         </div>
-        <div class="p3-special-grid-v3">
-          <button class="p3-special-card-v3 p3-notes-card-v3" data-notes-tool-card onclick="navigate('notes')" type="button">
+        <div class="p3-special-grid-v3" data-unified-study-tools-list>
+          <button class="p3-special-card-v3 p3-unified-tool-row-v3 p3-trash-card-v3" data-deleted-questions-card onclick="navigate('deleted-questions')" type="button">
+            <span class="p3-special-icon-v3">🗑️</span>
+            <div class="p3-special-info-v3">
+              <strong>Recently Deleted Questions</strong>
+              <small>মুছে ফেলা প্রশ্ন স্থায়ীভাবে ডিলিট করুন</small>
+            </div>
+            <span class="p3-special-arrow-v3">${ICONS.arrow}</span>
+          </button>
+          <button class="p3-special-card-v3 p3-unified-tool-row-v3 p3-notes-card-v3" data-notes-tool-card onclick="navigate('notes')" type="button">
             <span class="p3-special-icon-v3">📝</span>
             <div class="p3-special-info-v3">
               <strong>নোট</strong>
               <small>ভুল প্রশ্ন ও AI Explain সংরক্ষণ</small>
-            </div>
-            <span class="p3-special-arrow-v3">${ICONS.arrow}</span>
-          </button>
-          <button class="p3-special-card-v3 p3-trash-card-v3" data-deleted-questions-card onclick="navigate('deleted-questions')" type="button">
-            <span class="p3-special-icon-v3">🗑️</span>
-            <div class="p3-special-info-v3">
-              <strong>Deleted Questions</strong>
-              <small>মুছে ফেলা প্রশ্ন স্থায়ীভাবে ডিলিট করুন</small>
             </div>
             <span class="p3-special-arrow-v3">${ICONS.arrow}</span>
           </button>
@@ -447,18 +447,16 @@
     }
 
     .p3-special-section-v3{margin-top:20px}
-    .p3-special-grid-v3{display:grid;gap:10px}
-    .p3-special-card-v3{background:#fff;border:1px solid #f1f5f9;border-radius:18px;padding:14px 16px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:15px;box-shadow:0 4px 15px rgba(0,0,0,0.03);cursor:pointer;text-align:left;transition:transform 0.1s ease}
+    .p3-special-grid-v3{display:block;overflow:hidden;background:#fff;border:1px solid #dfece6;border-radius:18px;box-shadow:0 8px 20px rgba(15,107,79,.05)}
+    .p3-special-card-v3{width:100%;background:#fff;border:0;border-bottom:1px solid #e5efe9;border-radius:0;padding:14px 16px;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:13px;box-shadow:none;cursor:pointer;text-align:left;transition:background .14s ease,transform .1s ease}
+    .p3-special-card-v3:last-child{border-bottom:0}
     .p3-special-card-v3:active{transform:scale(0.98)}
-    .p3-notes-card-v3{background:linear-gradient(135deg,#0f6b4f,#0b4f3b);border-color:#0b4f3b;color:#fff;box-shadow:0 14px 28px rgba(15,107,79,.2)}
-    .p3-notes-card-v3 .p3-special-info-v3 strong,.p3-notes-card-v3 .p3-special-info-v3 small,.p3-notes-card-v3 .p3-special-arrow-v3{color:#fff}
-    .p3-notes-card-v3 .p3-special-info-v3 small{opacity:.8}
-    .p3-trash-card-v3{background:linear-gradient(135deg,#fff7f5,#fff);border-color:#f4c9c2;color:#7f1d1d;box-shadow:0 10px 24px rgba(127,29,29,.08)}
-    .p3-trash-card-v3 .p3-special-info-v3 strong{color:#7f1d1d}.p3-trash-card-v3 .p3-special-info-v3 small{color:#9f1239}.p3-trash-card-v3 .p3-special-arrow-v3{color:#dc2626}
-    .p3-special-icon-v3{font-size:28px}
-    .p3-special-info-v3 strong{display:block;font-size:15px;color:#0f172a;font-weight:800}
-    .p3-special-info-v3 small{display:block;font-size:12px;color:#64748b;margin-top:2px}
-    .p3-special-arrow-v3{color:#10b981}
+    .p3-special-card-v3:hover{background:#fbfefc}
+    .p3-special-icon-v3{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#edf8f2;font-size:21px}
+    .p3-special-info-v3 strong{display:block;font-size:14px;color:#173128;font-weight:800}
+    .p3-special-info-v3 small{display:block;font-size:11px;color:#71867c;margin-top:3px}
+    .p3-special-arrow-v3{color:#8da39a;font-size:18px}
+    .p3-trash-card-v3 .p3-special-icon-v3{background:#fff1ef}.p3-notes-card-v3 .p3-special-icon-v3{background:#edf5ff}
     .p3-dashboard-only-v3{font-size:11px;color:#94a3b8}
 
     .p3-resume-card-v3, .p3-start-card-v3{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#fffaf1;border:1px solid rgba(201,138,44,0.2)}

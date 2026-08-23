@@ -113,10 +113,11 @@
     const candidates=[...document.querySelectorAll('.p3-special-section-v3, .dashboard-section')].filter(el=>el.textContent.includes('Study Tools') && el.textContent.includes('Review & analysis'));
     const section=candidates.find(el=>{const r=el.getBoundingClientRect();return r.width>0&&r.height>0}) || candidates[0];
     if(!section) return;
-    document.querySelectorAll('[data-notes-tool-card]').forEach(existing=>{if(existing.parentElement!==section) existing.remove();});
-    if(section.querySelector('[data-notes-tool-card]')) return;
+    const host=section.querySelector('[data-unified-study-tools-list]')||section;
+    document.querySelectorAll('[data-notes-tool-card]').forEach(existing=>{if(existing.parentElement!==host) existing.remove();});
+    if(host.querySelector('[data-notes-tool-card]')) return;
     const card=document.createElement('button'); card.type='button'; card.dataset.notesToolCard=''; card.className='special-tool-card'; card.innerHTML='<span class="special-tool-icon">📝</span><span><strong>নোট</strong><small>ভুল প্রশ্ন ও AI Explain সংরক্ষণ</small></span><span class="tool-arrow">↗</span>'; card.onclick=()=>navigate('notes');
-    const grid=section.querySelector('.p3-special-tools-grid, .special-tools-grid'); if(grid) grid.appendChild(card); else section.appendChild(card);
+    host.appendChild(card);
   }
   const app=document.getElementById('app');
   if(app) new MutationObserver(()=>setTimeout(addDashboardCard,0)).observe(app,{childList:true,subtree:true});

@@ -5270,15 +5270,21 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 })();
 </script>
 <style>
-/* Native One-Time Mock Tool: existing Admission Hub dashboard language with an isolated internal route. */
-.standalone-mock-dashboard-entry{display:block;width:100%;margin:26px 0 12px;padding:0;text-align:left;font:inherit;text-decoration:none;color:inherit;appearance:none;border:0;border-radius:22px;overflow:hidden;background:linear-gradient(135deg,#0f6b4f 0%,#155f4c 58%,#0b4f40 100%);box-shadow:0 14px 30px rgba(15,107,79,.18);transition:transform .18s cubic-bezier(.23,1,.32,1),box-shadow .18s cubic-bezier(.23,1,.32,1);cursor:pointer}
-.standalone-mock-dashboard-entry:active{transform:scale(.985)}
-.standalone-mock-dashboard-entry:hover{transform:translateY(-2px);box-shadow:0 18px 34px rgba(15,107,79,.23)}
-.standalone-mock-dashboard-entry-inner{position:relative;display:flex;align-items:center;gap:14px;padding:18px;min-height:102px;color:#fff;overflow:hidden}
-.standalone-mock-dashboard-entry-inner:after{content:'';position:absolute;right:-38px;top:-55px;width:145px;height:145px;border-radius:50%;border:1px solid rgba(255,255,255,.18);box-shadow:0 0 0 20px rgba(255,255,255,.045),0 0 0 42px rgba(255,255,255,.035);pointer-events:none}
-.standalone-mock-dashboard-mark{position:relative;z-index:1;display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:16px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);font-size:25px}
-.standalone-mock-dashboard-copy{position:relative;z-index:1;min-width:0;flex:1}.standalone-mock-dashboard-kicker{display:block;font-size:10px;font-weight:850;letter-spacing:.12em;color:#c8eedc;text-transform:uppercase}.standalone-mock-dashboard-copy b{display:block;margin-top:4px;font-size:17px;line-height:1.25}.standalone-mock-dashboard-copy small{display:block;margin-top:4px;color:rgba(255,255,255,.78);font-size:12px;line-height:1.45}.standalone-mock-dashboard-arrow{position:relative;z-index:1;display:grid;place-items:center;flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.14);font-size:19px}
-@media(max-width:430px){.standalone-mock-dashboard-entry{margin-top:22px}.standalone-mock-dashboard-entry-inner{padding:16px;gap:12px}.standalone-mock-dashboard-copy b{font-size:16px}}
+/* Option 1: three Dashboard Study Tools share one quiet white list panel. */
+[data-unified-study-tools-list]{margin-top:0!important;display:block!important;overflow:hidden!important;background:#fff!important;border:1px solid #dfece6!important;border-radius:18px!important;box-shadow:0 8px 20px rgba(15,107,79,.05)!important}
+[data-unified-study-tools-list] .p3-special-card-v3,[data-unified-study-tools-list] .standalone-mock-dashboard-entry{display:grid!important;grid-template-columns:auto minmax(0,1fr) auto!important;align-items:center!important;gap:13px!important;width:100%!important;min-height:0!important;margin:0!important;padding:14px 16px!important;text-align:left!important;font:inherit!important;color:#173128!important;background:#fff!important;border:0!important;border-bottom:1px solid #e5efe9!important;border-radius:0!important;box-shadow:none!important;overflow:visible!important;cursor:pointer!important;transition:background .14s ease,transform .1s ease!important}
+[data-unified-study-tools-list] .p3-special-card-v3:last-child,[data-unified-study-tools-list] .standalone-mock-dashboard-entry:last-child{border-bottom:0!important}
+[data-unified-study-tools-list] .p3-special-card-v3:hover,[data-unified-study-tools-list] .standalone-mock-dashboard-entry:hover{transform:none!important;background:#fbfefc!important;box-shadow:none!important}
+[data-unified-study-tools-list] .p3-special-card-v3:active,[data-unified-study-tools-list] .standalone-mock-dashboard-entry:active{transform:scale(.99)!important}
+[data-unified-study-tools-list] .p3-special-icon-v3,[data-unified-study-tools-list] .standalone-mock-dashboard-mark{display:grid!important;place-items:center!important;flex:0 0 40px!important;width:40px!important;height:40px!important;border:0!important;border-radius:12px!important;background:#edf8f2!important;font-size:20px!important;color:inherit!important}
+[data-unified-study-tools-list] .p3-trash-card-v3 .p3-special-icon-v3{background:#fff1ef!important}
+[data-unified-study-tools-list] .p3-notes-card-v3 .p3-special-icon-v3{background:#edf5ff!important}
+[data-unified-study-tools-list] .p3-special-info-v3,[data-unified-study-tools-list] .standalone-mock-dashboard-copy{min-width:0!important;flex:1!important}
+[data-unified-study-tools-list] .p3-special-info-v3 strong,[data-unified-study-tools-list] .standalone-mock-dashboard-copy b{display:block!important;margin:0!important;color:#173128!important;font-size:14px!important;font-weight:800!important;line-height:1.3!important}
+[data-unified-study-tools-list] .p3-special-info-v3 small,[data-unified-study-tools-list] .standalone-mock-dashboard-copy small{display:block!important;margin-top:3px!important;color:#71867c!important;font-size:11px!important;line-height:1.4!important;opacity:1!important}
+[data-unified-study-tools-list] .p3-special-arrow-v3,[data-unified-study-tools-list] .standalone-mock-dashboard-arrow{display:block!important;width:auto!important;height:auto!important;padding:0!important;background:transparent!important;border-radius:0!important;color:#8da39a!important;font-size:19px!important}
+[data-unified-study-tools-list] .standalone-mock-dashboard-kicker{display:none!important}
+@media(max-width:430px){[data-unified-study-tools-list] .p3-special-card-v3,[data-unified-study-tools-list] .standalone-mock-dashboard-entry{padding:13px 14px!important}}
 </style>
 <script data-standalone-mock-tool="true">
 /* Native One-Time Mock Tool: Dashboard-only internal entry; it never writes Admission Hub data. */
@@ -5288,18 +5294,19 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
   const mountStandaloneMockTool = () => {
     if (dashboardPath() !== 'dashboard') return;
     const page = document.querySelector('#app .page');
-    if (!page) return;
-    let entry = page.querySelector('[data-standalone-mock-dashboard-entry]');
+    const host = page && page.querySelector('[data-unified-study-tools-list]');
+    if (!host) return;
+    let entry = host.querySelector('[data-standalone-mock-dashboard-entry]');
     if (!entry) {
       entry = document.createElement('button');
       entry.type = 'button';
-      entry.className = 'standalone-mock-dashboard-entry';
+      entry.className = 'standalone-mock-dashboard-entry p3-unified-tool-row-v3';
       entry.dataset.standaloneMockDashboardEntry = 'true';
       entry.setAttribute('aria-label', 'One-Time Mock Test খুলুন');
       entry.onclick = () => navigate('one-time-mock');
-      entry.innerHTML = `<div class="standalone-mock-dashboard-entry-inner"><div class="standalone-mock-dashboard-mark" aria-hidden="true">📝</div><div class="standalone-mock-dashboard-copy"><span class="standalone-mock-dashboard-kicker">Admission Hub tool · বিচ্ছিন্ন data</span><b>One-Time Mock Test</b><small>নিজের প্রশ্ন import করে Mock দিন ও ফলাফল দেখুন</small></div><span class="standalone-mock-dashboard-arrow" aria-hidden="true">→</span></div>`;
-      page.appendChild(entry);
-    } else if (page.lastElementChild !== entry) page.appendChild(entry);
+      entry.innerHTML = `<span class="standalone-mock-dashboard-mark" aria-hidden="true">📝</span><span class="standalone-mock-dashboard-copy"><b>One-Time Mock Test</b><small>নিজের প্রশ্ন import করে Mock দিন ও ফলাফল দেখুন</small></span><span class="standalone-mock-dashboard-arrow" aria-hidden="true">›</span>`;
+      host.appendChild(entry);
+    } else if (host.lastElementChild !== entry) host.appendChild(entry);
   };
   const previousDashboard = window.renderDashboard;
   if (typeof previousDashboard === 'function') {
@@ -5309,6 +5316,10 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
       return result;
     };
   }
+  const dashboardApp = document.getElementById('app');
+  if (dashboardApp) new MutationObserver(() => {
+    if (dashboardPath() === 'dashboard') setTimeout(mountStandaloneMockTool, 0);
+  }).observe(dashboardApp, { childList: true, subtree: true });
   window.addEventListener('hashchange', () => [0, 100, 300].forEach((delay) => setTimeout(mountStandaloneMockTool, delay)));
   window.addEventListener('load', () => [0, 120, 420].forEach((delay) => setTimeout(mountStandaloneMockTool, delay)));
   [0, 120, 500, 1100].forEach((delay) => setTimeout(mountStandaloneMockTool, delay));
