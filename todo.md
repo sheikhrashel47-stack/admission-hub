@@ -142,12 +142,12 @@
 
 - [x] Add to Home Screen ও live website origin/service worker/IndexedDB isolation audit করা।
 - [x] Data-loss ছাড়া viable shared sync বা migration architecture নির্ধারণ করা।
-- [ ] Safe sync/migration implementation, conflict handling ও bi-directional update QA করা।
-- [ ] GitHub Pages deploy ও live verification করা।
+- [x] Safe sync/migration implementation, conflict handling ও bi-directional update QA করা।
+- [x] GitHub Pages deploy ও live verification করা।
 
 ## Approved private online sync and recovery
 
 - [x] Private account identity, data-version ও conflict-resolution rules চূড়ান্ত করা।
 - [x] Protected online data service provision ও static Admission Hub integration design করা।
 - [x] One-time PWA migration, automatic background sync ও recovery control বাস্তবায়ন করা।
-- [ ] Two-context/offline/conflict QA, GitHub Pages deploy ও migration verification করা।
+- [x] Two-context/offline/conflict QA, GitHub Pages deploy ও migration verification করা।
