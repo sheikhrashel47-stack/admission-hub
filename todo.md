@@ -88,4 +88,4 @@
 - [x] New video behaviour ও existing Question Bank subject/topic metadata পর্যালোচনা করা।
 - [x] Subject/topic/count/time setup এবং category-specific pair detection rules তৈরি করা।
 - [x] Strict 5×5 two-column batch matching ও all-matched-next-batch flow করা।
-- [ ] Real-data QA, data cleanup, GitHub Pages deploy ও live verification করা।
+- [x] Real-data QA, data cleanup, GitHub Pages deploy ও live verification করা।
