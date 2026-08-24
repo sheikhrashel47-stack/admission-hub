@@ -851,6 +851,7 @@ function renderShell(innerHtml, opts){
   `;
   const navRoot=document.getElementById('navRoot');
   if(navRoot) navRoot.innerHTML=showNav ? bottomNavHtml(activeTab) : '';
+  document.dispatchEvent(new CustomEvent('admission:route-rendered',{detail:{path:Router.path||'dashboard'}}));
 }
 function topbarHtml(opts){
   return `<div class="topbar">
@@ -4909,7 +4910,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-	      const registration=await navigator.serviceWorker.register('./sw.js?v=v43-navigation-resume-router-20260824',{scope:'./',updateViaCache:'none'});
+	      const registration=await navigator.serviceWorker.register('./sw.js?v=v44-exact-resume-smoothness-20260824',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5359,7 +5360,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 </script>
 <script src="./one-time-mock-seed.js?v=20260824-native"></script>
 <script src="./one-time-mock-tool.js?v=20260824-native"></script>
-<script src="./vocabulary-master-tool.js?v=vm-native-v15-resume"></script>
+<script src="./vocabulary-master-tool.js?v=vm-native-v16-exact-resume"></script>
 <script src="./vocabulary-pronunciation.js?v=pronunciation-native-v1"></script>
 <script src="./memorizing-match-tool.js?v=memorizing-match-v4-game-cards-detection"></script>
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>
@@ -5368,6 +5369,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./today-command-center-live.js?v=today-command-center-live-v5-card"></script>
 <script src="./admission-sync.js?v=private-sync-v1"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
-<script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v3-resume-router"></script>
+<script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v4-exact-resume"></script>
 </body>
 </html>

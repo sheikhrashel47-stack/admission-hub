@@ -8,6 +8,7 @@
 
   const ROUTE = 'vocabulary-master';
   const STORE = 'vocabularyMaster';
+  const VIEW_KEY = 'admission-hub-vocabulary-view-v1';
   const EXAM_SUBJECT_NAME = 'Vocabulary Master';
   const EXAM_TOPIC_NAME = 'Vocabulary Test Bank';
   const state = {
@@ -85,10 +86,26 @@
       updatedAt: now(),
     };
   }
-  async function loadRecords() {
+  let recordsLoaded = false;
+  async function loadRecords(force = false) {
+    if (recordsLoaded && !force) return state.records;
     const rows = typeof dbGetAll === 'function' ? await dbGetAll(STORE) : [];
     state.records = (rows || []).filter(row => row && row.tool === 'vocabulary-master').map(normalizeRecord).sort((a,b) => a.word.localeCompare(b.word));
+    recordsLoaded = true;
     return state.records;
+  }
+  function snapshotResume(path = String(Router?.path || ''), top = window.scrollY || 0) {
+    if (!String(path).startsWith(ROUTE)) return;
+    try { sessionStorage.setItem(VIEW_KEY, JSON.stringify({ path:String(path), category:state.category, query:state.query, visible:state.visible, top:Math.max(0, Number(top) || 0), savedAt:Date.now() })); } catch (_) {}
+  }
+  function restoreResume(path = String(Router?.path || '')) {
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(VIEW_KEY) || 'null');
+      if (!saved || saved.path !== String(path)) return;
+      state.category = String(saved.category || state.category || '').toUpperCase();
+      state.query = String(saved.query || '');
+      state.visible = Math.max(36, Number(saved.visible) || 36);
+    } catch (_) {}
   }
   function recordsFor(query = state.query, category = state.category) {
     const q = lower(query);
@@ -365,6 +382,7 @@
   const api = {
     async render() {
       await loadRecords();
+      restoreResume(String(Router?.path || ''));
       if (!state.practiceSetupRestored) { restorePracticeSetup(); state.practiceSetupRestored = true; }
       const current = String(Router?.path || '');
       const parts = current.split('/');
@@ -378,8 +396,8 @@
       return renderLanding();
     },
     openCategory(letter) { state.category = String(letter || '').toUpperCase(); state.query = ''; state.visible = 36; navigate(route(`category/${state.category}`)); },
-    searchCategory(query) { const next = String(query || ''); clearTimeout(state.searchTimer); state.searchTimer = window.setTimeout(() => { state.query = next; state.visible = 36; refreshCategoryResults(); }, 120); },
-    loadMore() { state.visible += 36; refreshCategoryResults(); },
+    searchCategory(query) { const next = String(query || ''); clearTimeout(state.searchTimer); state.searchTimer = window.setTimeout(() => { state.query = next; state.visible = 36; snapshotResume(); refreshCategoryResults(); }, 120); },
+    loadMore() { state.visible += 36; snapshotResume(); refreshCategoryResults(); },
     parseInput() { state.parser.text = document.getElementById('vmParserInput')?.value || ''; state.parser.records = parseVocabulary(state.parser.text); state.parser.stage = 'preview'; renderParser(); },
     backToPaste() { state.parser.stage = 'input'; renderParser(); },
     skipParsed(index) { state.parser.records.splice(index, 1); renderParser(); },
@@ -388,7 +406,7 @@
       openModal(`<h3>Edit vocabulary</h3><label class="flabel">Word</label><input id="vmEditWord" value="${escape(record.word)}"><label class="flabel">Bengali Meaning</label><input id="vmEditMeaning" value="${escape(record.meaning)}"><label class="flabel">Synonyms (one per line: word : meaning)</label><textarea id="vmEditSyn">${escape(record.synonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Antonyms (one per line: word : meaning)</label><textarea id="vmEditAnt">${escape(record.antonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Tips & Explanation</label><textarea id="vmEditTips">${escape(record.tips)}</textarea><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.saveParsedEdit(${index})">Save changes</button>`);
     },
     saveParsedEdit(index) { const current = state.parser.records[index]; if (!current) return; const parseLines = id => parsePairs(document.getElementById(id)?.value || ''); const updated = normalizeRecord({ ...current, word:document.getElementById('vmEditWord')?.value || '', meaning:document.getElementById('vmEditMeaning')?.value || '', synonyms:parseLines('vmEditSyn'), antonyms:parseLines('vmEditAnt'), tips:document.getElementById('vmEditTips')?.value || '' }); state.parser.records[index] = { ...updated, raw:current.raw, valid:!!(updated.word && updated.meaning), error:updated.word && updated.meaning ? '' : 'Incomplete record' }; closeModal(); renderParser(); },
-    async saveParsed() { const strategy = document.getElementById('vmDuplicateChoice')?.value || 'skip'; const valid = state.parser.records.filter(record => record.valid); if (!valid.length) return toast('No valid vocabulary to save'); const byNormalized = new Map(state.records.map(record => [record.normalized, record])); let saved = 0, skipped = 0; for (const source of valid) { const record = normalizeRecord(source); const duplicate = byNormalized.get(record.normalized); if (duplicate && strategy === 'skip') { skipped++; continue; } if (duplicate && strategy === 'replace') { record.id = duplicate.id; record.createdAt = duplicate.createdAt; } await dbPut(STORE, record); byNormalized.set(record.normalized, record); saved++; } await loadRecords(); state.parser = { text:'', records:[], stage:'input' }; toast(`${saved} vocabulary saved${skipped ? ` · ${skipped} duplicate skipped` : ''}`); navigate(route('bank')); },
+    async saveParsed() { const strategy = document.getElementById('vmDuplicateChoice')?.value || 'skip'; const valid = state.parser.records.filter(record => record.valid); if (!valid.length) return toast('No valid vocabulary to save'); const byNormalized = new Map(state.records.map(record => [record.normalized, record])); let saved = 0, skipped = 0; for (const source of valid) { const record = normalizeRecord(source); const duplicate = byNormalized.get(record.normalized); if (duplicate && strategy === 'skip') { skipped++; continue; } if (duplicate && strategy === 'replace') { record.id = duplicate.id; record.createdAt = duplicate.createdAt; } await dbPut(STORE, record); byNormalized.set(record.normalized, record); saved++; } await loadRecords(true); state.parser = { text:'', records:[], stage:'input' }; toast(`${saved} vocabulary saved${skipped ? ` · ${skipped} duplicate skipped` : ''}`); navigate(route('bank')); },
     setPracticeSource(value) { const setup = state.practiceSetup; if (value === 'custom') setup.sourceType = 'custom'; else if (/^[A-Z]$/.test(value)) { setup.sourceType = 'category'; setup.category = value; } else { setup.sourceType = 'all'; setup.category = ''; } renderPracticeHome(); },
     setPracticeType(value) { if (PRACTICE_TYPES[value]) state.practiceSetup.practiceType = value; renderPracticeHome(); },
     setPracticeCount(value) { const setup = state.practiceSetup; if (value === 'custom') setup.countMode = 'custom'; else { setup.countMode = 'preset'; setup.questionCount = Number(value) || 10; } renderPracticeHome(); },
@@ -423,6 +441,7 @@
     async beginTest(mode) { const records = testScopeRecords(); if (!records.length) return toast('Vocabulary selection empty'); const ids = await createExamQuestions(records); if (!ids.length) return toast('4টি distinct option তৈরির জন্য আরো vocabulary data দরকার'); ExamSetup = freshSetup(); ExamSetup.mode = mode; ExamSetup.onlyQuestionIds = ids; ExamSetup.totalCount = Math.min(state.test.count, ids.length); ExamSetup.duration = state.test.duration; ExamSetup.negative = state.test.negative; ExamSetup.randomizeQ = true; ExamSetup.randomizeOpt = true; ExamSetup.selectionMode = 'random'; ExamSetup.revisionKind = ''; await beginExam(); },
   };
 
+  api.snapshotResume = snapshotResume;
   window.VocabularyMaster = api;
   const previousRouteRenderer = window.__admissionRenderRoute;
   window.__admissionRenderRoute = function vocabularyMasterRouteRenderer() {

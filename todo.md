@@ -224,3 +224,8 @@
 
 - [x] Video-matched Vocabulary deep route → other bottom tabs → Home flow-এ resume কেন dashboard-এ reset হচ্ছে root-cause নির্ণয় ও fix করা।
 - [x] All bottom navigation tabs-এর resume route ও scroll restore mechanism actual live interaction-এ verify করা।
+
+## Exact resume state and smoothness
+
+- [ ] Vocabulary ও other tool-এর exact category/search/visible-list/scroll state snapshot করে resume করা।
+- [ ] Navigation observers ও repeated render work audit করে unnecessary loading/hang কমানো এবং smoothness regression QA করা।

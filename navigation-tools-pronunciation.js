@@ -4,6 +4,7 @@
   const stack = [];
   const RESUME_KEY = 'admission-hub-navigation-resume-v1';
   let restoring = false;
+  let restoreToken = 0;
   const currentRoute = () => String(location.hash.replace(/^#\/?/, '') || 'dashboard').split('?')[0] || 'dashboard';
   const baseNavigate = window.navigate;
 
@@ -24,6 +25,7 @@
   function remember(path = currentRoute(), top = window.scrollY || 0) {
     const owner = ownerFor(path);
     if (owner === 'dashboard') return;
+    if (path.startsWith('vocabulary-master')) window.VocabularyMaster?.snapshotResume?.(path, top);
     resume[owner] = { path:String(path), top:Math.max(0, Number(top) || 0), savedAt:Date.now() };
     saveResume();
   }
@@ -36,8 +38,21 @@
     return resume[tab]?.path || tab;
   }
 
-  function restoreViewport(top = 0) {
-    [0, 90, 240].forEach(wait => window.setTimeout(() => window.scrollTo({ top: Math.max(0, top), behavior: 'auto' }), wait));
+  function restoreViewport(top = 0, path = currentRoute()) {
+    const target = String(path || 'dashboard');
+    const y = Math.max(0, Number(top) || 0);
+    const token = ++restoreToken;
+    let settled = false;
+    const apply = () => {
+      if (settled || token !== restoreToken || currentRoute() !== target) return;
+      settled = true;
+      [0, 80, 220].forEach(wait => window.setTimeout(() => { if (token === restoreToken && currentRoute() === target) window.scrollTo({ top:y, behavior:'auto' }); }, wait));
+    };
+    const afterRouteRender = event => {
+      if (event.detail?.path === target) { document.removeEventListener('admission:route-rendered', afterRouteRender); apply(); }
+    };
+    document.addEventListener('admission:route-rendered', afterRouteRender);
+    window.setTimeout(() => { document.removeEventListener('admission:route-rendered', afterRouteRender); apply(); }, 700);
   }
 
   function fallbackBack(path) {
@@ -52,7 +67,7 @@
     const previous = stack.pop() || fallbackBack(currentRoute());
     restoring = true;
     window.navigate(previous.path);
-    restoreViewport(previous.top || 0);
+    restoreViewport(previous.top || 0, previous.path);
   }
 
   function openTab(tab) {
@@ -60,7 +75,7 @@
     const target = targetForTab(tab);
     const top = resume[ownerFor(target)]?.top || 0;
     window.navigate(target);
-    restoreViewport(top);
+    restoreViewport(top, target);
   }
 
   if (typeof baseNavigate === 'function' && !baseNavigate.__navigationPolishWrapped) {
