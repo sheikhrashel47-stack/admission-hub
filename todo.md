@@ -175,5 +175,5 @@
 
 ## Legacy Open Study Tools card regression
 
-- [ ] Dashboard-এ ফিরে আসা legacy Open Study Tools injection/source permanentভাবে সরানো।
-- [ ] New Study Tools cards intact রেখে GitHub Pages live verification করা।
+- [x] Dashboard-এ ফিরে আসা legacy Open Study Tools injection/source permanentভাবে সরানো।
+- [x] New Study Tools cards intact রেখে GitHub Pages live verification করা।
