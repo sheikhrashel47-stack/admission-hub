@@ -123,4 +123,4 @@
 - [x] Mock answer lock ও result top-position behaviour minimal change-এ design করা।
 - [x] Real subject/topic/live-progress/four-exam comparison data model এবং 200+ deterministic insight templates design করা।
 - [x] Premium result summary cards, diagrams, animation, mock lock এবং top-of-result flow বাস্তবায়ন করা; Question Review অপরিবর্তিত রাখা।
-- [ ] Mock/result/empty-history regression QA, user-data safety check, GitHub Pages deploy ও live verification করা।
+- [x] Mock/result/empty-history regression QA, user-data safety check, GitHub Pages deploy ও live verification করা।
