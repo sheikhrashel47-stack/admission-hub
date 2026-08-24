@@ -18,3 +18,9 @@
 - [x] Vocabulary empty হলেও A–Z category grid দৃশ্যমান রাখা।
 - [x] বাংলা serial, parser labels ও inline Tips format সমর্থন করা।
 - [x] User-provided parser sample ও empty mobile Bank QA করে GitHub Pages deploy করা।
+
+## Bulk parser section-assignment hotfix
+
+- [x] Multi-record input-এ word boundary ও section boundary robust করা।
+- [x] Synonyms, Antonyms ও Tips প্রতিটি bulk record-এ ঠিকমতো attach করা।
+- [x] Large preview, no-auto-save safety ও live deployment যাচাই করা।

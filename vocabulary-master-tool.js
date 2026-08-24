@@ -125,19 +125,61 @@
       return { word:String(parts[0] || '').trim(), meaning:String(parts[1] || '').trim() };
     }).filter(item => item.word && !/^synonyms?|antonyms?|tips?/i.test(item.word));
   }
+  function parserSection(line) {
+    const cleaned = String(line || '').replace(/^\s*(?:[-*•]|\d+[.)])?\s*/, '').trim();
+    const match = cleaned.match(/^(.+?)\s*[:ঃ]\s*(.*)$/);
+    if (!match) return null;
+    const label = lower(match[1]).replace(/[\s._-]/g, '');
+    const value = match[2].trim();
+    if (/^(synonym|synonyms|similarword|similarwords|সমার্থক|সমার্থকশব্দ)$/.test(label)) return { kind:'synonyms', value };
+    if (/^(antonym|antonyms|opposite|opposites|বিপরীত|বিপরীতশব্দ)$/.test(label)) return { kind:'antonyms', value };
+    if (/^(tip|tips|explanation|tips&explanation|tipsandexplanation|ব্যাখ্যা|টিপস)$/.test(label)) return { kind:'tips', value };
+    return null;
+  }
+  function parserRelation(line) {
+    const cleaned = String(line || '').replace(/^\s*(?:(?:[-*•])|(?:\d+[.)]))\s*/, '').trim();
+    const match = cleaned.match(/^(.+?)\s*[:ঃ]\s*(.+)$/);
+    return match ? { word:match[1].trim(), meaning:match[2].trim() } : null;
+  }
+  function splitParserRecords(text) {
+    const lines = String(text || '').split('\n');
+    const serialStart = /^\s*\d+\s*[/.):\-।]\s*[A-Za-z][A-Za-z\s'’-]{0,80}?\s*[:ঃ]/;
+    const starts = lines.reduce((all, line, index) => serialStart.test(line) ? [...all, index] : all, []);
+    if (!starts.length) return [lines];
+    return starts.map((start, index) => lines.slice(start, starts[index + 1] ?? lines.length));
+  }
   function parseVocabulary(text) {
     const normalizedText = String(text || '').replace(/\r/g, '').replace(/[০-৯]/g, digit => String('০১২৩৪৫৬৭৮৯'.indexOf(digit)));
-    const chunks = normalizedText.split(/\n(?=\s*\d+\s*[/.):\-]\s*[A-Za-z])/g).filter(Boolean);
-    return chunks.map((chunk, index) => {
-      const head = chunk.match(/^\s*(?:\d+\s*[/.):\-]\s*)?([A-Za-z][A-Za-z\s'’-]{0,80}?)\s*:\s*([^\n]+)/);
-      if (!head) return { raw:chunk, valid:false, error:'Word এবং Bengali meaning পাওয়া যায়নি।' };
+    const records = splitParserRecords(normalizedText);
+    return records.map((lines, index) => {
+      const first = lines.find(line => line.trim());
+      const head = first?.match(/^\s*(?:\d+\s*[/.):\-।]\s*)?([A-Za-z][A-Za-z\s'’-]{0,80}?)\s*[:ঃ]\s*(.+?)\s*$/);
+      if (!head) return { raw:lines.join('\n'), valid:false, error:'Word এবং Bengali meaning পাওয়া যায়নি।' };
       const word = head[1].trim();
       const meaning = head[2].trim();
-      const synonyms = parsePairs(sectionFromBlock(chunk, 'Synonyms?', 'Antonyms?|Tips\\s*&?\\s*Explanation'));
-      const antonyms = parsePairs(sectionFromBlock(chunk, 'Antonyms?', 'Tips\\s*&?\\s*Explanation'));
-      const tips = sectionFromBlock(chunk, 'Tips\\s*&?\\s*Explanation', '');
-      const record = normalizeRecord({ word, meaning, synonyms, antonyms, tips });
-      return { ...record, raw:chunk, valid:!!(word && meaning), sourceIndex:index, error:word && meaning ? '' : 'Incomplete record' };
+      const synonyms = [], antonyms = [], tips = [];
+      let section = '';
+      let started = false;
+      lines.forEach(line => {
+        if (!started && line === first) { started = true; return; }
+        const sectionHeader = parserSection(line);
+        if (sectionHeader) {
+          section = sectionHeader.kind;
+          if (sectionHeader.value) {
+            if (section === 'tips') tips.push(sectionHeader.value);
+            else { const item = parserRelation(sectionHeader.value); if (item) (section === 'synonyms' ? synonyms : antonyms).push(item); }
+          }
+          return;
+        }
+        if (!line.trim()) return;
+        if (section === 'tips') { tips.push(line.trim().replace(/^\s*[-*•]\s*/, '')); return; }
+        if (section === 'synonyms' || section === 'antonyms') {
+          const item = parserRelation(line);
+          if (item) (section === 'synonyms' ? synonyms : antonyms).push(item);
+        }
+      });
+      const record = normalizeRecord({ word, meaning, synonyms, antonyms, tips:tips.join(' ').trim() });
+      return { ...record, raw:lines.join('\n'), valid:!!(word && meaning), sourceIndex:index, error:word && meaning ? '' : 'Incomplete record' };
     });
   }
   function parserPreviewCard(record, index) {
