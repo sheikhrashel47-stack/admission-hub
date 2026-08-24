@@ -119,11 +119,15 @@
 
   function relationSection(title, items) {
     if (!items.length) return '';
-    return `<section class="vm-card-section"><h4 class="vm-card-section-title">${escape(title)}</h4><div class="vm-relation-items">${items.map((item, index) => `<div class="vm-relation-item"><span class="vm-relation-number">${index + 1}</span><span class="vm-relation-copy"><strong>${escape(item.word)}</strong>${item.meaning ? `<span>${escape(item.meaning)}</span>` : ''}</span></div>`).join('')}</div></section>`;
+    return `<section class="vm-card-section"><h4 class="vm-card-section-title">${escape(title)}</h4><div class="vm-relation-items">${items.map((item, index) => `<div class="vm-relation-item"><span class="vm-relation-number">${index + 1}</span><span class="vm-relation-copy"><strong>${escape(item.word)}</strong>${item.meaning ? `<span>${escape(item.meaning)}</span>` : ''}</span>${pronounceButton(item.word, `${item.word} pronunciation`)}</div>`).join('')}</div></section>`;
+  }
+  function pronounceButton(word, label) {
+    const encoded = encodeURIComponent(String(word || '')).replace(/'/g, '%27');
+    return `<span class="vm-pronounce" role="button" tabindex="0" aria-label="${escape(label || `Pronounce ${word}`)}" title="Listen" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.speak(decodeURIComponent('${encoded}'))" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();VocabularyMaster.speak(decodeURIComponent('${encoded}'))}">🔊</span>`;
   }
   function card(record, number) {
     const synonyms = relations(record, 'synonyms'); const antonyms = relations(record, 'antonyms');
-    return `<button class="vm-word-card" onclick="navigate('${route(`word/${encodeURIComponent(record.id)}`)}')"><div class="vm-card-top"><div class="vm-card-word"><span class="vm-card-ordinal">${number}</span><h3>${escape(record.word)}</h3></div><span class="vm-card-arrow">›</span></div><div class="vm-meaning">${escape(record.meaning)}</div>${relationSection('SYNONYMS', synonyms)}${relationSection('ANTONYMS', antonyms)}${record.tips ? `<div class="vm-card-section"><div class="vm-tip"><span class="vm-tip-icon">✦</span><span><b>TIPS & EXPLANATION</b>${escape(record.tips)}</span></div></div>` : ''}</button>`;
+    return `<button class="vm-word-card" onclick="navigate('${route(`word/${encodeURIComponent(record.id)}`)}')"><div class="vm-card-top"><div class="vm-card-word"><span class="vm-card-ordinal">${number}</span><h3>${escape(record.word)}</h3>${pronounceButton(record.word, `${record.word} pronunciation`)}</div><span class="vm-card-arrow">›</span></div><div class="vm-meaning">${escape(record.meaning)}</div>${relationSection('SYNONYMS', synonyms)}${relationSection('ANTONYMS', antonyms)}${record.tips ? `<div class="vm-card-section"><div class="vm-tip"><span class="vm-tip-icon">✦</span><span><b>TIPS & EXPLANATION</b>${escape(record.tips)}</span></div></div>` : ''}</button>`;
   }
   function categoryResultsContent() {
     const all = recordsFor(state.query, state.category);
@@ -361,6 +365,18 @@
     const modes = ['meaning','fill']; if (relations(record, 'synonyms').length) modes.push('synonym'); if (relations(record, 'antonyms').length) modes.push('antonym'); return shuffle(modes)[0];
   }
   const api = {
+    speak(word) {
+      const text = String(word || '').trim();
+      if (!text || !('speechSynthesis' in window)) { toast('Pronunciation is not available on this device'); return; }
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'en-US'; utterance.rate = .82; utterance.pitch = 1;
+        const voice = window.speechSynthesis.getVoices().find(item => /^en(-|_)/i.test(item.lang) && /natural|samantha|zira|google/i.test(item.name)) || window.speechSynthesis.getVoices().find(item => /^en(-|_)/i.test(item.lang));
+        if (voice) utterance.voice = voice;
+        window.speechSynthesis.speak(utterance);
+      } catch (_) { toast('Pronunciation could not start'); }
+    },
     async render() {
       await loadRecords();
       if (!state.practiceSetupRestored) { restorePracticeSetup(); state.practiceSetupRestored = true; }

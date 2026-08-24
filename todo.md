@@ -165,3 +165,10 @@
 - [ ] Vocabulary search jump/keyboard behaviour video অনুযায়ী stable করা ও search input বড় করা।
 - [ ] Your Command Center থেকে Progress, Mistakes Bank ও Smart Revision entries সরিয়ে future empty slots রাখা।
 - [ ] Existing tools/data regression QA, GitHub Pages deploy ও live verification করা।
+
+## Tools layout, navigation polish and Vocabulary pronunciation
+
+- [ ] Video audit করে Recently Deleted Questions, Notes ও Vocabulary Master card spacing/position fix করা।
+- [ ] Global back/home navigation route, viewport reset ও transition jump root cause fix করা।
+- [ ] Vocabulary word, synonym ও antonym-এর subtle card-integrated pronunciation controls যোগ করা।
+- [ ] Mobile keyboard/navigation/pronunciation/data-safety regression QA, GitHub Pages deploy ও live verification করা।

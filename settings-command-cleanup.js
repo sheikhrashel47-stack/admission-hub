@@ -1,5 +1,6 @@
 (() => {
   'use strict';
+  window.__settingsCommandCleanupLoaded = true;
 
   // The user removed AI settings. Clear only this app's former provider preferences and keys.
   ['ai_provider', 'gemini_api_key', 'groq_api_key', 'gemini_api_key_model', 'groq_api_key_model'].forEach(key => {
@@ -81,8 +82,13 @@
     new MutationObserver(() => requestAnimationFrame(cleanSettingsUi)).observe(app, { childList: true, subtree: true });
     requestAnimationFrame(cleanSettingsUi);
   };
+  const scheduleSettingsCleanup = () => {
+    requestAnimationFrame(cleanSettingsUi);
+    window.setTimeout(cleanSettingsUi, 80);
+    window.setTimeout(cleanSettingsUi, 260);
+  };
   mount();
-  window.addEventListener('hashchange', () => requestAnimationFrame(cleanSettingsUi), { passive: true });
+  window.addEventListener('hashchange', scheduleSettingsCleanup, { passive: true });
 
   window.toggleFeedbackSetting = async function (key) {
     if (!['visual', 'success', 'error'].includes(key)) return;
