@@ -3400,12 +3400,13 @@ function renderResultView(r, isFresh){
   const resultMessage=accuracy>=90?'অসাধারণ! তোমার প্রস্তুতি খুবই শক্তিশালী।':accuracy>=75?'খুব ভালো ফলাফল। দুর্বল topic-গুলো একটু polish করলেই আরও উন্নতি হবে।':accuracy>=50?'ভিত্তি ভালো আছে—ভুল প্রশ্নগুলো targeted revision করলে দ্রুত score বাড়বে।':'ভুলের খাতা ও দুর্বল টপিক ধরে ধাপে ধাপে revision শুরু করো।';
   const optionHtml=(s)=> (s.options||[]).map((opt,oi)=>{
     const selected=s.selected===oi, isCorrect=s.answerIndex===oi;
+    const revealSkippedCorrect=s.status==='skipped' && isCorrect;
     let cls='result-option';
     if(s.status==='correct' && isCorrect) cls+=' is-correct';
     else if(s.status==='wrong' && isCorrect) cls+=' is-correct';
     else if(s.status==='wrong' && selected) cls+=' is-wrong';
-    else if(s.status==='skipped' && isCorrect) cls+=' is-correct-soft';
-    return `<div class="${cls}"><span class="result-option-letter">${String.fromCharCode(65+oi)}</span><span class="result-option-text">${esc(opt)}</span></div>`;
+    else if(revealSkippedCorrect) cls+=' is-correct';
+    return `<div class="${cls}"><span class="result-option-letter">${String.fromCharCode(65+oi)}</span><span class="result-option-text">${esc(opt)}</span>${revealSkippedCorrect?'<span class="result-option-note">✓ সঠিক উত্তর</span>':''}</div>`;
   }).join('');
   const reviewCard=(s)=>{
     const qnum=sn.findIndex(x=>x.questionId===s.questionId)+1, seconds=s.timing&&s.timing.ms?round2(s.timing.ms/1000):0;
