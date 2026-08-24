@@ -46,6 +46,10 @@
     .ah-game-question-option::after{position:absolute;top:-24px;right:-21px;width:61px;height:61px;border:1px solid color-mix(in srgb,var(--emerald) 11%,transparent);border-radius:50%;content:'';pointer-events:none}
     .ah-game-question-option:not(:disabled):hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--emerald) 48%,var(--line))!important;box-shadow:0 6px 0 color-mix(in srgb,var(--emerald) 13%,var(--card)),0 10px 17px rgba(14,82,59,.09)}
     .ah-game-question-option:not(:disabled):active{transform:translateY(2px) scale(.99);box-shadow:0 2px 0 color-mix(in srgb,var(--emerald) 12%,var(--card))}
+    .ah-game-question-card .q-options-v2,.ah-game-question-card .flash-options,.ah-game-question-card .result-options,.ah-game-question-card .saved-note-options{gap:12px}
+    .ah-game-question-card .p3-qb-options{display:grid;gap:10px}
+    .ah-game-question-card.exam-q-card .opt{margin-bottom:12px}.ah-game-question-card.exam-q-card .opt:last-child{margin-bottom:0}
+    .ah-game-question-option{font-size:clamp(15.5px,4.25vw,17px)!important;line-height:1.45}
     .ah-game-question-option .let,.ah-game-question-option .q-opt-letter,.ah-game-question-option .flash-opt-let,.ah-game-question-option .result-option-letter,.ah-game-question-option.note-option b{display:grid;place-items:center;flex:0 0 29px;width:29px;height:29px;border:1px solid color-mix(in srgb,var(--emerald) 25%,var(--line));border-radius:9px!important;background:color-mix(in srgb,var(--card) 50%,var(--mint));color:var(--emerald-d);font-weight:900;box-shadow:0 2px 0 color-mix(in srgb,var(--emerald) 8%,var(--card))}
     .ah-game-question-option.selected{border-color:#278ce1!important;background:linear-gradient(145deg,#fff,#e4f4ff)!important;color:#165f9c!important;box-shadow:0 5px 0 #abd9fa,0 11px 20px rgba(39,140,225,.14)!important}
     .ah-game-question-option.selected .let,.ah-game-question-option.selected .q-opt-letter{border-color:#65b5ef;background:#e9f7ff;color:#176aa7}

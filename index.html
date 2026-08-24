@@ -678,6 +678,9 @@ async function dbPutMany(store,arr){for(const o of arr) await dbPut(store,o); re
 
 /* ---------------- in-memory cache (mirrors DB, refreshed on write) ---------------- */
 const CACHE={subjects:[],topics:[],questions:[],deletedQuestions:[],exams:[],examResults:[],mistakes:[],vocabulary:[],dailyStats:[],activityLogs:[],notes:[],settings:{}};
+// Cache reads may overlap after a fast action. Only the newest completed read may update the UI cache.
+let CACHE_LOAD_VERSION=0;
+let CACHE_LOAD_PROMISE=Promise.resolve(true);
 window.__admissionBootStatus='loading';
 window.__admissionFinalModulesReady=false;
 
@@ -705,20 +708,29 @@ function examTypeLabel(r){
   const t=normalizeExamResult(r).testType;
   return ({mock:'Mock Test',flash:'Flash Test',mistake:'Mistake Test',weak:'Weak Topic Test',custom:'Custom Test'})[t]||((r.mode||'flash').toUpperCase()+' TEST');
 }
-async function loadCache(){
-  const read=async(store,fallback=[])=>{
-    try{const value=await dbGetAll(store);return Array.isArray(value)?value.filter(Boolean):fallback;}
-    catch(error){console.warn(`[Admission Hub] Could not read ${store}; keeping the app usable.`,error);return fallback;}
-  };
-  const [subjects,topics,questions,deletedQuestions,exams,examResults,mistakes,vocabulary,dailyStats,activityLogs,notes,settings]=await Promise.all([
-    read('subjects',CACHE.subjects), read('topics',CACHE.topics), read('questions',CACHE.questions), read('deletedQuestions',CACHE.deletedQuestions), read('exams',CACHE.exams),
-    read('examResults',CACHE.examResults), read('mistakes',CACHE.mistakes), read('vocabulary',CACHE.vocabulary), read('dailyStats',CACHE.dailyStats),
-    read('activityLogs',CACHE.activityLogs), read('notes',CACHE.notes), read('settings',[])
-  ]);
-  CACHE.subjects=subjects; CACHE.topics=topics; CACHE.questions=questions; CACHE.deletedQuestions=deletedQuestions; CACHE.exams=exams;
-  CACHE.examResults=examResults.map(normalizeExamResult).filter(Boolean); CACHE.mistakes=mistakes; CACHE.vocabulary=vocabulary;
-  CACHE.dailyStats=dailyStats; CACHE.activityLogs=activityLogs; CACHE.notes=notes;
-  CACHE.settings=(settings[0]&&typeof settings[0]==='object')?settings[0]:defaultSettings();
+function loadCache(){
+  const loadVersion=++CACHE_LOAD_VERSION;
+  const task=(async()=>{
+    const read=async(store,fallback=[])=>{
+      try{const value=await dbGetAll(store);return Array.isArray(value)?value.filter(Boolean):fallback;}
+      catch(error){console.warn(`[Admission Hub] Could not read ${store}; keeping the app usable.`,error);return fallback;}
+    };
+    const [subjects,topics,questions,deletedQuestions,exams,examResults,mistakes,dailyStats,activityLogs,notes,settings]=await Promise.all([
+      read('subjects'), read('topics'), read('questions'), read('deletedQuestions'), read('exams'),
+      read('examResults'), read('mistakes'), read('dailyStats'), read('activityLogs'), read('notes'), read('settings')
+    ]);
+    // A superseded caller waits for the newest complete read before allowing its renderer to continue.
+    if(loadVersion!==CACHE_LOAD_VERSION) return CACHE_LOAD_PROMISE;
+    CACHE.subjects=subjects; CACHE.topics=topics; CACHE.questions=questions; CACHE.deletedQuestions=deletedQuestions; CACHE.exams=exams;
+    CACHE.examResults=examResults.map(normalizeExamResult).filter(Boolean); CACHE.mistakes=mistakes;
+    // Vocabulary Master was removed from the product, so its legacy store is never read or rendered during app loads.
+    CACHE.vocabulary=[];
+    CACHE.dailyStats=dailyStats; CACHE.activityLogs=activityLogs; CACHE.notes=notes;
+    CACHE.settings=(settings[0]&&typeof settings[0]==='object')?settings[0]:defaultSettings();
+    return true;
+  })();
+  CACHE_LOAD_PROMISE=task;
+  return task;
 }
 
 function defaultSettings(){
