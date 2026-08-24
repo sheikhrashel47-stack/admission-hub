@@ -89,3 +89,10 @@
 - [x] Subject/topic/count/time setup এবং category-specific pair detection rules তৈরি করা।
 - [x] Strict 5×5 two-column batch matching ও all-matched-next-batch flow করা।
 - [x] Real-data QA, data cleanup, GitHub Pages deploy ও live verification করা।
+
+## Memorizing Match game-card and detection hotfix
+
+- [x] Mobile board-এর card size, hierarchy ও game-feel visual system পর্যালোচনা করা।
+- [x] Real Question Bank-এর বাগধারা ও বিরচন question-answer format scan করে robust pair extraction rules করা।
+- [x] বড় responsive game cards, selection feedback ও category-specific detection update বাস্তবায়ন করা।
+- [ ] Mobile real-data QA, user-data safety check, GitHub Pages deploy ও live verification করা।
