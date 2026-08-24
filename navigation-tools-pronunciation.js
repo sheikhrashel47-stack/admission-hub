@@ -30,10 +30,11 @@
     saveResume();
   }
   function targetForTab(tab) {
-    const current = currentRoute();
     if (tab === 'dashboard') {
-      const homeResume = resume['dashboard-tool'];
-      return homeResume && homeResume.path !== current ? homeResume.path : 'dashboard';
+      // Home is an explicit escape action. Never restore a deep tool route
+      // (matching/practice/test) into the Home tab after the user leaves it.
+      if (resume['dashboard-tool']) { delete resume['dashboard-tool']; saveResume(); }
+      return 'dashboard';
     }
     return resume[tab]?.path || tab;
   }
