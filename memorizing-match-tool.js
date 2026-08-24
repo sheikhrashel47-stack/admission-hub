@@ -52,7 +52,15 @@
   function sourceQuestions() { return state.questions.filter(question => typeMatches(question,state.type) && (!state.subjectId || text(question.subjectId)===state.subjectId) && (!state.topicId || text(question.topicId)===state.topicId)); }
   function quotedTerms(value) { return [...text(value).matchAll(/[“"'‘]([^”"'’]{2,96})[”"'’]/g)].map(match=>text(match[1])).filter(value=>value&&value.length<96); }
   function termFromPrompt(question,typeId) {
-    const prompt=questionText(question),quotes=[...quotedTerms(prompt),...quotedTerms(explanationText(question))]; if(quotes[0]) return quotes[0];
+    const prompt=questionText(question),quotes=[...quotedTerms(prompt),...quotedTerms(explanationText(question))];
+    if (typeId === 'word-meaning') {
+      // Many Word Meaning questions quote the section label before the real
+      // word, e.g. “শব্দার্থ ও টীকা” ... “মিসক্রিয়ান্ট”. Never use that
+      // structural label as the left card or every answer becomes impossible.
+      const structural=/^(শব্দার্থ(?:\s+ও\s+টীকা)?|শব্দার্থ\s+তালিকা|শব্দতালিকা|টীকা|শব্দার্থ\s+সারণী|শব্দার্থ\s+ও\s+টীকা\s+বিভাগ)$/i;
+      const vocabularyQuote=quotes.find(value => !structural.test(value));
+      if (vocabularyQuote) return vocabularyQuote;
+    } else if (quotes[0]) return quotes[0];
     const english=prompt.match(/(?:synonym|antonym)s?\s+(?:of|for)\s+([A-Za-z-]{2,60})/i); if(english?.[1]) return text(english[1]);
     const bangla=prompt.match(/^\s*([^?।:：]{2,66}?)\s+(?:শব্দটির|শব্দের|বাগধারার|বিপরীত|সমার্থক|এক কথায়|এক কথায়|পারিভাষিক)/); if(bangla?.[1]&&!/^পৃষ্ঠা\s*\d+/i.test(bangla[1])) return text(bangla[1]);
     const colon=prompt.split(/[:：]/).map(text).filter(Boolean); return colon.length > 1 ? colon[0] : prompt;
