@@ -56,7 +56,9 @@
     }
     if (typeof window.openQuestionNoteEditor === 'function') {
       const src = (payload && payload.source) || 'Mistake Note';
-      window.openQuestionNoteEditor(Object.assign({ q, source: src }, payload || {}));
+      const notePayload = Object.assign({ q, source: src }, payload || {});
+      notePayload.selectedIndex = selectedIndex(q, notePayload);
+      window.openQuestionNoteEditor(notePayload);
     }
   }
 

@@ -869,7 +869,7 @@ function render(){
     if(typeof window.Routine90?.render==='function') return window.Routine90.render();
     return renderShell('<div class="empty" style="padding:56px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">✦</div><b>Opening your 90 Day Planner…</b><div class="muted" style="margin-top:6px">Your saved routine is loading safely.</div></div>',{topbar:false,hideNav:true});
   }
-  if(p==='notes' && window.renderNotesTool) return window.renderNotesTool();
+  if(p.startsWith('notes') && window.renderNotesTool) return window.renderNotesTool();
   if(p==='deleted-questions' && window.renderDeletedQuestions) return window.renderDeletedQuestions();
   if(p==='web-chat' && window.renderWebChatV2) return window.renderWebChatV2();
   if(p==='dictionary' && window.renderDictionaryV2) return window.renderDictionaryV2();
@@ -5144,11 +5144,11 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="global-app-fix.js?v=3"></script>
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
-<script src="notes-tool.js?v=dashboard-notes-v5-question-review"></script>
+<script src="notes-tool.js?v=dashboard-notes-v8-drilldown-router"></script>
 <script src="deleted-questions.js?v=trash1"></script>
 <script src="manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816"></script>
 <script src="nav-resume-fix.js?v=1"></script>
-<script src="mistake-note-icon.js?v=14"></script>
+<script src="mistake-note-icon.js?v=15"></script>
 <script src="experience-studio-store.js?v=2"></script>
 <script src="experience-studio-themes.js?v=2"></script>
 <script src="experience-studio-animations.js?v=2"></script>

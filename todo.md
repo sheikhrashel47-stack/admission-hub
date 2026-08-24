@@ -51,3 +51,15 @@
 - [x] Subject/topic filter এবং four-option question review card পুনর্গঠন করা।
 - [x] User answer/correct answer state ও collapsible AI Explain action যোগ করা।
 - [x] Mobile QA, data-safety check, GitHub Pages deploy ও live verification করা।
+
+## Notes subject-to-topic drill-down navigation
+
+- [x] Notes route, subject grouping ও topic grouping flow পর্যালোচনা করা।
+- [x] Subject grid → Topic page → topic-specific question review route তৈরি করা।
+- [ ] Mobile navigation, AI Explain এবং data-safety QA করে GitHub Pages deploy করা।
+
+## Notes answer-state card refinement
+
+- [x] Saved selected answer fallback ও correct/wrong option state পর্যালোচনা করা।
+- [x] Wrong option red, correct option green, larger type এবং compact card layout করা।
+- [ ] Mobile QA, GitHub Pages deploy ও live verification করা।
