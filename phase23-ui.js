@@ -123,7 +123,9 @@
       const activePath=String(window.Router?.path||location.hash.replace(/^#\/?/,'').split('?')[0]||'dashboard');
       if(activePath!=='dashboard'&&activePath!=='home'&&activePath!=='')return;
       if(!track.isConnected)return;
-      track.style.transform=`translate3d(${-commandPage*100}%,0,0)`;
+      // The track is 200% wide and each slide is 50% of that track.
+      // Move by one slide (50% of the track), not 100% of the track.
+      track.style.transform=`translate3d(${-commandPage*50}%,0,0)`;
       document.querySelectorAll('.command-dot').forEach((dot,i)=>{dot.classList.toggle('active',i===commandPage);dot.setAttribute('aria-selected',i===commandPage?'true':'false')});
     });
   }
@@ -133,10 +135,16 @@
     if(currentPath!=='dashboard'&&currentPath!=='home'&&currentPath!=='')return;
     const carousel=document.querySelector('.command-carousel'),track=document.getElementById('commandTrack');
     if(!carousel||!track||track.dataset.bound==='1')return;
-    track.dataset.bound='1';let startX=0,startY=0,dragging=false;
-    carousel.addEventListener('pointerdown',e=>{startX=e.clientX;startY=e.clientY;dragging=true;carousel.setPointerCapture?.(e.pointerId)},{passive:true});
-    carousel.addEventListener('pointerup',e=>{if(!dragging)return;dragging=false;const dx=e.clientX-startX,dy=e.clientY-startY;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){requestAnimationFrame(()=>updateCommandPage(commandPage+(dx<0?1:-1))) }},{passive:true});
+    track.dataset.bound='1';let startX=0,startY=0,dragging=false,ignorePointerUntil=0;
+    const beginSwipe=(x,y)=>{startX=x;startY=y;dragging=true};
+    const finishSwipe=(x,y)=>{if(!dragging)return;dragging=false;const dx=x-startX,dy=y-startY;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){requestAnimationFrame(()=>updateCommandPage(commandPage+(dx<0?1:-1)))}};
+    carousel.addEventListener('pointerdown',e=>{if(Date.now()<ignorePointerUntil||(e.pointerType==='mouse'&&e.button!==0))return;beginSwipe(e.clientX,e.clientY);carousel.setPointerCapture?.(e.pointerId)},{passive:true});
+    carousel.addEventListener('pointerup',e=>{if(Date.now()<ignorePointerUntil)return;finishSwipe(e.clientX,e.clientY)},{passive:true});
     carousel.addEventListener('pointercancel',()=>{dragging=false});
+    carousel.addEventListener('lostpointercapture',()=>{dragging=false});
+    carousel.addEventListener('touchstart',e=>{const touch=e.changedTouches[0];if(!touch)return;ignorePointerUntil=Date.now()+650;beginSwipe(touch.clientX,touch.clientY)},{passive:true});
+    carousel.addEventListener('touchend',e=>{const touch=e.changedTouches[0];if(!touch)return;ignorePointerUntil=Date.now()+650;finishSwipe(touch.clientX,touch.clientY)},{passive:true});
+    carousel.addEventListener('touchcancel',()=>{ignorePointerUntil=Date.now()+650;dragging=false},{passive:true});
     updateCommandPage(commandPage);
   }
   const app=document.getElementById('app');
