@@ -530,6 +530,8 @@ textarea{min-height:96px}
   'use strict';
   const originalTitle=document.title;
   let fallbackVisible=false;
+  const isTransientStorageError=error=>/transaction|not active|in-progress|abort|connection is closing|database is closing/i.test(String(error?.message||error||''));
+  window.__admissionIsRetriableDbError=isTransientStorageError;
   function componentFallback(target, reason){
     const component=target&&target.closest ? target.closest('[data-admission-component]') : null;
     if(!component) return false;
@@ -550,8 +552,23 @@ textarea{min-height:96px}
   }
   window.__admissionRecover=function(){fallbackVisible=false;try{if(window.Router){Router.path='dashboard';location.hash='dashboard';}if(typeof window.render==='function')window.render();}catch(error){fallback(error);}};
   window.__admissionGoDashboard=function(){fallbackVisible=false;try{location.hash='dashboard';if(window.Router)Router.path='dashboard';if(typeof window.render==='function')window.render();}catch(error){fallback(error);}};
-  window.addEventListener('error',event=>{if(event.error)fallback(event.error,event.target);},true);
-  window.addEventListener('unhandledrejection',event=>{fallback(event.reason instanceof Error?event.reason:new Error(String(event.reason||'Async operation failed')),event.target);},true);
+  window.addEventListener('error',event=>{
+    if(event.error&&isTransientStorageError(event.error)){
+      event.preventDefault();
+      console.warn('[Admission Hub] Recovered from a transient local database error.',event.error);
+      return;
+    }
+    if(event.error)fallback(event.error,event.target);
+  },true);
+  window.addEventListener('unhandledrejection',event=>{
+    const reason=event.reason instanceof Error?event.reason:new Error(String(event.reason||'Async operation failed'));
+    if(isTransientStorageError(reason)){
+      event.preventDefault();
+      console.warn('[Admission Hub] Recovered from a transient local database transaction error.',reason);
+      return;
+    }
+    fallback(reason,event.target);
+  },true);
   window.__admissionShowFallback=fallback;
   const isEditableTarget=target=>target&&target.matches('input,textarea,select,[contenteditable]');
   const keepFocusedFieldVisible=()=>{
@@ -606,6 +623,13 @@ const DB_NAME='admissionHubDB', DB_VERSION=7;
 const STORES=['appMeta','subjects','topics','questions','deletedQuestions','exams','examResults','mistakes','vocabulary','vocabularyMaster','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
 let DB=null;
 let STORAGE_MODE='indexeddb';
+// Serialize local database requests and retry short-lived transaction failures.
+// This prevents rapid mobile taps, resume flows, and cache refreshes from
+// racing a transaction that has just completed or been aborted.
+let DB_OPERATION_CHAIN=Promise.resolve();
+const isRetriableDbError=window.__admissionIsRetriableDbError|| (error=>/transaction|not active|in-progress|abort|connection is closing|database is closing/i.test(String(error?.message||error||'')));
+function queueDb(work){const next=DB_OPERATION_CHAIN.then(work,work);DB_OPERATION_CHAIN=next.catch(()=>{});return next;}
+
 const MEMORY_DB=new Map(STORES.map(name=>[name,new Map()]));
 function useMemoryStorage(error){
   DB=null; STORAGE_MODE='memory'; window.__admissionStorageFallback={active:true,error:String(error?.message||error||'IndexedDB unavailable'),persistent:false};
@@ -661,15 +685,34 @@ async function openDB(){
     req.onblocked=()=>{blockedTimer=window.setTimeout(()=>{if(!settled) reject(new Error('IndexedDB is blocked by another browser tab. Close other app tabs and retry.'));},5000);};
   });
 }
-function tx(store,mode='readonly'){
-  if(!DB) return null;
-  if(!DB.objectStoreNames.contains(store)) throw new Error(`Missing local data store: ${store}`);
-  return DB.transaction(store,mode).objectStore(store);
+function runDbRequest(store,mode,requestFactory,attempts=2){
+  return queueDb(()=>new Promise((resolve,reject)=>{
+    let remaining=Math.max(0,Number(attempts)||0);
+    const attempt=()=>{
+      if(!DB){reject(new Error('IndexedDB is unavailable'));return;}
+      if(!DB.objectStoreNames.contains(store)){reject(new Error(`Missing local data store: ${store}`));return;}
+      let databaseTransaction,request,settled=false;
+      const retryOrReject=error=>{
+        if(settled)return;
+        if(remaining>0&&isRetriableDbError(error)){remaining-=1;setTimeout(attempt,0);return;}
+        settled=true;reject(error||new Error('IndexedDB request failed'));
+      };
+      try{
+        databaseTransaction=DB.transaction(store,mode);
+        request=requestFactory(databaseTransaction.objectStore(store));
+        request.onsuccess=()=>{if(!settled){settled=true;resolve(request.result);}};
+        request.onerror=()=>retryOrReject(request.error);
+        databaseTransaction.onabort=()=>retryOrReject(databaseTransaction.error||new Error('IndexedDB transaction aborted'));
+        databaseTransaction.onerror=()=>{if(databaseTransaction.error)retryOrReject(databaseTransaction.error);};
+      }catch(error){retryOrReject(error);}
+    };
+    attempt();
+  }));
 }
-function dbGetAll(store){if(!DB)return Promise.resolve([...MEMORY_DB.get(store).values()]);return new Promise((res,rej)=>{const r=tx(store).getAll(); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
-function dbGet(store,id){if(!DB)return Promise.resolve(MEMORY_DB.get(store).get(id));return new Promise((res,rej)=>{const r=tx(store).get(id); r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error);});}
-function dbPut(store,obj){if(!DB){MEMORY_DB.get(store).set(obj.id,obj);return Promise.resolve(obj);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').put(obj); r.onsuccess=()=>res(obj); r.onerror=()=>rej(r.error);});}
-function dbDelRaw(store,id){if(!DB){MEMORY_DB.get(store).delete(id);return Promise.resolve(true);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').delete(id); r.onsuccess=()=>res(true); r.onerror=()=>rej(r.error);});}
+function dbGetAll(store){if(!DB)return Promise.resolve([...(MEMORY_DB.get(store)?.values()||[])]);return runDbRequest(store,'readonly',objectStore=>objectStore.getAll());}
+function dbGet(store,id){if(!DB)return Promise.resolve(MEMORY_DB.get(store)?.get(id));return runDbRequest(store,'readonly',objectStore=>objectStore.get(id));}
+function dbPut(store,obj){if(!DB){MEMORY_DB.get(store)?.set(obj.id,obj);return Promise.resolve(obj);}return runDbRequest(store,'readwrite',objectStore=>objectStore.put(obj)).then(()=>obj);}
+function dbDelRaw(store,id){if(!DB){MEMORY_DB.get(store)?.delete(id);return Promise.resolve(true);}return runDbRequest(store,'readwrite',objectStore=>objectStore.delete(id)).then(()=>true);}
 async function dbDel(store,id){
   if(store==='questions'){
     const question=await dbGet(store,id);
@@ -681,7 +724,7 @@ async function dbDel(store,id){
   return dbDelRaw(store,id);
 }
 function dbDelPermanent(store,id){return dbDelRaw(store,id);}
-function dbClear(store){if(!DB){MEMORY_DB.get(store).clear();return Promise.resolve(true);}return new Promise((res,rej)=>{const r=tx(store,'readwrite').clear(); r.onsuccess=()=>res(true); r.onerror=()=>rej(r.error);});}
+function dbClear(store){if(!DB){MEMORY_DB.get(store)?.clear();return Promise.resolve(true);}return runDbRequest(store,'readwrite',objectStore=>objectStore.clear()).then(()=>true);}
 async function dbPutMany(store,arr){for(const o of arr) await dbPut(store,o); return true;}
 
 /* ---------------- in-memory cache (mirrors DB, refreshed on write) ---------------- */
