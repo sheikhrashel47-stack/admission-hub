@@ -370,7 +370,7 @@
       const parts = current.split('/');
       if (current === ROUTE) return renderLanding();
       if (current === route('bank')) return renderBank();
-      if (parts[1] === 'category') { state.category = String(parts[2] || '').toUpperCase(); state.query = ''; state.visible = 36; return renderCategory(); }
+      if (parts[1] === 'category') { const nextCategory = String(parts[2] || '').toUpperCase(); if (state.category !== nextCategory) { state.category = nextCategory; state.query = ''; state.visible = 36; } return renderCategory(); }
       if (parts[1] === 'word') return renderWord(decodeURIComponent(parts.slice(2).join('/')));
       if (current === route('parser')) return renderParser();
       if (current === route('practice')) { if (!state.practice) return renderPracticeHome(); if (state.practice.type === 'match') return renderMatching(); if (state.practice.complete) return renderPracticeSummary(); return renderPracticeQuiz(); }

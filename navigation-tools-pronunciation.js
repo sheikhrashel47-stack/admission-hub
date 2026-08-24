@@ -2,9 +2,39 @@
   'use strict';
 
   const stack = [];
+  const RESUME_KEY = 'admission-hub-navigation-resume-v1';
   let restoring = false;
-  const currentRoute = () => String(window.Router?.path || location.hash.replace(/^#\/?/, '') || 'dashboard').split('?')[0] || 'dashboard';
+  const currentRoute = () => String(location.hash.replace(/^#\/?/, '') || 'dashboard').split('?')[0] || 'dashboard';
   const baseNavigate = window.navigate;
+
+  function loadResume() {
+    try { const saved = JSON.parse(sessionStorage.getItem(RESUME_KEY) || '{}'); return saved && typeof saved === 'object' ? saved : {}; } catch (_) { return {}; }
+  }
+  const resume = loadResume();
+  function saveResume() { try { sessionStorage.setItem(RESUME_KEY, JSON.stringify(resume)); } catch (_) {} }
+  function ownerFor(path) {
+    const value = String(path || 'dashboard');
+    if (value.startsWith('question-bank') || value.startsWith('subject') || value.startsWith('topic') || value.startsWith('question') || value.startsWith('add-question') || value.startsWith('edit-question')) return 'question-bank';
+    if (value.startsWith('smart-formatter') || value.startsWith('question-parser')) return 'smart-formatter';
+    if (value.startsWith('exam')) return 'exam';
+    if (value.startsWith('history') || value.startsWith('ai-chat')) return 'history';
+    if (value === 'dashboard' || value === 'home' || value === 'settings') return 'dashboard';
+    return 'dashboard-tool';
+  }
+  function remember(path = currentRoute(), top = window.scrollY || 0) {
+    const owner = ownerFor(path);
+    if (owner === 'dashboard') return;
+    resume[owner] = { path:String(path), top:Math.max(0, Number(top) || 0), savedAt:Date.now() };
+    saveResume();
+  }
+  function targetForTab(tab) {
+    const current = currentRoute();
+    if (tab === 'dashboard') {
+      const homeResume = resume['dashboard-tool'];
+      return homeResume && homeResume.path !== current ? homeResume.path : 'dashboard';
+    }
+    return resume[tab]?.path || tab;
+  }
 
   function restoreViewport(top = 0) {
     [0, 90, 240].forEach(wait => window.setTimeout(() => window.scrollTo({ top: Math.max(0, top), behavior: 'auto' }), wait));
@@ -25,11 +55,19 @@
     restoreViewport(previous.top || 0);
   }
 
+  function openTab(tab) {
+    remember();
+    const target = targetForTab(tab);
+    const top = resume[ownerFor(target)]?.top || 0;
+    window.navigate(target);
+    restoreViewport(top);
+  }
+
   if (typeof baseNavigate === 'function' && !baseNavigate.__navigationPolishWrapped) {
     const wrapped = function (path) {
       const next = String(path || 'dashboard').replace(/^#\/?/, '').split('?')[0] || 'dashboard';
       const current = currentRoute();
-      if (!restoring && next !== current) stack.push({ path: current, top: window.scrollY || 0 });
+      if (!restoring && next !== current) { remember(current, window.scrollY || 0); stack.push({ path: current, top: window.scrollY || 0 }); }
       const result = baseNavigate.apply(this, arguments);
       if (restoring) restoring = false;
       return result;
@@ -45,6 +83,8 @@
     event.stopImmediatePropagation();
     goBackSafely();
   }, true);
+
+  window.AdmissionNavigation = { openTab, remember, targetForTab, restoreViewport };
 
   window.addEventListener('hashchange', () => requestAnimationFrame(() => document.body.classList.remove('admission-route-moving')), { passive: true });
 

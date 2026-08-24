@@ -210,3 +210,8 @@
 - [x] Question Bank, Vocabulary ও Exam active-time থেকে real live study-time/progress tracking implement করা।
 - [x] Daily reset, inactive-tab pause, dashboard isolation, data-safety QA ও GitHub Pages live verification করা।
 - [x] Settings goal injection ও live tracker global-state binding correction deploy/verify করা।
+
+## Cross-tool navigation resume workflow
+
+- [ ] Vocabulary এবং অন্য tool থেকে navigation/Home ব্যবহার করলে prior study context ও scroll position safely restore করা।
+- [ ] Dashboard-only Home semantics এবং active tool resume behavior আলাদা করে regression QA করা।
