@@ -1,0 +1,8 @@
+# Vocabulary Master integration
+
+- [x] Existing Admission Hub routing, storage, Mock এবং Flash handoff contract পর্যালোচনা করা।
+- [x] Native Vocabulary Master entry ও minimal landing navigation যোগ করা।
+- [x] Offline vocabulary schema, A–Z Bank, incremental large-list rendering ও details বাস্তবায়ন করা।
+- [x] Parser preview, edit, validation, duplicate-safe import ও A–Z classification যোগ করা।
+- [x] Lightweight vocabulary practice বাস্তবায়ন করা এবং existing Mock/Flash engine handoff করা।
+- [x] Mobile/performance/data-safety regression যাচাই, GitHub Pages deploy ও live check করা।

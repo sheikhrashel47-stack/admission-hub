@@ -594,8 +594,8 @@ function round2(n){return Math.round(n*100)/100;}
 function debounce(fn,ms){let t; return (...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);};}
 
 /* ---------------- IndexedDB layer ---------------- */
-const DB_NAME='admissionHubDB', DB_VERSION=6;
-const STORES=['appMeta','subjects','topics','questions','deletedQuestions','exams','examResults','mistakes','vocabulary','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
+const DB_NAME='admissionHubDB', DB_VERSION=7;
+const STORES=['appMeta','subjects','topics','questions','deletedQuestions','exams','examResults','mistakes','vocabulary','vocabularyMaster','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
 let DB=null;
 let STORAGE_MODE='indexeddb';
 const MEMORY_DB=new Map(STORES.map(name=>[name,new Map()]));
@@ -614,6 +614,7 @@ const INDEXES={
   topics:[['subjectId','subjectId']],
   examResults:[['date','date']],
   mistakes:[['questionId','questionId']],
+  vocabularyMaster:[['category','category'],['normalized','normalized']],
   PLAN_DAYS:[['planId','planId'],['actualDate','actualDate']]
 };
 function ensureSchema(db,tx){
@@ -624,7 +625,7 @@ function ensureSchema(db,tx){
     });
   });
 }
-const SCHEMA_MIGRATIONS={1:ensureSchema,2:ensureSchema,3:ensureSchema,4:ensureSchema,5:ensureSchema,6:ensureSchema};
+const SCHEMA_MIGRATIONS={1:ensureSchema,2:ensureSchema,3:ensureSchema,4:ensureSchema,5:ensureSchema,6:ensureSchema,7:ensureSchema};
 function runSchemaMigrations(db,tx,oldVersion,newVersion){
   for(let version=Math.max(1,oldVersion+1);version<=newVersion;version++) (SCHEMA_MIGRATIONS[version]||ensureSchema)(db,tx);
 }
@@ -3628,7 +3629,7 @@ async function toggleQPref(key){
 }
 async function exportBackup(){
   const data={appMeta:await dbGetAll('appMeta'), subjects:CACHE.subjects, topics:CACHE.topics, questions:CACHE.questions,
-    exams:CACHE.exams, examResults:CACHE.examResults, mistakes:CACHE.mistakes, vocabulary:CACHE.vocabulary,
+    exams:CACHE.exams, examResults:CACHE.examResults, mistakes:CACHE.mistakes, vocabulary:CACHE.vocabulary, vocabularyMaster:await dbGetAll('vocabularyMaster'),
     dailyStats:CACHE.dailyStats, settings:CACHE.settings, exportedAt:Date.now()};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
@@ -3643,7 +3644,7 @@ function handleRestoreFile(ev){
     try{
       const data=JSON.parse(reader.result);
       openModal(`<h3>Restore Backup</h3>
-        <div class="muted">Subjects: ${(data.subjects||[]).length}<br>Topics: ${(data.topics||[]).length}<br>Questions: ${(data.questions||[]).length}<br>Exams: ${(data.examResults||[]).length}<br>Vocabulary: ${(data.vocabulary||[]).length}</div>
+        <div class="muted">Subjects: ${(data.subjects||[]).length}<br>Topics: ${(data.topics||[]).length}<br>Questions: ${(data.questions||[]).length}<br>Exams: ${(data.examResults||[]).length}<br>Vocabulary: ${(data.vocabulary||[]).length}<br>Vocabulary Master: ${(data.vocabularyMaster||[]).length}</div>
         <button class="btn" style="margin-top:14px;" onclick="doRestore(${JSON.stringify(JSON.stringify(data))}, 'merge')">Merge New Records</button>
         <div class="muted" style="margin-top:8px;">Existing data is never cleared. Records with the same IDs are updated only from the selected backup.</div>`);
     }catch(err){ toast('Invalid backup file'); }
@@ -3655,7 +3656,7 @@ async function doRestore(dataStr, strategy){
   const data=JSON.parse(dataStr);
   closeModal();
   try{
-    for(const store of ['subjects','topics','questions','exams','examResults','mistakes','vocabulary','dailyStats']){
+    for(const store of ['subjects','topics','questions','exams','examResults','mistakes','vocabulary','vocabularyMaster','dailyStats']){
       if(data[store]) await dbPutMany(store, data[store]);
     }
     if(data.settings) await dbPut('settings', data.settings);
@@ -5327,5 +5328,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 </script>
 <script src="./one-time-mock-seed.js?v=20260824-native"></script>
 <script src="./one-time-mock-tool.js?v=20260824-native"></script>
+<script src="./vocabulary-master-tool.js?v=vm-native-v5"></script>
 </body>
 </html>
