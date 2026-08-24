@@ -1314,7 +1314,6 @@ async function commitPendingBankAnswers(){
       let m=CACHE.mistakes.find(x=>x.questionId===row.qid);if(!m)m={id:uid(),questionId:row.qid,wrongCount:0,revisionStatus:'pending',mastered:false};
       m.question=q.question;m.options=q.options||[];m.subjectId=q.subjectId;m.topicId=q.topicId;m.correctAnswerIndex=row.correct;m.correctAnswer=(q.options||[])[row.correct]||'';m.wrongAnswer=(q.options||[])[row.idx]||'';m.selectedAnswer=m.wrongAnswer;m.explanation=q.explanation||'';m.wrongCount=Number(m.wrongCount||0)+1;m.lastWrongAt=now;m.time=now;m.status='needs-review';m.revisionStatus='pending';m.mastered=false;await dbPut('mistakes',m);
     }
-    await window.RewardEngine?.recordQuestionAttempt({question:q,correct:row.isCorrect,isFirstAttempt:priorAttempts===0,isRevision:priorAttempts>0,timestamp:now});
   }
   Object.keys(PendingBankAnswers).forEach(k=>delete PendingBankAnswers[k]);
   await loadCache();
@@ -3211,7 +3210,6 @@ async function submitExam(autoSubmit){
   e.status='completed';
   await dbPut('exams', e);
   await loadCache();
-  await window.RewardEngine?.recordTestCompleted(result);
 
   LastResult=result;
   FlashSummaryResult = e.mode==='flash' ? result : null;
@@ -5235,10 +5233,10 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 (() => {
   const removedRoute = (path) => {
     const p = String(path || '').replace(/^#\/?/, '').split('?')[0];
-    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || (p.startsWith('memorizing') && !p.startsWith('memorizing-match')) || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history';
+    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || (p.startsWith('memorizing') && !p.startsWith('memorizing-match')) || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history';
   };
   const purgeRemovedData = async () => {
-    ['admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','daily-gk-live-v1','admission_phase345_v1','memory-system-v2','xp','admission-phase2-dictionary-v1','admission-phase2-dictionary-v2','admission_memorizing_v1','admission_dict_v1','admission-hub-web-chat-v5'].forEach((key) => { try { localStorage.removeItem(key); } catch (_) {} });
+    ['admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','daily-gk-live-v1','admission_phase345_v1','memory-system-v2','xp','rewardEngineV2','rewardEngineV1','admission-phase2-dictionary-v1','admission-phase2-dictionary-v2','admission_memorizing_v1','admission_dict_v1','admission-hub-web-chat-v5'].forEach((key) => { try { localStorage.removeItem(key); } catch (_) {} });
     try {
       for (let i = localStorage.length - 1; i >= 0; i -= 1) {
         const key = localStorage.key(i);
@@ -5250,10 +5248,23 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
       if (typeof dbGetAll === 'function' && typeof dbPut === 'function') {
         const records = await dbGetAll('settings');
         for (const settings of records) {
-          ['profileV1','userName','name','avatar','gamificationV3','rewardInventory','rewardBlueprint200','rewardQuestVersion','dailyQuestV2','phase3Quests','xpBalance','totalXpEarned','xpLevel','xpLedger','xpDaily','unlockedRewards','totalXpSpent','totalGoldSpent','totalDiamondSpent','gold','diamonds'].forEach((key) => delete settings[key]);
+          ['profileV1','userName','name','avatar','gamificationV3','rewardInventory','rewardBlueprint200','rewardQuestVersion','dailyQuestV2','phase3Quests','rewardEngineV2','rewardEngineV1','activeRewards','rewardRemaining','selectedRewardTheme','xpBalance','totalXpEarned','xpLevel','xpLedger','xpDaily','unlockedRewards','totalXpSpent','totalGoldSpent','totalDiamondSpent','gold','diamonds'].forEach((key) => delete settings[key]);
           await dbPut('settings', settings);
         }
         if (typeof CACHE !== 'undefined' && records[0]) CACHE.settings = records[0];
+        const rewardFields = {
+          questions: ['rewardFirstAttemptLogged','rewardFirstAttemptedAt'],
+          mistakes: ['rewardCorrectRevisionCount','rewardDoubleCorrectedAt','rewardFixedAt'],
+          examResults: ['rewardProcessedV1']
+        };
+        for (const [storeName, fields] of Object.entries(rewardFields)) {
+          const rows = await dbGetAll(storeName);
+          for (const row of rows) {
+            let changed = false;
+            fields.forEach((key) => { if (Object.prototype.hasOwnProperty.call(row || {}, key)) { delete row[key]; changed = true; } });
+            if (changed) await dbPut(storeName, row);
+          }
+        }
         if (typeof dbDelPermanent === 'function') {
           await dbDelPermanent('appMeta', 'backup-vocabulary-1-100-question-range-cleanup-v1');
           await dbDelPermanent('appMeta', 'vocabulary-1-100-question-range-cleanup-v1');
@@ -5266,7 +5277,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (currentPath() !== 'dashboard') return;
     const page = document.querySelector('#app .page');
     if (!page) return;
-    page.querySelectorAll('[data-study-hub-dashboard-card],[data-ai-dashboard],.ai-dashboard-card,[data-special-study-tools],[data-phase3-entry],.p3-recommend-v3,.p3-tasks-v3,.p3-bottom-row-v3,.p3-focus-section-v3,.p3-start-card-v3').forEach((node) => node.remove());
+    page.querySelectorAll('[data-study-hub-dashboard-card],[data-ai-dashboard],.ai-dashboard-card,[data-special-study-tools],[data-phase3-entry],.p3-recommend-v3,.p3-tasks-v3,.p3-bottom-row-v3,.p3-focus-section-v3,.p3-start-card-v3,[data-reward-dashboard],.reward-dashboard-card,#rewardUnlockToast').forEach((node) => node.remove());
     [...page.querySelectorAll('section')].forEach((section) => {
       const heading = section.querySelector('.p3-section-head-v3 b, .section-heading h2');
       if (heading && heading.textContent.trim() === 'Special Study Tools') section.remove();
@@ -5379,7 +5390,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./result-interaction-polish.js?v=result-interaction-polish-v1"></script>
 <script src="./today-command-center-live.js?v=today-command-center-live-v5-card"></script>
 <script src="./admission-sync.js?v=private-sync-v1"></script>
-<script src="./reward-engine.js?v=reward-engine-v7-dashboard-entry-final"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
 <script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v5-home-escape"></script>
 </body>

@@ -80,7 +80,7 @@
 
   function widgetHTML(){
     const d=derive(),z=d.z,st=streak(),t=tasks(),done=t.filter(x=>x.completed).length,pending=t.length-done,study=Number((CACHE.dailyStats||[]).find(x=>String(x.id)===String(keyOf(Date.now())))?.timeMs||0);
-    const mock=z.rs.length,xp=Number(localStorage.getItem('xp')||CACHE.settings?.xp||0),unread=notifications().filter(n=>!n.read).length;
+    const mock=z.rs.length,unread=notifications().filter(n=>!n.read).length;
     const targetPct = Math.min(100, Math.round(d.done/Math.max(1,d.target)*100));
     const tasksPct = Math.min(100, Math.round(done/Math.max(1,t.length||1)*100));
     

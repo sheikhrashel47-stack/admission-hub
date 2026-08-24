@@ -145,7 +145,7 @@ window.renderShell = function phase12Shell(inner, opts) {
   page.querySelectorAll('[data-phase5-quicklinks],[data-phase5-dashboard],[data-phase34-dashboard],[data-dashboard-comparison]').forEach((node) => node.remove());
   Array.from(page.children).filter((node) => {
     const text = node.textContent || '';
-    return text.includes('✦ XP Reward Shop') || text.includes('Today vs Yesterday') || text.includes('90-Day Admission Plan') || text.includes('Daily Admission Intelligence');
+    return text.includes('Today vs Yesterday') || text.includes('90-Day Admission Plan') || text.includes('Daily Admission Intelligence');
   }).forEach((node) => node.remove());
 };
 
@@ -158,7 +158,7 @@ renderShell = function phase12ShellBinding(inner, opts) {
   page.querySelectorAll('[data-phase5-quicklinks],[data-phase5-dashboard],[data-phase34-dashboard],[data-dashboard-comparison]').forEach((node) => node.remove());
   Array.from(page.children).filter((node) => {
     const text = node.textContent || '';
-    return text.includes('✦ XP Reward Shop') || text.includes('Today vs Yesterday') || text.includes('90-Day Admission Plan') || text.includes('Daily Admission Intelligence');
+    return text.includes('Today vs Yesterday') || text.includes('90-Day Admission Plan') || text.includes('Daily Admission Intelligence');
   }).forEach((node) => node.remove());
 };
 render = function phase12RouteBinding() {
@@ -173,7 +173,7 @@ const phase12CleanLegacy = () => {
   page.querySelectorAll('[data-phase5-quicklinks],[data-phase5-dashboard],[data-phase34-dashboard],[data-dashboard-comparison]').forEach((node) => node.remove());
   Array.from(page.children).filter((node) => {
     const text = node.textContent || '';
-    return text.includes('✦ XP Reward Shop') || text.includes('Today vs Yesterday') || text.includes('90-Day Admission Plan') || text.includes('Daily Admission Intelligence');
+    return text.includes('Today vs Yesterday') || text.includes('90-Day Admission Plan') || text.includes('Daily Admission Intelligence');
   }).forEach((node) => node.remove());
 };
 render = function phase12FinalRouteBinding() {

@@ -178,20 +178,12 @@
   window.ahEditQuestion = async id => { const q = CACHE.questions.find(x => x.id === id); const next = questionForm(q); if (next) { await put('questions', next); await refresh(); } };
   window.ahDeleteQuestion = id => { if (!confirm('Move this question to Deleted Questions? You can permanently delete it later from Trash.')) return; dbDel('questions', id).then(async () => { if (typeof CACHE !== 'undefined') CACHE.deletedQuestions = await dbGetAll('deletedQuestions'); await refresh(); toast('Question moved to Deleted Questions'); }); };
 
-  // Legacy Reward Shop is intentionally retired. The new RewardEngine owns the
-  // single XP balance and all achievement state; this bridge only keeps old
-  // bookmarks from opening a dead screen.
-  const rewardsA = [];
-  function rewardState() { return { owned: [], active: {}, remaining: {} }; }
-  window.ahRewardAction = () => window.RewardEngine?.render?.();
-  function rewardsView() { if (window.RewardEngine?.render) return window.RewardEngine.render(); return renderShell('<div class="page"><h1>Rewards</h1><p>Reward Center is loading…</p></div>', { title:'Rewards', back:"navigate('dashboard')" }); }
-
   function patchExam() {
     if (window.__ahExamPatched || typeof window.beginExam !== 'function') return; window.__ahExamPatched = true; const original = window.beginExam;
     window.beginExam = async function () { await original.apply(this, arguments); const exam = (CACHE.exams || []).at(-1); if (exam && (exam.mode === 'mock' || exam.mode === 'flash')) { exam.sessionLocked = true; exam.optionOrderLocked = true; exam.configuration = { ...(exam.configuration || {}), shuffleAnswerOptions: !!exam.configuration?.randomizeOpt }; await dbPut('exams', exam); CACHE.exams = await dbGetAll('exams'); } };
   }
   window.renderQuestionParser = () => renderShell(parserView(), { title: 'Question Parser', back: "navigate('dashboard')" });
-  function hook() { const old = window.render; if (!old || window.__ahFeatureRender) return; window.__ahFeatureRender = true; window.render = function () { const p = Router.path; if (p === 'question-parser' || p === 'smart-formatter') return window.renderQuestionParser(); if (p.startsWith('question-bank/subject/') || p.startsWith('question-bank/topic/')) { if (window.renderQuestionBankV2) return window.renderQuestionBankV2(); } if (p === 'question-bank' || p.startsWith('question-bank/')) { if (window.renderQuestionBankV2) return window.renderQuestionBankV2(); return renderShell(bankView(), { title: 'Question Bank' }); } if (p === 'rewards' || p === 'reward-shop') return rewardsView(); return old.apply(this, arguments); }; patchExam(); }
-  const boot = () => { hook(); if (CACHE?.settings?.selectedRewardTheme) document.documentElement.dataset.theme = 'pink'; };
+  function hook() { const old = window.render; if (!old || window.__ahFeatureRender) return; window.__ahFeatureRender = true; window.render = function () { const p = Router.path; if (p === 'question-parser' || p === 'smart-formatter') return window.renderQuestionParser(); if (p.startsWith('question-bank/subject/') || p.startsWith('question-bank/topic/')) { if (window.renderQuestionBankV2) return window.renderQuestionBankV2(); } if (p === 'question-bank' || p.startsWith('question-bank/')) { if (window.renderQuestionBankV2) return window.renderQuestionBankV2(); return renderShell(bankView(), { title: 'Question Bank' }); } return old.apply(this, arguments); }; patchExam(); }
+  const boot = () => { hook(); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot, { once: true }); else setTimeout(boot, 0);
 })();
