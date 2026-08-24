@@ -24,3 +24,9 @@
 - [x] Multi-record input-এ word boundary ও section boundary robust করা।
 - [x] Synonyms, Antonyms ও Tips প্রতিটি bulk record-এ ঠিকমতো attach করা।
 - [x] Large preview, no-auto-save safety ও live deployment যাচাই করা।
+
+## Bilingual Vocabulary relation-card redesign
+
+- [x] Reference অনুযায়ী বড় word header ও Bengali meaning hierarchy করা।
+- [x] Synonyms ও Antonyms-কে Bengali meaning-সহ পৃথক numbered relation boxes করা।
+- [x] Tips card, mobile type scale, live QA ও GitHub Pages deployment সম্পন্ন করা।
