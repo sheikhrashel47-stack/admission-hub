@@ -50,4 +50,4 @@
 - [x] Notes data model, source/category filters ও existing card flow পর্যালোচনা করা।
 - [x] Subject/topic filter এবং four-option question review card পুনর্গঠন করা।
 - [x] User answer/correct answer state ও collapsible AI Explain action যোগ করা।
-- [ ] Mobile QA, data-safety check, GitHub Pages deploy ও live verification করা।
+- [x] Mobile QA, data-safety check, GitHub Pages deploy ও live verification করা।
