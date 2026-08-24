@@ -213,5 +213,5 @@
 
 ## Cross-tool navigation resume workflow
 
-- [ ] Vocabulary এবং অন্য tool থেকে navigation/Home ব্যবহার করলে prior study context ও scroll position safely restore করা।
-- [ ] Dashboard-only Home semantics এবং active tool resume behavior আলাদা করে regression QA করা।
+- [x] Vocabulary এবং অন্য tool থেকে navigation/Home ব্যবহার করলে prior study context ও scroll position safely restore করা।
+- [x] Dashboard-only Home semantics এবং active tool resume behavior আলাদা করে regression QA করা।
