@@ -56,10 +56,10 @@
 
 - [x] Notes route, subject grouping ও topic grouping flow পর্যালোচনা করা।
 - [x] Subject grid → Topic page → topic-specific question review route তৈরি করা।
-- [ ] Mobile navigation, AI Explain এবং data-safety QA করে GitHub Pages deploy করা।
+- [x] Mobile navigation, AI Explain এবং data-safety QA করে GitHub Pages deploy করা।
 
 ## Notes answer-state card refinement
 
 - [x] Saved selected answer fallback ও correct/wrong option state পর্যালোচনা করা।
 - [x] Wrong option red, correct option green, larger type এবং compact card layout করা।
-- [ ] Mobile QA, GitHub Pages deploy ও live verification করা।
+- [x] Mobile QA, GitHub Pages deploy ও live verification করা।
