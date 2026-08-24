@@ -82,3 +82,10 @@
 - [x] Vocabulary ও বিরচন category/topic selection এবং matching session design করা।
 - [x] Mobile-first pair-matching engine, answer feedback ও result flow তৈরি করা।
 - [x] Data-safety/regression QA, GitHub Pages deploy ও live verification করা।
+
+## Memorizing Match strict batch hotfix
+
+- [x] New video behaviour ও existing Question Bank subject/topic metadata পর্যালোচনা করা।
+- [x] Subject/topic/count/time setup এবং category-specific pair detection rules তৈরি করা।
+- [x] Strict 5×5 two-column batch matching ও all-matched-next-batch flow করা।
+- [ ] Real-data QA, data cleanup, GitHub Pages deploy ও live verification করা।

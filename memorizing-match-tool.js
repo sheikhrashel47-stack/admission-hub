@@ -1,242 +1,69 @@
 /*
- * Memorizing Match — native Admission Hub learning engine.
- * Design reminder: premium light academic emerald, quick two-tap pairing, no fake progress, no rewards or separate history.
+ * Memorizing Match — native Admission Hub engine.
+ * Design reminder: Question Bank only; Subject → Topic → Count → Time; fixed 5×5 pair batches; no reward/history system.
  */
 (() => {
   'use strict';
-
   const ROUTE = 'memorizing-match';
-  const VOCAB_STORE = 'vocabularyMaster';
-  const MAX_GRID_PAIRS = 5;
-  const state = {
-    loaded: false,
-    vocabulary: [],
-    questions: [],
-    subjects: [],
-    topics: [],
-    selectedType: '',
-    count: 10,
-    seconds: 0,
-    game: null,
-  };
-
-  const typeConfig = [
-    { id:'word-meaning', group:'English Vocabulary', label:'Word Meaning', bn:'শব্দার্থ', icon:'Aa', source:'vocabulary' },
-    { id:'synonym', group:'English Vocabulary', label:'Synonyms', bn:'সমার্থক শব্দ', icon:'≈', source:'vocabulary' },
-    { id:'antonym', group:'English Vocabulary', label:'Antonyms', bn:'বিপরীত শব্দ', icon:'↔', source:'vocabulary' },
-    { id:'bagdhara', group:'বাংলা বিরচন', label:'বাগধারা', bn:'বাগধারা', icon:'ব', source:'memorizing', keywords:['বাগধারা'] },
-    { id:'bangla-synonym', group:'বাংলা বিরচন', label:'সমার্থক শব্দ', bn:'সমার্থক শব্দ', icon:'≈', source:'memorizing', keywords:['সমার্থক'] },
-    { id:'bangla-antonym', group:'বাংলা বিরচন', label:'বিপরীত শব্দ', bn:'বিপরীত শব্দ', icon:'↔', source:'memorizing', keywords:['বিপরীত'] },
-    { id:'one-word', group:'বাংলা বিরচন', label:'এক কথায় প্রকাশ', bn:'এক কথায় প্রকাশ', icon:'১', source:'memorizing', keywords:['এক কথায়','এক কথায়','এককথায়','এককথায়'] },
-    { id:'technical-term', group:'বাংলা বিরচন', label:'পারিভাষিক শব্দ', bn:'পারিভাষিক শব্দ', icon:'প', source:'memorizing', keywords:['পারিভাষিক'] },
+  const BATCH_SIZE = 5;
+  const TYPES = [
+    { id:'word-meaning', group:'English Vocabulary', label:'Word Meaning', bn:'শব্দার্থ', icon:'Aa', aliases:['word meaning','meaning','meanings','শব্দার্থ','শব্দের অর্থ'] },
+    { id:'synonym', group:'English Vocabulary', label:'Synonyms', bn:'Synonyms', icon:'≈', aliases:['synonym','synonyms'] },
+    { id:'antonym', group:'English Vocabulary', label:'Antonyms', bn:'Antonyms', icon:'↔', aliases:['antonym','antonyms'] },
+    { id:'bagdhara', group:'বাংলা বিরচন', label:'বাগধারা', bn:'বাগধারা', icon:'ব', aliases:['বাগধারা','bagdhara'] },
+    { id:'bangla-synonym', group:'বাংলা বিরচন', label:'সমার্থক শব্দ', bn:'সমার্থক শব্দ', icon:'≈', aliases:['সমার্থক শব্দ','সমার্থক'] },
+    { id:'bangla-antonym', group:'বাংলা বিরচন', label:'বিপরীত শব্দ', bn:'বিপরীত শব্দ', icon:'↔', aliases:['বিপরীত শব্দ','বিপরীত'] },
+    { id:'one-word', group:'বাংলা বিরচন', label:'এক কথায় প্রকাশ', bn:'এক কথায় প্রকাশ', icon:'১', aliases:['এক কথায় প্রকাশ','এক কথায় প্রকাশ','এককথায় প্রকাশ','এককথায় প্রকাশ'] },
+    { id:'technical-term', group:'বাংলা বিরচন', label:'পারিভাষিক শব্দ', bn:'পারিভাষিক শব্দ', icon:'প', aliases:['পারিভাষিক শব্দ','পারিভাষিক'] },
   ];
+  const state = { loaded:false, questions:[], subjects:[], topics:[], type:'', subjectId:'', topicId:'', count:10, seconds:0, session:null };
 
   const css = `
-  /* Memorizing Match visual language: light emerald academic focus, video-like rapid matching without dark-game styling. */
-  .mm-page{max-width:650px;margin:0 auto;padding-bottom:10px}.mm-kicker{margin:2px 0 4px;color:var(--emerald-d);font-size:10px;font-weight:900;letter-spacing:.14em}.mm-title{margin:0;color:#173b30;font-size:27px;line-height:1.16;letter-spacing:-.7px}.mm-sub{margin:8px 0 0;color:var(--sub);font-size:13px;line-height:1.55}.mm-hero{padding:19px;border:1px solid #cfe7dc;border-radius:22px;background:linear-gradient(135deg,#f8fcfa,#e6f5ed);box-shadow:0 12px 26px rgba(13,91,67,.08)}.mm-hero b{display:block;font-size:17px}.mm-hero p{margin:6px 0 0;color:#55776b;font-size:12px;line-height:1.55}.mm-group{margin-top:19px}.mm-group-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 0 10px}.mm-group-head h3{margin:0;font-size:18px}.mm-group-head span{color:var(--sub);font-size:11px}.mm-type-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.mm-type{position:relative;display:flex;min-height:124px;flex-direction:column;align-items:flex-start;overflow:hidden;padding:15px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);font:inherit;text-align:left;box-shadow:0 8px 19px rgba(13,76,57,.06);cursor:pointer}.mm-type:not(:disabled):active,.mm-pair-card:active,.mm-continue:active{transform:scale(.975)}.mm-type:disabled{opacity:.58;cursor:not-allowed}.mm-type:before{position:absolute;right:-26px;bottom:-29px;width:108px;height:108px;border-radius:50%;background:#e5f4ec;content:''}.mm-type-mark{position:relative;z-index:1;display:grid;place-items:center;width:37px;height:37px;border-radius:12px;background:var(--emerald);color:#fff;font-size:17px;font-weight:900}.mm-type strong{position:relative;z-index:1;margin-top:13px;font-size:16px;line-height:1.25}.mm-type small{position:relative;z-index:1;margin-top:4px;color:var(--sub);font-size:11px;line-height:1.35}.mm-type b{position:relative;z-index:1;margin-top:auto;padding-top:10px;color:var(--emerald-d);font-size:11px}.mm-setup{display:grid;gap:13px;margin-top:18px}.mm-setup-card{padding:17px;border:1px solid var(--line);border-radius:19px;background:var(--card);box-shadow:var(--shadow)}.mm-step{display:flex;align-items:center;gap:8px;color:var(--emerald-d);font-size:10px;font-weight:900;letter-spacing:.12em}.mm-step i{display:grid;place-items:center;width:23px;height:23px;border-radius:8px;background:var(--mint);font-style:normal}.mm-setup-card h3{margin:9px 0 4px;font-size:20px}.mm-setup-card p{margin:0;color:var(--sub);font-size:12px;line-height:1.5}.mm-preset-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:13px}.mm-preset{min-height:62px;padding:8px;border:1px solid var(--line);border-radius:13px;background:#fbfefc;color:var(--text);font:inherit;text-align:left;cursor:pointer}.mm-preset.active{border-color:var(--emerald);background:var(--mint);color:var(--emerald-d)}.mm-preset b,.mm-preset small{display:block}.mm-preset b{font-size:13px}.mm-preset small{margin-top:4px;color:var(--sub);font-size:10px;line-height:1.25}.mm-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:13px;padding:13px;border-radius:14px;background:#eef8f3}.mm-summary span,.mm-summary b{display:block}.mm-summary span{color:#56766b;font-size:10px}.mm-summary b{margin-top:4px;color:#174838;font-size:12px;line-height:1.35;overflow-wrap:anywhere}.mm-start{min-height:54px;margin-top:14px;font-size:15px!important}.mm-empty{margin-top:18px;padding:32px 17px;border:1px dashed var(--line);border-radius:19px;background:var(--card);color:var(--sub);text-align:center}.mm-empty b{display:block;color:var(--text);font-size:16px}.mm-empty p{margin:7px auto 0;max-width:390px;font-size:12px;line-height:1.55}.mm-game{min-height:calc(100dvh - 144px);padding-bottom:16px}.mm-game-head{display:flex;align-items:center;gap:9px}.mm-close{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--emerald-d);font-size:23px;cursor:pointer}.mm-progress-wrap{flex:1;min-width:0}.mm-progress-meta{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;color:#59776c;font-size:10px;font-weight:800}.mm-progress{height:9px;overflow:hidden;border-radius:999px;background:#e0eee7}.mm-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#159367,#54bd83);transition:width .25s cubic-bezier(.23,1,.32,1)}.mm-timer{display:grid;place-items:center;flex:0 0 auto;min-width:48px;height:38px;padding:0 7px;border-radius:12px;background:#fff5e9;color:#985b23;font-size:12px;font-weight:900}.mm-combo{display:inline-flex;align-items:center;gap:5px;margin-top:15px;padding:7px 10px;border-radius:10px;background:#f4ebff;color:#7650a3;font-size:11px;font-weight:900}.mm-instruction{margin:13px 0 0;color:var(--sub);font-size:12px;line-height:1.5}.mm-pair-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:17px}.mm-pair-card{display:flex;min-height:76px;align-items:center;justify-content:center;padding:11px;border:1px solid #d7e9e2;border-radius:16px;background:linear-gradient(145deg,#fff,#f9fdfb);color:#23483c;font:700 15px/1.42 inherit;text-align:center;overflow-wrap:anywhere;box-shadow:0 6px 15px rgba(13,76,57,.05);cursor:pointer;transition:transform .14s cubic-bezier(.23,1,.32,1),background .15s ease,border-color .15s ease,color .15s ease}.mm-pair-card.selected{border-color:#3a8bd7;background:#edf7ff;color:#17629f;box-shadow:0 0 0 3px rgba(58,139,215,.12)}.mm-pair-card.correct{border-color:#5ab77d;background:#edfbf1;color:#15703b}.mm-pair-card.wrong{border-color:#e18d8d;background:#fff0f0;color:#ae3939;animation:mm-shake .22s linear}.mm-milestone{display:grid;place-items:center;min-height:calc(100dvh - 206px);padding:25px;text-align:center}.mm-milestone-card{max-width:420px;padding:27px 20px;border:1px solid #cde5d9;border-radius:25px;background:linear-gradient(145deg,#f8fdf9,#e6f5eb);box-shadow:0 16px 32px rgba(13,91,67,.1)}.mm-milestone-icon{display:grid;place-items:center;width:66px;height:66px;margin:0 auto 13px;border-radius:23px;background:var(--emerald);color:#fff;font-size:32px}.mm-milestone-card h2{margin:0;color:#174636;font-size:26px}.mm-milestone-card p{margin:9px 0 0;color:#53746a;font-size:13px;line-height:1.55}.mm-continue{width:100%;min-height:52px;margin-top:18px;border:0;border-radius:14px;background:var(--emerald);color:#fff;font:800 14px inherit;cursor:pointer}.mm-result{padding:20px;border:1px solid #cde5d9;border-radius:22px;background:linear-gradient(145deg,#f9fdfb,#edf8f1);box-shadow:var(--shadow)}.mm-result-title{margin:0;color:#174636;font-size:25px}.mm-result-sub{margin:7px 0 0;color:#5a786e;font-size:13px;line-height:1.5}.mm-score-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:18px}.mm-score{padding:13px 8px;border-radius:14px;background:#fff;text-align:center}.mm-score b,.mm-score span{display:block}.mm-score b{color:var(--emerald-d);font-size:21px}.mm-score span{margin-top:4px;color:var(--sub);font-size:10px}.mm-result-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}.mm-dashboard-entry{display:flex;align-items:center;gap:12px;width:100%;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);color:var(--text);text-align:left;box-shadow:var(--shadow);font:inherit;cursor:pointer}.mm-dashboard-entry:active{transform:scale(.985)}.mm-dashboard-entry i{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#eaf6ef;font-style:normal;font-size:19px}.mm-dashboard-entry span{display:grid;gap:3px;min-width:0}.mm-dashboard-entry b{font-size:14px}.mm-dashboard-entry small{color:var(--sub);font-size:11px;line-height:1.35}.mm-dashboard-entry em{margin-left:auto;color:var(--sub);font-size:19px;font-style:normal}@keyframes mm-shake{0%,100%{transform:translateX(0)}35%{transform:translateX(-4px)}70%{transform:translateX(4px)}}@media(max-width:360px){.mm-type-grid{grid-template-columns:1fr}.mm-preset-grid{grid-template-columns:1fr}.mm-summary{grid-template-columns:1fr}.mm-pair-grid{gap:8px}.mm-pair-card{min-height:69px;padding:9px;font-size:13px}.mm-result-actions{grid-template-columns:1fr}}
+  /* Memorizing Match: Question Bank derived, fixed left/right five-pair batches, premium light academic emerald. */
+  .mm-page{max-width:660px;margin:0 auto;padding-bottom:10px}.mm-kicker{margin:2px 0 4px;color:var(--emerald-d);font-size:10px;font-weight:900;letter-spacing:.14em}.mm-title{margin:0;color:#173b30;font-size:27px;line-height:1.16;letter-spacing:-.7px}.mm-sub{margin:8px 0 0;color:var(--sub);font-size:13px;line-height:1.55}.mm-hero{padding:19px;border:1px solid #cfe7dc;border-radius:22px;background:linear-gradient(135deg,#f8fcfa,#e6f5ed);box-shadow:0 12px 26px rgba(13,91,67,.08)}.mm-hero b{display:block;font-size:17px}.mm-hero p{margin:6px 0 0;color:#55776b;font-size:12px;line-height:1.55}.mm-group{margin-top:19px}.mm-group-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:0 0 10px}.mm-group-head h3{margin:0;font-size:18px}.mm-group-head span{color:var(--sub);font-size:11px}.mm-type-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.mm-type{position:relative;display:flex;min-height:124px;flex-direction:column;align-items:flex-start;overflow:hidden;padding:15px;border:1px solid var(--line);border-radius:18px;background:var(--card);color:var(--text);font:inherit;text-align:left;box-shadow:0 8px 19px rgba(13,76,57,.06);cursor:pointer}.mm-type:not(:disabled):active,.mm-pair-card:active,.mm-start:active{transform:scale(.975)}.mm-type:disabled{opacity:.58;cursor:not-allowed}.mm-type:before{position:absolute;right:-26px;bottom:-29px;width:108px;height:108px;border-radius:50%;background:#e5f4ec;content:''}.mm-type-mark{position:relative;z-index:1;display:grid;place-items:center;width:37px;height:37px;border-radius:12px;background:var(--emerald);color:#fff;font-size:17px;font-weight:900}.mm-type strong{position:relative;z-index:1;margin-top:13px;font-size:16px;line-height:1.25}.mm-type small{position:relative;z-index:1;margin-top:4px;color:var(--sub);font-size:11px;line-height:1.35}.mm-type b{position:relative;z-index:1;margin-top:auto;padding-top:10px;color:var(--emerald-d);font-size:11px}.mm-setup{display:grid;gap:13px;margin-top:18px}.mm-setup-card{padding:17px;border:1px solid var(--line);border-radius:19px;background:var(--card);box-shadow:var(--shadow)}.mm-step{display:flex;align-items:center;gap:8px;color:var(--emerald-d);font-size:10px;font-weight:900;letter-spacing:.12em}.mm-step i{display:grid;place-items:center;width:23px;height:23px;border-radius:8px;background:var(--mint);font-style:normal}.mm-setup-card h3{margin:9px 0 4px;font-size:20px}.mm-setup-card p{margin:0;color:var(--sub);font-size:12px;line-height:1.5}.mm-select-label{display:block;margin:13px 0 5px;color:#507167;font-size:11px;font-weight:900}.mm-setup-card select{width:100%;min-height:48px;padding:9px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text);font:inherit}.mm-preset-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:13px}.mm-preset{min-height:58px;padding:8px;border:1px solid var(--line);border-radius:13px;background:#fbfefc;color:var(--text);font:inherit;text-align:left;cursor:pointer}.mm-preset.active{border-color:var(--emerald);background:var(--mint);color:var(--emerald-d)}.mm-preset b,.mm-preset small{display:block}.mm-preset b{font-size:13px}.mm-preset small{margin-top:4px;color:var(--sub);font-size:10px;line-height:1.25}.mm-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:13px;padding:13px;border-radius:14px;background:#eef8f3}.mm-summary span,.mm-summary b{display:block}.mm-summary span{color:#56766b;font-size:10px}.mm-summary b{margin-top:4px;color:#174838;font-size:12px;line-height:1.35;overflow-wrap:anywhere}.mm-warning{margin-top:12px;padding:10px 11px;border-left:3px solid var(--orange);border-radius:9px;background:#fff9ee;color:#875417;font-size:12px;line-height:1.48}.mm-start{min-height:54px;margin-top:14px;font-size:15px!important}.mm-empty{margin-top:18px;padding:32px 17px;border:1px dashed var(--line);border-radius:19px;background:var(--card);color:var(--sub);text-align:center}.mm-empty b{display:block;color:var(--text);font-size:16px}.mm-empty p{margin:7px auto 0;max-width:390px;font-size:12px;line-height:1.55}.mm-game{min-height:calc(100dvh - 144px);padding-bottom:16px}.mm-game-head{display:flex;align-items:center;gap:9px}.mm-close{display:grid;place-items:center;flex:0 0 38px;width:38px;height:38px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--emerald-d);font-size:23px;cursor:pointer}.mm-progress-wrap{flex:1;min-width:0}.mm-progress-meta{display:flex;justify-content:space-between;gap:8px;margin-bottom:6px;color:#59776c;font-size:10px;font-weight:800}.mm-progress{height:9px;overflow:hidden;border-radius:999px;background:#e0eee7}.mm-progress i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#159367,#54bd83);transition:width .25s cubic-bezier(.23,1,.32,1)}.mm-timer{display:grid;place-items:center;flex:0 0 auto;min-width:48px;height:38px;padding:0 7px;border-radius:12px;background:#fff5e9;color:#985b23;font-size:12px;font-weight:900}.mm-combo{display:inline-flex;align-items:center;gap:5px;margin-top:15px;padding:7px 10px;border-radius:10px;background:#f4ebff;color:#7650a3;font-size:11px;font-weight:900}.mm-instruction{margin:13px 0 0;color:var(--sub);font-size:12px;line-height:1.5}.mm-batch-note{margin:12px 0 0;padding:10px 11px;border-radius:11px;background:#eef8f3;color:#37665a;font-size:11px;font-weight:800}.mm-pair-board{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:13px}.mm-pair-column{display:grid;gap:8px;align-content:start}.mm-pair-label{padding:2px 2px 5px;color:var(--emerald-d);font-size:10px;font-weight:900;letter-spacing:.12em}.mm-pair-card{display:flex;min-height:67px;align-items:center;justify-content:center;padding:10px;border:1px solid #d7e9e2;border-radius:15px;background:linear-gradient(145deg,#fff,#f9fdfb);color:#23483c;font:700 14px/1.42 inherit;text-align:center;overflow-wrap:anywhere;box-shadow:0 6px 15px rgba(13,76,57,.05);cursor:pointer;transition:transform .14s cubic-bezier(.23,1,.32,1),background .15s ease,border-color .15s ease,color .15s ease}.mm-pair-card.left.selected{border-color:#3a8bd7;background:#edf7ff;color:#17629f;box-shadow:0 0 0 3px rgba(58,139,215,.12)}.mm-pair-card.done{border-color:#69bd88;background:#eefaf2;color:#17703b;cursor:default}.mm-pair-card.wrong{border-color:#e18d8d;background:#fff0f0;color:#ae3939;animation:mm-shake .22s linear}.mm-result{padding:20px;border:1px solid #cde5d9;border-radius:22px;background:linear-gradient(145deg,#f9fdfb,#edf8f1);box-shadow:var(--shadow)}.mm-result-title{margin:0;color:#174636;font-size:25px}.mm-result-sub{margin:7px 0 0;color:#5a786e;font-size:13px;line-height:1.5}.mm-score-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:18px}.mm-score{padding:13px 8px;border-radius:14px;background:#fff;text-align:center}.mm-score b,.mm-score span{display:block}.mm-score b{color:var(--emerald-d);font-size:21px}.mm-score span{margin-top:4px;color:var(--sub);font-size:10px}.mm-result-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:18px}.mm-dashboard-entry{display:flex;align-items:center;gap:12px;width:100%;margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--card);color:var(--text);text-align:left;box-shadow:var(--shadow);font:inherit;cursor:pointer}.mm-dashboard-entry:active{transform:scale(.985)}.mm-dashboard-entry i{display:grid;place-items:center;width:38px;height:38px;border-radius:12px;background:#eaf6ef;font-style:normal;font-size:19px}.mm-dashboard-entry span{display:grid;gap:3px;min-width:0}.mm-dashboard-entry b{font-size:14px}.mm-dashboard-entry small{color:var(--sub);font-size:11px;line-height:1.35}.mm-dashboard-entry em{margin-left:auto;color:var(--sub);font-size:19px;font-style:normal}@keyframes mm-shake{0%,100%{transform:translateX(0)}35%{transform:translateX(-4px)}70%{transform:translateX(4px)}}@media(max-width:390px){.mm-preset-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.mm-summary{grid-template-columns:1fr}.mm-pair-board{gap:8px}.mm-pair-card{min-height:61px;padding:8px;font-size:12px}.mm-result-actions{grid-template-columns:1fr}}
   `;
-  if (!document.querySelector('[data-memorizing-match-style]')) {
-    const style = document.createElement('style');
-    style.dataset.memorizingMatchStyle = 'true';
-    style.textContent = css;
-    document.head.appendChild(style);
-  }
+  if (!document.querySelector('[data-memorizing-match-style]')) { const style=document.createElement('style'); style.dataset.memorizingMatchStyle='true'; style.textContent=css; document.head.appendChild(style); }
 
   const text = value => String(value ?? '').trim();
-  const esc = value => text(value).replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
+  const esc = value => text(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'})[char]);
   const key = value => text(value).toLocaleLowerCase('bn-BD');
   const shuffle = values => typeof shuffleArr === 'function' ? shuffleArr(values) : [...values].sort(() => Math.random() - .5);
   const route = suffix => `${ROUTE}${suffix ? `/${suffix}` : ''}`;
-  const uid = prefix => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-  const config = id => typeConfig.find(item => item.id === id);
-  const prettyTime = seconds => seconds ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}` : 'No timer';
-
-  function relationItems(raw) {
-    return Array.isArray(raw) ? raw.map(item => typeof item === 'string' ? { word:text(item), meaning:'' } : { word:text(item?.word), meaning:text(item?.meaning) }).filter(item => item.word) : [];
+  const itemOf = id => TYPES.find(item => item.id === id);
+  const prettyTime = seconds => seconds ? `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2,'0')}` : 'No timer';
+  const subjectById = id => state.subjects.find(row => text(row.id) === text(id));
+  const topicById = id => state.topics.find(row => text(row.id) === text(id));
+  const subjectName = question => text(subjectById(question?.subjectId)?.name || question?.subject || question?.subjectName || 'Unassigned');
+  const topicName = question => text(topicById(question?.topicId)?.name || question?.topic || question?.topicName || 'Unassigned');
+  const questionText = question => text(question?.question || question?.text || question?.prompt || question?.title);
+  function answerOf(question) { const options=Array.isArray(question?.options)?question.options.map(text):[]; const raw=question?.answerIndex ?? question?.correctAnswerIndex ?? question?.answer; const index=Number(raw); if(Number.isInteger(index)&&options[index]) return options[index]; if(typeof raw==='string'&&raw&&!/^\d+$/.test(raw)) return text(raw); return text(question?.correctAnswer||question?.answerText); }
+  function typeMatches(question,typeId) { const item=itemOf(typeId); if(!item) return false; const haystack=key(`${subjectName(question)} ${topicName(question)} ${questionText(question)}`); return item.aliases.some(alias => haystack.includes(key(alias))) && !!questionText(question) && !!answerOf(question); }
+  function sourceQuestions() { return state.questions.filter(question => typeMatches(question,state.type) && (!state.subjectId || text(question.subjectId)===state.subjectId) && (!state.topicId || text(question.topicId)===state.topicId)); }
+  function termFromPrompt(question,typeId) {
+    const prompt=questionText(question); if(!['synonym','antonym','bangla-synonym','bangla-antonym'].includes(typeId)) return prompt;
+    const quoted=prompt.match(/[“"'‘]([^”"'’]{2,80})[”"'’]/); if(quoted?.[1]) return text(quoted[1]);
+    const english=prompt.match(/(?:synonym|antonym)s?\s+(?:of|for)\s+([A-Za-z-]{2,60})/i); if(english?.[1]) return text(english[1]);
+    const colon=prompt.split(/[:：]/).map(text).filter(Boolean); return colon.length > 1 ? colon[0] : prompt;
   }
-  function normalizeVocab(raw) {
-    return { id:text(raw?.id), word:text(raw?.word), meaning:text(raw?.meaning), synonyms:relationItems(raw?.synonyms), antonyms:relationItems(raw?.antonyms), tool:text(raw?.tool) };
-  }
-  function subjectName(id) { return text(state.subjects.find(row => text(row.id) === text(id))?.name); }
-  function topicName(id) { return text(state.topics.find(row => text(row.id) === text(id))?.name); }
-  function isMemorizingSubject(id) { return /memor|মেমোর|মুখস্থ/.test(key(subjectName(id))); }
-  function answerOf(question) {
-    const options = Array.isArray(question?.options) ? question.options.map(text) : [];
-    const rawIndex = question?.answerIndex ?? question?.correctAnswerIndex ?? question?.answer;
-    const index = Number(rawIndex);
-    if (Number.isInteger(index) && options[index]) return options[index];
-    if (typeof rawIndex === 'string' && rawIndex && !/^\d+$/.test(rawIndex)) return text(rawIndex);
-    return text(question?.correctAnswer || question?.answerText || '');
-  }
-  function questionOf(question) { return text(question?.question || question?.text || question?.prompt || question?.title); }
-  function dedupePairs(pairs) {
-    const seen = new Set();
-    return pairs.filter(pair => {
-      const marker = `${key(pair.left)}|${key(pair.right)}`;
-      if (!pair.left || !pair.right || key(pair.left) === key(pair.right) || seen.has(marker)) return false;
-      seen.add(marker); return true;
-    });
-  }
-  function vocabularyPairs(type) {
-    const pairs = state.vocabulary.flatMap(record => {
-      if (!record.word) return [];
-      if (type === 'word-meaning') return record.meaning ? [{ id:`vm-${record.id}-meaning`, left:record.word, right:record.meaning }] : [];
-      const relation = shuffle(type === 'synonym' ? record.synonyms : record.antonyms)[0];
-      return relation?.word ? [{ id:`vm-${record.id}-${type}`, left:record.word, right:relation.meaning ? `${relation.word} — ${relation.meaning}` : relation.word }] : [];
-    });
-    return dedupePairs(pairs);
-  }
-  function birchonPairs(type) {
-    const item = config(type);
-    const keywords = item?.keywords || [];
-    const pairs = state.questions.filter(question => {
-      const topic = key(topicName(question.topicId));
-      return isMemorizingSubject(question.subjectId) && keywords.some(word => topic.includes(key(word)));
-    }).map(question => ({ id:`q-${text(question.id)}`, left:questionOf(question), right:answerOf(question) }));
-    return dedupePairs(pairs);
-  }
-  function pairsFor(type) {
-    const item = config(type);
-    if (!item) return [];
-    return item.source === 'vocabulary' ? vocabularyPairs(type) : birchonPairs(type);
-  }
-  function groupItems(group) { return typeConfig.filter(item => item.group === group); }
-  function typeCount(item) { return pairsFor(item.id).length; }
-  async function loadData() {
-    const getAll = typeof dbGetAll === 'function' ? dbGetAll : async () => [];
-    const [vocabulary, questions, subjects, topics] = await Promise.all([getAll(VOCAB_STORE), getAll('questions'), getAll('subjects'), getAll('topics')]);
-    state.vocabulary = (vocabulary || []).filter(row => row && row.tool === 'vocabulary-master').map(normalizeVocab);
-    state.questions = (questions || []).filter(Boolean);
-    state.subjects = subjects || [];
-    state.topics = topics || [];
-    state.loaded = true;
-  }
-  function heading(kicker, title, sub) { return `<div class="explorer-head"><div class="mm-kicker">${esc(kicker)}</div><h2 class="mm-title">${esc(title)}</h2>${sub ? `<p class="mm-sub">${esc(sub)}</p>` : ''}</div>`; }
-  function back(target) { return `<button class="backbtn" onclick="navigate('${target}')" aria-label="Back">←</button>`; }
-  function typeCard(item) {
-    const count = typeCount(item);
-    return `<button class="mm-type" ${count ? '' : 'disabled'} onclick="MemorizingMatch.openSetup('${item.id}')"><span class="mm-type-mark">${esc(item.icon)}</span><strong>${esc(item.label)}</strong><small>${esc(item.bn)} জোড়া মিলান</small><b>${count ? `${count.toLocaleString()}টি pair` : 'Data নেই'}</b></button>`;
-  }
-  function renderHome() {
-    const vocab = groupItems('English Vocabulary'); const bangla = groupItems('বাংলা বিরচন');
-    const body = `<main class="mm-page">${heading('MEMORIZING EXAM ENGINE', 'জোড়া মিলিয়ে মুখস্থ করুন', 'শব্দ/প্রশ্নে tap করুন, তারপর তার সঠিক অর্থ বা উত্তরটি মিলান। শুধুই English Vocabulary ও Memorizing subject-এর বিরচন topic।')}<section class="mm-hero"><b>দ্রুত দুই-tap matching</b><p>সঠিক জোড়া মিললে নতুন pair আসবে। ভুল হলে কোনো mark কাটা হবে না—শুধু আবার চেষ্টা করুন। এই session আলাদা history বা reward তৈরি করে না।</p></section><section class="mm-group"><div class="mm-group-head"><h3>English Vocabulary</h3><span>${vocab.reduce((sum,item) => sum + typeCount(item), 0)}টি pair</span></div><div class="mm-type-grid">${vocab.map(typeCard).join('')}</div></section><section class="mm-group"><div class="mm-group-head"><h3>বাংলা বিরচন</h3><span>${bangla.reduce((sum,item) => sum + typeCount(item), 0)}টি pair</span></div><div class="mm-type-grid">${bangla.map(typeCard).join('')}</div></section>${!state.vocabulary.length && !state.questions.length ? `<div class="mm-empty"><b>এখনো matching data নেই</b><p>Vocabulary Parser-এ শব্দ যোগ করুন, অথবা Memorizing subject-এর বাগধারা/সমার্থক/বিপরীত/এক কথায় প্রকাশ/পারিভাষিক topic-এ question যোগ করুন।</p></div>` : ''}</main>`;
-    renderShell(body, { title:'মুখস্থ জোড়া মিলান', back:"navigate('dashboard')" });
-  }
-  function renderSetup() {
-    const item = config(state.selectedType); const available = pairsFor(state.selectedType);
-    if (!item) { navigate(ROUTE); return; }
-    const count = Math.min(state.count, available.length);
-    const body = `<main class="mm-page">${heading(item.group, item.label, `${item.bn} থেকে real local data ব্যবহার করে জোড়া মিলান।`)}<section class="mm-setup"><article class="mm-setup-card"><div class="mm-step"><i>1</i> PAIR COUNT</div><h3>কতটি জোড়া?</h3><p>এক session-এ unique pair repeat হবে না।</p><div class="mm-preset-grid">${[5,10,25].map(value => `<button class="mm-preset ${state.count === value ? 'active' : ''}" onclick="MemorizingMatch.setCount(${value})"><b>${value}টি</b><small>${value <= available.length ? 'Ready' : `Max ${available.length}`}</small></button>`).join('')}</div>${state.count > available.length ? `<p style="margin:12px 0 0;color:#9a5a20;font-size:12px">এই type-এ ${available.length}টি valid pair আছে, তাই ${available.length}টি pair দিয়ে শুরু হবে।</p>` : ''}</article><article class="mm-setup-card"><div class="mm-step"><i>2</i> TIMER</div><h3>সময় দিন কি?</h3><p>Timer শুধু pace রাখার জন্য। শেষ হলে result দেখাবে, কোনো negative mark নেই।</p><div class="mm-preset-grid">${[[0,'No timer'],[60,'1 minute'],[180,'3 minutes']].map(([value,label]) => `<button class="mm-preset ${state.seconds === value ? 'active' : ''}" onclick="MemorizingMatch.setTime(${value})"><b>${esc(label)}</b><small>${value ? 'Fast round' : 'Learn freely'}</small></button>`).join('')}</div></article><article class="mm-setup-card"><div class="mm-step"><i>3</i> READY</div><h3>Session summary</h3><div class="mm-summary"><div><span>Type</span><b>${esc(item.label)}</b></div><div><span>Pairs</span><b>${count}</b></div><div><span>Time</span><b>${prettyTime(state.seconds)}</b></div></div><button class="btn mm-start" ${count < 2 ? 'disabled' : ''} onclick="MemorizingMatch.start()">START MATCHING →</button>${count < 2 ? '<p style="margin:10px 0 0;color:var(--sub);font-size:12px">Matching শুরু করতে কমপক্ষে ২টি valid pair দরকার।</p>' : ''}</article></section></main>`;
-    renderShell(body, { title:item.label, back:`navigate('${ROUTE}')` });
-  }
-  function buildGrid(game) {
-    while (game.grid.length < MAX_GRID_PAIRS * 2 && game.next < game.pairs.length) {
-      const pair = game.pairs[game.next++];
-      game.grid.push({ id:uid('left'), pairId:pair.id, side:'left', label:pair.left, status:'' }, { id:uid('right'), pairId:pair.id, side:'right', label:pair.right, status:'' });
-    }
-    game.grid = shuffle(game.grid);
-  }
-  function stopTimer(game = state.game) { if (game?.timer) { clearInterval(game.timer); game.timer = null; } }
-  function startTimer(game) {
-    if (!game || !game.secondsLeft || game.timer) return;
-    game.timer = setInterval(() => {
-      if (state.game !== game) return stopTimer(game);
-      game.secondsLeft--;
-      if (game.secondsLeft <= 0) { game.timedOut = true; stopTimer(game); game.complete = true; renderResult(); return; }
-      renderGame();
-    }, 1000);
-  }
-  function renderGame() {
-    const game = state.game;
-    if (!game) { navigate(ROUTE); return; }
-    if (game.pause === 'milestone') { renderMilestone(); return; }
-    const total = game.pairs.length; const progress = Math.round((game.matched / total) * 100);
-    const cards = game.grid.map(card => `<button class="mm-pair-card ${card.status} ${game.selectedId === card.id ? 'selected' : ''}" onclick="MemorizingMatch.pick('${card.id}')">${esc(card.label)}</button>`).join('');
-    const body = `<main class="mm-page mm-game"><div class="mm-game-head"><button class="mm-close" onclick="MemorizingMatch.cancel()" aria-label="Exit matching">×</button><div class="mm-progress-wrap"><div class="mm-progress-meta"><span>${game.matched}/${total} matched</span><span>${progress}%</span></div><div class="mm-progress"><i style="width:${progress}%"></i></div></div>${game.secondsLeft ? `<div class="mm-timer">${prettyTime(game.secondsLeft)}</div>` : ''}</div><div class="mm-combo">✦ Combo ×${game.combo}</div><p class="mm-instruction">একটি card বেছে নিন, তারপর তার সঠিক জোড়াটি tap করুন। সঠিক হলে নতুন জোড়া আসবে।</p><section class="mm-pair-grid">${cards}</section></main>`;
-    renderShell(body, { title:'জোড়া মিলান', back:'MemorizingMatch.cancel()' });
-  }
-  function renderMilestone() {
-    const game = state.game; const next = Math.min(game.pairs.length, game.matched + 5);
-    const body = `<main class="mm-page mm-game"><section class="mm-milestone"><div class="mm-milestone-card"><div class="mm-milestone-icon">✓</div><h2>চমৎকার!</h2><p>আপনি ${game.matched}টি জোড়া ঠিক মিলিয়েছেন। এবার ${next}টি পর্যন্ত চালিয়ে যান।</p><button class="mm-continue" onclick="MemorizingMatch.continue()">চালিয়ে যান →</button></div></section></main>`;
-    renderShell(body, { title:'জোড়া মিলান', back:'MemorizingMatch.cancel()' });
-  }
-  function renderResult() {
-    const game = state.game;
-    if (!game) { navigate(ROUTE); return; }
-    const attempts = game.correct + game.wrong; const accuracy = attempts ? Math.round((game.correct / attempts) * 100) : 0;
-    const item = config(game.type);
-    const body = `<main class="mm-page">${heading('MATCHING COMPLETE', game.timedOut ? "Time's Up" : 'Round complete', game.timedOut ? 'সময় শেষ হয়েছে। আপনার matched pair-এর summary নিচে আছে।' : 'আপনি selected round শেষ করেছেন।')}<section class="mm-result"><h3 class="mm-result-title">${esc(item?.label || 'Memorizing')}</h3><p class="mm-result-sub">এই learning session থেকে কোনো আলাদা exam history, XP বা reward তৈরি হয়নি।</p><div class="mm-score-grid"><div class="mm-score"><b>${game.matched}</b><span>Matched</span></div><div class="mm-score"><b>${accuracy}%</b><span>Accuracy</span></div><div class="mm-score"><b>×${game.maxCombo}</b><span>Best combo</span></div></div><div class="mm-result-actions"><button class="btn" onclick="MemorizingMatch.playAgain()">আবার খেলুন</button><button class="btn secondary" onclick="MemorizingMatch.finish()">সব category</button></div></section></main>`;
-    renderShell(body, { title:'Matching result', back:'MemorizingMatch.finish()' });
-  }
-  const api = {
-    async render() {
-      if (!state.loaded) await loadData();
-      const path = text(window.Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0]);
-      if (path.endsWith('/game')) return renderGame();
-      if (path.endsWith('/result')) return renderResult();
-      if (path.includes('/setup')) return renderSetup();
-      return renderHome();
-    },
-    openSetup(type) { state.selectedType = type; state.count = 10; state.seconds = 0; navigate(route('setup')); },
-    setCount(value) { state.count = Number(value) || 5; renderSetup(); },
-    setTime(value) { state.seconds = Number(value) || 0; renderSetup(); },
-    start() {
-      const pairs = shuffle(pairsFor(state.selectedType)).slice(0, Math.min(state.count, pairsFor(state.selectedType).length));
-      if (pairs.length < 2) return toast('Matching শুরু করতে কমপক্ষে ২টি valid pair দরকার');
-      const game = { type:state.selectedType, pairs, next:0, grid:[], selectedId:'', locked:false, matched:0, correct:0, wrong:0, combo:0, maxCombo:0, secondsLeft:state.seconds, initialSeconds:state.seconds, timer:null, pause:'', seenMilestones:[], complete:false, timedOut:false };
-      state.game = game; buildGrid(game); startTimer(game); navigate(route('game'));
-    },
-    pick(id) {
-      const game = state.game; if (!game || game.locked || game.pause || game.complete) return;
-      const card = game.grid.find(item => item.id === id); if (!card) return;
-      if (!game.selectedId) { game.selectedId = id; return renderGame(); }
-      if (game.selectedId === id) { game.selectedId = ''; return renderGame(); }
-      const first = game.grid.find(item => item.id === game.selectedId); if (!first) { game.selectedId = ''; return renderGame(); }
-      game.locked = true;
-      if (first.pairId === card.pairId && first.side !== card.side) {
-        first.status = 'correct'; card.status = 'correct'; game.correct++; game.combo++; game.maxCombo = Math.max(game.maxCombo, game.combo); renderGame();
-        setTimeout(() => {
-          if (state.game !== game) return;
-          game.grid = game.grid.filter(item => item.pairId !== first.pairId); game.matched++; game.selectedId = ''; game.locked = false; buildGrid(game);
-          const milestones = [5,10,25];
-          if (game.matched >= game.pairs.length) { stopTimer(game); game.complete = true; return renderResult(); }
-          if (milestones.includes(game.matched) && !game.seenMilestones.includes(game.matched)) { game.seenMilestones.push(game.matched); game.pause = 'milestone'; stopTimer(game); return renderMilestone(); }
-          renderGame();
-        }, 360);
-      } else {
-        first.status = 'wrong'; card.status = 'wrong'; game.wrong++; game.combo = 0; renderGame();
-        setTimeout(() => { if (state.game !== game) return; first.status = ''; card.status = ''; game.selectedId = ''; game.locked = false; renderGame(); }, 430);
-      }
-    },
-    continue() { const game = state.game; if (!game) return; game.pause = ''; startTimer(game); renderGame(); },
-    cancel() { stopTimer(); state.game = null; navigate(state.selectedType ? route('setup') : ROUTE); },
-    playAgain() { stopTimer(); state.game = null; api.start(); },
-    finish() { stopTimer(); state.game = null; state.selectedType = ''; navigate(ROUTE); },
-  };
-
-  window.MemorizingMatch = api;
-  const previousRouteRenderer = window.__admissionRenderRoute;
-  window.__admissionRenderRoute = function memorizingMatchRouteRenderer() {
-    const path = text(window.Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
-    if (path === ROUTE || path.startsWith(`${ROUTE}/`)) return api.render();
-    return typeof previousRouteRenderer === 'function' ? previousRouteRenderer.apply(this, arguments) : window.render?.();
-  };
-  function injectDashboardEntry() {
-    const page = document.querySelector('#app .page');
-    if (!page || page.querySelector('[data-memorizing-match-entry]')) return;
-    const tools = page.querySelector('[data-unified-study-tools-list]');
-    if (!tools) return;
-    const entry = document.createElement('button');
-    entry.type = 'button'; entry.className = 'mm-dashboard-entry'; entry.dataset.memorizingMatchEntry = 'true';
-    entry.innerHTML = '<i aria-hidden="true">🧩</i><span><b>মুখস্থ জোড়া মিলান</b><small>Vocabulary ও বিরচন দ্রুত matching practice</small></span><em aria-hidden="true">›</em>';
-    entry.onclick = () => navigate(ROUTE);
-    tools.appendChild(entry);
-  }
-  const previousDashboard = window.renderDashboard;
-  if (typeof previousDashboard === 'function') {
-    window.renderDashboard = function memorizingMatchDashboard() { const result = previousDashboard.apply(this, arguments); injectDashboardEntry(); return result; };
-  }
-  const app = document.getElementById('app');
-  if (app) new MutationObserver(() => setTimeout(injectDashboardEntry, 0)).observe(app, { childList:true, subtree:true });
-  setTimeout(injectDashboardEntry, 80);
+  function pairsForCurrentSource() { const seen=new Set(); return sourceQuestions().map(question => ({id:`q-${text(question.id)}`,left:termFromPrompt(question,state.type),right:answerOf(question)})).filter(pair => {const marker=`${key(pair.left)}|${key(pair.right)}`;if(!pair.left||!pair.right||key(pair.left)===key(pair.right)||seen.has(marker))return false;seen.add(marker);return true;}); }
+  function subjectsForType() { const seen=new Map(); state.questions.filter(question=>typeMatches(question,state.type)).forEach(question=>{const id=text(question.subjectId)||'__none__';if(!seen.has(id))seen.set(id,subjectName(question));}); return [...seen.entries()].map(([id,name])=>({id,name})).sort((a,b)=>a.name.localeCompare(b.name,'bn')); }
+  function topicsForType() { const seen=new Map(); state.questions.filter(question=>typeMatches(question,state.type)&&text(question.subjectId)===state.subjectId).forEach(question=>{const id=text(question.topicId)||'__none__';if(!seen.has(id))seen.set(id,topicName(question));}); return [...seen.entries()].map(([id,name])=>({id,name})).sort((a,b)=>a.name.localeCompare(b.name,'bn')); }
+  function maxUsableCount() { return Math.floor(pairsForCurrentSource().length / BATCH_SIZE) * BATCH_SIZE; }
+  async function loadData() { const getAll=typeof dbGetAll==='function'?dbGetAll:async()=>[]; const [questions,subjects,topics]=await Promise.all([getAll('questions'),getAll('subjects'),getAll('topics')]); state.questions=(questions||[]).filter(Boolean);state.subjects=subjects||[];state.topics=topics||[];state.loaded=true; }
+  function heading(kicker,title,sub){return `<div class="explorer-head"><div class="mm-kicker">${esc(kicker)}</div><h2 class="mm-title">${esc(title)}</h2>${sub?`<p class="mm-sub">${esc(sub)}</p>`:''}</div>`;}
+  function typeCard(item){const count=state.questions.filter(question=>typeMatches(question,item.id)).length;return `<button class="mm-type" ${count?'':'disabled'} onclick="MemorizingMatch.openSetup('${item.id}')"><span class="mm-type-mark">${esc(item.icon)}</span><strong>${esc(item.label)}</strong><small>${esc(item.bn)} · Question Bank</small><b>${count?`${count.toLocaleString()}টি question`:'Data নেই'}</b></button>`;}
+  function renderHome(){const english=TYPES.filter(item=>item.group==='English Vocabulary'),bangla=TYPES.filter(item=>item.group==='বাংলা বিরচন');const body=`<main class="mm-page">${heading('MEMORIZING MATCH ENGINE','জোড়া মিলিয়ে মুখস্থ করুন','সব pair শুধু আপনার Question Bank-এর selected Subject ও Topic থেকে আসবে।')}<section class="mm-hero"><b>Fixed ৫ × ৫ matching batch</b><p>বাম পাশে ৫টি প্রশ্ন/শব্দ এবং ডান পাশে ৫টি উত্তর থাকবে। একটি batch-এর সব ৫টি ঠিক মিললেই কেবল পরের batch আসবে।</p></section><section class="mm-group"><div class="mm-group-head"><h3>English Vocabulary</h3><span>Question Bank</span></div><div class="mm-type-grid">${english.map(typeCard).join('')}</div></section><section class="mm-group"><div class="mm-group-head"><h3>বাংলা বিরচন</h3><span>Question Bank</span></div><div class="mm-type-grid">${bangla.map(typeCard).join('')}</div></section></main>`;renderShell(body,{title:'মুখস্থ জোড়া মিলান',back:"navigate('dashboard')"});}
+  function renderSetup(){const item=itemOf(state.type);if(!item){navigate(ROUTE);return;}const subjects=subjectsForType(),topics=topicsForType(),available=pairsForCurrentSource().length,max=maxUsableCount(),valid=state.topicId&&state.count<=max&&state.count%BATCH_SIZE===0;const body=`<main class="mm-page">${heading(item.group,item.label,'Question Bank থেকে source নির্বাচন করে fixed ৫ × ৫ batch শুরু করুন।')}<section class="mm-setup"><article class="mm-setup-card"><div class="mm-step"><i>1</i> SOURCE</div><h3>Subject ও Topic নির্বাচন</h3><p>এই category-র real question আছে এমন Subject ও Topic-ই দেখানো হচ্ছে।</p><label class="mm-select-label">Subject</label><select onchange="MemorizingMatch.setSubject(this.value)"><option value="">Subject নির্বাচন করুন</option>${subjects.map(subject=>`<option value="${esc(subject.id)}" ${state.subjectId===subject.id?'selected':''}>${esc(subject.name)}</option>`).join('')}</select><label class="mm-select-label">Topic</label><select ${state.subjectId?'':'disabled'} onchange="MemorizingMatch.setTopic(this.value)"><option value="">Topic নির্বাচন করুন</option>${topics.map(topic=>`<option value="${esc(topic.id)}" ${state.topicId===topic.id?'selected':''}>${esc(topic.name)}</option>`).join('')}</select></article><article class="mm-setup-card"><div class="mm-step"><i>2</i> QUESTION COUNT</div><h3>কতটি pair?</h3><p>প্রতি batch-এ ঠিক ৫টি pair থাকে। তাই count ৫-এর গুণিতক হবে।</p><div class="mm-preset-grid">${[5,10,20,50].map(value=>`<button class="mm-preset ${state.count===value?'active':''}" onclick="MemorizingMatch.setCount(${value})"><b>${value}টি</b><small>${value<=max?'Ready':max?`Max ${max}`:'Need 5'}</small></button>`).join('')}</div>${state.topicId?`<div class="mm-summary"><div><span>Subject</span><b>${esc(subjects.find(x=>x.id===state.subjectId)?.name||'—')}</b></div><div><span>Topic</span><b>${esc(topics.find(x=>x.id===state.topicId)?.name||'—')}</b></div><div><span>Valid pair</span><b>${available}</b></div></div>`:''}${state.topicId&&max<5?`<div class="mm-warning">এই source-এ মাত্র ${available}টি valid pair আছে। Matching শুরু করতে কমপক্ষে ৫টি pair দরকার।</div>`:''}${state.topicId&&state.count>max&&max>=5?`<div class="mm-warning">${state.count}টি pair-এর জন্য যথেষ্ট data নেই। ${max}টি pair নির্বাচন করুন।</div>`:''}</article><article class="mm-setup-card"><div class="mm-step"><i>3</i> TIME</div><h3>সময় নির্বাচন</h3><p>Timer optional; এটি শুধু pace দেখাবে। সময় শেষ হলে result দেখাবে, negative mark নয়।</p><div class="mm-preset-grid">${[[0,'No timer'],[300,'5 min'],[600,'10 min'],[1200,'20 min']].map(([seconds,label])=>`<button class="mm-preset ${state.seconds===seconds?'active':''}" onclick="MemorizingMatch.setTime(${seconds})"><b>${esc(label)}</b><small>${seconds?'Timed':'Learn freely'}</small></button>`).join('')}</div><div class="mm-summary"><div><span>Type</span><b>${esc(item.label)}</b></div><div><span>Pairs</span><b>${valid?state.count:'—'}</b></div><div><span>Time</span><b>${prettyTime(state.seconds)}</b></div></div><button class="btn mm-start" ${valid?'':'disabled'} onclick="MemorizingMatch.start()">START 5×5 MATCHING →</button></article></section></main>`;renderShell(body,{title:item.label,back:`navigate('${ROUTE}')`});}
+  function buildBatch(session){const start=session.batchIndex*BATCH_SIZE;session.batch=session.pairs.slice(start,start+BATCH_SIZE);session.left=shuffle(session.batch.map(pair=>({id:`l-${pair.id}`,pairId:pair.id,label:pair.left,status:''})));session.right=shuffle(session.batch.map(pair=>({id:`r-${pair.id}`,pairId:pair.id,label:pair.right,status:''})));session.selectedLeft='';session.matchedIds=[];session.locked=false;}
+  function stopTimer(session=state.session){if(session?.timer){clearInterval(session.timer);session.timer=null;}}
+  function startTimer(session){if(!session?.secondsLeft||session.timer)return;session.timer=setInterval(()=>{if(state.session!==session)return stopTimer(session);session.secondsLeft--;if(session.secondsLeft<=0){session.timedOut=true;stopTimer(session);session.complete=true;return renderResult();}renderGame();},1000);}
+  function renderGame(){const s=state.session;if(!s){navigate(route('setup'));return;}const progress=Math.round((s.matchedTotal/s.pairs.length)*100);const left=s.left.map(card=>`<button class="mm-pair-card left ${s.selectedLeft===card.id?'selected':''} ${s.matchedIds.includes(card.pairId)?'done':''} ${card.status}" ${s.matchedIds.includes(card.pairId)?'disabled':''} onclick="MemorizingMatch.pickLeft('${esc(card.id)}')">${esc(card.label)}</button>`).join('');const right=s.right.map(card=>`<button class="mm-pair-card right ${s.matchedIds.includes(card.pairId)?'done':''} ${card.status}" ${s.matchedIds.includes(card.pairId)?'disabled':''} onclick="MemorizingMatch.pickRight('${esc(card.id)}')">${esc(card.label)}</button>`).join('');const body=`<main class="mm-page mm-game"><div class="mm-game-head"><button class="mm-close" onclick="MemorizingMatch.cancel()" aria-label="Exit matching">×</button><div class="mm-progress-wrap"><div class="mm-progress-meta"><span>${s.matchedTotal}/${s.pairs.length} matched</span><span>${progress}%</span></div><div class="mm-progress"><i style="width:${progress}%"></i></div></div>${s.secondsLeft?`<div class="mm-timer">${prettyTime(s.secondsLeft)}</div>`:''}</div><div class="mm-combo">✦ Combo ×${s.combo}</div><p class="mm-instruction">বাম দিক থেকে একটি card বেছে নিন, তারপর ডান দিকে তার সঠিক জোড়াটি tap করুন। সব ৫টি মিললে পরের batch আসবে।</p><div class="mm-batch-note">Batch ${s.batchIndex+1}/${Math.ceil(s.pairs.length/BATCH_SIZE)} · এই batch-এ ${s.matchedIds.length}/5 matched</div><section class="mm-pair-board"><div class="mm-pair-column"><div class="mm-pair-label">প্রশ্ন / শব্দ</div>${left}</div><div class="mm-pair-column"><div class="mm-pair-label">সঠিক উত্তর</div>${right}</div></section></main>`;renderShell(body,{title:'জোড়া মিলান',back:'MemorizingMatch.cancel()'});}
+  function renderResult(){const s=state.session;if(!s){navigate(ROUTE);return;}const attempts=s.correct+s.wrong,accuracy=attempts?Math.round((s.correct/attempts)*100):0,item=itemOf(s.type);const body=`<main class="mm-page">${heading('MATCHING COMPLETE',s.timedOut?"Time's Up":'Round complete',s.timedOut?'সময় শেষ হয়েছে। আপনার completed pair-এর summary নিচে আছে।':'নির্বাচিত সব ৫×৫ batch শেষ হয়েছে।')}<section class="mm-result"><h3 class="mm-result-title">${esc(item?.label||'Memorizing')}</h3><p class="mm-result-sub">এই session শুধু learning practice। কোনো আলাদা history, XP বা reward তৈরি হয়নি।</p><div class="mm-score-grid"><div class="mm-score"><b>${s.matchedTotal}</b><span>Matched</span></div><div class="mm-score"><b>${accuracy}%</b><span>Accuracy</span></div><div class="mm-score"><b>${s.pairs.length/5}</b><span>Batches</span></div></div><div class="mm-result-actions"><button class="btn" onclick="MemorizingMatch.playAgain()">আবার দিন</button><button class="btn secondary" onclick="MemorizingMatch.finish()">সব category</button></div></section></main>`;renderShell(body,{title:'Matching result',back:'MemorizingMatch.finish()'});}
+  const api={async render(){if(!state.loaded)await loadData();const path=text(window.Router?.path||location.hash.replace(/^#\/?/,'').split('?')[0]);if(path.endsWith('/game'))return renderGame();if(path.endsWith('/result'))return renderResult();if(path.includes('/setup'))return renderSetup();return renderHome();},openSetup(type){state.type=type;state.subjectId='';state.topicId='';state.count=10;state.seconds=0;navigate(route('setup'));},setSubject(id){state.subjectId=text(id);state.topicId='';renderSetup();},setTopic(id){state.topicId=text(id);const max=maxUsableCount();if(max&&state.count>max)state.count=max;renderSetup();},setCount(value){state.count=Number(value)||5;renderSetup();},setTime(value){state.seconds=Number(value)||0;renderSetup();},start(){const pairs=shuffle(pairsForCurrentSource()).slice(0,state.count);if(pairs.length!==state.count||pairs.length<BATCH_SIZE||pairs.length%BATCH_SIZE)return toast('৫-এর গুণিতক valid pair নির্বাচন করুন');const s={type:state.type,pairs,batchIndex:0,batch:[],left:[],right:[],selectedLeft:'',matchedIds:[],matchedTotal:0,correct:0,wrong:0,combo:0,secondsLeft:state.seconds,timer:null,locked:false,complete:false,timedOut:false};state.session=s;buildBatch(s);startTimer(s);navigate(route('game'));},pickLeft(id){const s=state.session;if(!s||s.locked||s.complete)return;const card=s.left.find(item=>item.id===id);if(!card||s.matchedIds.includes(card.pairId))return;s.selectedLeft=id;renderGame();},pickRight(id){const s=state.session;if(!s||s.locked||!s.selectedLeft||s.complete)return;const left=s.left.find(item=>item.id===s.selectedLeft),right=s.right.find(item=>item.id===id);if(!left||!right||s.matchedIds.includes(right.pairId))return;s.locked=true;if(left.pairId===right.pairId){left.status='done';right.status='done';s.matchedIds.push(left.pairId);s.matchedTotal++;s.correct++;s.combo++;s.selectedLeft='';renderGame();setTimeout(()=>{if(state.session!==s)return;s.locked=false;if(s.matchedIds.length===BATCH_SIZE){if(s.matchedTotal>=s.pairs.length){stopTimer(s);s.complete=true;return renderResult();}s.batchIndex++;buildBatch(s);}renderGame();},420);}else{left.status='wrong';right.status='wrong';s.wrong++;s.combo=0;renderGame();setTimeout(()=>{if(state.session!==s)return;left.status='';right.status='';s.selectedLeft='';s.locked=false;renderGame();},420);}},cancel(){stopTimer();state.session=null;navigate(state.type?route('setup'):ROUTE);},playAgain(){const old={type:state.type,subjectId:state.subjectId,topicId:state.topicId,count:state.count,seconds:state.seconds};stopTimer();state.session=null;Object.assign(state,old);api.start();},finish(){stopTimer();state.session=null;state.type='';state.subjectId='';state.topicId='';navigate(ROUTE);}};
+  window.MemorizingMatch=api;
+  const previousRouteRenderer=window.__admissionRenderRoute;
+  window.__admissionRenderRoute=function memorizingMatchRouteRenderer(){const path=text(window.Router?.path||location.hash.replace(/^#\/?/,'').split('?')[0]||'dashboard');if(path===ROUTE||path.startsWith(`${ROUTE}/`))return api.render();return typeof previousRouteRenderer==='function'?previousRouteRenderer.apply(this,arguments):window.render?.();};
+  function injectDashboardEntry(){const page=document.querySelector('#app .page');if(!page||page.querySelector('[data-memorizing-match-entry]'))return;const tools=page.querySelector('[data-unified-study-tools-list]');if(!tools)return;const entry=document.createElement('button');entry.type='button';entry.className='mm-dashboard-entry';entry.dataset.memorizingMatchEntry='true';entry.innerHTML='<i aria-hidden="true">🧩</i><span><b>মুখস্থ জোড়া মিলান</b><small>Question Bank থেকে ৫×৫ matching practice</small></span><em aria-hidden="true">›</em>';entry.onclick=()=>navigate(ROUTE);tools.appendChild(entry);}
+  const previousDashboard=window.renderDashboard;if(typeof previousDashboard==='function')window.renderDashboard=function memorizingMatchDashboard(){const result=previousDashboard.apply(this,arguments);injectDashboardEntry();return result;};
+  const app=document.getElementById('app');if(app)new MutationObserver(()=>setTimeout(injectDashboardEntry,0)).observe(app,{childList:true,subtree:true});setTimeout(injectDashboardEntry,80);
 })();
