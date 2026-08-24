@@ -17,6 +17,8 @@
     visible: 36,
     parser: { text: '', records: [], stage: 'input' },
     practice: null,
+    practiceSetup: defaultPracticeSetup(),
+    practiceSetupRestored: false,
     test: { category: '', selectedIds: [], count: 10, duration: 10, negative: 0 },
   };
 
@@ -30,6 +32,14 @@
   style.textContent = css;
   document.head.appendChild(style);
 
+  const practiceSetupStyle = document.createElement('style');
+  practiceSetupStyle.setAttribute('data-vocabulary-practice-setup-style', 'true');
+  practiceSetupStyle.textContent = `
+  /* Practice Setup: mobile-first academic selection flow, with only real local vocabulary evidence. */
+  .vm-setup{display:grid;gap:14px;margin-top:18px}.vm-setup-card{padding:17px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:var(--shadow)}.vm-step{display:flex;align-items:center;gap:9px;color:var(--emerald-d);font-size:11px;font-weight:900;letter-spacing:.11em}.vm-step i{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;background:var(--mint);font-style:normal}.vm-setup-card h3{margin:9px 0 5px;font-size:20px;letter-spacing:-.35px}.vm-setup-card p{margin:0;color:var(--sub);font-size:12px;line-height:1.5}.vm-setup-card select,.vm-setup-card input{width:100%;min-height:48px;margin-top:13px;font:inherit}.vm-setup-note{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:10px 11px;border-radius:11px;background:var(--mint);color:var(--emerald-d);font-size:12px;font-weight:800}.vm-presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}.vm-preset{min-height:64px;padding:8px;border:1px solid var(--line);border-radius:12px;background:#fbfefc;color:var(--text);font:inherit;text-align:left;cursor:pointer}.vm-preset b,.vm-preset small{display:block}.vm-preset b{font-size:12px}.vm-preset small{margin-top:3px;color:var(--sub);font-size:10px;line-height:1.3}.vm-count-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center}.vm-count-row .btn{min-height:48px;padding:9px 12px;white-space:nowrap}.vm-setup-warning{margin-top:10px;padding:10px 11px;border-left:3px solid var(--orange);border-radius:9px;background:#fff9ee;color:#875417;font-size:12px;line-height:1.48}.vm-advanced{margin-top:2px;border:1px solid var(--line);border-radius:15px;background:var(--card)}.vm-advanced>summary{padding:14px 15px;color:var(--emerald-d);font-size:13px;font-weight:800;cursor:pointer}.vm-advanced-body{display:grid;gap:12px;padding:2px 15px 15px}.vm-checkline{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:700}.vm-checkline input{width:20px;height:20px;margin:0;accent-color:var(--emerald)}.vm-summary{padding:17px;border:1px solid #cce4da;border-radius:18px;background:linear-gradient(145deg,#f7fcfa,#ecf8f3)}.vm-summary-kicker{color:var(--emerald-d);font-size:10px;font-weight:900;letter-spacing:.14em}.vm-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}.vm-summary-grid div{min-width:0}.vm-summary-grid small,.vm-summary-grid b{display:block}.vm-summary-grid small{color:var(--sub);font-size:10px}.vm-summary-grid b{margin-top:3px;font-size:14px;line-height:1.35;overflow-wrap:anywhere}.vm-custom-tools{display:flex;gap:8px;margin:12px 0}.vm-custom-tools .btn{flex:1;min-height:42px;padding:8px}.vm-custom-list{display:grid;gap:7px;max-height:350px;margin-top:11px;overflow:auto;overscroll-behavior:contain}.vm-custom-item{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:12px;background:#fbfefc;cursor:pointer}.vm-custom-item input{width:19px;height:19px;min-height:auto;margin:0;accent-color:var(--emerald)}.vm-custom-item span{display:grid;gap:2px;min-width:0}.vm-custom-item b{font-size:14px}.vm-custom-item small{color:var(--sub);font-family:'Noto Serif Bengali',Georgia,serif;font-size:12px}.vm-custom-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px;color:var(--sub);font-size:12px}.vm-custom-foot .btn{min-height:39px;padding:7px 10px}.vm-time-custom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.vm-time-custom label{display:grid;gap:4px;color:var(--sub);font-size:10px;font-weight:800}.vm-time-custom input{margin:0!important;text-align:center}.vm-timer{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:9px;background:#fff4e8;color:#9a581d;font-size:12px;font-weight:900}.vm-start{min-height:56px;font-size:15px!important}.vm-empty-setup{padding:26px 16px;text-align:center;border:1px dashed var(--line);border-radius:18px;background:var(--card)}@media(max-width:360px){.vm-presets,.vm-summary-grid{grid-template-columns:1fr}.vm-count-row{grid-template-columns:1fr}.vm-count-row .btn{width:100%}}
+  `;
+  document.head.appendChild(practiceSetupStyle);
+
   const escape = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
   const safeJson = value => escape(JSON.stringify(value));
   const lower = value => String(value ?? '').trim().toLocaleLowerCase('en-US');
@@ -38,6 +48,16 @@
   const route = path => `${ROUTE}${path ? `/${path}` : ''}`;
   const now = () => Date.now();
   const categoryOf = word => (String(word || '').trim().match(/[A-Za-z]/)?.[0] || '#').toUpperCase();
+
+  function defaultPracticeSetup() {
+    return { sourceType:'all', category:'', selectedIds:[], customQuery:'', customVisible:40, practiceType:'mixed', questionCount:10, countMode:'preset', customCount:10, timeValue:0, timeMode:'preset', customHours:0, customMinutes:0, customSeconds:0, randomize:true, repeatPolicy:'no-repeat', advancedOpen:false };
+  }
+  function savePracticeSetup(setup) {
+    try { localStorage.setItem('admission-hub-vocabulary-practice-setup', JSON.stringify({ sourceType:setup.sourceType, category:setup.category, practiceType:setup.practiceType, questionCount:setup.questionCount, countMode:setup.countMode, customCount:setup.customCount, timeValue:setup.timeValue, timeMode:setup.timeMode, customHours:setup.customHours, customMinutes:setup.customMinutes, customSeconds:setup.customSeconds, randomize:setup.randomize, repeatPolicy:setup.repeatPolicy })); } catch (_) { /* local persistence is optional */ }
+  }
+  function restorePracticeSetup() {
+    try { const saved = JSON.parse(localStorage.getItem('admission-hub-vocabulary-practice-setup') || 'null'); if (saved && typeof saved === 'object') state.practiceSetup = { ...defaultPracticeSetup(), ...saved, selectedIds:[] }; } catch (_) { /* ignore invalid local preference */ }
+  }
 
   function relationItems(raw) {
     if (!Array.isArray(raw)) return [];
@@ -196,28 +216,58 @@
     renderShell(body, { title:'Vocabulary Parser', back:`navigate('${ROUTE}')` });
   }
 
-  function practiceModeCard(icon, title, detail, mode) { return `<button class="vm-mode" onclick="VocabularyMaster.startPractice('${mode}')"><span style="font-size:21px">${icon}</span><b>${escape(title)}</b><small>${escape(detail)}</small></button>`; }
-  function accuracy(session) { const total = session.correct + session.wrong; return total ? Math.round(session.correct / total * 100) : 0; }
-  function renderPracticeHome() {
-    const body = `<main class="vm-page">${heading('PRACTICE', 'Learn actively', 'Practice results are temporary. Existing Admission Hub Test results remain the permanent record.')} ${state.records.length ? `<div class="vm-mode-grid">${practiceModeCard('🔗','Matching','Match words with Bengali meanings.','match')}${practiceModeCard('✍️','Fill in the Blank','Choose the right word from its meaning.','fill')}${practiceModeCard('↔️','Synonym Practice','Find the matching synonym.','synonym')}${practiceModeCard('⇄','Antonym Practice','Find the opposite word.','antonym')}${practiceModeCard('অ','Bengali Meaning','Choose the correct Bengali meaning.','meaning')}</div>` : emptyBank()}</main>`;
-    renderShell(body, { title:'Vocabulary Practice', back:`navigate('${ROUTE}')` });
-  }
-  function practiceCandidates(mode) {
-    if (mode === 'synonym') return state.records.filter(record => relations(record, 'synonyms').length);
-    if (mode === 'antonym') return state.records.filter(record => relations(record, 'antonyms').length);
+  const PRACTICE_TYPES = {
+    match:{ label:'Matching', description:'Match vocabulary with the correct Bengali meaning.' },
+    fill:{ label:'Fill in the Blank', description:'Choose the vocabulary that matches the meaning.' },
+    synonym:{ label:'Synonym', description:'Choose the correct synonym.' },
+    antonym:{ label:'Antonym', description:'Choose the correct antonym.' },
+    meaning:{ label:'Bengali Meaning', description:'Choose the correct Bengali meaning.' },
+    mixed:{ label:'Mixed Practice', description:'Practice different vocabulary skills together.' },
+  };
+  function sourceRecords(setup = state.practiceSetup) {
+    if (setup.sourceType === 'custom') return state.records.filter(record => setup.selectedIds.includes(record.id));
+    if (setup.sourceType === 'category') return state.records.filter(record => record.category === setup.category);
     return state.records;
   }
-  function optionSet(correct, pool) {
-    const values = unique([correct, ...shuffle(pool)]);
-    return shuffle(values.slice(0, 4));
+  function practiceCandidates(mode, source = state.records) {
+    if (mode === 'synonym') return source.filter(record => relations(record, 'synonyms').length);
+    if (mode === 'antonym') return source.filter(record => relations(record, 'antonyms').length);
+    if (mode === 'mixed') return source.filter(record => record.meaning || relations(record, 'synonyms').length || relations(record, 'antonyms').length);
+    return source.filter(record => record.word && record.meaning);
   }
-  function buildQuestion(mode, record) {
-    const allMeanings = state.records.map(row => row.meaning);
-    const allWords = state.records.map(row => row.word);
-    if (mode === 'synonym') { const relation = shuffle(relations(record, 'synonyms'))[0]; return { prompt:`${record.word}-এর synonym কোনটি?`, correct:relation.word, options:optionSet(relation.word, state.records.flatMap(row => relations(row, 'synonyms').map(item => item.word)).concat(allWords)), explanation:`${relation.word}${relation.meaning ? ` — ${relation.meaning}` : ''}` }; }
-    if (mode === 'antonym') { const relation = shuffle(relations(record, 'antonyms'))[0]; return { prompt:`${record.word}-এর antonym কোনটি?`, correct:relation.word, options:optionSet(relation.word, state.records.flatMap(row => relations(row, 'antonyms').map(item => item.word)).concat(allWords)), explanation:`${relation.word}${relation.meaning ? ` — ${relation.meaning}` : ''}` }; }
-    if (mode === 'fill') return { prompt:`“${record.meaning}” অর্থ প্রকাশ করে এমন শব্দটি হলো ____।`, correct:record.word, options:optionSet(record.word, allWords), explanation:`${record.word} — ${record.meaning}` };
-    return { prompt:`${record.word}-এর বাংলা অর্থ কী?`, correct:record.meaning, options:optionSet(record.meaning, allMeanings), explanation:`${record.word} — ${record.meaning}` };
+  function configuredQuestionCount(setup = state.practiceSetup) { return Math.max(1, Number(setup.countMode === 'custom' ? setup.customCount : setup.questionCount) || 0); }
+  function configuredTimeSeconds(setup = state.practiceSetup) { return setup.timeMode === 'custom' ? Math.max(0, (Number(setup.customHours) || 0) * 3600 + (Number(setup.customMinutes) || 0) * 60 + (Number(setup.customSeconds) || 0)) : Math.max(0, Number(setup.timeValue) || 0); }
+  function prettyTime(seconds) { if (!seconds) return 'No Time'; const hours = Math.floor(seconds / 3600), minutes = Math.floor((seconds % 3600) / 60), remain = seconds % 60; return [hours && `${hours}h`, minutes && `${minutes}m`, remain && `${remain}s`].filter(Boolean).join(' '); }
+  function practiceSourceLabel(setup = state.practiceSetup) { return setup.sourceType === 'custom' ? `Custom Selection (${setup.selectedIds.length})` : setup.sourceType === 'category' ? `${setup.category} Vocabulary` : 'All Vocabulary'; }
+  function setupAvailability(setup = state.practiceSetup) { const source = sourceRecords(setup); const valid = practiceCandidates(setup.practiceType, source); return { source, valid, available:valid.length, requested:configuredQuestionCount(setup), time:configuredTimeSeconds(setup) }; }
+  function practiceModeCard(icon, title, detail, mode) { return `<button class="vm-mode" onclick="VocabularyMaster.setPracticeType('${mode}')"><span style="font-size:21px">${icon}</span><b>${escape(title)}</b><small>${escape(detail)}</small></button>`; }
+  function accuracy(session) { const total = session.correct + session.wrong; return total ? Math.round(session.correct / total * 100) : 0; }
+  function renderPracticeHome() {
+    const setup = state.practiceSetup, status = setupAvailability(setup), type = PRACTICE_TYPES[setup.practiceType] || PRACTICE_TYPES.mixed;
+    const categoryCounts = Object.fromEntries('ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => [letter, state.records.filter(record => record.category === letter).length]));
+    const sourceOptions = `<option value="all" ${setup.sourceType === 'all' ? 'selected' : ''}>All Vocabulary (${state.records.length})</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').filter(letter => categoryCounts[letter]).map(letter => `<option value="${letter}" ${setup.sourceType === 'category' && setup.category === letter ? 'selected' : ''}>${letter} — ${categoryCounts[letter]} Words</option>`).join('')}<option value="custom" ${setup.sourceType === 'custom' ? 'selected' : ''}>Custom Selection</option>`;
+    const countOptions = [5,10,15,20,25,30,50].filter(count => count <= status.available).map(count => `<option value="${count}" ${setup.countMode === 'preset' && Number(setup.questionCount) === count ? 'selected' : ''}>${count}</option>`).join('');
+    const timeOptions = [[0,'No Time'],[60,'1 Minute'],[120,'2 Minutes'],[300,'5 Minutes'],[600,'10 Minutes'],[900,'15 Minutes'],[1200,'20 Minutes'],[1800,'30 Minutes']].map(([value,label]) => `<option value="${value}" ${setup.timeMode === 'preset' && Number(setup.timeValue) === value ? 'selected' : ''}>${label}</option>`).join('');
+    const customFiltered = state.records.filter(record => { const query = lower(setup.customQuery); return !query || [record.word,record.meaning,...relations(record,'synonyms').flatMap(item => [item.word,item.meaning]),...relations(record,'antonyms').flatMap(item => [item.word,item.meaning])].join(' ').toLocaleLowerCase('en-US').includes(query); });
+    const customShown = customFiltered.slice(0, setup.customVisible);
+    const invalidCount = status.available > 0 && status.requested > status.available;
+    const canStart = !!(status.available && status.requested <= status.available && PRACTICE_TYPES[setup.practiceType] && (setup.sourceType !== 'custom' || setup.selectedIds.length));
+    const customSelector = setup.sourceType === 'custom' ? `<section class="vm-setup-card"><div class="vm-step"><i>2</i> CUSTOM SELECTION</div><h3>Select vocabulary</h3><p>Search করে শব্দ বাছুন। শুধু visible list-ই DOM-এ রাখা হয়।</p><div class="searchbar" style="margin-top:12px"><span>🔍</span><input value="${escape(setup.customQuery)}" placeholder="Search vocabulary" autocomplete="off" oninput="VocabularyMaster.searchPracticeCustom(this.value)"></div><div class="vm-custom-tools"><button class="btn secondary" onclick="VocabularyMaster.selectVisiblePractice()">Select visible</button><button class="btn ghost" onclick="VocabularyMaster.clearPracticeSelection()">Clear</button></div><div class="vm-custom-list">${customShown.map(record => `<label class="vm-custom-item"><input type="checkbox" ${setup.selectedIds.includes(record.id) ? 'checked' : ''} onchange="VocabularyMaster.togglePracticeRecord('${escape(record.id)}',this.checked)"><span><b>${escape(record.word)}</b><small>${escape(record.meaning)}</small></span></label>`).join('') || '<div class="vm-empty-setup">No vocabulary matches this search.</div>'}</div>${customShown.length < customFiltered.length ? `<button class="btn secondary" style="margin-top:10px" onclick="VocabularyMaster.loadMorePracticeCustom()">Load more</button>` : ''}<div class="vm-custom-foot"><b>${setup.selectedIds.length} Words Selected</b><span>${customFiltered.length.toLocaleString()} found</span></div></section>` : '';
+    const body = `<main class="vm-page">${heading('PRACTICE', 'Choose what you want to practice', 'Select, configure, preview, then start. Practice results stay separate from Admission Hub exam history.')} ${!state.records.length ? `<div class="vm-empty-setup"><b style="display:block;color:var(--text);font-size:18px">No vocabulary available.</b><p style="margin:8px 0 15px;color:var(--sub);font-size:12px">Practice শুরু করতে Vocabulary Parser দিয়ে শব্দ যোগ করুন।</p><button class="btn" onclick="navigate('${route('parser')}')">Open Parser</button></div>` : `<div class="vm-presets"><button class="vm-preset" onclick="VocabularyMaster.applyPracticePreset('quick')"><b>Quick</b><small>5 · No Time</small></button><button class="vm-preset" onclick="VocabularyMaster.applyPracticePreset('standard')"><b>Standard</b><small>10 · 5 Minutes</small></button><button class="vm-preset" onclick="VocabularyMaster.applyPracticePreset('focused')"><b>Focused</b><small>20 · 10 Minutes</small></button></div><div class="vm-setup"><section class="vm-setup-card"><div class="vm-step"><i>1</i> VOCABULARY SOURCE</div><h3>${escape(practiceSourceLabel(setup))}</h3><p>Available count শুধু local Vocabulary Bank থেকে আসে।</p><select onchange="VocabularyMaster.setPracticeSource(this.value)">${sourceOptions}</select><div class="vm-setup-note"><span>Available valid records</span><b>${status.available}</b></div></section>${customSelector}<section class="vm-setup-card"><div class="vm-step"><i>${setup.sourceType === 'custom' ? '3' : '2'}</i> PRACTICE TYPE</div><h3>${escape(type.label)}</h3><p>${escape(type.description)}</p><select onchange="VocabularyMaster.setPracticeType(this.value)">${Object.entries(PRACTICE_TYPES).map(([key,item]) => `<option value="${key}" ${setup.practiceType === key ? 'selected' : ''}>${escape(item.label)}</option>`).join('')}</select></section><section class="vm-setup-card"><div class="vm-step"><i>${setup.sourceType === 'custom' ? '4' : '3'}</i> NUMBER OF QUESTIONS</div><h3>${status.requested} questions</h3><p>${status.available} valid ${escape(type.label)} question${status.available === 1 ? '' : 's'} available. No repeat policy is active.</p><div class="vm-count-row"><select onchange="VocabularyMaster.setPracticeCount(this.value)">${countOptions}<option value="custom" ${setup.countMode === 'custom' ? 'selected' : ''}>Custom</option></select>${invalidCount ? `<button class="btn secondary" onclick="VocabularyMaster.useAvailablePracticeCount()">Use ${status.available}</button>` : ''}</div>${setup.countMode === 'custom' ? `<input type="number" min="1" max="${status.available}" value="${escape(setup.customCount)}" oninput="VocabularyMaster.setPracticeCustomCount(this.value)" aria-label="Custom question count">` : ''}${invalidCount ? `<div class="vm-setup-warning">Only ${status.available} valid questions are available for this practice. Use a lower count or change selection.</div>` : ''}</section><section class="vm-setup-card"><div class="vm-step"><i>${setup.sourceType === 'custom' ? '5' : '4'}</i> TIME LIMIT</div><h3>${escape(prettyTime(status.time))}</h3><p>এটি Practice Timer; exam timer বা negative marking নয়।</p><select onchange="VocabularyMaster.setPracticeTime(this.value)">${timeOptions}<option value="custom" ${setup.timeMode === 'custom' ? 'selected' : ''}>Custom Time</option></select>${setup.timeMode === 'custom' ? `<div class="vm-time-custom"><label>Hours<input type="number" min="0" value="${escape(setup.customHours)}" oninput="VocabularyMaster.setPracticeTimePart('customHours',this.value)"></label><label>Minutes<input type="number" min="0" max="59" value="${escape(setup.customMinutes)}" oninput="VocabularyMaster.setPracticeTimePart('customMinutes',this.value)"></label><label>Seconds<input type="number" min="0" max="59" value="${escape(setup.customSeconds)}" oninput="VocabularyMaster.setPracticeTimePart('customSeconds',this.value)"></label></div>` : ''}</section><details class="vm-advanced" ${setup.advancedOpen ? 'open' : ''} ontoggle="VocabularyMaster.setPracticeAdvanced(this.open)"><summary>Advanced Options</summary><div class="vm-advanced-body"><label class="vm-checkline"><span>Randomize question and option order</span><input type="checkbox" ${setup.randomize ? 'checked' : ''} onchange="VocabularyMaster.setPracticeRandom(this.checked)"></label><div class="vm-checkline"><span>Repeat policy</span><b>Do Not Repeat</b></div><p class="muted" style="margin:0;font-size:11px;line-height:1.45">Difficulty metadata নেই, তাই কোনো fake difficulty selector দেখানো হয়নি।</p></div></details><section class="vm-summary"><div class="vm-summary-kicker">PRACTICE SUMMARY</div><div class="vm-summary-grid"><div><small>Source</small><b>${escape(practiceSourceLabel(setup))}</b></div><div><small>Words available</small><b>${status.available}</b></div><div><small>Practice</small><b>${escape(type.label)}</b></div><div><small>Questions</small><b>${status.requested}</b></div><div><small>Time</small><b>${escape(prettyTime(status.time))}</b></div><div><small>Random</small><b>${setup.randomize ? 'ON' : 'OFF'}</b></div></div></section><button class="btn vm-start" ${canStart ? '' : 'disabled'} onclick="VocabularyMaster.startConfiguredPractice()">START PRACTICE →</button>${!canStart ? '<p class="muted" style="margin:0;text-align:center;font-size:12px">Source, practice type এবং valid question count ঠিক হলে Start সক্রিয় হবে।</p>' : ''}<button class="btn ghost" onclick="VocabularyMaster.resetPracticeSetup()">Reset Selection</button></div>`}</main>`;
+    renderShell(body, { title:'Vocabulary Practice', back:`navigate('${ROUTE}')` });
+  }
+  function optionSet(correct, pool, randomize = true) {
+    const values = unique([correct, ...shuffle(pool)]);
+    const options = values.slice(0, 4);
+    return randomize ? shuffle(options) : options;
+  }
+  function buildQuestion(mode, record, pool = state.records, randomize = state.practiceSetup.randomize) {
+    const allMeanings = pool.map(row => row.meaning);
+    const allWords = pool.map(row => row.word);
+    if (mode === 'synonym') { const relation = shuffle(relations(record, 'synonyms'))[0]; return { prompt:`${record.word}-এর synonym কোনটি?`, correct:relation.word, options:optionSet(relation.word, pool.flatMap(row => relations(row, 'synonyms').map(item => item.word)).concat(allWords), randomize), explanation:`${relation.word}${relation.meaning ? ` — ${relation.meaning}` : ''}` }; }
+    if (mode === 'antonym') { const relation = shuffle(relations(record, 'antonyms'))[0]; return { prompt:`${record.word}-এর antonym কোনটি?`, correct:relation.word, options:optionSet(relation.word, pool.flatMap(row => relations(row, 'antonyms').map(item => item.word)).concat(allWords), randomize), explanation:`${relation.word}${relation.meaning ? ` — ${relation.meaning}` : ''}` }; }
+    if (mode === 'fill') return { prompt:`“${record.meaning}” অর্থ প্রকাশ করে এমন শব্দটি হলো ____।`, correct:record.word, options:optionSet(record.word, allWords, randomize), explanation:`${record.word} — ${record.meaning}` };
+    return { prompt:`${record.word}-এর বাংলা অর্থ কী?`, correct:record.meaning, options:optionSet(record.meaning, allMeanings, randomize), explanation:`${record.word} — ${record.meaning}` };
   }
   function renderPracticeQuiz() {
     const session = state.practice;
@@ -225,18 +275,20 @@
     if (!question) return renderPracticeSummary();
     const selected = session.selected;
     const answerShown = selected !== null;
-    const body = `<main class="vm-page">${heading('PRACTICE', `${session.index + 1} of ${session.questions.length}`, `${session.correct} correct · ${session.wrong} wrong`)}<section class="vm-practice-card"><div class="vm-practice-prompt">${escape(question.prompt)}</div><div class="vm-practice-options">${question.options.map(option => { const cls = answerShown ? (option === question.correct ? 'correct' : option === selected ? 'wrong' : '') : ''; return `<button class="vm-practice-option ${cls}" ${answerShown ? 'disabled' : ''} onclick="VocabularyMaster.answerPractice(${safeJson(option)})">${escape(option)}</button>`; }).join('')}</div>${answerShown ? `<div class="vm-tip">${escape(question.explanation)}</div><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.nextPractice()">${session.index === session.questions.length - 1 ? 'See Result' : 'Next Question →'}</button>` : ''}</section></main>`;
-    renderShell(body, { title:'Vocabulary Practice', back:`navigate('${route('practice')}')` });
+    const timer = session.timeLimit ? `<span class="vm-timer">⏱ ${prettyTime(Math.max(0, session.remainingSeconds || 0))}</span>` : '';
+    const body = `<main class="vm-page">${heading('PRACTICE', `${session.index + 1} of ${session.questions.length}`, `${session.correct} correct · ${session.wrong} wrong`)}${timer ? `<div style="margin:10px 0 0">${timer}</div>` : ''}<section class="vm-practice-card"><div class="vm-practice-prompt">${escape(question.prompt)}</div><div class="vm-practice-options">${question.options.map(option => { const cls = answerShown ? (option === question.correct ? 'correct' : option === selected ? 'wrong' : '') : ''; return `<button class="vm-practice-option ${cls}" ${answerShown ? 'disabled' : ''} onclick="VocabularyMaster.answerPractice(${safeJson(option)})">${escape(option)}</button>`; }).join('')}</div>${answerShown ? `<div class="vm-tip">${escape(question.explanation)}</div><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.nextPractice()">${session.index === session.questions.length - 1 ? 'See Result' : 'Next Question →'}</button>` : ''}</section></main>`;
+    renderShell(body, { title:'Vocabulary Practice', back:"VocabularyMaster.cancelPractice()" });
   }
   function renderMatching() {
     const session = state.practice;
     const done = session.pairs.filter(pair => session.done.includes(pair.id)).length;
-    const body = `<main class="vm-page">${heading('MATCHING PRACTICE', `${done} of ${session.pairs.length} matched`, `${session.correct} correct · ${session.wrong} wrong`)}<section class="vm-practice-card"><p class="muted" style="margin-top:0">প্রথমে একটি word, তারপর তার Bengali meaning নির্বাচন করুন।</p><div class="vm-match-columns"><div>${session.pairs.map(pair => `<button class="vm-match-choice ${session.wordId === pair.id ? 'selected' : ''} ${session.done.includes(pair.id) ? 'done' : ''}" onclick="VocabularyMaster.pickMatchWord('${escape(pair.id)}')">${escape(pair.word)}</button>`).join('')}</div><div>${session.meanings.map(pair => `<button class="vm-match-choice ${session.done.includes(pair.id) ? 'done' : ''}" onclick="VocabularyMaster.pickMatchMeaning('${escape(pair.id)}')">${escape(pair.meaning)}</button>`).join('')}</div></div>${done === session.pairs.length ? `<div class="vm-tip">Matching complete. Accuracy: ${accuracy(session)}%</div><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.finishPractice()">Back to Practice</button>` : ''}</section></main>`;
-    renderShell(body, { title:'Matching Practice', back:`navigate('${route('practice')}')` });
+    const timer = session.timeLimit ? `<span class="vm-timer">⏱ ${prettyTime(Math.max(0, session.remainingSeconds || 0))}</span>` : '';
+    const body = `<main class="vm-page">${heading('MATCHING PRACTICE', `${done} of ${session.pairs.length} matched`, `${session.correct} correct · ${session.wrong} wrong`)}${timer ? `<div style="margin:10px 0 0">${timer}</div>` : ''}<section class="vm-practice-card"><p class="muted" style="margin-top:0">প্রথমে একটি word, তারপর তার Bengali meaning নির্বাচন করুন।</p><div class="vm-match-columns"><div>${session.pairs.map(pair => `<button class="vm-match-choice ${session.wordId === pair.id ? 'selected' : ''} ${session.done.includes(pair.id) ? 'done' : ''}" onclick="VocabularyMaster.pickMatchWord('${escape(pair.id)}')">${escape(pair.word)}</button>`).join('')}</div><div>${session.meanings.map(pair => `<button class="vm-match-choice ${session.done.includes(pair.id) ? 'done' : ''}" onclick="VocabularyMaster.pickMatchMeaning('${escape(pair.id)}')">${escape(pair.meaning)}</button>`).join('')}</div></div>${done === session.pairs.length ? `<div class="vm-tip">Matching complete. Accuracy: ${accuracy(session)}%</div><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.finishPractice()">Back to Practice</button>` : ''}</section></main>`;
+    renderShell(body, { title:'Matching Practice', back:"VocabularyMaster.cancelPractice()" });
   }
   function renderPracticeSummary() {
     const session = state.practice;
-    const body = `<main class="vm-page">${heading('PRACTICE COMPLETE', 'Session finished', 'This short practice session is not stored as a separate Vocabulary progress system.')}<section class="vm-practice-card"><div class="grid3"><div><b style="font-size:23px;color:var(--green)">${session.correct}</b><div class="muted">Correct</div></div><div><b style="font-size:23px;color:var(--red)">${session.wrong}</b><div class="muted">Wrong</div></div><div><b style="font-size:23px;color:var(--emerald)">${accuracy(session)}%</b><div class="muted">Accuracy</div></div></div><button class="btn" style="margin-top:18px" onclick="VocabularyMaster.finishPractice()">Back to Practice</button></section></main>`;
+    const body = `<main class="vm-page">${heading('PRACTICE COMPLETE', session.timedOut ? "Time's Up" : 'Session finished', 'This short practice session is not stored as a separate Vocabulary progress system.')}<section class="vm-practice-card"><div class="grid3"><div><b style="font-size:23px;color:var(--green)">${session.correct}</b><div class="muted">Correct</div></div><div><b style="font-size:23px;color:var(--red)">${session.wrong}</b><div class="muted">Wrong</div></div><div><b style="font-size:23px;color:var(--emerald)">${accuracy(session)}%</b><div class="muted">Accuracy</div></div></div><button class="btn" style="margin-top:18px" onclick="VocabularyMaster.finishPractice()">Back to Practice</button></section></main>`;
     renderShell(body, { title:'Practice Result', back:`navigate('${route('practice')}')` });
   }
 
@@ -275,9 +327,27 @@
     return generated.map(question => question.id);
   }
 
+  function stopPracticeTimer() { if (state.practice?.timerId) clearInterval(state.practice.timerId); if (state.practice) state.practice.timerId = null; }
+  function startPracticeTimer(session) {
+    stopPracticeTimer();
+    if (!session.timeLimit) return;
+    session.deadline = Date.now() + session.timeLimit * 1000;
+    session.remainingSeconds = session.timeLimit;
+    session.timerId = setInterval(() => {
+      if (!state.practice || state.practice !== session) return stopPracticeTimer();
+      session.remainingSeconds = Math.max(0, Math.ceil((session.deadline - Date.now()) / 1000));
+      if (!session.remainingSeconds) { stopPracticeTimer(); session.complete = true; session.timedOut = true; if (session.type === 'quiz') session.index = session.questions.length; return api.render(); }
+      api.render();
+    }, 1000);
+  }
+  function questionModeFor(record, type) {
+    if (type !== 'mixed') return type;
+    const modes = ['meaning','fill']; if (relations(record, 'synonyms').length) modes.push('synonym'); if (relations(record, 'antonyms').length) modes.push('antonym'); return shuffle(modes)[0];
+  }
   const api = {
     async render() {
       await loadRecords();
+      if (!state.practiceSetupRestored) { restorePracticeSetup(); state.practiceSetupRestored = true; }
       const current = String(Router?.path || '');
       const parts = current.split('/');
       if (current === ROUTE) return renderLanding();
@@ -301,13 +371,32 @@
     },
     saveParsedEdit(index) { const current = state.parser.records[index]; if (!current) return; const parseLines = id => parsePairs(document.getElementById(id)?.value || ''); const updated = normalizeRecord({ ...current, word:document.getElementById('vmEditWord')?.value || '', meaning:document.getElementById('vmEditMeaning')?.value || '', synonyms:parseLines('vmEditSyn'), antonyms:parseLines('vmEditAnt'), tips:document.getElementById('vmEditTips')?.value || '' }); state.parser.records[index] = { ...updated, raw:current.raw, valid:!!(updated.word && updated.meaning), error:updated.word && updated.meaning ? '' : 'Incomplete record' }; closeModal(); renderParser(); },
     async saveParsed() { const strategy = document.getElementById('vmDuplicateChoice')?.value || 'skip'; const valid = state.parser.records.filter(record => record.valid); if (!valid.length) return toast('No valid vocabulary to save'); const byNormalized = new Map(state.records.map(record => [record.normalized, record])); let saved = 0, skipped = 0; for (const source of valid) { const record = normalizeRecord(source); const duplicate = byNormalized.get(record.normalized); if (duplicate && strategy === 'skip') { skipped++; continue; } if (duplicate && strategy === 'replace') { record.id = duplicate.id; record.createdAt = duplicate.createdAt; } await dbPut(STORE, record); byNormalized.set(record.normalized, record); saved++; } await loadRecords(); state.parser = { text:'', records:[], stage:'input' }; toast(`${saved} vocabulary saved${skipped ? ` · ${skipped} duplicate skipped` : ''}`); navigate(route('bank')); },
-    startPractice(mode) { const candidates = practiceCandidates(mode); if (mode === 'match') { if (state.records.length < 2) return toast('Matching-এর জন্য অন্তত 2টি vocabulary দরকার'); const pairs = shuffle(state.records).slice(0, Math.min(4, state.records.length)).map(record => ({ id:record.id, word:record.word, meaning:record.meaning })); state.practice = { type:'match', pairs, meanings:shuffle(pairs), wordId:null, done:[], correct:0, wrong:0 }; return renderMatching(); } if (!candidates.length) return toast(`${mode === 'synonym' ? 'Synonym' : mode === 'antonym' ? 'Antonym' : 'Vocabulary'} data পাওয়া যায়নি`); const questions = shuffle(candidates).slice(0, Math.min(10, candidates.length)).map(record => buildQuestion(mode, record)).filter(question => question.options.length === 4); if (!questions.length) return toast('এই practice-এর জন্য পর্যাপ্ত distinct vocabulary data নেই'); state.practice = { type:'quiz', mode, questions, index:0, selected:null, correct:0, wrong:0, complete:false }; renderPracticeQuiz(); },
-    practiceRecord(id) { state.test.selectedIds = [id]; navigate(route('practice')); },
+    setPracticeSource(value) { const setup = state.practiceSetup; if (value === 'custom') setup.sourceType = 'custom'; else if (/^[A-Z]$/.test(value)) { setup.sourceType = 'category'; setup.category = value; } else { setup.sourceType = 'all'; setup.category = ''; } renderPracticeHome(); },
+    setPracticeType(value) { if (PRACTICE_TYPES[value]) state.practiceSetup.practiceType = value; renderPracticeHome(); },
+    setPracticeCount(value) { const setup = state.practiceSetup; if (value === 'custom') setup.countMode = 'custom'; else { setup.countMode = 'preset'; setup.questionCount = Number(value) || 10; } renderPracticeHome(); },
+    setPracticeCustomCount(value) { state.practiceSetup.customCount = Math.max(1, Number(value) || 1); renderPracticeHome(); },
+    useAvailablePracticeCount() { const available = setupAvailability().available; state.practiceSetup.countMode = 'custom'; state.practiceSetup.customCount = Math.max(1, available); renderPracticeHome(); },
+    setPracticeTime(value) { const setup = state.practiceSetup; if (value === 'custom') setup.timeMode = 'custom'; else { setup.timeMode = 'preset'; setup.timeValue = Number(value) || 0; } renderPracticeHome(); },
+    setPracticeTimePart(key, value) { if (['customHours','customMinutes','customSeconds'].includes(key)) state.practiceSetup[key] = Math.max(0, Number(value) || 0); renderPracticeHome(); },
+    setPracticeRandom(value) { state.practiceSetup.randomize = !!value; },
+    setPracticeAdvanced(value) { state.practiceSetup.advancedOpen = !!value; },
+    searchPracticeCustom(value) { state.practiceSetup.customQuery = String(value || ''); state.practiceSetup.customVisible = 40; renderPracticeHome(); },
+    togglePracticeRecord(id, checked) { const selected = new Set(state.practiceSetup.selectedIds); checked ? selected.add(id) : selected.delete(id); state.practiceSetup.selectedIds = [...selected]; renderPracticeHome(); },
+    selectVisiblePractice() { const setup = state.practiceSetup, query = lower(setup.customQuery); const visible = state.records.filter(record => !query || [record.word,record.meaning].join(' ').toLocaleLowerCase('en-US').includes(query)).slice(0, setup.customVisible); state.practiceSetup.selectedIds = unique([...setup.selectedIds, ...visible.map(record => record.id)]); renderPracticeHome(); },
+    clearPracticeSelection() { state.practiceSetup.selectedIds = []; renderPracticeHome(); },
+    loadMorePracticeCustom() { state.practiceSetup.customVisible += 40; renderPracticeHome(); },
+    applyPracticePreset(name) { const preset = name === 'quick' ? { questionCount:5,timeValue:0 } : name === 'focused' ? { questionCount:20,timeValue:600 } : { questionCount:10,timeValue:300 }; state.practiceSetup = { ...state.practiceSetup, ...preset, countMode:'preset', timeMode:'preset' }; renderPracticeHome(); },
+    resetPracticeSetup() { state.practiceSetup = defaultPracticeSetup(); renderPracticeHome(); },
+    startConfiguredPractice() { const setup = state.practiceSetup, status = setupAvailability(setup); if (!status.available || status.requested > status.available) return renderPracticeHome(); const source = setup.randomize ? shuffle(status.valid) : [...status.valid]; const selected = source.slice(0, status.requested); if (setup.practiceType === 'match') { if (selected.length < 2) return toast('Matching-এর জন্য অন্তত 2টি valid vocabulary দরকার'); const pairs = selected.map(record => ({ id:record.id, word:record.word, meaning:record.meaning })); state.practice = { type:'match', pairs, meanings:setup.randomize ? shuffle(pairs) : [...pairs], wordId:null, done:[], correct:0, wrong:0, complete:false, timeLimit:status.time, remainingSeconds:status.time, config:{...setup} }; } else { const questions = selected.map(record => buildQuestion(questionModeFor(record, setup.practiceType), record, status.source)).filter(question => question?.options?.length === 4); if (questions.length < status.requested) return toast('Practice could not be prepared. অন্য source, কম question বা অন্য practice type বেছে নিন।'); state.practice = { type:'quiz', mode:setup.practiceType, questions, index:0, selected:null, correct:0, wrong:0, complete:false, timeLimit:status.time, remainingSeconds:status.time, config:{...setup} }; }
+      savePracticeSetup(setup); startPracticeTimer(state.practice); api.render(); },
+    startPractice(mode) { state.practiceSetup.practiceType = mode; state.practiceSetup.sourceType = 'all'; state.practiceSetup.selectedIds = []; navigate(route('practice')); },
+    practiceRecord(id) { state.practiceSetup.sourceType = 'custom'; state.practiceSetup.selectedIds = [id]; navigate(route('practice')); },
     answerPractice(value) { const session = state.practice; if (!session || session.selected !== null) return; session.selected = String(value); if (session.selected === session.questions[session.index].correct) session.correct++; else session.wrong++; renderPracticeQuiz(); },
     nextPractice() { const session = state.practice; if (!session) return; session.index++; session.selected = null; if (session.index >= session.questions.length) session.complete = true; api.render(); },
     pickMatchWord(id) { const session = state.practice; if (!session || session.done.includes(id)) return; session.wordId = id; renderMatching(); },
     pickMatchMeaning(id) { const session = state.practice; if (!session || !session.wordId || session.done.includes(id)) return; if (session.wordId === id) { session.done.push(id); session.correct++; toast('Correct'); } else { session.wrong++; toast('Try again'); } session.wordId = null; renderMatching(); },
-    finishPractice() { state.practice = null; state.test.selectedIds = []; navigate(route('practice')); },
+    cancelPractice() { stopPracticeTimer(); state.practice = null; navigate(route('practice')); },
+    finishPractice() { stopPracticeTimer(); state.practice = null; navigate(route('practice')); },
     testRecord(id) { state.test.selectedIds = [id]; state.test.category = ''; navigate(route('test')); },
     setTestCategory(value) { state.test.category = String(value || ''); state.test.selectedIds = []; renderTest(); },
     setTestCount(value) { state.test.count = Number(value) || 10; renderTest(); },

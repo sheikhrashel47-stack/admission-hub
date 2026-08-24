@@ -30,3 +30,11 @@
 - [x] Reference অনুযায়ী বড় word header ও Bengali meaning hierarchy করা।
 - [x] Synonyms ও Antonyms-কে Bengali meaning-সহ পৃথক numbered relation boxes করা।
 - [x] Tips card, mobile type scale, live QA ও GitHub Pages deployment সম্পন্ন করা।
+
+## Vocabulary Practice Selection & Setup Engine
+
+- [x] Existing practice modes, session model ও valid vocabulary requirements পর্যালোচনা করা।
+- [x] Dynamic source/category, bounded custom selector ও real available count বাস্তবায়ন করা।
+- [x] Practice type, question count, time, randomization ও validation setup screen তৈরি করা।
+- [x] Timed practice handoff, no-repeat policy, summary ও existing Mock/Flash separation নিশ্চিত করা।
+- [ ] Mobile/data-safety QA, regression check, GitHub Pages deploy ও live verification করা।
