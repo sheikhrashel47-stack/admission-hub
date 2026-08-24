@@ -209,3 +209,4 @@
 - [x] Settings-based MCQ goal configuration এবং premium Today Command Center card implement করা।
 - [x] Question Bank, Vocabulary ও Exam active-time থেকে real live study-time/progress tracking implement করা।
 - [ ] Daily reset, inactive-tab pause, dashboard isolation, data-safety QA ও GitHub Pages live verification করা।
+- [ ] Settings goal injection ও live tracker global-state binding correction deploy/verify করা।

@@ -3,6 +3,7 @@
   'use strict';
   const route = () => String(location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'dashboard';
   const cache = () => typeof CACHE !== 'undefined' ? CACHE : (window.CACHE || {});
+  const activeExam = () => typeof ActiveExam !== 'undefined' ? ActiveExam : (window.__admissionHubGetActiveExam?.() || null);
   const todayId = () => typeof todayKey === 'function' ? todayKey() : new Date().toISOString().slice(0, 10);
   const validGoal = value => Math.max(1, Math.min(5000, Math.round(Number(value) || 100)));
   const activeRoute = () => {
@@ -75,13 +76,18 @@
     wrapped.__todayLiveWrapped = true; window[name] = wrapped;
   };
   wrapAnswer('selectBankAnswer', qid => !!window.BankAnswers?.[qid], (qid, idx) => Number(cache().questions?.find(q => String(q.id) === String(qid))?.answerIndex) === Number(idx));
-  wrapAnswer('selectMockAnswer', qid => window.ActiveExam?.selectedAnswers?.[qid] !== undefined, (qid, idx) => Number(window.ActiveExam?.questions?.find(q => String(q.id) === String(qid))?.answerIndex) === Number(idx));
-  wrapAnswer('selectFlashAnswer', qid => !!window.ActiveExam?.flashResults?.[qid], (qid, idx) => Number(window.ActiveExam?.questions?.find(q => String(q.id) === String(qid))?.answerIndex) === Number(idx));
+  wrapAnswer('selectMockAnswer', qid => activeExam()?.selectedAnswers?.[qid] !== undefined, (qid, idx) => Number(activeExam()?.questions?.find(q => String(q.id) === String(qid))?.answerIndex) === Number(idx));
+  wrapAnswer('selectFlashAnswer', qid => !!activeExam()?.flashResults?.[qid], (qid, idx) => Number(activeExam()?.questions?.find(q => String(q.id) === String(qid))?.answerIndex) === Number(idx));
   function goalPanel() {
     const app = document.getElementById('app');
     if (!app || route() !== 'settings') return;
-    app.querySelector('#today-command-goal-settings')?.remove();
     const current = validGoal(cache().settings?.dailyTarget || 100);
+    const existing = app.querySelector('#today-command-goal-settings');
+    if (existing) {
+      const input = existing.querySelector('#todayGoalInput');
+      if (input && document.activeElement !== input) input.value = current;
+      return;
+    }
     const section = document.createElement('section');
     section.id = 'today-command-goal-settings';
     section.innerHTML = `<div class="h2">Today Command Center</div><div class="card today-goal-settings-card"><b>Daily MCQ Goal</b><p class="muted">প্রতিদিন কতটি MCQ solve করতে চাও সেটি নির্ধারণ করো। Goal dashboard card-এ live দেখা যাবে।</p><div class="today-goal-setting-row"><input id="todayGoalInput" type="number" min="1" max="5000" inputmode="numeric" value="${current}"><button class="btn" type="button" onclick="TodayCommandCenter.saveGoal()">Save goal</button></div></div>`;
