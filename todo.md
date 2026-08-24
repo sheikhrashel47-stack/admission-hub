@@ -154,21 +154,21 @@
 
 ## Vocabulary search stability and input sizing
 
-- [ ] Vocabulary search typing-এর সময় rerender/scroll/layout jump-এর root cause চিহ্নিত করা।
-- [ ] Search input বড় করা এবং focused typing position stable রাখা।
+- [x] Vocabulary search typing-এর সময় rerender/scroll/layout jump-এর root cause চিহ্নিত করা।
+- [x] Search input বড় করা এবং focused typing position stable রাখা।
 - [ ] Real Vocabulary search QA, GitHub Pages deploy ও live verification করা।
 
 ## Settings cleanup, feedback controls and Command Center entries
 
-- [ ] Settings থেকে AI Assistant-related UI/settings data এবং Exam Defaults UI সরানো।
-- [ ] Visual Feedback, Success Effects ও Error Effects toggle state এবং working effect path fix করা।
-- [ ] Vocabulary search jump/keyboard behaviour video অনুযায়ী stable করা ও search input বড় করা।
-- [ ] Your Command Center থেকে Progress, Mistakes Bank ও Smart Revision entries সরিয়ে future empty slots রাখা।
+- [x] Settings থেকে AI Assistant-related UI/settings data এবং Exam Defaults UI সরানো।
+- [x] Visual Feedback, Success Effects ও Error Effects toggle state এবং working effect path fix করা।
+- [x] Vocabulary search jump/keyboard behaviour video অনুযায়ী stable করা ও search input বড় করা।
+- [x] Your Command Center থেকে Progress, Mistakes Bank ও Smart Revision entries সরিয়ে future empty slots রাখা।
 - [ ] Existing tools/data regression QA, GitHub Pages deploy ও live verification করা।
 
 ## Tools layout, navigation polish and Vocabulary pronunciation
 
-- [ ] Video audit করে Recently Deleted Questions, Notes ও Vocabulary Master card spacing/position fix করা।
-- [ ] Global back/home navigation route, viewport reset ও transition jump root cause fix করা।
-- [ ] Vocabulary word, synonym ও antonym-এর subtle card-integrated pronunciation controls যোগ করা।
+- [x] Video audit করে Recently Deleted Questions, Notes ও Vocabulary Master card spacing/position fix করা।
+- [x] Global back/home navigation route, viewport reset ও transition jump root cause fix করা।
+- [x] Vocabulary word, synonym ও antonym-এর subtle card-integrated pronunciation controls যোগ করা।
 - [ ] Mobile keyboard/navigation/pronunciation/data-safety regression QA, GitHub Pages deploy ও live verification করা।
