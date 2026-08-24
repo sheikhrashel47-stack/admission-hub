@@ -347,8 +347,9 @@
   window.addEventListener('load', () => {
     window.setTimeout(() => {
       const path = String(window.Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
+      if (path === ROUTE || path.startsWith(`${ROUTE}/`)) { api.render(); return; }
       if (path === 'dashboard' || path === 'home') injectDashboardEntry();
-    }, 260);
+    }, 420);
   }, { once:true });
   const appRoot = document.getElementById('app');
   if (appRoot && window.MutationObserver) {
