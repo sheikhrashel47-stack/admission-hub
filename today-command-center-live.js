@@ -1,22 +1,24 @@
 /* Today Command Center — settings-driven target and active learning time. */
 (() => {
   'use strict';
-  const todayId = () => typeof window.todayKey === 'function' ? window.todayKey() : new Date().toISOString().slice(0, 10);
+  const route = () => String(location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'dashboard';
+  const cache = () => typeof CACHE !== 'undefined' ? CACHE : (window.CACHE || {});
+  const todayId = () => typeof todayKey === 'function' ? todayKey() : new Date().toISOString().slice(0, 10);
   const validGoal = value => Math.max(1, Math.min(5000, Math.round(Number(value) || 100)));
   const activeRoute = () => {
-    const path = String(window.Router?.path || '');
+    const path = route();
     return path === 'question-bank' || path.startsWith('question-bank/') || path === 'vocabulary' || path.startsWith('vocabulary/') || path === 'exam/running';
   };
   const todayRow = () => {
     const id = todayId();
-    return (window.CACHE?.dailyStats || []).find(row => String(row?.id) === String(id)) || { id, date:id, questions:0, correct:0, wrong:0, exams:0, timeMs:0 };
+    return (cache().dailyStats || []).find(row => String(row?.id) === String(id)) || { id, date:id, questions:0, correct:0, wrong:0, exams:0, timeMs:0 };
   };
   const upsertLocal = row => {
-    const rows = window.CACHE?.dailyStats || [];
+    const rows = cache().dailyStats || [];
     const index = rows.findIndex(item => String(item?.id) === String(row.id));
     if (index >= 0) rows[index] = row;
     else rows.push(row);
-    window.CACHE.dailyStats = rows;
+    cache().dailyStats = rows;
   };
   const formatClock = ms => {
     const sec = Math.max(0, Math.floor(Number(ms || 0) / 1000));
@@ -24,15 +26,15 @@
   };
   const metrics = () => {
     const row = todayRow();
-    const fallback = (window.CACHE?.examResults || []).filter(item => todayId() === (typeof window.todayKey === 'function' ? window.todayKey(new Date(item.date || item.createdAt || 0)) : '')).reduce((sum, item) => ({ questions:sum.questions + Number(item.correct || 0) + Number(item.wrong || 0), correct:sum.correct + Number(item.correct || 0), wrong:sum.wrong + Number(item.wrong || 0) }), {questions:0,correct:0,wrong:0});
+    const fallback = (cache().examResults || []).filter(item => todayId() === (typeof todayKey === 'function' ? todayKey(new Date(item.date || item.createdAt || 0)) : '')).reduce((sum, item) => ({ questions:sum.questions + Number(item.correct || 0) + Number(item.wrong || 0), correct:sum.correct + Number(item.correct || 0), wrong:sum.wrong + Number(item.wrong || 0) }), {questions:0,correct:0,wrong:0});
     const questions = Math.max(Number(row.questions || 0), fallback.questions);
     const correct = Math.max(Number(row.correct || 0), fallback.correct);
     const wrong = Math.max(Number(row.wrong || 0), fallback.wrong);
-    const goal = validGoal(window.CACHE?.settings?.dailyTarget || 100);
+    const goal = validGoal(cache().settings?.dailyTarget || 100);
     return { row, questions, correct, wrong, goal, percent:Math.min(100, Math.round(questions / goal * 100)), timeMs:Number(row.timeMs || 0) };
   };
   const paint = () => {
-    if (String(window.Router?.path || '') !== 'dashboard') return;
+    if (route() !== 'dashboard') return;
     const value = metrics();
     document.querySelectorAll('[data-today-goal]').forEach(node => node.textContent = value.goal);
     document.querySelectorAll('[data-today-done]').forEach(node => node.textContent = value.questions);
@@ -50,7 +52,7 @@
   const persist = async () => {
     const row = { ...todayRow(), updatedAt:Date.now() };
     upsertLocal(row); paint();
-    try { await window.dbPut?.('dailyStats', row); } catch (_) {}
+    try { if (typeof dbPut === 'function') await dbPut('dailyStats', row); } catch (_) {}
   };
   const tick = () => {
     const now = Date.now();
@@ -64,7 +66,7 @@
   const recordAnswer = async correct => {
     const row = { ...todayRow(), questions:Number(todayRow().questions || 0) + 1, correct:Number(todayRow().correct || 0) + (correct ? 1 : 0), wrong:Number(todayRow().wrong || 0) + (correct ? 0 : 1), updatedAt:Date.now() };
     upsertLocal(row); paint();
-    try { await window.dbPut?.('dailyStats', row); } catch (_) {}
+    try { if (typeof dbPut === 'function') await dbPut('dailyStats', row); } catch (_) {}
   };
   const wrapAnswer = (name, answered, isCorrect) => {
     const original = window[name];
@@ -72,21 +74,21 @@
     const wrapped = async function () { const before = answered.apply(this, arguments); const output = await original.apply(this, arguments); if (!before) void recordAnswer(!!isCorrect.apply(this, arguments)); return output; };
     wrapped.__todayLiveWrapped = true; window[name] = wrapped;
   };
-  wrapAnswer('selectBankAnswer', qid => !!window.BankAnswers?.[qid], (qid, idx) => Number(window.CACHE?.questions?.find(q => String(q.id) === String(qid))?.answerIndex) === Number(idx));
+  wrapAnswer('selectBankAnswer', qid => !!window.BankAnswers?.[qid], (qid, idx) => Number(cache().questions?.find(q => String(q.id) === String(qid))?.answerIndex) === Number(idx));
   wrapAnswer('selectMockAnswer', qid => window.ActiveExam?.selectedAnswers?.[qid] !== undefined, (qid, idx) => Number(window.ActiveExam?.questions?.find(q => String(q.id) === String(qid))?.answerIndex) === Number(idx));
   wrapAnswer('selectFlashAnswer', qid => !!window.ActiveExam?.flashResults?.[qid], (qid, idx) => Number(window.ActiveExam?.questions?.find(q => String(q.id) === String(qid))?.answerIndex) === Number(idx));
   function goalPanel() {
     const app = document.getElementById('app');
-    if (!app || String(window.Router?.path || '') !== 'settings') return;
+    if (!app || route() !== 'settings') return;
     app.querySelector('#today-command-goal-settings')?.remove();
-    const current = validGoal(window.CACHE?.settings?.dailyTarget || 100);
+    const current = validGoal(cache().settings?.dailyTarget || 100);
     const section = document.createElement('section');
     section.id = 'today-command-goal-settings';
     section.innerHTML = `<div class="h2">Today Command Center</div><div class="card today-goal-settings-card"><b>Daily MCQ Goal</b><p class="muted">প্রতিদিন কতটি MCQ solve করতে চাও সেটি নির্ধারণ করো। Goal dashboard card-এ live দেখা যাবে।</p><div class="today-goal-setting-row"><input id="todayGoalInput" type="number" min="1" max="5000" inputmode="numeric" value="${current}"><button class="btn" type="button" onclick="TodayCommandCenter.saveGoal()">Save goal</button></div></div>`;
     const anchor = [...app.querySelectorAll('.h2')].find(node => node.textContent.trim().toLowerCase() === 'feedback controls');
     if (anchor?.parentElement) anchor.parentElement.before(section); else app.append(section);
   }
-  window.TodayCommandCenter = { saveGoal: async () => { const input = document.getElementById('todayGoalInput'); const goal = validGoal(input?.value); const settings = { ...(window.CACHE?.settings || {}), dailyTarget:goal }; window.CACHE.settings = settings; await window.dbPut?.('settings', settings); window.toast?.(`Daily MCQ Goal ${goal} সেট করা হয়েছে`); paint(); } };
+  window.TodayCommandCenter = { saveGoal: async () => { const input = document.getElementById('todayGoalInput'); const goal = validGoal(input?.value); const settings = { ...(cache().settings || {}), dailyTarget:goal }; cache().settings = settings; if (typeof dbPut === 'function') await dbPut('settings', settings); window.toast?.(`Daily MCQ Goal ${goal} সেট করা হয়েছে`); paint(); } };
   const app = document.getElementById('app');
   if (app) new MutationObserver(() => { requestAnimationFrame(() => { goalPanel(); paint(); }); }).observe(app, {childList:true,subtree:true});
   window.addEventListener('hashchange', () => { setTimeout(() => { goalPanel(); paint(); }, 0); }, {passive:true});
