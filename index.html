@@ -4909,7 +4909,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v33-live-dashboard-launch-20260824',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v34-private-sync-20260824',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5363,5 +5363,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./memorizing-match-tool.js?v=memorizing-match-v4-game-cards-detection"></script>
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>
 <script src="./mock-result-experience.js?v=mock-lock-result-live-v2"></script>
+<script src="./admission-sync.js?v=private-sync-v1"></script>
 </body>
 </html>

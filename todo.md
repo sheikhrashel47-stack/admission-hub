@@ -136,11 +136,18 @@
 - [x] Video ও initial boot/cache-load/render lifecycle audit করা।
 - [x] Black/stale/zero-data flash ছাড়া Preparing screen থেকে live dashboard handoff design করা।
 - [x] Launch shell, data-ready gate ও current-data first render বাস্তবায়ন করা।
-- [ ] Cold launch/cache reload QA, user-data safety check, GitHub Pages deploy ও live verification করা।
+- [x] Cold launch/cache reload QA, user-data safety check, GitHub Pages deploy ও live verification করা।
 
 ## PWA and live website data continuity investigation
 
-- [ ] Add to Home Screen ও live website origin/service worker/IndexedDB isolation audit করা।
-- [ ] Data-loss ছাড়া viable shared sync বা migration architecture নির্ধারণ করা।
+- [x] Add to Home Screen ও live website origin/service worker/IndexedDB isolation audit করা।
+- [x] Data-loss ছাড়া viable shared sync বা migration architecture নির্ধারণ করা।
 - [ ] Safe sync/migration implementation, conflict handling ও bi-directional update QA করা।
 - [ ] GitHub Pages deploy ও live verification করা।
+
+## Approved private online sync and recovery
+
+- [x] Private account identity, data-version ও conflict-resolution rules চূড়ান্ত করা।
+- [x] Protected online data service provision ও static Admission Hub integration design করা।
+- [x] One-time PWA migration, automatic background sync ও recovery control বাস্তবায়ন করা।
+- [ ] Two-context/offline/conflict QA, GitHub Pages deploy ও migration verification করা।
