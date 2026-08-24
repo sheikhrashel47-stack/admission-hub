@@ -81,4 +81,4 @@
 - [x] Reference video interaction ও existing Vocabulary/বিরচন data schema পর্যালোচনা করা।
 - [x] Vocabulary ও বিরচন category/topic selection এবং matching session design করা।
 - [x] Mobile-first pair-matching engine, answer feedback ও result flow তৈরি করা।
-- [ ] Data-safety/regression QA, GitHub Pages deploy ও live verification করা।
+- [x] Data-safety/regression QA, GitHub Pages deploy ও live verification করা।
