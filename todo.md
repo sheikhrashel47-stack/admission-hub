@@ -102,4 +102,4 @@
 - [x] Mock, Flash, Notes, Bank ও review surface-এ question-card location ও existing state map করা।
 - [x] Memorizing Match-inspired shared layered card visual rules design করা।
 - [x] সব question-card-এ বড় card, number badge, layered depth ও preserved correct/wrong/selected states প্রয়োগ করা।
-- [ ] Mobile regression QA, user-data safety check, GitHub Pages deploy ও live verification করা।
+- [x] Mobile regression QA, user-data safety check, GitHub Pages deploy ও live verification করা।
