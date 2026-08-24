@@ -565,6 +565,7 @@ textarea{min-height:96px}
     if(isTransientStorageError(reason)){
       event.preventDefault();
       console.warn('[Admission Hub] Recovered from a transient local database transaction error.',reason);
+      try{ if(typeof toast==='function') toast('Local data busy—please try that action again.'); }catch(_){}
       return;
     }
     fallback(reason,event.target);
@@ -691,17 +692,19 @@ function runDbRequest(store,mode,requestFactory,attempts=2){
     const attempt=()=>{
       if(!DB){reject(new Error('IndexedDB is unavailable'));return;}
       if(!DB.objectStoreNames.contains(store)){reject(new Error(`Missing local data store: ${store}`));return;}
-      let databaseTransaction,request,settled=false;
+      let databaseTransaction,request,settled=false,result,attemptEnded=false;
       const retryOrReject=error=>{
-        if(settled)return;
+        if(settled||attemptEnded)return;
+        attemptEnded=true;
         if(remaining>0&&isRetriableDbError(error)){remaining-=1;setTimeout(attempt,0);return;}
         settled=true;reject(error||new Error('IndexedDB request failed'));
       };
       try{
         databaseTransaction=DB.transaction(store,mode);
         request=requestFactory(databaseTransaction.objectStore(store));
-        request.onsuccess=()=>{if(!settled){settled=true;resolve(request.result);}};
+        request.onsuccess=()=>{result=request.result;};
         request.onerror=()=>retryOrReject(request.error);
+        databaseTransaction.oncomplete=()=>{if(!settled){settled=true;resolve(result);}};
         databaseTransaction.onabort=()=>retryOrReject(databaseTransaction.error||new Error('IndexedDB transaction aborted'));
         databaseTransaction.onerror=()=>{if(databaseTransaction.error)retryOrReject(databaseTransaction.error);};
       }catch(error){retryOrReject(error);}
@@ -5044,8 +5047,14 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     if(result?.snapshot){
       for(const s of result.snapshot.filter(x=>x.status==='wrong')){
         let m=CACHE.mistakes.find(x=>x.questionId===s.questionId);
-        if(!m)m={id:uid(),questionId:s.questionId,wrongCount:0,revisionStatus:'pending'};
+        if(!m)m={id:uid(),questionId:s.questionId,wrongCount:0,revisionStatus:'pending',correctAfterMistake:0,revisionCount:0,firstWrongAt:Date.now()};
+        const beforeWrong=Number(m.wrongCount||0);
         m=await enrichMistakeRecord(m,s,result);
+        m.firstWrongAt=m.firstWrongAt||Date.now();
+        m.wrongCount=beforeWrong+1;
+        m.revisionCount=Number(m.revisionCount||0)+1;
+        m.status='UNRESOLVED';
+        m.mastered=false;
         await dbPut('mistakes',m);
       }
       CACHE.mistakes=await dbGetAll('mistakes');
@@ -5435,5 +5444,8 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./admission-sync.js?v=private-sync-v1"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
 <script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v5-home-escape"></script>
+<script src="./progress-tool.js?v=progress-v1"></script>
+<script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
+<script src="./smart-revision-tool.js?v=smart-revision-v1"></script>
 </body>
 </html>
