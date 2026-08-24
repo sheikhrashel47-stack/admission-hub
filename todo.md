@@ -95,4 +95,4 @@
 - [x] Mobile board-এর card size, hierarchy ও game-feel visual system পর্যালোচনা করা।
 - [x] Real Question Bank-এর বাগধারা ও বিরচন question-answer format scan করে robust pair extraction rules করা।
 - [x] বড় responsive game cards, selection feedback ও category-specific detection update বাস্তবায়ন করা।
-- [ ] Mobile real-data QA, user-data safety check, GitHub Pages deploy ও live verification করা।
+- [x] Mobile real-data QA, user-data safety check, GitHub Pages deploy ও live verification করা।
