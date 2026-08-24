@@ -85,11 +85,7 @@
     clearGoalOrphans();
     const current = validGoal(cache().settings?.dailyTarget || 100);
     const existing = app.querySelector('#today-command-goal-settings');
-    if (existing) {
-      const input = existing.querySelector('#todayGoalInput');
-      if (input && document.activeElement !== input) input.value = current;
-      return;
-    }
+    if (existing) return;
     const section = document.createElement('section');
     section.id = 'today-command-goal-settings';
     section.innerHTML = `<div class="h2">Today Command Center</div><div class="card today-goal-settings-card"><b>Daily MCQ Goal</b><p class="muted">প্রতিদিন কতটি MCQ solve করতে চাও সেটি নির্ধারণ করো। Goal dashboard card-এ live দেখা যাবে।</p><div class="today-goal-setting-row"><input id="todayGoalInput" type="number" min="1" max="5000" inputmode="numeric" value="${current}"><button class="btn" type="button" onclick="TodayCommandCenter.saveGoal()">Save goal</button></div></div>`;
