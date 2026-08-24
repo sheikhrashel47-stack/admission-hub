@@ -6,3 +6,9 @@
 - [x] Parser preview, edit, validation, duplicate-safe import ও A–Z classification যোগ করা।
 - [x] Lightweight vocabulary practice বাস্তবায়ন করা এবং existing Mock/Flash engine handoff করা।
 - [x] Mobile/performance/data-safety regression যাচাই, GitHub Pages deploy ও live check করা।
+
+## Vocabulary Master mobile crash hotfix
+
+- [x] Legacy/incomplete vocabulary records-এর জন্য relation fallback যোগ করা।
+- [x] Parser, Bank, detail, practice ও test paths-এ safe record normalization যাচাই করা।
+- [x] Mobile crash-recovery QA, GitHub Pages hotfix deploy ও live check করা।

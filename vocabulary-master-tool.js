@@ -43,6 +43,7 @@
     if (!Array.isArray(raw)) return [];
     return raw.map(item => typeof item === 'string' ? { word:item, meaning:'' } : { word:String(item?.word || '').trim(), meaning:String(item?.meaning || '').trim() }).filter(item => item.word);
   }
+  function relations(record, key) { return relationItems(record?.[key]); }
   function normalizeRecord(raw) {
     const word = String(raw?.word || '').trim();
     const meaning = String(raw?.meaning || '').trim();
@@ -92,7 +93,8 @@
 
   function card(record) {
     const names = items => items.map(item => `${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`).join(' · ');
-    return `<button class="vm-word-card" onclick="navigate('${route(`word/${encodeURIComponent(record.id)}`)}')"><h3>${escape(record.word)}</h3><div class="vm-meaning">${escape(record.meaning)}</div>${record.synonyms.length ? `<div class="vm-relations"><div class="vm-relation"><b>Synonyms</b><span>${escape(names(record.synonyms))}</span></div>${record.antonyms.length ? `<div class="vm-relation"><b>Antonyms</b><span>${escape(names(record.antonyms))}</span></div>` : ''}</div>` : record.antonyms.length ? `<div class="vm-relations"><div class="vm-relation"><b>Antonyms</b><span>${escape(names(record.antonyms))}</span></div></div>` : ''}${record.tips ? `<div class="vm-tip"><b>Tips & Explanation</b><br>${escape(record.tips)}</div>` : ''}</button>`;
+    const synonyms = relations(record, 'synonyms'); const antonyms = relations(record, 'antonyms');
+    return `<button class="vm-word-card" onclick="navigate('${route(`word/${encodeURIComponent(record.id)}`)}')"><h3>${escape(record.word)}</h3><div class="vm-meaning">${escape(record.meaning)}</div>${synonyms.length ? `<div class="vm-relations"><div class="vm-relation"><b>Synonyms</b><span>${escape(names(synonyms))}</span></div>${antonyms.length ? `<div class="vm-relation"><b>Antonyms</b><span>${escape(names(antonyms))}</span></div>` : ''}</div>` : antonyms.length ? `<div class="vm-relations"><div class="vm-relation"><b>Antonyms</b><span>${escape(names(antonyms))}</span></div></div>` : ''}${record.tips ? `<div class="vm-tip"><b>Tips & Explanation</b><br>${escape(record.tips)}</div>` : ''}</button>`;
   }
   function renderCategory() {
     const all = recordsFor(state.query, state.category);
@@ -104,7 +106,7 @@
     const record = state.records.find(row => row.id === id);
     if (!record) { navigate(route('bank')); return; }
     const rel = (title, items) => items.length ? `<section class="vm-relation"><b>${title}</b><span>${items.map(item => `${escape(item.word)}${item.meaning ? ` — ${escape(item.meaning)}` : ''}`).join('<br>')}</span></section>` : '';
-    const body = `<main class="vm-page">${heading('VOCABULARY DETAIL', record.word, record.meaning)}<article class="vm-vocab-list"><div class="vm-word-card" style="cursor:default"><h3>${escape(record.word)}</h3><div class="vm-meaning">${escape(record.meaning)}</div><div class="vm-relations">${rel('Synonyms', record.synonyms)}${rel('Antonyms', record.antonyms)}</div>${record.tips ? `<div class="vm-tip"><b>Tips & Explanation</b><br>${escape(record.tips)}</div>` : ''}</div></article><div class="vm-detail-actions"><button class="btn secondary" onclick="VocabularyMaster.practiceRecord('${escape(record.id)}')">Practice</button><button class="btn" onclick="VocabularyMaster.testRecord('${escape(record.id)}','mock')">Mock Test</button><button class="btn ghost" onclick="VocabularyMaster.testRecord('${escape(record.id)}','flash')">Flash Test</button></div></main>`;
+    const body = `<main class="vm-page">${heading('VOCABULARY DETAIL', record.word, record.meaning)}<article class="vm-vocab-list"><div class="vm-word-card" style="cursor:default"><h3>${escape(record.word)}</h3><div class="vm-meaning">${escape(record.meaning)}</div><div class="vm-relations">${rel('Synonyms', relations(record, 'synonyms'))}${rel('Antonyms', relations(record, 'antonyms'))}</div>${record.tips ? `<div class="vm-tip"><b>Tips & Explanation</b><br>${escape(record.tips)}</div>` : ''}</div></article><div class="vm-detail-actions"><button class="btn secondary" onclick="VocabularyMaster.practiceRecord('${escape(record.id)}')">Practice</button><button class="btn" onclick="VocabularyMaster.testRecord('${escape(record.id)}','mock')">Mock Test</button><button class="btn ghost" onclick="VocabularyMaster.testRecord('${escape(record.id)}','flash')">Flash Test</button></div></main>`;
     renderShell(body, { title:record.word, back:`navigate('${route(`category/${record.category}`)}')` });
   }
 
@@ -138,7 +140,7 @@
   function parserPreviewCard(record, index) {
     const duplicate = state.records.some(existing => existing.normalized === record.normalized);
     const status = !record.valid ? 'invalid' : duplicate ? 'duplicate' : '';
-    return `<article class="vm-preview-card ${status}"><div class="row between"><div><b>${escape(record.word || 'Incomplete record')}</b><div class="muted" style="margin-top:3px">${escape(record.meaning || record.error || 'Missing Bengali meaning')}</div></div><button class="btn ghost sm" onclick="VocabularyMaster.editParsed(${index})">Edit</button></div><div class="vm-preview-meta"><span>${record.valid ? '✓ Valid' : '⚠ Incomplete'}</span><span>Synonyms: ${record.synonyms.length}</span><span>Antonyms: ${record.antonyms.length}</span><span>${record.tips ? 'Explanation: Available' : 'Explanation: —'}</span>${duplicate ? '<span>Duplicate Found</span>' : ''}</div>${!record.valid ? `<button class="btn ghost sm" style="margin-top:11px" onclick="VocabularyMaster.skipParsed(${index})">Skip</button>` : ''}</article>`;
+    return `<article class="vm-preview-card ${status}"><div class="row between"><div><b>${escape(record.word || 'Incomplete record')}</b><div class="muted" style="margin-top:3px">${escape(record.meaning || record.error || 'Missing Bengali meaning')}</div></div><button class="btn ghost sm" onclick="VocabularyMaster.editParsed(${index})">Edit</button></div><div class="vm-preview-meta"><span>${record.valid ? '✓ Valid' : '⚠ Incomplete'}</span><span>Synonyms: ${relations(record, 'synonyms').length}</span><span>Antonyms: ${relations(record, 'antonyms').length}</span><span>${record.tips ? 'Explanation: Available' : 'Explanation: —'}</span>${duplicate ? '<span>Duplicate Found</span>' : ''}</div>${!record.valid ? `<button class="btn ghost sm" style="margin-top:11px" onclick="VocabularyMaster.skipParsed(${index})">Skip</button>` : ''}</article>`;
   }
   function renderParser() {
     const preview = state.parser.stage === 'preview';
@@ -153,8 +155,8 @@
     renderShell(body, { title:'Vocabulary Practice', back:`navigate('${ROUTE}')` });
   }
   function practiceCandidates(mode) {
-    if (mode === 'synonym') return state.records.filter(record => record.synonyms.length);
-    if (mode === 'antonym') return state.records.filter(record => record.antonyms.length);
+    if (mode === 'synonym') return state.records.filter(record => relations(record, 'synonyms').length);
+    if (mode === 'antonym') return state.records.filter(record => relations(record, 'antonyms').length);
     return state.records;
   }
   function optionSet(correct, pool) {
@@ -164,8 +166,8 @@
   function buildQuestion(mode, record) {
     const allMeanings = state.records.map(row => row.meaning);
     const allWords = state.records.map(row => row.word);
-    if (mode === 'synonym') { const relation = shuffle(record.synonyms)[0]; return { prompt:`${record.word}-এর synonym কোনটি?`, correct:relation.word, options:optionSet(relation.word, state.records.flatMap(row => row.synonyms.map(item => item.word)).concat(allWords)), explanation:`${relation.word}${relation.meaning ? ` — ${relation.meaning}` : ''}` }; }
-    if (mode === 'antonym') { const relation = shuffle(record.antonyms)[0]; return { prompt:`${record.word}-এর antonym কোনটি?`, correct:relation.word, options:optionSet(relation.word, state.records.flatMap(row => row.antonyms.map(item => item.word)).concat(allWords)), explanation:`${relation.word}${relation.meaning ? ` — ${relation.meaning}` : ''}` }; }
+    if (mode === 'synonym') { const relation = shuffle(relations(record, 'synonyms'))[0]; return { prompt:`${record.word}-এর synonym কোনটি?`, correct:relation.word, options:optionSet(relation.word, state.records.flatMap(row => relations(row, 'synonyms').map(item => item.word)).concat(allWords)), explanation:`${relation.word}${relation.meaning ? ` — ${relation.meaning}` : ''}` }; }
+    if (mode === 'antonym') { const relation = shuffle(relations(record, 'antonyms'))[0]; return { prompt:`${record.word}-এর antonym কোনটি?`, correct:relation.word, options:optionSet(relation.word, state.records.flatMap(row => relations(row, 'antonyms').map(item => item.word)).concat(allWords)), explanation:`${relation.word}${relation.meaning ? ` — ${relation.meaning}` : ''}` }; }
     if (mode === 'fill') return { prompt:`“${record.meaning}” অর্থ প্রকাশ করে এমন শব্দটি হলো ____।`, correct:record.word, options:optionSet(record.word, allWords), explanation:`${record.word} — ${record.meaning}` };
     return { prompt:`${record.word}-এর বাংলা অর্থ কী?`, correct:record.meaning, options:optionSet(record.meaning, allMeanings), explanation:`${record.word} — ${record.meaning}` };
   }
@@ -208,8 +210,8 @@
   function generatedOptions(correct, candidates) { const options = unique([correct, ...shuffle(candidates)]).slice(0, 4); return options.length === 4 ? shuffle(options) : null; }
   function generatedQuestion(record, scope, all) {
     let kind = 'meaning'; let correct = record.meaning; let prompt = `${record.word}-এর বাংলা অর্থ কী?`; let pool = all.map(row => row.meaning); let explanation = `${record.word} — ${record.meaning}`;
-    if (record.synonyms.length) { const item = record.synonyms[0]; kind = 'synonym'; correct = item.word; prompt = `${record.word}-এর synonym কোনটি?`; pool = all.flatMap(row => row.synonyms.map(relation => relation.word)).concat(all.map(row => row.word)); explanation = `${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`; }
-    else if (record.antonyms.length) { const item = record.antonyms[0]; kind = 'antonym'; correct = item.word; prompt = `${record.word}-এর antonym কোনটি?`; pool = all.flatMap(row => row.antonyms.map(relation => relation.word)).concat(all.map(row => row.word)); explanation = `${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`; }
+    if (relations(record, 'synonyms').length) { const item = relations(record, 'synonyms')[0]; kind = 'synonym'; correct = item.word; prompt = `${record.word}-এর synonym কোনটি?`; pool = all.flatMap(row => relations(row, 'synonyms').map(relation => relation.word)).concat(all.map(row => row.word)); explanation = `${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`; }
+    else if (relations(record, 'antonyms').length) { const item = relations(record, 'antonyms')[0]; kind = 'antonym'; correct = item.word; prompt = `${record.word}-এর antonym কোনটি?`; pool = all.flatMap(row => relations(row, 'antonyms').map(relation => relation.word)).concat(all.map(row => row.word)); explanation = `${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`; }
     const options = generatedOptions(correct, pool);
     if (!options) return null;
     return { id:`vmq-${record.id}-${kind}`, subjectId:scope.subject.id, topicId:scope.topic.id, source:'vocabulary-master', vocabularyRecordId:record.id, question:prompt, options, answer:options.indexOf(correct), explanation, createdAt:now(), updatedAt:now(), stats:{ attempts:0, correct:0, wrong:0 } };
