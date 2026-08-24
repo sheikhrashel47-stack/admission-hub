@@ -3198,9 +3198,19 @@ let LastResult=null;
 let ResultFilter='all';
 let ResultSubjectFilter='';
 let ResultTopicFilter='';
+let ResultViewId='';
+function activateResultView(resultId){
+  const id=String(resultId||'');
+  if(ResultViewId===id) return;
+  ResultViewId=id;
+  ResultFilter='all';
+  ResultSubjectFilter='';
+  ResultTopicFilter='';
+}
 function renderExamResult(){
   const r=LastResult || CACHE.examResults[CACHE.examResults.length-1];
   if(!r){navigate('dashboard'); return;}
+  activateResultView(r.id);
   renderResultView(r, true);
 }
 function resultSubjectBreakdown(r){
@@ -3454,6 +3464,7 @@ function historyRecordHtml(r){
   </div>`;
 }
 function renderHistory(){
+  ResultViewId='';
   const {subs,tops}=historyFilterOptions(); const rows=historyRows();
   const html=`<div class="explorer-head"><div class="explorer-kicker">Performance archive</div><h2 class="explorer-title">Exam History</h2><p class="explorer-subtitle">Every completed exam is preserved here. Filter, compare, and open any record for full question-level analysis.</p></div>
     <div class="card"><div class="h2" style="margin-top:0">Filters</div><div class="tabs">${[['all','All Exams'],['mock','Mock Tests'],['flash','Flash Tests'],['mistake','Mistake Tests'],['weak','Weak Topic Tests']].map(([v,l])=>`<div class="tab ${HistoryFilters.type===v?'active':''}" onclick="setHistoryFilter('type','${v}')">${l}</div>`).join('')}</div>
@@ -3464,7 +3475,7 @@ function renderHistory(){
     ${rows.length?rows.map(historyRecordHtml).join(''):emptyState('📋','কোনো প্রাসঙ্গিক পরীক্ষা নেই','Completed exams will appear here without replacing or deleting existing data.','📝 Start an Exam',"navigate('exam')")}`;
   renderShell(html,{title:'Exam History'});
 }
-function renderHistoryDetail(id){const r=CACHE.examResults.find(x=>x.id===id);if(!r){navigate('history');return;}ResultFilter='all';ResultSubjectFilter='';ResultTopicFilter='';renderResultView(normalizeExamResult(r),false);}
+function renderHistoryDetail(id){const r=CACHE.examResults.find(x=>x.id===id);if(!r){navigate('history');return;}activateResultView(r.id);renderResultView(normalizeExamResult(r),false);}
 
 /* ================= MISTAKES ================= */
 function renderMistakes(){

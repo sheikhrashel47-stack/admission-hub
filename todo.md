@@ -38,3 +38,9 @@
 - [x] Practice type, question count, time, randomization ও validation setup screen তৈরি করা।
 - [x] Timed practice handoff, no-repeat policy, summary ও existing Mock/Flash separation নিশ্চিত করা।
 - [x] Mobile/data-safety QA, regression check, GitHub Pages deploy ও live verification করা。
+
+## Exam History result filter hotfix
+
+- [x] Saved exam result-এ correct, wrong ও unanswered filter state/handler চিহ্নিত করা।
+- [x] History result review filter hotfix ও new/old result regression QA করা।
+- [ ] GitHub Pages deploy ও live verification করা।
