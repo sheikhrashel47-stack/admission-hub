@@ -12,3 +12,9 @@
 - [x] Legacy/incomplete vocabulary records-এর জন্য relation fallback যোগ করা।
 - [x] Parser, Bank, detail, practice ও test paths-এ safe record normalization যাচাই করা।
 - [x] Mobile crash-recovery QA, GitHub Pages hotfix deploy ও live check করা।
+
+## A–Z grid and Bengali parser hotfix
+
+- [x] Vocabulary empty হলেও A–Z category grid দৃশ্যমান রাখা।
+- [x] বাংলা serial, parser labels ও inline Tips format সমর্থন করা।
+- [x] User-provided parser sample ও empty mobile Bank QA করে GitHub Pages deploy করা।
