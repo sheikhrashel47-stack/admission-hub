@@ -229,3 +229,15 @@
 
 - [x] Vocabulary ও other tool-এর exact category/search/visible-list/scroll state snapshot করে resume করা।
 - [x] Navigation observers ও repeated render work audit করে unnecessary loading/hang কমানো এবং smoothness regression QA করা।
+
+## App-wide reward engine proposal
+
+- [x] Real Question Bank, Vocabulary, Mock, Flash, streak ও study-time data থেকে reward engine rules এবং dedicated Rewards tool blueprint তৈরি করা।
+- [x] User-provided 50-reward implementation prompt দিয়ে reward engine build approval দেওয়া হয়েছে।
+
+## Offline-first 50-reward achievement engine
+
+- [ ] Existing reward remnants retire করে one-currency XP state এবং 50 static reward definitions/data migration design করা।
+- [ ] Real Question Bank, Mock, Flash, Vocabulary, Mistake, daily goal ও streak activity থেকে idempotent reward events integrate করা।
+- [ ] Reward Center, dashboard summary, next-three-rewards এবং subtle accessible unlock state build করা।
+- [ ] Offline persistence, cloud-sync compatibility, anti-farming, performance and regression QA করা।

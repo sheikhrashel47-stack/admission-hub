@@ -1309,11 +1309,12 @@ async function commitPendingBankAnswers(){
   const now=Date.now();
   for(const row of rows){
     const q=CACHE.questions.find(x=>x.id===row.qid);if(!q)continue;
-    q.stats=q.stats||{attempts:0,correct:0,wrong:0};q.stats.attempts++;q.stats[row.isCorrect?'correct':'wrong']++;q.updatedAt=now;await dbPut('questions',q);
+    q.stats=q.stats||{attempts:0,correct:0,wrong:0};const priorAttempts=Number(q.stats.attempts||0);q.stats.attempts++;q.stats[row.isCorrect?'correct':'wrong']++;q.updatedAt=now;await dbPut('questions',q);
     if(!row.isCorrect){
       let m=CACHE.mistakes.find(x=>x.questionId===row.qid);if(!m)m={id:uid(),questionId:row.qid,wrongCount:0,revisionStatus:'pending',mastered:false};
       m.question=q.question;m.options=q.options||[];m.subjectId=q.subjectId;m.topicId=q.topicId;m.correctAnswerIndex=row.correct;m.correctAnswer=(q.options||[])[row.correct]||'';m.wrongAnswer=(q.options||[])[row.idx]||'';m.selectedAnswer=m.wrongAnswer;m.explanation=q.explanation||'';m.wrongCount=Number(m.wrongCount||0)+1;m.lastWrongAt=now;m.time=now;m.status='needs-review';m.revisionStatus='pending';m.mastered=false;await dbPut('mistakes',m);
     }
+    await window.RewardEngine?.recordQuestionAttempt({question:q,correct:row.isCorrect,isFirstAttempt:priorAttempts===0,isRevision:priorAttempts>0,timestamp:now});
   }
   Object.keys(PendingBankAnswers).forEach(k=>delete PendingBankAnswers[k]);
   await loadCache();
@@ -3210,6 +3211,7 @@ async function submitExam(autoSubmit){
   e.status='completed';
   await dbPut('exams', e);
   await loadCache();
+  await window.RewardEngine?.recordTestCompleted(result);
 
   LastResult=result;
   FlashSummaryResult = e.mode==='flash' ? result : null;
@@ -4910,7 +4912,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-	      const registration=await navigator.serviceWorker.register('./sw.js?v=v44-exact-resume-smoothness-20260824',{scope:'./',updateViaCache:'none'});
+	      const registration=await navigator.serviceWorker.register('./sw.js?v=v46-reward-engine-live-20260824',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5224,7 +5226,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 (() => {
   const removedRoute = (path) => {
     const p = String(path || '').replace(/^#\/?/, '').split('?')[0];
-    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || (p.startsWith('memorizing') && !p.startsWith('memorizing-match')) || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history';
+    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || (p.startsWith('memorizing') && !p.startsWith('memorizing-match')) || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history';
   };
   const purgeRemovedData = async () => {
     ['admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','daily-gk-live-v1','admission_phase345_v1','memory-system-v2','xp','admission-phase2-dictionary-v1','admission-phase2-dictionary-v2','admission_memorizing_v1','admission_dict_v1','admission-hub-web-chat-v5'].forEach((key) => { try { localStorage.removeItem(key); } catch (_) {} });
@@ -5368,6 +5370,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./result-interaction-polish.js?v=result-interaction-polish-v1"></script>
 <script src="./today-command-center-live.js?v=today-command-center-live-v5-card"></script>
 <script src="./admission-sync.js?v=private-sync-v1"></script>
+<script src="./reward-engine.js?v=reward-engine-v3-events-ui"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
 <script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v4-exact-resume"></script>
 </body>
