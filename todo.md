@@ -115,4 +115,4 @@
 
 - [x] Video ও Question Bank delayed render lifecycle দেখে style reset-এর root cause নির্ণয় করা।
 - [x] Existing game-card appearance ধরে রাখার minimal persistent attachment fix তৈরি করা।
-- [ ] Question Bank delayed render, paging ও interaction QA করে GitHub Pages-এ live verification করা।
+- [x] Question Bank delayed render, paging ও interaction QA করে GitHub Pages-এ live verification করা।
