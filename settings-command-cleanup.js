@@ -43,7 +43,7 @@
 
   function cleanSettingsUi() {
     const app = document.getElementById('app');
-    if (!app || String(window.Router?.path || '') !== 'settings') return;
+    if (!app || !String(location.hash || '').includes('settings')) return;
     removeHeadingAndCard(app, 'AI Assistant');
     removeHeadingAndCard(app, 'Exam defaults');
     feedbackPanel(app);
@@ -71,6 +71,18 @@
     shellWrapped.__settingsCleanupShellWrapped = true;
     window.renderShell = shellWrapped;
   }
+
+  // The legacy app keeps its renderer in a global lexical binding rather than on window.
+  // Observe the app mount so Settings cleanup also runs after that legacy renderer replaces DOM.
+  const mount = () => {
+    const app = document.getElementById('app');
+    if (!app || app.__settingsCleanupObserved) return;
+    app.__settingsCleanupObserved = true;
+    new MutationObserver(() => requestAnimationFrame(cleanSettingsUi)).observe(app, { childList: true, subtree: true });
+    requestAnimationFrame(cleanSettingsUi);
+  };
+  mount();
+  window.addEventListener('hashchange', () => requestAnimationFrame(cleanSettingsUi), { passive: true });
 
   window.toggleFeedbackSetting = async function (key) {
     if (!['visual', 'success', 'error'].includes(key)) return;
