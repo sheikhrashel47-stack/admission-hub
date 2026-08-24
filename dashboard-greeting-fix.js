@@ -4,7 +4,7 @@
   const months = ['জানুয়ারি','ফেব্রুয়ারি','মার্চ','এপ্রিল','মে','জুন','জুলাই','আগস্ট','সেপ্টেম্বর','অক্টোবর','নভেম্বর','ডিসেম্বর'];
   const digits = n => String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
   function greeting(h) { if (h >= 4 && h < 6) return 'শুভ ভোর 🌅'; if (h < 12) return 'শুভ সকাল ☀️'; if (h < 15) return 'শুভ দুপুর 🌤️'; if (h < 17) return 'শুভ বিকাল 🌇'; if (h < 20) return 'শুভ সন্ধ্যা 🌆'; return 'শুভ রাত্রি 🌙'; }
-  function clockText(d = new Date()) { let h=d.getHours(), m=d.getMinutes(); const period=h<4||h>=20?'রাত':h<6?'ভোর':h<12?'সকাল':h<15?'দুপুর':h<17?'বিকাল':'সন্ধ্যা'; const display=h%12||12; return `${weekdays[d.getDay()]}, ${digits(d.getDate())} ${months[d.getMonth()]} ${digits(d.getFullYear())} | ${period} ${digits(display)}:${digits(String(m).padStart(2,'0'))}`; }
+  function clockText(input = new Date()) { const d=input instanceof Date?input:new Date(input||Date.now()); const safe=Number.isNaN(d.getTime())?new Date():d; let h=safe.getHours(), m=safe.getMinutes(); const period=h<4||h>=20?'রাত':h<6?'ভোর':h<12?'সকাল':h<15?'দুপুর':h<17?'বিকাল':'সন্ধ্যা'; const display=h%12||12; return `${weekdays[safe.getDay()]}, ${digits(safe.getDate())} ${months[safe.getMonth()]} ${digits(safe.getFullYear())} | ${period} ${digits(display)}:${digits(String(m).padStart(2,'0'))}`; }
   function isDashboardPage() {
     try { return !!(document.querySelector('.dashboard-v2,.p3-dashboard-v3')) || (window.Router && (Router.path === '' || Router.path === 'dashboard')); } catch(_) { return false; }
   }

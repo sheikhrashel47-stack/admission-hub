@@ -18,6 +18,6 @@ assert.equal(quotedTerms(prompt).find(value => !structural.test(value)), 'মি
 assert.match(rewardSource, /location\.hash\.replace\(\/\^#\\\/?\//, 'Reward dashboard injection must work when Router.path is unavailable');
 assert.match(rewardSource, /function queueDashboardCard\(\)/, 'Reward dashboard entry must retry after late dashboard rendering');
 assert.match(rewardSource, /new MutationObserver\(\(\) => \{/, 'Late dashboard renders must be observed without a perpetual timer');
-assert.match(indexSource, /reward-engine\.js\?v=reward-engine-v6-dashboard-observer/, 'The fixed Reward Engine bundle must be cache-busted');
+assert.match(indexSource, /reward-engine\.js\?v=reward-engine-v7-dashboard-entry-final/, 'The fixed Reward Engine bundle must be cache-busted');
 
 console.log('word-meaning-reward.static.test: passed');
