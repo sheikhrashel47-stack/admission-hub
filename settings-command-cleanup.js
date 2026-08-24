@@ -60,6 +60,18 @@
     window.renderSettings = wrapped;
   }
 
+  // Legacy settings calls the global shell directly, so clean it after the final shell pass too.
+  const originalRenderShell = window.renderShell;
+  if (typeof originalRenderShell === 'function' && !originalRenderShell.__settingsCleanupShellWrapped) {
+    const shellWrapped = function () {
+      const result = originalRenderShell.apply(this, arguments);
+      if (String(window.Router?.path || '') === 'settings') requestAnimationFrame(cleanSettingsUi);
+      return result;
+    };
+    shellWrapped.__settingsCleanupShellWrapped = true;
+    window.renderShell = shellWrapped;
+  }
+
   window.toggleFeedbackSetting = async function (key) {
     if (!['visual', 'success', 'error'].includes(key)) return;
     const s = feedbackSettings();
