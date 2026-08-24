@@ -43,4 +43,4 @@
 
 - [x] Saved exam result-এ correct, wrong ও unanswered filter state/handler চিহ্নিত করা।
 - [x] History result review filter hotfix ও new/old result regression QA করা।
-- [ ] GitHub Pages deploy ও live verification করা।
+- [x] GitHub Pages deploy ও live verification করা।
