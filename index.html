@@ -4909,7 +4909,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-	      const registration=await navigator.serviceWorker.register('./sw.js?v=v39-today-command-input-20260824',{scope:'./',updateViaCache:'none'});
+	      const registration=await navigator.serviceWorker.register('./sw.js?v=v40-today-command-idle-safe-20260824',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5365,7 +5365,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>
 <script src="./mock-result-experience.js?v=mock-lock-result-live-v2"></script>
 <script src="./result-interaction-polish.js?v=result-interaction-polish-v1"></script>
-<script src="./today-command-center-live.js?v=today-command-center-live-v3"></script>
+<script src="./today-command-center-live.js?v=today-command-center-live-v4"></script>
 <script src="./admission-sync.js?v=private-sync-v1"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
 <script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v1"></script>

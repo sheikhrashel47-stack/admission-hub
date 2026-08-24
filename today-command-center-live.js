@@ -48,7 +48,7 @@
     document.querySelectorAll('[data-today-progress]').forEach(node => node.style.width = `${value.percent}%`);
     document.querySelectorAll('[data-today-goal-status]').forEach(node => { const complete = value.questions >= value.goal; node.textContent = complete ? 'আজকের লক্ষ্য পূর্ণ ✓' : `${Math.max(0, value.goal - value.questions)} MCQ বাকি`; node.classList.toggle('is-complete', complete); });
   };
-  let lastTouch = Date.now(), lastTick = Date.now(), writeTimer = null;
+  let lastTouch = 0, lastTick = Date.now(), writeTimer = null;
   const touch = () => { lastTouch = Date.now(); };
   ['pointerdown','keydown','touchstart','scroll'].forEach(name => window.addEventListener(name, touch, { passive:true }));
   const persist = async () => {
@@ -63,7 +63,7 @@
     if (document.visibilityState === 'visible' && activeRoute() && now - lastTouch < 75000) { const row = { ...todayRow(), timeMs:Number(todayRow().timeMs || 0) + delta, updatedAt:now }; upsertLocal(row); paint(); if (!writeTimer) writeTimer = window.setTimeout(async () => { writeTimer = null; await persist(); }, 20000); }
   };
   window.setInterval(tick, 5000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') void persist(); else { lastTick = Date.now(); touch(); } });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState !== 'visible') void persist(); else { lastTick = Date.now(); lastTouch = 0; } });
   window.addEventListener('pagehide', () => void persist(), { passive:true });
   const recordAnswer = async correct => {
     const row = { ...todayRow(), questions:Number(todayRow().questions || 0) + 1, correct:Number(todayRow().correct || 0) + (correct ? 1 : 0), wrong:Number(todayRow().wrong || 0) + (correct ? 0 : 1), updatedAt:Date.now() };
