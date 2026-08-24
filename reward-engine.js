@@ -355,13 +355,14 @@
     if (anchor?.parentElement) anchor.before(card); else page.appendChild(card);
     return true;
   }
-  let dashboardCardRequest = 0;
+  let dashboardCardPending = false;
   function queueDashboardCard() {
-    const request = ++dashboardCardRequest;
+    if (dashboardCardPending) return;
+    dashboardCardPending = true;
     const tryInject = attempt => {
       const path = String(window.Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
-      if (request !== dashboardCardRequest || path !== 'dashboard') return;
-      if (injectDashboardCard() || attempt >= 18) return;
+      if (path !== 'dashboard') { dashboardCardPending = false; return; }
+      if (injectDashboardCard() || attempt >= 18) { dashboardCardPending = false; return; }
       window.setTimeout(() => requestAnimationFrame(() => tryInject(attempt + 1)), 100);
     };
     requestAnimationFrame(() => tryInject(0));
