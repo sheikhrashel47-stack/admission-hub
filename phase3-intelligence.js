@@ -93,10 +93,10 @@
       ['📚', 'Bank', 'প্রশ্নভাণ্ডার', 'question-bank'],
       ['📋', 'Mock', 'মক টেস্ট', 'exam/setup'],
       ['⚡', 'Quick', 'দ্রুত অনুশীলন', 'exam/setup'],
-      ['❌', 'Mistakes', 'ভুলের খাতা', 'mistakes'],
-      ['📊', 'Progress', 'অগ্রগতি দেখুন', 'progress'],
+      null,
+      null,
       ['🎯', 'Goals', 'দৈনিক লক্ষ্য', 'progress/plan'],
-      ['🔄', 'Revision', 'স্মার্ট রিভিশন', 'mistakes'],
+      null,
       ['🕐', 'History', 'পরীক্ষার ইতিহাস', 'history'],
       ['🔍', 'Search', 'প্রশ্ন খুঁজুন', 'question-bank'],
       ['⚙️', 'Settings', 'অ্যাপ সেটিংস', 'settings'],
@@ -104,12 +104,12 @@
       ['⋯', 'More', 'আরও ফিচার', 'settings']
     ];
 
-    const commandPages = [[0,6],[6,12]].map(([start,end]) => commandTools.slice(start,end).map(([icon,title,subtitle,route]) => `
+    const commandPages = [[0,6],[6,12]].map(([start,end]) => commandTools.slice(start,end).map(tool => tool ? (() => { const [icon,title,subtitle,route] = tool; return `
       <button class="p3-command-card-v3" onclick="navigate('${route}')" type="button">
         <span class="p3-command-icon-v3">${icon}</span>
         <span class="p3-command-title-v3">${title}</span>
         <span class="p3-command-subtitle-v3">${subtitle}</span>
-      </button>`).join(''));
+      </button>`; })() : '<div class="p3-command-card-v3 p3-command-empty-slot-v3" aria-hidden="true"></div>').join(''));
 
     const specialTools = [];
 

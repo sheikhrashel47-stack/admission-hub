@@ -151,3 +151,17 @@
 - [x] Protected online data service provision ও static Admission Hub integration design করা।
 - [x] One-time PWA migration, automatic background sync ও recovery control বাস্তবায়ন করা।
 - [x] Two-context/offline/conflict QA, GitHub Pages deploy ও migration verification করা।
+
+## Vocabulary search stability and input sizing
+
+- [ ] Vocabulary search typing-এর সময় rerender/scroll/layout jump-এর root cause চিহ্নিত করা।
+- [ ] Search input বড় করা এবং focused typing position stable রাখা।
+- [ ] Real Vocabulary search QA, GitHub Pages deploy ও live verification করা।
+
+## Settings cleanup, feedback controls and Command Center entries
+
+- [ ] Settings থেকে AI Assistant-related UI/settings data এবং Exam Defaults UI সরানো।
+- [ ] Visual Feedback, Success Effects ও Error Effects toggle state এবং working effect path fix করা।
+- [ ] Vocabulary search jump/keyboard behaviour video অনুযায়ী stable করা ও search input বড় করা।
+- [ ] Your Command Center থেকে Progress, Mistakes Bank ও Smart Revision entries সরিয়ে future empty slots রাখা।
+- [ ] Existing tools/data regression QA, GitHub Pages deploy ও live verification করা।

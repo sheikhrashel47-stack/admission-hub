@@ -29,7 +29,11 @@
 
   const style = document.createElement('style');
   style.setAttribute('data-vocabulary-master-style', 'true');
-  style.textContent = css;
+  style.textContent = css + `
+    .vm-tool-row .searchbar{min-height:54px;padding:0 15px;border-radius:16px}
+    .vm-tool-row .searchbar input{min-width:0;min-height:52px;font-size:16px;line-height:1.25}
+    .vm-tool-row .searchbar span{font-size:18px}
+  `;
   document.head.appendChild(style);
 
   const practiceSetupStyle = document.createElement('style');
@@ -121,11 +125,23 @@
     const synonyms = relations(record, 'synonyms'); const antonyms = relations(record, 'antonyms');
     return `<button class="vm-word-card" onclick="navigate('${route(`word/${encodeURIComponent(record.id)}`)}')"><div class="vm-card-top"><div class="vm-card-word"><span class="vm-card-ordinal">${number}</span><h3>${escape(record.word)}</h3></div><span class="vm-card-arrow">›</span></div><div class="vm-meaning">${escape(record.meaning)}</div>${relationSection('SYNONYMS', synonyms)}${relationSection('ANTONYMS', antonyms)}${record.tips ? `<div class="vm-card-section"><div class="vm-tip"><span class="vm-tip-icon">✦</span><span><b>TIPS & EXPLANATION</b>${escape(record.tips)}</span></div></div>` : ''}</button>`;
   }
-  function renderCategory() {
+  function categoryResultsContent() {
     const all = recordsFor(state.query, state.category);
     const shown = all.slice(0, state.visible);
-    const body = `<main class="vm-page">${heading(`${state.category || 'ALL'} VOCABULARY`, `${state.category || 'Vocabulary'} Vocabulary`, `${all.length.toLocaleString()} words found`)}<div class="vm-category-intro"><b>${state.category || 'Vocabulary'} category</b><span>Search word, বাংলা অর্থ, synonym বা antonym থেকে খুঁজুন।</span></div><div class="vm-tool-row"><div class="searchbar"><span>🔍</span><input id="vmBankSearch" value="${escape(state.query)}" placeholder="Search vocabulary" autocomplete="off" oninput="VocabularyMaster.searchCategory(this.value)"></div><select class="vm-filter" onchange="VocabularyMaster.openCategory(this.value)"><option value="">All A–Z</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => `<option value="${letter}" ${state.category === letter ? 'selected' : ''}>${letter}</option>`).join('')}</select></div>${shown.length ? `<div class="vm-vocab-list">${shown.map((record, index) => card(record, index + 1)).join('')}</div>${shown.length < all.length ? `<button class="btn secondary" style="margin-top:12px" onclick="VocabularyMaster.loadMore()">Load more words</button>` : ''}` : `<div class="vm-empty"><b style="color:var(--text)">No vocabulary found${state.category ? ` in ${state.category}` : ''}.</b><p style="margin:7px 0 14px;font-size:12px">Search পরিবর্তন করুন অথবা নতুন vocabulary যোগ করুন।</p><button class="btn sm" onclick="navigate('${route('parser')}')">Add Vocabulary</button></div>`}</main>`;
-    renderShell(body, { title:`${state.category || 'Vocabulary'} Vocabulary`, back:`navigate('${route('bank')}')` });
+    if (shown.length) return `<div class="vm-vocab-list">${shown.map((record, index) => card(record, index + 1)).join('')}</div>${shown.length < all.length ? `<button class="btn secondary" style="margin-top:12px" onclick="VocabularyMaster.loadMore()">Load more words</button>` : ''}`;
+    return `<div class="vm-empty"><b style="color:var(--text)">No vocabulary found${state.category ? ` in ${state.category}` : ''}.</b><p style="margin:7px 0 14px;font-size:12px">Search পরিবর্তন করুন অথবা নতুন vocabulary যোগ করুন।</p><button class="btn sm" onclick="navigate('${route('parser')}')">Add Vocabulary</button></div>`;
+  }
+  function refreshCategoryResults() {
+    const target = document.getElementById('vmCategoryResults');
+    if (!target) return renderCategory();
+    target.innerHTML = categoryResultsContent();
+    const found = document.getElementById('vmCategoryFound');
+    if (found) found.textContent = `${recordsFor(state.query, state.category).length.toLocaleString()} words found`;
+  }
+  function renderCategory() {
+    const all = recordsFor(state.query, state.category);
+    const body = `<main class="vm-page">${heading(`${state.category || 'ALL'} VOCABULARY`, `${state.category || 'Vocabulary'} Vocabulary`, `${all.length.toLocaleString()} words found`)}<div class="vm-category-intro"><b>${state.category || 'Vocabulary'} category</b><span>Search word, বাংলা অর্থ, synonym বা antonym থেকে খুঁজুন।</span></div><div class="vm-count" id="vmCategoryFound" style="margin:0 0 8px">${all.length.toLocaleString()} words found</div><div class="vm-tool-row"><div class="searchbar"><span>🔍</span><input id="vmBankSearch" value="${escape(state.query)}" placeholder="Search vocabulary" autocomplete="off" oninput="VocabularyMaster.searchCategory(this.value)"></div><select class="vm-filter" onchange="VocabularyMaster.openCategory(this.value)"><option value="">All A–Z</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => `<option value="${letter}" ${state.category === letter ? 'selected' : ''}>${letter}</option>`).join('')}</select></div><div id="vmCategoryResults">${categoryResultsContent()}</div></main>`;
+    renderShell(body, { title:`${state.category || 'Vocabulary'} Vocabulary`, back:`navigate('${route('bank')}` });
   }
   function renderWord(id) {
     const record = state.records.find(row => row.id === id);
@@ -360,8 +376,8 @@
       return renderLanding();
     },
     openCategory(letter) { state.category = String(letter || '').toUpperCase(); state.query = ''; state.visible = 36; navigate(route(`category/${state.category}`)); },
-    searchCategory(query) { const next = String(query || ''); clearTimeout(state.searchTimer); state.searchTimer = window.setTimeout(() => { state.query = next; state.visible = 36; const old = window.scrollY; renderCategory(); requestAnimationFrame(() => { window.scrollTo({ top:old, behavior:'auto' }); const input = document.getElementById('vmBankSearch'); if (input) { input.focus(); input.setSelectionRange(input.value.length, input.value.length); } }); }, 120); },
-    loadMore() { state.visible += 36; const old = window.scrollY; renderCategory(); requestAnimationFrame(() => window.scrollTo({ top:old, behavior:'auto' })); },
+    searchCategory(query) { const next = String(query || ''); clearTimeout(state.searchTimer); state.searchTimer = window.setTimeout(() => { state.query = next; state.visible = 36; refreshCategoryResults(); }, 120); },
+    loadMore() { state.visible += 36; refreshCategoryResults(); },
     parseInput() { state.parser.text = document.getElementById('vmParserInput')?.value || ''; state.parser.records = parseVocabulary(state.parser.text); state.parser.stage = 'preview'; renderParser(); },
     backToPaste() { state.parser.stage = 'input'; renderParser(); },
     skipParsed(index) { state.parser.records.splice(index, 1); renderParser(); },
