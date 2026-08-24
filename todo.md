@@ -110,3 +110,9 @@
 - [x] No-data-loss performance safeguards ও stale-render prevention design করা।
 - [x] সামান্য option spacing/text refinement এবং low-risk performance safeguards বাস্তবায়ন করা।
 - [x] Mobile/high-question-count regression QA, GitHub Pages deploy ও live verification করা।
+
+## Question Bank persistent game-card style fix
+
+- [x] Video ও Question Bank delayed render lifecycle দেখে style reset-এর root cause নির্ণয় করা।
+- [x] Existing game-card appearance ধরে রাখার minimal persistent attachment fix তৈরি করা।
+- [ ] Question Bank delayed render, paging ও interaction QA করে GitHub Pages-এ live verification করা।
