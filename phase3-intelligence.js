@@ -149,22 +149,16 @@
       </header>
 
       <article class="p3-card-v3 p3-today-hero-card">
-        <div class="p3-hero-top-row">
-          <div>
+        <div class="p3-today-head">
+          <div class="p3-today-copy">
             <div class="p3-hero-kicker">TODAY COMMAND CENTER</div>
-            <h3 class="p3-hero-title"><span data-today-goal>${d.target}</span> MCQ Goal</h3>
-            <div class="p3-hero-num"><strong data-today-done>${d.done}</strong> <small>/ <span data-today-goal>${d.target}</span></small></div>
-            <div class="p3-goal-status-v3 ${goalComplete?'is-complete':''}" data-today-goal-status>${goalComplete?'আজকের লক্ষ্য পূর্ণ ✓':`${d.pending} MCQ বাকি`}</div>
+            <h3 class="p3-hero-title">আজকের MCQ লক্ষ্য</h3>
+            <div class="p3-hero-num"><strong data-today-done>${d.done}</strong><small>/ <span data-today-goal>${d.target}</span> MCQ</small></div>
           </div>
-          <div class="p3-hero-illustration">
-            <div class="p3-target-graphic">
-              <div class="p3-target-rings"></div>
-              <div class="p3-target-dart"></div>
-            </div>
-            <span class="p3-hero-pct-tag" data-today-percent>${targetPct}%</span>
-          </div>
+          <div class="p3-today-dial" data-today-dial style="--today-progress:${targetPct}%"><b data-today-percent>${targetPct}%</b><small>COMPLETE</small></div>
         </div>
-        <div class="p3-card-progress" style="height:10px; margin:16px 0"><i data-today-progress style="width:${targetPct}%"></i></div>
+        <div class="p3-card-progress p3-today-progress"><i data-today-progress style="width:${targetPct}%"></i></div>
+        <div class="p3-today-progress-meta"><span class="p3-goal-status-v3 ${goalComplete?'is-complete':''}" data-today-goal-status>${goalComplete?'আজকের লক্ষ্য পূর্ণ ✓':`${d.pending} MCQ বাকি`}</span><small>আজকের অগ্রগতি</small></div>
         <div class="p3-hero-stats-row">
           <div class="p3-hero-stat-item">
             <span class="p3-stat-badge green">${ICONS.check}</span>

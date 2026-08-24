@@ -215,3 +215,7 @@
 
 - [x] Vocabulary এবং অন্য tool থেকে navigation/Home ব্যবহার করলে prior study context ও scroll position safely restore করা।
 - [x] Dashboard-only Home semantics এবং active tool resume behavior আলাদা করে regression QA করা।
+
+## Today Command Center visual refinement
+
+- [ ] Dashboard-এর অন্য layout/data না বদলে Today Command Center card-এর premium visual hierarchy, spacing ও mobile readability redesign করা।
