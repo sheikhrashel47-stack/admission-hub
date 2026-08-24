@@ -218,4 +218,4 @@
 
 ## Today Command Center visual refinement
 
-- [ ] Dashboard-এর অন্য layout/data না বদলে Today Command Center card-এর premium visual hierarchy, spacing ও mobile readability redesign করা।
+- [x] Dashboard-এর অন্য layout/data না বদলে Today Command Center card-এর premium visual hierarchy, spacing ও mobile readability redesign করা।
