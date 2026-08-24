@@ -109,4 +109,4 @@
 - [x] Flash, Mock, Bank ও review option box spacing/typography এবং current render/load path audit করা।
 - [x] No-data-loss performance safeguards ও stale-render prevention design করা।
 - [x] সামান্য option spacing/text refinement এবং low-risk performance safeguards বাস্তবায়ন করা।
-- [ ] Mobile/high-question-count regression QA, GitHub Pages deploy ও live verification করা।
+- [x] Mobile/high-question-count regression QA, GitHub Pages deploy ও live verification করা।
