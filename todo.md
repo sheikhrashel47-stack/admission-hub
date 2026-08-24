@@ -190,3 +190,15 @@
 - [x] Device-supported natural English voice preference ও speech quality fallback improve করা。
 - [ ] Mobile Vocabulary card size, tap target ও pronunciation regression QA করা。
 - [x] Vocabulary card click-এর legacy detail page ও Practice/Mock/Flash extra flow বন্ধ করা。
+
+## Vocabulary sound system replacement
+
+- [x] Video-reported Vocabulary interaction issue ও current sound failure root cause audit করা।
+- [x] Current pronunciation implementation পুরো remove করে reliable all-word sound system বসানো।
+- [ ] Mobile sound coverage, card interaction ও error-free regression QA করা।
+
+## Result page interaction polish
+
+- [x] Topic Focus card tap-এ abrupt jump-এর বদলে smooth anchored scroll করা।
+- [x] Expanded Question Review card tap করলে collapse/expand toggle কাজ করানো।
+- [ ] Result filters, skipped-answer labels ও question review data অপরিবর্তিত রেখে mobile regression QA করা।

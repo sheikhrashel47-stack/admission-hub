@@ -123,7 +123,7 @@
   }
   function pronounceButton(word, label) {
     const encoded = encodeURIComponent(String(word || '')).replace(/'/g, '%27');
-    return `<button type="button" class="vm-pronounce" aria-label="${escape(label || `Pronounce ${word}`)}" title="Listen to pronunciation" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.speak(decodeURIComponent('${encoded}'))"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h4l5 4V6L7 10H3zm11.5 2c0-1.41-.81-2.63-2-3.22v6.44c1.19-.59 2-1.81 2-3.22zM12.5 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.5 7-8.77s-2.99-7.86-7-8.77z"/></svg></button>`;
+    return `<button type="button" class="vm-pronounce" aria-label="${escape(label || `Pronounce ${word}`)}" title="Listen to pronunciation" onclick="event.preventDefault();event.stopPropagation();window.VocabularyPronunciation?.play(decodeURIComponent('${encoded}'))"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h4l5 4V6L7 10H3zm11.5 2c0-1.41-.81-2.63-2-3.22v6.44c1.19-.59 2-1.81 2-3.22zM12.5 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.5 7-8.77s-2.99-7.86-7-8.77z"/></svg></button>`;
   }
   function card(record, number) {
     const synonyms = relations(record, 'synonyms'); const antonyms = relations(record, 'antonyms');
@@ -362,56 +362,7 @@
     if (type !== 'mixed') return type;
     const modes = ['meaning','fill']; if (relations(record, 'synonyms').length) modes.push('synonym'); if (relations(record, 'antonyms').length) modes.push('antonym'); return shuffle(modes)[0];
   }
-  const audioUrlCache = new Map();
-  let activePronunciationAudio = null;
-  async function recordedAudioUrl(word) {
-    const key = lower(word);
-    if (audioUrlCache.has(key)) return audioUrlCache.get(key);
-    if (!/^[a-z][a-z-]*$/i.test(key)) return '';
-    try {
-      const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(key)}`, { cache:'force-cache' });
-      if (!response.ok) throw new Error('No dictionary recording');
-      const payload = await response.json();
-      const entry = Array.isArray(payload) ? payload[0] : null;
-      const url = (entry?.phonetics || []).map(item => String(item?.audio || '')).find(Boolean) || '';
-      audioUrlCache.set(key, url);
-      return url;
-    } catch (_) {
-      audioUrlCache.set(key, '');
-      return '';
-    }
-  }
-  function naturalEnglishVoice() {
-    const voices = (window.speechSynthesis?.getVoices?.() || []).filter(item => /^en(-|_)/i.test(item.lang || ''));
-    const preferred = /samantha|ava|karen|daniel|moira|allison|serena|aria|jenny|zira|google uk english female|google us english|natural|enhanced/i;
-    return voices.find(item => preferred.test(item.name || '')) || voices.find(item => item.localService) || voices[0];
-  }
-  function speakWithDeviceVoice(text) {
-    if (!('speechSynthesis' in window)) { toast('Pronunciation is not available on this device'); return; }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US'; utterance.rate = .78; utterance.pitch = 1; utterance.volume = 1;
-    const voice = naturalEnglishVoice();
-    if (voice) utterance.voice = voice;
-    window.speechSynthesis.speak(utterance);
-  }
   const api = {
-    async speak(word) {
-      const text = String(word || '').trim();
-      if (!text) return;
-      try {
-        window.speechSynthesis?.cancel?.();
-        if (activePronunciationAudio) { activePronunciationAudio.pause(); activePronunciationAudio = null; }
-        const clip = await recordedAudioUrl(text);
-        if (clip) {
-          const audio = new Audio(clip);
-          activePronunciationAudio = audio;
-          await audio.play();
-          return;
-        }
-        speakWithDeviceVoice(text);
-      } catch (_) { toast('Pronunciation could not start'); }
-    },
     async render() {
       await loadRecords();
       if (!state.practiceSetupRestored) { restorePracticeSetup(); state.practiceSetupRestored = true; }

@@ -3426,7 +3426,7 @@ function renderResultView(r, isFresh){
     const isSaved=!!(CACHE.questions.find(q=>q.id===s.questionId)||{}).bookmarked;
     const isMistake=!!CACHE.mistakes.find(m=>m.questionId===s.questionId);
     const status=s.status, statusText=status==='correct'?'🟢 সঠিক উত্তর':status==='wrong'?'🔴 ভুল উত্তর':'🟡 উত্তর দেওয়া হয়নি';
-    return `<article class="result-review-card ${status}">
+    return `<article class="result-review-card ${status}" data-result-topic-id="${esc(s.topicId||'')}" tabindex="0" aria-expanded="true">
       <div class="result-review-head"><span class="result-q-number">প্রশ্ন ${qnum}</span><strong class="result-status ${status}">${statusText}</strong></div>
       <h3 class="result-question">${esc(s.question||'প্রশ্নের তথ্য পাওয়া যায়নি')}</h3>
       <div class="result-options">${optionHtml(s)}</div>
@@ -4909,7 +4909,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v35-navigation-pronunciation-20260824',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v36-result-polish-native-pronunciation-20260824',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5360,9 +5360,11 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./one-time-mock-seed.js?v=20260824-native"></script>
 <script src="./one-time-mock-tool.js?v=20260824-native"></script>
 <script src="./vocabulary-master-tool.js?v=vm-native-v14"></script>
+<script src="./vocabulary-pronunciation.js?v=pronunciation-native-v1"></script>
 <script src="./memorizing-match-tool.js?v=memorizing-match-v4-game-cards-detection"></script>
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>
 <script src="./mock-result-experience.js?v=mock-lock-result-live-v2"></script>
+<script src="./result-interaction-polish.js?v=result-interaction-polish-v1"></script>
 <script src="./admission-sync.js?v=private-sync-v1"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
 <script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v1"></script>

@@ -129,7 +129,7 @@
     const template = RESULT_INSIGHT_LIBRARY[hash(`${result.id}|${accuracy}|${correct}|${wrong}|${skipped}|${history.length}`) % RESULT_INSIGHT_LIBRARY.length];
     const insight = template.replace(/\{(overall|participation|comparison|subjectSignal|topicSignal|paceSignal)\}/g, (_, key) => variables[key]);
     const comparisonRows = history.length ? [...history].reverse().map((item, index) => `<div><span>পরীক্ষা ${index + 1}</span><b>${currentAccuracy(item)}%</b></div>`).join('') + `<div class="current"><span>বর্তমান</span><b>${accuracy}%</b></div>` : `<div class="current solo"><span>বর্তমান পরীক্ষা</span><b>${accuracy}%</b></div>`;
-    const topicRows = priorityTopics.length ? priorityTopics.map((row, index) => `<div class="result-focus-item"><span class="result-focus-rank">${index + 1}</span><span><b>${safe(row.name)}</b><small>${safe(row.subName || '')} · ${row.correct} সঠিক · ${row.wrong} ভুল · ${row.skipped} উত্তরহীন</small></span><strong>${pct(row)}%</strong></div>`).join('') : `<div class="result-live-empty">এই ফলাফলে topic তথ্য পাওয়া যায়নি।</div>`;
+    const topicRows = priorityTopics.length ? priorityTopics.map((row, index) => `<div class="result-focus-item" data-result-topic-id="${safe(row.id)}" role="button" tabindex="0" aria-label="${safe(row.name)} প্রশ্ন রিভিউ দেখুন"><span class="result-focus-rank">${index + 1}</span><span><b>${safe(row.name)}</b><small>${safe(row.subName || '')} · ${row.correct} সঠিক · ${row.wrong} ভুল · ${row.skipped} উত্তরহীন</small></span><strong>${pct(row)}%</strong></div>`).join('') : `<div class="result-live-empty">এই ফলাফলে topic তথ্য পাওয়া যায়নি।</div>`;
     const dashboard = document.createElement('section');
     dashboard.className = 'result-live-dashboard';
     dashboard.innerHTML = `
