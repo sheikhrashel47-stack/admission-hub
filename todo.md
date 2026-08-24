@@ -130,3 +130,17 @@
 - [x] Skipped review renderer ও saved History result path audit করা।
 - [x] Skipped correct option-এর persistent green visibility fix বাস্তবায়ন করা।
 - [x] Fresh result ও History review regression QA, GitHub Pages deploy ও live verification করা।
+
+## PWA launch no-flash and live-dashboard handoff
+
+- [x] Video ও initial boot/cache-load/render lifecycle audit করা।
+- [x] Black/stale/zero-data flash ছাড়া Preparing screen থেকে live dashboard handoff design করা।
+- [x] Launch shell, data-ready gate ও current-data first render বাস্তবায়ন করা।
+- [ ] Cold launch/cache reload QA, user-data safety check, GitHub Pages deploy ও live verification করা।
+
+## PWA and live website data continuity investigation
+
+- [ ] Add to Home Screen ও live website origin/service worker/IndexedDB isolation audit করা।
+- [ ] Data-loss ছাড়া viable shared sync বা migration architecture নির্ধারণ করা।
+- [ ] Safe sync/migration implementation, conflict handling ও bi-directional update QA করা।
+- [ ] GitHub Pages deploy ও live verification করা।

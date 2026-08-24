@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<meta name="theme-color" content="#0f6b4f">
+<meta name="theme-color" content="#faf9f6">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -35,6 +35,14 @@
   --shadow: 0 4px 12px rgba(0,0,0,0.05);
   --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
+/* Launch-shell rule: the first PWA paint is always the same mint Preparing screen.
+   A data-backed route replaces it only after IndexedDB has fully loaded. */
+html{background:#faf9f6;}
+html,body,#app{background-color:#faf9f6;}
+#app>.app-loading{min-height:100dvh;display:grid;place-content:center;justify-items:center;gap:9px;padding:calc(24px + env(safe-area-inset-top,0px)) 24px 24px;color:#1a1d1b;background:#faf9f6;text-align:center;opacity:1;}
+#app>.app-loading .app-loading-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#0f6b4f;color:#fff;font-size:25px;box-shadow:0 10px 24px rgba(15,107,79,.18);}
+#app>.app-loading b{font-size:15px;letter-spacing:-.01em;}
+#app>.app-loading span{font-size:12px;color:#6b7370;}
 [data-theme="dark"]{
   --emerald:#22c55e;
   --emerald-d:#16a34a;
@@ -741,8 +749,11 @@ function defaultSettings(){
 
 /* ---------------- seed default data (only if empty) ---------------- */
 async function seedIfEmpty(){
-  const subs=await dbGetAll('subjects');
-  const meta=await dbGet('appMeta','flags');
+  const [subs,meta,settings]=await Promise.all([
+    dbGetAll('subjects'),
+    dbGet('appMeta','flags'),
+    dbGet('settings','main')
+  ]);
   if(subs.length===0 && !meta){
     const defaults=[
       {name:'বাংলা', icon:'📘', color:'#0f6b4f'},
@@ -755,8 +766,10 @@ async function seedIfEmpty(){
       await dbPut('subjects',{id:uid(), name:d.name, icon:d.icon, color:d.color, order:order++, createdAt:Date.now()});
     }
   }
-  if(!meta){ await dbPut('appMeta',{id:'flags', seeded:true, createdAt:Date.now()}); }
-  if(!(await dbGet('settings','main'))){ await dbPut('settings', defaultSettings()); }
+  const bootstrapWrites=[];
+  if(!meta) bootstrapWrites.push(dbPut('appMeta',{id:'flags', seeded:true, createdAt:Date.now()}));
+  if(!settings) bootstrapWrites.push(dbPut('settings', defaultSettings()));
+  if(bootstrapWrites.length) await Promise.all(bootstrapWrites);
 }
 
 /* ---------------- activity / streak logging ---------------- */
@@ -3731,14 +3744,10 @@ async function purgeImportedSubjects(){
   return {changed:false,imported};
 }
 async function boot(){
-  // Paint the dashboard immediately with the safe in-memory defaults. The real
-  // IndexedDB data replaces it as soon as the background boot read completes.
-  if(!window.__admissionFastPainted){
-    window.__admissionFastPainted=true;
-    window.__admissionFinalModulesReady=true;
-    Router.path=location.hash.slice(1)||'dashboard';
-    try { applyTheme(); renderDashboard(); } catch (paintError) { console.warn('[Admission Hub] Fast dashboard paint deferred.',paintError); }
-  }
+  // Never paint a zero-data dashboard during launch. The static Preparing shell
+  // stays visible until the complete IndexedDB snapshot is ready.
+  window.__admissionBootStatus='loading';
+  window.__admissionFinalModulesReady=false;
   try{
     await openDB();
   }catch(err){
@@ -3757,9 +3766,10 @@ async function boot(){
     return;
   }
   window.__admissionBootStatus='ready';
+  window.__admissionFinalModulesReady=true;
   applyTheme();
   Router.path=location.hash.slice(1)||'dashboard';
-  // Replace the fast shell with real counts before any resume modal is considered.
+  // Replace the launch shell once with real counts before any resume modal is considered.
   try { if(typeof window.__admissionRenderRoute==='function') window.__admissionRenderRoute(); else render(); } catch (renderError) { console.warn('[Admission Hub] Data-backed render deferred.',renderError); }
   window.__admissionCoreBootComplete=true;
 
@@ -4899,7 +4909,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-      const registration=await navigator.serviceWorker.register('./sw.js?v=v32-duplicate-choice-20260819',{scope:'./',updateViaCache:'none'});
+      const registration=await navigator.serviceWorker.register('./sw.js?v=v33-live-dashboard-launch-20260824',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
