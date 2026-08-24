@@ -68,4 +68,4 @@
 
 - [x] Subject ও Topic page-এর redundant summary header চিহ্নিত করা।
 - [x] Subject/Topic route থেকে বড় summary header সরিয়ে compact list navigation করা।
-- [ ] Mobile QA, GitHub Pages deploy ও live verification করা।
+- [x] Mobile QA, GitHub Pages deploy ও live verification করা।
