@@ -37,4 +37,4 @@
 - [x] Dynamic source/category, bounded custom selector ও real available count বাস্তবায়ন করা।
 - [x] Practice type, question count, time, randomization ও validation setup screen তৈরি করা।
 - [x] Timed practice handoff, no-repeat policy, summary ও existing Mock/Flash separation নিশ্চিত করা।
-- [ ] Mobile/data-safety QA, regression check, GitHub Pages deploy ও live verification করা।
+- [x] Mobile/data-safety QA, regression check, GitHub Pages deploy ও live verification করা。
