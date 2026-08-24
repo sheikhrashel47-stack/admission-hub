@@ -84,15 +84,15 @@
     renderShell(body,{title:'নোট',back:"navigate('dashboard')"});
   }
   function renderNotesSubject(subjectId){
-    const rows=(cache().notes||[]).filter(note=>keyOf(note.subjectId)===subjectId),label=subjectLabel(subjectId),topics=groupBy(rows,'topicId',topicLabel);
-    const body=`<main class="notes-page">${notesHero(rows,'SUBJECT REVIEW',label,'এখন একটি Topic বেছে নিন। ওই topic-এর ভুল প্রশ্নগুলো পরের page-এ দেখা যাবে।')}<section class="notes-path-intro"><div><span>02</span><b>Topic বাছুন</b><small>প্রতিটি topic আলাদা review page-এ খুলবে।</small></div><strong>${topics.length}টি Topic</strong></section>${topics.length?`<section class="notes-topic-list">${topics.map(topic=>topicTile(topic,subjectId)).join('')}</section>`:emptyNotes('এই Subject-এ কোনো Topic নেই','এই subject-এর নোটে topic তথ্য পাওয়া যায়নি।','notes') }</main>`;
-    renderShell(body,{title:label,back:"navigate('notes')"});
-  }
+  const rows=(cache().notes||[]).filter(note=>keyOf(note.subjectId)===subjectId),label=subjectLabel(subjectId),topics=groupBy(rows,'topicId',topicLabel);
+    const body=`<main class="notes-page">${topics.length?`<section class="notes-topic-list notes-direct-list">${topics.map(topic=>topicTile(topic,subjectId)).join('')}</section>`:emptyNotes('এই Subject-এ কোনো Topic নেই','এই subject-এর নোটে topic তথ্য পাওয়া যায়নি।','notes') }</main>`;
+  renderShell(body,{title:label,back:"navigate('notes')"});
+}
   function renderNotesTopic(subjectId,topicId){
-    const rows=(cache().notes||[]).filter(note=>keyOf(note.subjectId)===subjectId&&keyOf(note.topicId)===topicId).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
-    const subject=subjectLabel(subjectId),topic=topicLabel(topicId),body=`<main class="notes-page">${notesHero(rows,'TOPIC QUESTION REVIEW',topic,`${subject} · এই topic-এর ভুল প্রশ্নগুলো একে একে review করুন।`)}<section class="notes-review-context"><span>${escValue(subject)}</span><i>→</i><b>${escValue(topic)}</b><small>${rows.length}টি ভুল প্রশ্ন</small></section>${rows.length?`<section class="saved-notes-list">${rows.map(reviewCard).join('')}</section>`:emptyNotes('এই Topic-এ কোনো নোট নেই','নোটটি মুছে গেছে বা অন্য topic-এ সরানো হয়েছে।',`notes/subject/${routeId(subjectId)}`)}</main>`;
-    renderShell(body,{title:topic,back:`navigate('notes/subject/${routeId(subjectId)}')`});
-  }
+  const rows=(cache().notes||[]).filter(note=>keyOf(note.subjectId)===subjectId&&keyOf(note.topicId)===topicId).sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0));
+    const subject=subjectLabel(subjectId),topic=topicLabel(topicId),body=`<main class="notes-page">${rows.length?`<section class="saved-notes-list notes-direct-list">${rows.map(reviewCard).join('')}</section>`:emptyNotes('এই Topic-এ কোনো নোট নেই','নোটটি মুছে গেছে বা অন্য topic-এ সরানো হয়েছে।',`notes/subject/${routeId(subjectId)}`)}</main>`;
+  renderShell(body,{title:topic,back:`navigate('notes/subject/${routeId(subjectId)}')`});
+}
   window.renderNotesTool=function(){
     const parts=String(typeof Router!=='undefined'?Router.path:'notes').split('/');
     if(parts[1]==='subject')return renderNotesSubject(decode(parts[2])||UNASSIGNED);

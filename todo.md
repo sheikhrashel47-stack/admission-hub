@@ -63,3 +63,9 @@
 - [x] Saved selected answer fallback ও correct/wrong option state পর্যালোচনা করা।
 - [x] Wrong option red, correct option green, larger type এবং compact card layout করা।
 - [x] Mobile QA, GitHub Pages deploy ও live verification করা।
+
+## Notes compact subject/topic page hotfix
+
+- [x] Subject ও Topic page-এর redundant summary header চিহ্নিত করা।
+- [x] Subject/Topic route থেকে বড় summary header সরিয়ে compact list navigation করা।
+- [ ] Mobile QA, GitHub Pages deploy ও live verification করা।
