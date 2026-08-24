@@ -4,6 +4,7 @@
   const route = () => String(location.hash || '').replace(/^#\/?/, '').split('?')[0] || 'dashboard';
   const cache = () => typeof CACHE !== 'undefined' ? CACHE : (window.CACHE || {});
   const activeExam = () => typeof ActiveExam !== 'undefined' ? ActiveExam : (window.__admissionHubGetActiveExam?.() || null);
+  const clearGoalOrphans = () => { const app = document.getElementById('app'); document.querySelectorAll('#today-command-goal-settings').forEach(panel => { if (!app?.contains(panel)) panel.remove(); }); };
   const todayId = () => typeof todayKey === 'function' ? todayKey() : new Date().toISOString().slice(0, 10);
   const validGoal = value => Math.max(1, Math.min(5000, Math.round(Number(value) || 100)));
   const activeRoute = () => {
@@ -81,7 +82,7 @@
   function goalPanel() {
     const app = document.getElementById('app');
     if (!app || route() !== 'settings') return;
-    document.querySelectorAll('#today-command-goal-settings').forEach(panel => { if (!app.contains(panel)) panel.remove(); });
+    clearGoalOrphans();
     const current = validGoal(cache().settings?.dailyTarget || 100);
     const existing = app.querySelector('#today-command-goal-settings');
     if (existing) {
@@ -98,6 +99,8 @@
   window.TodayCommandCenter = { saveGoal: async () => { const input = document.querySelector('#app #todayGoalInput'); const goal = validGoal(input?.value); const settings = { ...(cache().settings || {}), dailyTarget:goal }; cache().settings = settings; if (typeof dbPut === 'function') await dbPut('settings', settings); window.toast?.(`Daily MCQ Goal ${goal} সেট করা হয়েছে`); paint(); } };
   const app = document.getElementById('app');
   if (app) new MutationObserver(() => { requestAnimationFrame(() => { goalPanel(); paint(); }); }).observe(app, {childList:true,subtree:true});
+  new MutationObserver(clearGoalOrphans).observe(document.body, {childList:true});
+  setTimeout(clearGoalOrphans, 0); setTimeout(clearGoalOrphans, 100); setTimeout(clearGoalOrphans, 500);
   window.addEventListener('hashchange', () => { setTimeout(() => { goalPanel(); paint(); }, 0); }, {passive:true});
   const style = document.createElement('style');
   style.textContent = `.p3-today-hero-card{overflow:hidden;position:relative;background:linear-gradient(142deg,#ffffff 0%,#f0fbf5 68%,#dcf5e8 100%)}.p3-today-hero-card:after{content:'';position:absolute;width:150px;height:150px;border-radius:50%;right:-58px;top:-70px;border:1px solid rgba(15,107,79,.12);pointer-events:none}.p3-goal-status-v3{position:relative;z-index:1;display:inline-flex;margin-top:8px;padding:4px 8px;border-radius:999px;background:#edf8f2;color:#357762;font-size:10px;font-weight:800}.p3-goal-status-v3.is-complete{background:#0f6b4f;color:#fff}.today-goal-settings-card{padding:15px}.today-goal-settings-card p{margin:5px 0 12px;line-height:1.55}.today-goal-setting-row{display:flex;gap:9px}.today-goal-setting-row input{min-width:0;flex:1}.today-goal-setting-row .btn{width:auto;white-space:nowrap}@media(max-width:380px){.today-goal-setting-row{flex-direction:column}.today-goal-setting-row .btn{width:100%}}`;
