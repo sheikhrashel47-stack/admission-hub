@@ -80,6 +80,7 @@
     const row = { ...todayRow(), questions:Number(todayRow().questions || 0) + 1, correct:Number(todayRow().correct || 0) + (correct ? 1 : 0), wrong:Number(todayRow().wrong || 0) + (correct ? 0 : 1), updatedAt:Date.now() };
     upsertLocal(row); paint();
     try { if (typeof dbPut === 'function') await dbPut('dailyStats', row); } catch (_) {}
+    void window.RewardEngine?.recordDailyProgress?.({ timestamp:Date.now() });
   };
   const wrapAnswer = (name, answered, isCorrect) => {
     const original = window[name];

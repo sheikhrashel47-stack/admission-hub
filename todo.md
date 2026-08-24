@@ -237,7 +237,7 @@
 
 ## Offline-first 50-reward achievement engine
 
-- [ ] Existing reward remnants retire করে one-currency XP state এবং 50 static reward definitions/data migration design করা।
-- [ ] Real Question Bank, Mock, Flash, Vocabulary, Mistake, daily goal ও streak activity থেকে idempotent reward events integrate করা।
-- [ ] Reward Center, dashboard summary, next-three-rewards এবং subtle accessible unlock state build করা।
-- [ ] Offline persistence, cloud-sync compatibility, anti-farming, performance and regression QA করা।
+- [x] Existing reward remnants retire করে one-currency XP state এবং 50 static reward definitions/data migration design করা।
+- [x] Real Question Bank, Mock, Flash, Vocabulary, Mistake, daily goal ও streak activity থেকে idempotent reward events integrate করা।
+- [x] Reward Center, dashboard summary, next-three-rewards এবং subtle accessible unlock state build করা।
+- [x] Offline persistence, cloud-sync compatibility, anti-farming, performance and regression QA করা।

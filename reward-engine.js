@@ -1,14 +1,17 @@
 (() => {
   'use strict';
 
-  const VERSION = 1;
-  const KEY = 'rewardEngineV1';
+  const VERSION = 2;
+  const KEY = 'rewardEngineV2';
+  const LEGACY_KEY = 'rewardEngineV1';
   const DAY_LIMIT = 500;
+  const EVENT_LIMIT = 2500;
   const now = () => Date.now();
   const num = value => Math.max(0, Number(value) || 0);
   const pct = (correct, attempted) => attempted ? Math.round((correct / attempted) * 100) : 0;
   const keyOf = date => typeof window.todayKey === 'function' ? window.todayKey(date) : new Date(date || now()).toISOString().slice(0, 10);
   const uid = () => typeof window.uid === 'function' ? window.uid() : `reward-${now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  const getCache = () => { try { return window.CACHE || CACHE || null; } catch (_) { return window.CACHE || null; } };
 
   const iconByCategory = { STARTER:'✦', GRIND:'◈', MASTERY:'◆', MISTAKE:'↻', EXAM:'▣' };
   const make = (number, title, category, rarity, xp, metric, target, description, extra = {}) => ({
@@ -70,17 +73,25 @@
   ];
 
   function emptyState() {
-    return { version:VERSION, migratedAt:0, xp:0, totalXpEarned:0, unlocked:{}, activeDays:[], dailyGoalDays:{}, studySessionDays:{}, vocabularyDays:{},
-      totals:{ uniqueQuestions:0, firstAttemptCorrect:0, attempts:0, correct:0, revisionReviews:0, mistakesFixed:0, mistakeCorrections:0, doubleCorrections:0, mockTests:0, flashTests:0, completedTests:0, highAccuracyTests:0, perfectTests:0, speedTests:0, timedReliableTests:0, timedAccuracyTotal:0, personalBests:0, improvements:0, consecutiveImprovedTests:0, weakTopicRecoveries:0, sessions:0, revisionXp:0, bestScore:null, lastComparableScore:null, lastFiveMockAccuracy:[], masteredTopics:0, masteredSubjects:0, mistakeMastery:0, mistakeAccuracy:0, allMajorSubjectsMastered:false, noMajorWeakness:false, allMajorSubjectsCount:0 }, selectedTitle:'' };
+    return { version:VERSION, migratedAt:0, xp:0, totalXpEarned:0, unlocked:{}, activeDays:[], dailyGoalDays:{}, studySessionDays:{}, vocabularyDays:{}, processedEvents:[],
+      totals:{ uniqueQuestions:0, firstAttemptCorrect:0, attempts:0, correct:0, revisionReviews:0, mistakesFixed:0, mistakeCorrections:0, doubleCorrections:0, mockTests:0, flashTests:0, completedTests:0, highAccuracyTests:0, perfectTests:0, speedTests:0, timedReliableTests:0, timedAccuracyTotal:0, personalBests:0, improvements:0, consecutiveImprovedTests:0, weakTopicRecoveries:0, sessions:0, vocabularyAnswers:0, revisionXp:0, bestScore:null, lastComparableScore:null, lastFiveMockAccuracy:[], masteredTopics:0, masteredSubjects:0, mistakeMastery:0, mistakeAccuracy:0, allMajorSubjectsMastered:false, noMajorWeakness:false, allMajorSubjectsCount:0 }, selectedTitle:'' };
   }
   function state() {
-    const saved = window.CACHE?.settings?.[KEY];
-    return saved && typeof saved === 'object' ? { ...emptyState(), ...saved, totals:{ ...emptyState().totals, ...(saved.totals || {}) }, unlocked:{ ...(saved.unlocked || {}) }, activeDays:Array.isArray(saved.activeDays) ? saved.activeDays : [], dailyGoalDays:{ ...(saved.dailyGoalDays || {}) }, studySessionDays:{ ...(saved.studySessionDays || {}) }, vocabularyDays:{ ...(saved.vocabularyDays || {}) } } : emptyState();
+    const saved = getCache()?.settings?.[KEY] || getCache()?.settings?.[LEGACY_KEY];
+    const base = emptyState();
+    return saved && typeof saved === 'object' ? { ...base, ...saved, version:VERSION, totals:{ ...base.totals, ...(saved.totals || {}) }, unlocked:{ ...(saved.unlocked || {}) }, activeDays:Array.isArray(saved.activeDays) ? saved.activeDays : [], dailyGoalDays:{ ...(saved.dailyGoalDays || {}) }, studySessionDays:{ ...(saved.studySessionDays || {}) }, vocabularyDays:{ ...(saved.vocabularyDays || {}) }, processedEvents:Array.isArray(saved.processedEvents) ? saved.processedEvents.slice(-EVENT_LIMIT) : [] } : base;
+  }
+  function claimEvent(next, eventId) {
+    const id = String(eventId || '').trim();
+    if (!id) return true;
+    if (next.processedEvents.includes(id)) return false;
+    next.processedEvents = [...next.processedEvents, id].slice(-EVENT_LIMIT);
+    return true;
   }
   async function persist(next) {
-    if (!window.CACHE) return;
-    window.CACHE.settings = { ...(window.CACHE.settings || { id:'main' }), [KEY]:next };
-    await window.dbPut?.('settings', window.CACHE.settings);
+    if (!getCache()) return;
+    getCache().settings = { ...(getCache().settings || { id:'main' }), [KEY]:next };
+    await window.dbPut?.('settings', getCache().settings);
   }
   function isUnlocked(next, definition) { return Boolean(next.unlocked[definition.id]); }
   function addDay(next, date = now()) {
@@ -116,18 +127,18 @@
   function refreshDerived(next) {
     const t = next.totals;
     t.accuracy95Reached = Boolean(t.uniqueQuestions >= 1000 && overallAccuracy(t) >= 95);
-    const activeMistakes = (window.CACHE?.mistakes || []).filter(row => row && row.mastered !== true);
-    const allMistakes = (window.CACHE?.mistakes || []).filter(Boolean);
+    const activeMistakes = (getCache()?.mistakes || []).filter(row => row && row.mastered !== true);
+    const allMistakes = (getCache()?.mistakes || []).filter(Boolean);
     const mastered = allMistakes.filter(row => row.mastered || row.revisionStatus === 'mastered').length;
     t.mistakeMastery = allMistakes.length ? Math.round((mastered / allMistakes.length) * 100) : 0;
     const corrected = allMistakes.filter(row => row.rewardFixedAt).length;
     t.mistakeAccuracy = allMistakes.length ? Math.round((corrected / allMistakes.length) * 100) : 0;
-    t.noMajorWeakness = !(window.CACHE?.examResults || []).some(result => (result.topicBreakdown ? Object.values(result.topicBreakdown) : []).some(topic => Number(topic.total || 0) >= 10 && Number(topic.correct || 0) / Number(topic.total || 1) < 0.55));
+    t.noMajorWeakness = !(getCache()?.examResults || []).some(result => (result.topicBreakdown ? Object.values(result.topicBreakdown) : []).some(topic => Number(topic.total || 0) >= 10 && Number(topic.correct || 0) / Number(topic.total || 1) < 0.55));
     t.activeMistakeCount = activeMistakes.length;
   }
   function refreshMastery(next) {
     const topics = {}, subjects = {};
-    (window.CACHE?.examResults || []).forEach(result => (result.snapshot || []).forEach(item => {
+    (getCache()?.examResults || []).forEach(result => (result.snapshot || []).forEach(item => {
       if (item.status === 'skipped') return;
       const topic = topics[item.topicId] || (topics[item.topicId] = { total:0, correct:0, subjectId:item.subjectId });
       topic.total++; if (item.status === 'correct') topic.correct++;
@@ -171,8 +182,8 @@
     addDay(next, timestamp);
     const day = keyOf(timestamp);
     if (!next.studySessionDays[day]) { next.studySessionDays[day] = now(); next.totals.sessions++; }
-    const target = num(window.CACHE?.settings?.dailyTarget || 100);
-    const daily = (window.CACHE?.dailyStats || []).find(row => row.id === day);
+    const target = num(getCache()?.settings?.dailyTarget || 100);
+    const daily = (getCache()?.dailyStats || []).find(row => row.id === day);
     if (num(daily?.questions) >= target && !next.dailyGoalDays[day]) { next.dailyGoalDays[day] = now(); award(next, 20, 'daily-goal'); }
   }
   function comparableScore(result) { return num(result?.accuracy); }
@@ -203,24 +214,37 @@
   }
   async function migrate() {
     const next = state();
-    if (next.migratedAt) return next;
-    const questions = window.CACHE?.questions || [];
+    if (next.migratedAt && getCache()?.settings?.[KEY]?.version === VERSION) return next;
+    const legacySettings = getCache()?.settings || {};
+    const legacyXp = num(legacySettings.xpBalance);
+    if (legacyXp && !next.totalXpEarned) { next.xp = legacyXp; next.totalXpEarned = legacyXp; }
+    if (legacySettings[LEGACY_KEY] && !legacySettings[KEY]) next.migratedAt = 0;
+    const questions = getCache()?.questions || [];
     questions.forEach(question => {
       const stats = question.stats || {};
       if (num(stats.attempts)) { next.totals.uniqueQuestions++; next.totals.attempts += num(stats.attempts); next.totals.correct += num(stats.correct); }
     });
-    (window.CACHE?.activityLogs || []).forEach(row => { if (row?.day) addDay(next, `${row.day}T12:00:00`); });
-    (window.CACHE?.examResults || []).forEach(result => { recordTestStatistics(next, result); });
-    (window.CACHE?.mistakes || []).forEach(mistake => { if (mistake?.rewardFixedAt) next.totals.mistakesFixed++; });
+    (getCache()?.activityLogs || []).forEach(row => { if (row?.day) addDay(next, `${row.day}T12:00:00`); });
+    (getCache()?.examResults || []).forEach(result => { recordTestStatistics(next, result); });
+    (getCache()?.mistakes || []).forEach(mistake => { if (mistake?.rewardFixedAt) next.totals.mistakesFixed++; });
     refreshMastery(next); refreshDerived(next);
     next.migratedAt = now();
-    await commit(next, 'historical-migration');
+    const savedSettings = getCache()?.settings || {};
+    const retired = { ...savedSettings, [KEY]:next };
+    delete retired[LEGACY_KEY]; delete retired.xpBalance; delete retired.rewardInventory; delete retired.activeRewards; delete retired.rewardRemaining; delete retired.selectedRewardTheme; delete retired.gold; delete retired.diamonds;
+    getCache().settings = retired;
+    await window.dbPut?.('settings', retired);
+    const unlocked = evaluate(next, 'historical-migration');
+    await persist(next);
+    if (unlocked.length) window.dispatchEvent(new CustomEvent('admission:rewards-unlocked', { detail:{ unlocked, stats:getStats(next) } }));
     return next;
   }
   async function recordQuestionAttempt({ question, correct, isFirstAttempt, isRevision, timestamp = now() } = {}) {
     if (!question) return [];
     const wasMigrated = Boolean(state().migratedAt);
     const next = await migrate();
+    const eventId = `question:${question.id}:${isRevision ? 'revision' : 'attempt'}:${num(question.stats?.attempts)}`;
+    if (!claimEvent(next, eventId)) return [];
     const t = next.totals;
     t.attempts++; if (correct) t.correct++;
     addMeaningfulActivity(next, timestamp);
@@ -231,7 +255,7 @@
       award(next, 2 + (correct ? 1 : 0), correct ? 'first-correct' : 'first-attempt');
     } else if (isRevision) {
       t.revisionReviews++;
-      const mistake = (window.CACHE?.mistakes || []).find(row => row.questionId === question.id);
+      const mistake = (getCache()?.mistakes || []).find(row => row.questionId === question.id);
       if (mistake && correct) { const priorCorrectRevisions = num(mistake.rewardCorrectRevisionCount); mistake.rewardCorrectRevisionCount = priorCorrectRevisions + 1; if (priorCorrectRevisions === 1 && !mistake.rewardDoubleCorrectedAt) { mistake.rewardDoubleCorrectedAt = timestamp; t.doubleCorrections++; } if (!mistake.rewardFixedAt) { mistake.rewardFixedAt = timestamp; mistake.revisionStatus = 'mastered'; mistake.mastered = true; t.mistakesFixed++; t.mistakeCorrections++; award(next, 3, 'mistake-fixed'); } await window.dbPut?.('mistakes', mistake); }
     }
     return commit(next, 'question-attempt', { refreshDerived:false });
@@ -240,13 +264,14 @@
     if (!result?.id || result.rewardProcessedV1) return [];
     const wasMigrated = Boolean(state().migratedAt);
     const next = await migrate();
+    if (!claimEvent(next, `test:${result.id}`)) return [];
     if (!wasMigrated) { result.rewardProcessedV1 = true; await window.dbPut?.('examResults', result); return []; }
     const t = next.totals;
     result.rewardProcessedV1 = true;
     for (const item of (result.snapshot || [])) {
       if (item.status === 'skipped') continue;
       t.attempts++; if (item.status === 'correct') t.correct++;
-      const question = (window.CACHE?.questions || []).find(row => row.id === item.questionId);
+      const question = (getCache()?.questions || []).find(row => row.id === item.questionId);
       if (question && num(question.stats?.attempts) === 1 && !question.rewardFirstAttemptLogged) {
         question.rewardFirstAttemptLogged = true; question.rewardFirstAttemptedAt = result.completedAt || result.date || now();
         t.uniqueQuestions++; if (item.status === 'correct') t.firstAttemptCorrect++;
@@ -263,14 +288,28 @@
   async function recordVocabularyActivity(detail = {}) {
     if (!detail.meaningful) return [];
     const next = await migrate(); const timestamp = detail.timestamp || now(), day = keyOf(timestamp);
+    const eventId = detail.eventId || `vocabulary:${day}:${detail.kind || 'answer'}:${String(detail.word || '').trim().toLocaleLowerCase()}`;
+    if (!claimEvent(next, eventId)) return [];
     if (!next.vocabularyDays[day]) next.vocabularyDays[day] = timestamp;
-    addMeaningfulActivity(next, timestamp); return commit(next, 'vocabulary-study', { refreshDerived:false });
+    next.totals.vocabularyAnswers = num(next.totals.vocabularyAnswers) + 1;
+    addMeaningfulActivity(next, timestamp); award(next, 1, 'vocabulary-answer');
+    return commit(next, 'vocabulary-study', { refreshDerived:false });
+  }
+  async function recordDailyProgress(detail = {}) {
+    const next = await migrate(); const timestamp = detail.timestamp || now(), day = keyOf(timestamp);
+    const daily = (getCache()?.dailyStats || []).find(row => row.id === day);
+    if (!daily || num(daily.questions) < num(getCache()?.settings?.dailyTarget || 100) || next.dailyGoalDays[day]) return [];
+    next.dailyGoalDays[day] = timestamp; award(next, 20, 'daily-goal');
+    return commit(next, 'daily-goal', { refreshDerived:false });
   }
   function hookVocabulary() {
     const api = window.VocabularyMaster;
-    if (!api || api.__rewardEngineHooked || typeof api.openCategory !== 'function') return false;
-    const original = api.openCategory;
-    api.openCategory = function rewardVocabularyCategory(...args) { void recordVocabularyActivity({ meaningful:true, timestamp:now() }); return original.apply(this, args); };
+    if (!api || api.__rewardEngineHooked) return false;
+    ['answerPractice','pickMatchMeaning'].forEach(name => {
+      if (typeof api[name] !== 'function') return;
+      const original = api[name];
+      api[name] = function rewardVocabularyAnswer(...args) { const before = JSON.stringify(api.__rewardLastPractice || {}); const output = original.apply(this, args); const after = JSON.stringify(api.__rewardLastPractice || {}); if (before !== after || name === 'answerPractice') void recordVocabularyActivity({ meaningful:true, kind:name, word:args[0], timestamp:now() }); return output; };
+    });
     api.__rewardEngineHooked = true; return true;
   }
   function getStats(next = state()) {
@@ -334,7 +373,7 @@
     const style = document.createElement('style'); style.textContent = `.reward-center{display:grid;gap:16px;padding-bottom:10px}.reward-hero{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:22px;border:1px solid #cfe6da;border-radius:22px;background:linear-gradient(145deg,#f7fcfa,#e8f6ee)}.reward-hero>div>span,.reward-next span{color:#367462;font-size:10px;font-weight:900;letter-spacing:.13em}.reward-hero h1{margin:7px 0 5px;color:#173e31;font-size:27px}.reward-hero p{margin:0;color:#5d7469;font-size:12px}.reward-xp{min-width:88px;padding:13px 10px;border-radius:15px;background:#fff;text-align:center;box-shadow:0 6px 16px rgba(15,107,79,.08)}.reward-xp b,.reward-xp small{display:block}.reward-xp b{color:#0d684d;font-size:20px}.reward-xp small{margin-top:3px;color:#739185;font-size:8px;font-weight:900;letter-spacing:.08em}.reward-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.reward-summary>div{padding:14px 8px;border:1px solid #dfece6;border-radius:15px;background:#fff;text-align:center}.reward-summary b,.reward-summary span{display:block}.reward-summary b{color:#154c3b;font-size:17px}.reward-summary span{margin-top:3px;color:#7b9187;font-size:10px;font-weight:800}.reward-title-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 14px;border:1px solid #dbe9e2;border-radius:15px;background:#fff}.reward-title-row span{font-size:12px;font-weight:800;color:#315f4f}.reward-title-row select{max-width:190px;min-height:38px;font:inherit}.reward-next{padding:16px;border:1px solid #d9e9e0;border-radius:19px;background:#fff}.reward-section-head h2{margin:4px 0 12px;color:#193e32;font-size:18px}.reward-next-row{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;width:100%;padding:11px 0;border:0;border-top:1px solid #edf3ef;background:transparent;color:var(--text);font:inherit;text-align:left}.reward-next-row:first-of-type{border-top:0}.reward-next-row>span:first-child{display:grid;place-items:center;width:32px;height:32px;border-radius:10px;background:#edf8f2}.reward-next-row b,.reward-next-row small{display:block}.reward-next-row b{font-size:13px}.reward-next-row small{margin-top:3px;color:#7b9187;font-size:11px}.reward-next-row i{color:#167555;font-size:12px;font-style:normal;font-weight:900}.reward-filters{display:flex;gap:7px;overflow:auto;padding-bottom:2px}.reward-filter{flex:0 0 auto;padding:8px 11px;border:1px solid #d9e9e0;border-radius:999px;background:#fff;color:#4d6f60;font:700 11px inherit}.reward-filter.active{border-color:#0f6b4f;background:#0f6b4f;color:#fff}.reward-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.reward-card{display:grid;gap:9px;padding:14px;border:1px solid #dfece6;border-radius:17px;background:#fff}.reward-card.is-locked{background:#fbfdfc;opacity:.76}.reward-card-head{display:flex;align-items:center;gap:6px}.reward-icon{display:grid;place-items:center;width:30px;height:30px;border-radius:10px;background:#e8f6ee}.reward-number{color:#6b877a;font-size:10px;font-weight:900}.reward-rarity{margin-left:auto;font-size:8px;font-weight:900;letter-spacing:.06em}.rarity-legendary .reward-rarity{color:#875b1e}.rarity-ultimate .reward-rarity{color:#7d3c76}.reward-card h3{margin:0;color:#204838;font-size:14px;line-height:1.25}.reward-card p{min-height:46px;margin:0;color:#6a8277;font-size:11px;line-height:1.42}.reward-progress{height:6px;overflow:hidden;border-radius:999px;background:#e4efe9}.reward-progress i{display:block;height:100%;border-radius:inherit;background:#2d9b70}.reward-card-foot{display:flex;justify-content:space-between;gap:5px;color:#708a7e;font-size:9px;line-height:1.3}.reward-card-foot b{color:#187154;font-size:10px;white-space:nowrap}.reward-empty{margin:8px 0;color:#789084;font-size:12px}.reward-dashboard-card{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;width:100%;margin:0 0 14px;padding:14px;border:1px solid #cfe6da;border-radius:18px;background:linear-gradient(130deg,#f8fcfa,#ecf8f1);color:#204a3a;text-align:left;box-shadow:0 7px 18px rgba(15,107,79,.06);font:inherit}.reward-dashboard-icon{display:grid;place-items:center;width:39px;height:39px;border-radius:13px;background:#dff3e8;font-size:20px}.reward-dashboard-copy{display:grid;gap:3px;min-width:0}.reward-dashboard-copy small{color:#407967;font-size:9px;font-weight:900;letter-spacing:.11em}.reward-dashboard-copy b{overflow:hidden;font-size:12px;text-overflow:ellipsis;white-space:nowrap}.reward-dashboard-copy strong{overflow:hidden;color:#6b867a;font-size:10px;font-weight:700;text-overflow:ellipsis;white-space:nowrap}.reward-dashboard-copy em{height:5px;overflow:hidden;border-radius:99px;background:#dcece4}.reward-dashboard-copy em i{display:block;height:100%;border-radius:inherit;background:#1c805d}.reward-dashboard-arrow{color:#19805e;font-size:24px}.reward-dashboard-card:active{transform:scale(.985)}#rewardUnlockToast{position:fixed;right:14px;bottom:calc(88px + env(safe-area-inset-bottom));z-index:1500;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;max-width:calc(100vw - 28px);padding:12px 14px;border:1px solid #baddcc;border-radius:16px;background:#fff;color:#194c3a;box-shadow:0 12px 28px rgba(15,78,57,.18);font:inherit;text-align:left}.reward-title-row select{border:1px solid #cfe1d7;border-radius:10px;background:#fff;padding:7px;color:#244a3c}@media(max-width:370px){.reward-hero{padding:18px}.reward-hero h1{font-size:23px}.reward-grid{grid-template-columns:1fr}.reward-card p{min-height:auto}.reward-dashboard-copy b{font-size:11px}}`;
     document.head.appendChild(style); requestAnimationFrame(injectDashboardCard);
   }
-  window.RewardEngine = { VERSION, definitions:DEFINITIONS, migrate, recordQuestionAttempt, recordTestCompleted, recordVocabularyActivity, evaluateRewards:async () => { const next = await migrate(); return commit(next, 'manual-safe-evaluation'); }, getRewardProgress:id => getRewards('all').find(reward => reward.id === id) || null, getUnlockedRewards:() => getRewards('unlocked'), getLockedRewards:() => getRewards('locked'), getNextRewards, getRewardStats:() => getStats(), getRewards, selectTitle:async title => { await selectTitle(title); renderRewards(); }, setFilter:filter => { activeFilter = filter; renderRewards(); }, focus:id => { activeFilter = 'all'; renderRewards(); setTimeout(() => document.getElementById(`reward-${id}`)?.scrollIntoView({ behavior:'smooth', block:'center' }), 0); } };
+  window.RewardEngine = { VERSION, definitions:DEFINITIONS, migrate, recordQuestionAttempt, recordTestCompleted, recordVocabularyActivity, recordDailyProgress, render:renderRewards, evaluateRewards:async () => { const next = await migrate(); return commit(next, 'manual-safe-evaluation'); }, getRewardProgress:id => getRewards('all').find(reward => reward.id === id) || null, getUnlockedRewards:() => getRewards('unlocked'), getLockedRewards:() => getRewards('locked'), getNextRewards, getRewardStats:() => getStats(), getRewards, selectTitle:async title => { await selectTitle(title); renderRewards(); }, setFilter:filter => { activeFilter = filter; renderRewards(); }, focus:id => { activeFilter = 'all'; renderRewards(); setTimeout(() => document.getElementById(`reward-${id}`)?.scrollIntoView({ behavior:'smooth', block:'center' }), 0); } };
   installUi();
   if (!hookVocabulary()) { let retries = 0; const timer = setInterval(() => { if (hookVocabulary() || ++retries > 20) clearInterval(timer); }, 300); }
   window.addEventListener('load', () => { const wait = () => { if (window.__admissionBootStatus === 'ready') { window.RewardEngine.migrate().catch(error => console.warn('[RewardEngine] migration skipped safely', error)); return; } setTimeout(wait, 350); }; wait(); }, { once:true });
