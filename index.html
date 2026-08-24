@@ -2811,6 +2811,7 @@ function renderExamRunning(){
 
 function mockQuestionMarkup(q, idx, e){
   const selected=e.selectedAnswers[q.id];
+  const locked=e.mode==='mock' && selected!==undefined;
   return `<div id="q-row-${idx}" data-question-id="${esc(q.id)}" class="card exam-q-card" style="margin-bottom:16px; border-left:4px solid ${selected!==undefined?'var(--emerald)':'transparent'};">
     <div class="row between" style="margin-bottom:12px;">
       <span class="pill">Q${idx+1}</span>
@@ -2821,7 +2822,7 @@ function mockQuestionMarkup(q, idx, e){
     </div>
     <div class="exam-question-text">${esc(q.question)}</div>
     <div class="options-list">
-      ${q.options.map((o,i)=>`<div class="opt ${selected===i?'selected':''}" data-option-index="${i}" onclick="selectMockAnswer('${esc(q.id)}',${i})"><div class="let">${String.fromCharCode(65+i)}</div><div>${esc(o)}</div></div>`).join('')}
+      ${q.options.map((o,i)=>`<div class="opt ${selected===i?'selected':''} ${locked?'locked':''}" data-option-index="${i}" ${locked?'aria-disabled="true"':'onclick="selectMockAnswer(\''+esc(q.id)+'\','+i+')"'}><div class="let">${String.fromCharCode(65+i)}</div><div>${esc(o)}</div></div>`).join('')}
     </div>
   </div>`;
 }
@@ -2832,15 +2833,9 @@ function updateMockAnswerUI(qid){
   if(card){
     const selected=e.selectedAnswers[qid];
     card.style.borderLeftColor=selected===undefined?'transparent':'var(--emerald)';
-    card.querySelectorAll('.opt[data-option-index]').forEach(opt=>opt.classList.toggle('selected',Number(opt.dataset.optionIndex)===selected));
-    const old=card.querySelector('[data-clear-selection]');
-    if(old) old.remove();
-    if(selected!==undefined){
-      const clear=document.createElement('button');
-      clear.type='button'; clear.className='btn ghost sm'; clear.dataset.clearSelection='1'; clear.style.cssText='margin-top:12px;font-size:11px;padding:4px 8px;'; clear.textContent='Clear Selection';
-      clear.addEventListener('click',()=>selectMockAnswer(qid,selected));
-      card.appendChild(clear);
-    }
+    const locked=e.mode==='mock'&&selected!==undefined;
+    card.classList.toggle('answer-locked',locked);
+    card.querySelectorAll('.opt[data-option-index]').forEach(opt=>{opt.classList.toggle('selected',Number(opt.dataset.optionIndex)===selected);opt.classList.toggle('locked',locked);if(locked){opt.removeAttribute('onclick');opt.setAttribute('aria-disabled','true');}});
   }
   const total=e.questions.length;
   const answered=Object.keys(e.selectedAnswers).length;
@@ -2936,6 +2931,8 @@ async function toggleExamFlag(qid){
 }
 async function selectMockAnswer(qid,idx){
   const e=ActiveExam;
+  if(!e) return;
+  if(e.mode==='mock' && e.selectedAnswers[qid]!==undefined) return;
   if(e.selectedAnswers[qid]===idx) delete e.selectedAnswers[qid];
   else {
     e.selectedAnswers[qid]=idx;
@@ -5354,5 +5351,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./vocabulary-master-tool.js?v=vm-native-v14"></script>
 <script src="./memorizing-match-tool.js?v=memorizing-match-v4-game-cards-detection"></script>
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>
+<script src="./mock-result-experience.js?v=mock-lock-result-live-v2"></script>
 </body>
 </html>

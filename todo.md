@@ -116,3 +116,11 @@
 - [x] Video ও Question Bank delayed render lifecycle দেখে style reset-এর root cause নির্ণয় করা।
 - [x] Existing game-card appearance ধরে রাখার minimal persistent attachment fix তৈরি করা।
 - [x] Question Bank delayed render, paging ও interaction QA করে GitHub Pages-এ live verification করা।
+
+## Mock lock and real-data result insight dashboard
+
+- [x] Mock answer selection, clear-control এবং submit-to-result scroll flow ভিডিওসহ audit করা।
+- [x] Mock answer lock ও result top-position behaviour minimal change-এ design করা।
+- [x] Real subject/topic/live-progress/four-exam comparison data model এবং 200+ deterministic insight templates design করা।
+- [x] Premium result summary cards, diagrams, animation, mock lock এবং top-of-result flow বাস্তবায়ন করা; Question Review অপরিবর্তিত রাখা।
+- [ ] Mock/result/empty-history regression QA, user-data safety check, GitHub Pages deploy ও live verification করা।
