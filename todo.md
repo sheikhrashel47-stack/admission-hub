@@ -129,4 +129,4 @@
 
 - [x] Skipped review renderer ও saved History result path audit করা।
 - [x] Skipped correct option-এর persistent green visibility fix বাস্তবায়ন করা।
-- [ ] Fresh result ও History review regression QA, GitHub Pages deploy ও live verification করা।
+- [x] Fresh result ও History review regression QA, GitHub Pages deploy ও live verification করা।
