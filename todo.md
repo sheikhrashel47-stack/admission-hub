@@ -227,5 +227,5 @@
 
 ## Exact resume state and smoothness
 
-- [ ] Vocabulary ও other tool-এর exact category/search/visible-list/scroll state snapshot করে resume করা।
-- [ ] Navigation observers ও repeated render work audit করে unnecessary loading/hang কমানো এবং smoothness regression QA করা।
+- [x] Vocabulary ও other tool-এর exact category/search/visible-list/scroll state snapshot করে resume করা।
+- [x] Navigation observers ও repeated render work audit করে unnecessary loading/hang কমানো এবং smoothness regression QA করা।
