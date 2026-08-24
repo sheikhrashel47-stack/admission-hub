@@ -177,3 +177,16 @@
 
 - [x] Dashboard-এ ফিরে আসা legacy Open Study Tools injection/source permanentভাবে সরানো।
 - [x] New Study Tools cards intact রেখে GitHub Pages live verification করা।
+
+## New Command Center tools blueprint
+
+- [x] New Progress, Mistakes Bank ও Smart Revision tool-এর real-data scope ও user journey blueprint তৈরি করা।
+- [x] Visual design, interaction flow, empty state, safety rule ও implementation order নির্দিষ্ট করা।
+- [ ] User approval-এর পরেই selected blueprint অনুযায়ী code implementation শুরু করা।
+
+## Vocabulary pronunciation polish
+
+- [x] Word, synonym ও antonym card-এর pronunciation icon inline compact position-এ নেওয়া。
+- [x] Device-supported natural English voice preference ও speech quality fallback improve করা。
+- [ ] Mobile Vocabulary card size, tap target ও pronunciation regression QA করা。
+- [x] Vocabulary card click-এর legacy detail page ও Practice/Mock/Flash extra flow বন্ধ করা。
