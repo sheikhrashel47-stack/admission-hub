@@ -310,14 +310,14 @@
     if (!question) return renderPracticeSummary();
     const selected = session.selected;
     const answerShown = selected !== null;
-    const timer = session.timeLimit ? `<span class="vm-timer">⏱ ${prettyTime(Math.max(0, session.remainingSeconds || 0))}</span>` : '';
+    const timer = session.timeLimit ? `<span class="vm-timer" data-vm-practice-timer>⏱ ${prettyTime(Math.max(0, session.remainingSeconds || 0))}</span>` : '';
     const body = `<main class="vm-page">${heading('PRACTICE', `${session.index + 1} of ${session.questions.length}`, `${session.correct} correct · ${session.wrong} wrong`)}${timer ? `<div style="margin:10px 0 0">${timer}</div>` : ''}<section class="vm-practice-card"><div class="vm-practice-prompt">${escape(question.prompt)}</div><div class="vm-practice-options">${question.options.map(option => { const cls = answerShown ? (option === question.correct ? 'correct' : option === selected ? 'wrong' : '') : ''; return `<button class="vm-practice-option ${cls}" ${answerShown ? 'disabled' : ''} onclick="VocabularyMaster.answerPractice(${safeJson(option)})">${escape(option)}</button>`; }).join('')}</div>${answerShown ? `<div class="vm-tip">${escape(question.explanation)}</div><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.nextPractice()">${session.index === session.questions.length - 1 ? 'See Result' : 'Next Question →'}</button>` : ''}</section></main>`;
     renderShell(body, { title:'Vocabulary Practice', back:"VocabularyMaster.cancelPractice()" });
   }
   function renderMatching() {
     const session = state.practice;
     const done = session.pairs.filter(pair => session.done.includes(pair.id)).length;
-    const timer = session.timeLimit ? `<span class="vm-timer">⏱ ${prettyTime(Math.max(0, session.remainingSeconds || 0))}</span>` : '';
+    const timer = session.timeLimit ? `<span class="vm-timer" data-vm-practice-timer>⏱ ${prettyTime(Math.max(0, session.remainingSeconds || 0))}</span>` : '';
     const body = `<main class="vm-page">${heading('MATCHING PRACTICE', `${done} of ${session.pairs.length} matched`, `${session.correct} correct · ${session.wrong} wrong`)}${timer ? `<div style="margin:10px 0 0">${timer}</div>` : ''}<section class="vm-practice-card"><p class="muted" style="margin-top:0">প্রথমে একটি word, তারপর তার Bengali meaning নির্বাচন করুন।</p><div class="vm-match-columns"><div>${session.pairs.map(pair => `<button class="vm-match-choice ${session.wordId === pair.id ? 'selected' : ''} ${session.done.includes(pair.id) ? 'done' : ''}" onclick="VocabularyMaster.pickMatchWord('${escape(pair.id)}')">${escape(pair.word)}</button>`).join('')}</div><div>${session.meanings.map(pair => `<button class="vm-match-choice ${session.done.includes(pair.id) ? 'done' : ''}" onclick="VocabularyMaster.pickMatchMeaning('${escape(pair.id)}')">${escape(pair.meaning)}</button>`).join('')}</div></div>${done === session.pairs.length ? `<div class="vm-tip">Matching complete. Accuracy: ${accuracy(session)}%</div><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.finishPractice()">Back to Practice</button>` : ''}</section></main>`;
     renderShell(body, { title:'Matching Practice', back:"VocabularyMaster.cancelPractice()" });
   }
@@ -362,19 +362,49 @@
     return generated.map(question => question.id);
   }
 
-  function stopPracticeTimer() { if (state.practice?.timerId) clearInterval(state.practice.timerId); if (state.practice) state.practice.timerId = null; }
-  function startPracticeTimer(session) {
+  function practiceRouteActive() {
+    const path = String(window.Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
+    return path === route('practice');
+  }
+  function updatePracticeTimer(session) {
+    const timer = document.querySelector('[data-vm-practice-timer]');
+    if (timer) timer.textContent = `⏱ ${prettyTime(Math.max(0, Number(session?.remainingSeconds || 0)))}`;
+  }
+  function stopPracticeTimer() {
+    if (state.practice?.timerId) clearInterval(state.practice.timerId);
+    if (state.practice) state.practice.timerId = null;
+  }
+  function pausePracticeTimer(session = state.practice) {
+    if (!session?.timeLimit || session.complete) return;
+    session.remainingSeconds = Math.max(0, Math.ceil((session.deadline - Date.now()) / 1000));
+    session.timerPaused = true;
     stopPracticeTimer();
-    if (!session.timeLimit) return;
-    session.deadline = Date.now() + session.timeLimit * 1000;
-    session.remainingSeconds = session.timeLimit;
+    updatePracticeTimer(session);
+  }
+  function startPracticeTimer(session, resume = false) {
+    stopPracticeTimer();
+    if (!session?.timeLimit || session.complete) return;
+    if (resume) session.deadline = Date.now() + Math.max(0, Number(session.remainingSeconds || 0)) * 1000;
+    else { session.deadline = Date.now() + session.timeLimit * 1000; session.remainingSeconds = session.timeLimit; }
+    session.timerPaused = false;
+    updatePracticeTimer(session);
     session.timerId = setInterval(() => {
       if (!state.practice || state.practice !== session) return stopPracticeTimer();
+      if (!practiceRouteActive() || document.visibilityState !== 'visible') return pausePracticeTimer(session);
       session.remainingSeconds = Math.max(0, Math.ceil((session.deadline - Date.now()) / 1000));
+      updatePracticeTimer(session);
       if (!session.remainingSeconds) { stopPracticeTimer(); session.complete = true; session.timedOut = true; if (session.type === 'quiz') session.index = session.questions.length; return api.render(); }
-      api.render();
     }, 1000);
   }
+  function syncPracticeTimer() {
+    const session = state.practice;
+    if (!session?.timeLimit || session.complete) return;
+    if (practiceRouteActive() && document.visibilityState === 'visible') {
+      if (!session.timerId && session.timerPaused) startPracticeTimer(session, true);
+    } else if (session.timerId) pausePracticeTimer(session);
+  }
+  window.addEventListener('hashchange', syncPracticeTimer, { passive:true });
+  document.addEventListener('visibilitychange', syncPracticeTimer, { passive:true });
   function questionModeFor(record, type) {
     if (type !== 'mixed') return type;
     const modes = ['meaning','fill']; if (relations(record, 'synonyms').length) modes.push('synonym'); if (relations(record, 'antonyms').length) modes.push('antonym'); return shuffle(modes)[0];
@@ -462,11 +492,9 @@
   }
   const previousDashboard = window.renderDashboard;
   if (typeof previousDashboard === 'function') {
-    window.renderDashboard = function vocabularyMasterDashboard() {
+      window.renderDashboard = function vocabularyMasterDashboard() {
       const result = previousDashboard.apply(this, arguments);
       injectDashboardEntry();
-      window.setTimeout(injectDashboardEntry, 0);
-      window.setTimeout(injectDashboardEntry, 140);
       return result;
     };
   }

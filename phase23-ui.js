@@ -146,6 +146,23 @@
 (function(){
   const app=document.getElementById('app');
   if(!app)return;
-  const audit=()=>{if(Router.path==='question-bank'&&ExplorerState.subjectId&&!ExplorerState.topicId&&!document.querySelector('.q-selected')&&window.renderQuestionBankV2)window.renderQuestionBankV2()};
-  new MutationObserver(()=>setTimeout(audit,0)).observe(app,{childList:true,subtree:true});
+  let auditFrame=0;
+  let lastAuditKey='';
+  const audit=()=>{
+    auditFrame=0;
+    if(!(Router.path==='question-bank'&&ExplorerState.subjectId&&!ExplorerState.topicId&&window.renderQuestionBankV2))return;
+    const key=[Router.path,ExplorerState.subjectId,ExplorerState.topicId,Boolean(document.querySelector('.q-selected'))].join('|');
+    if(key===lastAuditKey)return;
+    lastAuditKey=key;
+    // Render at most once per route/content state. The render itself mutates
+    // #app, so a MutationObserver without this key guard becomes an infinite
+    // render loop and makes the whole PWA look like it is shaking.
+    window.renderQuestionBankV2();
+  };
+  const scheduleAudit=()=>{
+    if(auditFrame)return;
+    auditFrame=requestAnimationFrame(audit);
+  };
+  window.addEventListener('hashchange',()=>{lastAuditKey='';scheduleAudit()},{passive:true});
+  new MutationObserver(scheduleAudit).observe(app,{childList:true,subtree:true});
 })();

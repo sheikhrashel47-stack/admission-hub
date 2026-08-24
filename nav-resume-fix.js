@@ -19,12 +19,10 @@
     if (!editing) {
       document.body.classList.remove('keyboard-open');
     }
-    // Never force the page to the top while a running exam is open. The
-    // exam's scroll position is meaningful and must survive app resume.
-    const runningExam = String(window.Router?.path || location.hash.slice(1) || '') === 'exam/running';
-    if (!runningExam && window.scrollY > 0 && !editing) {
-      window.scrollTo(0, 0);
-    }
+    // Resume must never force-scroll or change the current route. A user's
+    // scroll position is state; altering it in the background feels like
+    // autonomous app movement and can fight route renderers on mobile/PWA.
+    // The existing keyboard class cleanup above is intentionally retained.
   }
 
   // On visibility change (returning to app)
@@ -40,13 +38,7 @@
     setTimeout(resetNavState, 500);
   });
 
-  // Safety: periodic check - if keyboard-open is set but nothing is focused, remove it
-  setInterval(() => {
-    const el = document.activeElement;
-    const editing = el && el.matches('input,textarea,select,[contenteditable]');
-    if (!editing && document.body.classList.contains('keyboard-open')) {
-      document.body.classList.remove('keyboard-open');
-    }
-  }, 3000);
+  // No perpetual timer: cleanup runs only on real resume events above. This
+  // prevents background work from making the PWA appear to run by itself.
 
 })();

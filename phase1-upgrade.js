@@ -32,6 +32,21 @@
     const allDots=[...host.querySelectorAll('.command-dot')];const go=i=>{page=Math.max(0,Math.min(slides.length-1,Number(i)||0));carousel.dataset.page=String(page);track.style.transform=`translate3d(${-page*pageWidth}%,0,0)`;allDots.forEach((d,n)=>{d.classList.toggle('active',n===page);d.setAttribute('aria-selected',n===page?'true':'false')})};allDots.forEach((d,i)=>d.onclick=()=>go(i));window.goCommandPage=go;if(track.dataset.phase1Bound!=='1'){track.dataset.phase1Bound='1';let sx=0,sy=0,drag=false;carousel.addEventListener('pointerdown',e=>{drag=true;sx=e.clientX;sy=e.clientY;carousel.setPointerCapture?.(e.pointerId)});carousel.addEventListener('pointerup',e=>{if(!drag)return;drag=false;const dx=e.clientX-sx,dy=e.clientY-sy;if(Math.abs(dx)>42&&Math.abs(dx)>Math.abs(dy))go(page+(dx<0?1:-1))});carousel.addEventListener('pointercancel',()=>{drag=false});carousel.addEventListener('wheel',e=>{if(Math.abs(e.deltaX)>Math.abs(e.deltaY)&&Math.abs(e.deltaX)>20){e.preventDefault();go(page+(e.deltaX>0?1:-1))}},{passive:false})}go(page)}
   function ensureSpecialTools(){ return; }
   function patchDashboard(){const app=document.getElementById('app');if(!app)return;themeControls();installCarousel(app);ensureSpecialTools(app)}
-  const oldRender=window.render;if(typeof oldRender==='function')window.render=function(){const r=oldRender.apply(this,arguments);setTimeout(patchDashboard,0);return r};const app=document.getElementById('app');if(app)new MutationObserver(()=>setTimeout(patchDashboard,0)).observe(app,{childList:true,subtree:true});window.addEventListener('load',()=>setTimeout(patchDashboard,30));
+  let patchFrame=0;
+  let patchRunning=false;
+  function schedulePatch(){
+    if(patchFrame)return;
+    patchFrame=requestAnimationFrame(()=>{
+      patchFrame=0;
+      if(patchRunning)return;
+      patchRunning=true;
+      try{patchDashboard()}finally{patchRunning=false}
+    });
+  }
+  const oldRender=window.render;
+  if(typeof oldRender==='function')window.render=function(){const r=oldRender.apply(this,arguments);schedulePatch();return r};
+  const app=document.getElementById('app');
+  if(app)new MutationObserver(schedulePatch).observe(app,{childList:true,subtree:true});
+  window.addEventListener('load',()=>schedulePatch(),{once:true});
 })();
 (function(){const splash=document.createElement('div');splash.id='phase1-splash';splash.innerHTML='<div class="phase1-splash-mark">✦</div><strong>Admission Hub</strong><span>Preparing your study space…</span>';document.documentElement.appendChild(splash);const s=document.createElement('style');s.textContent='#phase1-splash{position:fixed;inset:0;z-index:9999;display:grid;place-content:center;justify-items:center;gap:8px;background:var(--bg,#faf9f6);color:var(--text,#17221d);transition:opacity .24s ease,visibility .24s ease;padding:var(--safe-t) 24px var(--safe-b)}#phase1-splash.hide{opacity:0;visibility:hidden;pointer-events:none}.phase1-splash-mark{display:grid;place-items:center;width:58px;height:58px;border-radius:18px;background:var(--emerald,#0f6b4f);color:#fff;font-size:30px;box-shadow:0 12px 30px color-mix(in srgb,var(--emerald,#0f6b4f) 28%,transparent)}.phase1-splash span{font-size:12px;color:var(--sub,#627168)}';document.head.appendChild(s);const finish=()=>setTimeout(()=>splash.classList.add('hide'),Math.min(900,Math.max(260,performance.now()+1)));if(document.readyState==='complete')finish();else window.addEventListener('load',finish,{once:true});const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.setAttribute('content',readTheme()==='midnight-academic'?'#081411':'#0f6b4f')})();
