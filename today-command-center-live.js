@@ -81,6 +81,7 @@
   function goalPanel() {
     const app = document.getElementById('app');
     if (!app || route() !== 'settings') return;
+    document.querySelectorAll('#today-command-goal-settings').forEach(panel => { if (!app.contains(panel)) panel.remove(); });
     const current = validGoal(cache().settings?.dailyTarget || 100);
     const existing = app.querySelector('#today-command-goal-settings');
     if (existing) {
@@ -94,7 +95,7 @@
     const anchor = [...app.querySelectorAll('.h2')].find(node => node.textContent.trim().toLowerCase() === 'feedback controls');
     if (anchor?.parentElement) anchor.parentElement.before(section); else app.append(section);
   }
-  window.TodayCommandCenter = { saveGoal: async () => { const input = document.getElementById('todayGoalInput'); const goal = validGoal(input?.value); const settings = { ...(cache().settings || {}), dailyTarget:goal }; cache().settings = settings; if (typeof dbPut === 'function') await dbPut('settings', settings); window.toast?.(`Daily MCQ Goal ${goal} সেট করা হয়েছে`); paint(); } };
+  window.TodayCommandCenter = { saveGoal: async () => { const input = document.querySelector('#app #todayGoalInput'); const goal = validGoal(input?.value); const settings = { ...(cache().settings || {}), dailyTarget:goal }; cache().settings = settings; if (typeof dbPut === 'function') await dbPut('settings', settings); window.toast?.(`Daily MCQ Goal ${goal} সেট করা হয়েছে`); paint(); } };
   const app = document.getElementById('app');
   if (app) new MutationObserver(() => { requestAnimationFrame(() => { goalPanel(); paint(); }); }).observe(app, {childList:true,subtree:true});
   window.addEventListener('hashchange', () => { setTimeout(() => { goalPanel(); paint(); }, 0); }, {passive:true});
