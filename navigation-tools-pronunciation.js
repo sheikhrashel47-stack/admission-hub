@@ -84,6 +84,14 @@
     goBackSafely();
   }, true);
 
+  document.addEventListener('click', event => {
+    const button = event.target.closest('#navRoot [data-nav-tab]');
+    if (!button) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    openTab(button.dataset.navTab);
+  }, true);
+
   window.AdmissionNavigation = { openTab, remember, targetForTab, restoreViewport };
 
   window.addEventListener('hashchange', () => requestAnimationFrame(() => document.body.classList.remove('admission-route-moving')), { passive: true });

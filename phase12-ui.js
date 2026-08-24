@@ -58,7 +58,7 @@
   // The primary five-tab navigation is intentionally the only shared navigation.
   window.bottomNavHtml = function phase12BottomNav(active) {
     return `<nav class="bottomnav" aria-label="প্রধান নেভিগেশন">
-      ${NAV_TABS.map((tab) => `<button class="navbtn ${active === tab.key ? 'active' : ''}" onclick="navigate('${tab.key}')" aria-label="${tab.label}">
+      ${NAV_TABS.map((tab) => `<button class="navbtn ${active === tab.key ? 'active' : ''}" data-nav-tab="${tab.key}" onclick="window.AdmissionNavigation ? window.AdmissionNavigation.openTab('${tab.key}') : navigate('${tab.key}')" aria-label="${tab.label}">
         <span class="ic" aria-hidden="true">${tab.icon}</span><span>${tab.label}</span>
       </button>`).join('')}
     </nav>`;

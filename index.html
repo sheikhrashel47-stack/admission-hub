@@ -4909,7 +4909,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
     // Do not reload on controllerchange: iOS standalone clients can enter a blank-screen reload loop.
     // The updated worker takes control now; the current document remains usable and the next launch uses the new shell.
     try{
-	      const registration=await navigator.serviceWorker.register('./sw.js?v=v42-today-card-redesign-20260824',{scope:'./',updateViaCache:'none'});
+	      const registration=await navigator.serviceWorker.register('./sw.js?v=v43-navigation-resume-router-20260824',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5005,7 +5005,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
 </script>
 <script src="qbank-redesign.js?v=practice15"></script>
 <script src="urgent-fix.js?v=practice13"></script>
-<script src="phase12-ui.js?v=nav-viewport-pwa-v6-0816"></script>
+<script src="phase12-ui.js?v=nav-resume-router-v7"></script>
 <script src="phase23-ui.js?v=multi3"></script>
 <script src="upgrade-features.js?v=4"></script>
 <script src="phase3-intelligence.js?v=5-today-card"></script>
@@ -5368,6 +5368,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./today-command-center-live.js?v=today-command-center-live-v5-card"></script>
 <script src="./admission-sync.js?v=private-sync-v1"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
-<script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v2-resume"></script>
+<script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v3-resume-router"></script>
 </body>
 </html>
