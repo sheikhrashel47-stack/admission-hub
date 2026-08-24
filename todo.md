@@ -44,3 +44,10 @@
 - [x] Saved exam result-এ correct, wrong ও unanswered filter state/handler চিহ্নিত করা।
 - [x] History result review filter hotfix ও new/old result regression QA করা।
 - [x] GitHub Pages deploy ও live verification করা।
+
+## Notes question review redesign
+
+- [x] Notes data model, source/category filters ও existing card flow পর্যালোচনা করা।
+- [x] Subject/topic filter এবং four-option question review card পুনর্গঠন করা।
+- [x] User answer/correct answer state ও collapsible AI Explain action যোগ করা।
+- [ ] Mobile QA, data-safety check, GitHub Pages deploy ও live verification করা।
