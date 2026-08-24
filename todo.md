@@ -202,3 +202,10 @@
 - [x] Topic Focus card tap-এ abrupt jump-এর বদলে smooth anchored scroll করা।
 - [x] Expanded Question Review card tap করলে collapse/expand toggle কাজ করানো।
 - [ ] Result filters, skipped-answer labels ও question review data অপরিবর্তিত রেখে mobile regression QA করা।
+
+## Today Command Center live progress
+
+- [x] Current MCQ goal, daily progress ও study-time storage/render paths audit করা।
+- [x] Settings-based MCQ goal configuration এবং premium Today Command Center card implement করা।
+- [x] Question Bank, Vocabulary ও Exam active-time থেকে real live study-time/progress tracking implement করা।
+- [ ] Daily reset, inactive-tab pause, dashboard isolation, data-safety QA ও GitHub Pages live verification করা।

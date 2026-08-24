@@ -49,7 +49,7 @@
   function saveSettings(v){write(LS.notificationSettings,v)}
   function notifications(){const v=read(LS.notifications,[]);return Array.isArray(v)?v:[]}
   function addNotification(category,title,body,dedupe){if(!settings()[category])return;let ns=notifications();if(ns.some(n=>n.dedupeKey===dedupe))return;ns=[{id:'n-'+Date.now()+'-'+Math.random().toString(36).slice(2,7),category,title,body,dedupeKey:dedupe,read:false,createdAt:Date.now()},...ns].slice(0,100);write(LS.notifications,ns)}
-  function derive(){const z=summary(),bySubject=aggregate(z.s,'subjectId'),byTopic=aggregate(z.s,'topicId');const weakTopics=byTopic.filter(x=>x.answered>0).sort((a,b)=>a.accuracy-b.accuracy||b.wrong-a.wrong);const weakSubjects=bySubject.filter(x=>x.answered>0).sort((a,b)=>a.accuracy-b.accuracy);const mistakeMap={};(CACHE.mistakes||[]).forEach(m=>{const id=m.topicId||m.questionId;mistakeMap[id]=(mistakeMap[id]||0)+Number(m.wrongCount||1)});const repeated=Object.entries(mistakeMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({name:topicLabel(id),count,id}));const target=Number(CACHE.settings?.dailyTarget||read('dailyTarget',20))||20;const done=z.todayAnswered;const pending=Math.max(0,target-done);const recent=z.recent.map(r=>({date:keyOf(r.date||r.createdAt),score:Number(r.score)||0,accuracy:Number(r.accuracy)||0}));const todayActivity=z.todayItems.reduce((acc,item)=>{const sub=subjectLabel(item.subjectId);if(!acc[sub])acc[sub]={correct:0,total:0};if(item.status==='correct')acc[sub].correct++;if(item.status!=='skipped')acc[sub].total++;return acc},{});const activityText=Object.entries(todayActivity).map(([name,stats])=>`${name}: ${stats.correct}/${stats.total}`).join(', ')||'No activity yet';const last=recent.at(-1),prev=recent.at(-2);let recommendation='প্রথমে একটি ছোট practice set সম্পূর্ণ করুন।',action="navigate('exam/setup')";if(repeated[0]){recommendation=`${repeated[0].name}-এ ${repeated[0].count}টি stored mistake আছে। আগে এই topic revise করুন।`;action=`startPhase3Topic('${String(repeated[0].id).replace(/'/g,"\\'")}')`}else if(weakTopics[0]){recommendation=`${weakTopics[0].name}-এর accuracy ${weakTopics[0].accuracy}%। focused revision দিয়ে শুরু করুন।`;action=`startPhase3Topic('${String(weakTopics[0].id).replace(/'/g,"\\'")}')`}else if(pending>0){recommendation=`আজকের target পূরণে আরও ${pending}টি প্রশ্ন বাকি।`;action="navigate('exam/setup')"}else if(last&&prev&&last.score>prev.score){recommendation='সাম্প্রতিক score বেড়েছে। এই momentum ধরে একটি revision করুন।';action="navigate('progress')"}return {z,bySubject,byTopic,weakTopics,weakSubjects,repeated,target,done,pending,recent,recommendation,action,activityText}};
+  function derive(){const z=summary(),bySubject=aggregate(z.s,'subjectId'),byTopic=aggregate(z.s,'topicId');const weakTopics=byTopic.filter(x=>x.answered>0).sort((a,b)=>a.accuracy-b.accuracy||b.wrong-a.wrong);const weakSubjects=bySubject.filter(x=>x.answered>0).sort((a,b)=>a.accuracy-b.accuracy);const mistakeMap={};(CACHE.mistakes||[]).forEach(m=>{const id=m.topicId||m.questionId;mistakeMap[id]=(mistakeMap[id]||0)+Number(m.wrongCount||1)});const repeated=Object.entries(mistakeMap).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([id,count])=>({name:topicLabel(id),count,id}));const target=Number(CACHE.settings?.dailyTarget||read('dailyTarget',100))||100;const dayKey=keyOf(Date.now()),daily=(CACHE.dailyStats||[]).find(x=>String(x.id)===String(dayKey))||{},done=Math.max(Number(daily.questions||0),z.todayAnswered);const pending=Math.max(0,target-done);const recent=z.recent.map(r=>({date:keyOf(r.date||r.createdAt),score:Number(r.score)||0,accuracy:Number(r.accuracy)||0}));const todayActivity=z.todayItems.reduce((acc,item)=>{const sub=subjectLabel(item.subjectId);if(!acc[sub])acc[sub]={correct:0,total:0};if(item.status==='correct')acc[sub].correct++;if(item.status!=='skipped')acc[sub].total++;return acc},{});const activityText=Object.entries(todayActivity).map(([name,stats])=>`${name}: ${stats.correct}/${stats.total}`).join(', ')||'No activity yet';const last=recent.at(-1),prev=recent.at(-2);let recommendation='প্রথমে একটি ছোট practice set সম্পূর্ণ করুন।',action="navigate('exam/setup')";if(repeated[0]){recommendation=`${repeated[0].name}-এ ${repeated[0].count}টি stored mistake আছে। আগে এই topic revise করুন।`;action=`startPhase3Topic('${String(repeated[0].id).replace(/'/g,"\\'")}')`}else if(weakTopics[0]){recommendation=`${weakTopics[0].name}-এর accuracy ${weakTopics[0].accuracy}%। focused revision দিয়ে শুরু করুন।`;action=`startPhase3Topic('${String(weakTopics[0].id).replace(/'/g,"\\'")}')`}else if(pending>0){recommendation=`আজকের target পূরণে আরও ${pending}টি প্রশ্ন বাকি।`;action="navigate('exam/setup')"}else if(last&&prev&&last.score>prev.score){recommendation='সাম্প্রতিক score বেড়েছে। এই momentum ধরে একটি revision করুন।';action="navigate('progress')"}return {z,bySubject,byTopic,weakTopics,weakSubjects,repeated,target,done,pending,recent,recommendation,action,activityText}};
   function streak(){return summary().streak}
   function motivation(){const d=derive(),z=d.z;let idx=0;if(z.s.length===0)idx=16;else if(z.scores.at(-1)>=80)idx=0;else if(z.accuracy<60)idx=5;else if(d.repeated[0])idx=6;else if(z.recent.length<2)idx=3;else if(z.recent.at(-1).score>z.recent.at(-2).score)idx=4;else if(streak()>=3)idx=7;else if(d.weakTopics[0])idx=18;const state=read(LS.motivation,{last:-1});if(idx===state.last)idx=(idx+1)%MOTIVATIONS.length;write(LS.motivation,{last:idx,updatedAt:Date.now()});return MOTIVATIONS[idx]}
   function fmtTime(ms){const n=Math.round(Number(ms||0)/60000);return n?`${n} min`:'0 min'}
@@ -79,7 +79,7 @@
   };
 
   function widgetHTML(){
-    const d=derive(),z=d.z,st=streak(),t=tasks(),done=t.filter(x=>x.completed).length,pending=t.length-done,study=(CACHE.dailyStats||[]).reduce((a,x)=>a+Number(x.timeMs||0),0);
+    const d=derive(),z=d.z,st=streak(),t=tasks(),done=t.filter(x=>x.completed).length,pending=t.length-done,study=Number((CACHE.dailyStats||[]).find(x=>String(x.id)===String(keyOf(Date.now())))?.timeMs||0);
     const mock=z.rs.length,xp=Number(localStorage.getItem('xp')||CACHE.settings?.xp||0),unread=notifications().filter(n=>!n.read).length;
     const targetPct = Math.min(100, Math.round(d.done/Math.max(1,d.target)*100));
     const tasksPct = Math.min(100, Math.round(done/Math.max(1,t.length||1)*100));
@@ -124,10 +124,13 @@
           </div>`).join('')
       : '<p class="p3-muted-v3">অনুশীলন শুরু করলে আপনার দুর্বল topic এখানে দেখা যাবে।</p>';
 
-    const todayCorrect = z.todayCorrect || 0;
-    const todayWrong = Math.max(0, z.todayAnswered - todayCorrect);
-    const todayAccuracy = z.todayAnswered ? pct(todayCorrect, z.todayAnswered) : (z.accuracy || 0);
+    const todayDaily = (CACHE.dailyStats||[]).find(x=>String(x.id)===String(keyOf(Date.now())))||{};
+    const todayCorrect = Math.max(z.todayCorrect || 0, Number(todayDaily.correct||0));
+    const todayWrong = Math.max(0, Number(todayDaily.wrong||0), z.todayAnswered - todayCorrect);
+    const todayAttempts = Math.max(d.done, todayCorrect + todayWrong);
+    const todayAccuracy = todayAttempts ? pct(todayCorrect, todayAttempts) : (z.accuracy || 0);
     const studyClock = fmtTimeClock(study);
+    const goalComplete = d.done >= d.target;
 
     return `
     <section class="p3-dashboard-v3" data-p3-command>
@@ -149,38 +152,39 @@
         <div class="p3-hero-top-row">
           <div>
             <div class="p3-hero-kicker">TODAY COMMAND CENTER</div>
-            <h3 class="p3-hero-title">${d.target} MCQ Goal</h3>
-            <div class="p3-hero-num"><strong>${d.done}</strong> <small>/ ${d.target}</small></div>
+            <h3 class="p3-hero-title"><span data-today-goal>${d.target}</span> MCQ Goal</h3>
+            <div class="p3-hero-num"><strong data-today-done>${d.done}</strong> <small>/ <span data-today-goal>${d.target}</span></small></div>
+            <div class="p3-goal-status-v3 ${goalComplete?'is-complete':''}" data-today-goal-status>${goalComplete?'আজকের লক্ষ্য পূর্ণ ✓':`${d.pending} MCQ বাকি`}</div>
           </div>
           <div class="p3-hero-illustration">
             <div class="p3-target-graphic">
               <div class="p3-target-rings"></div>
               <div class="p3-target-dart"></div>
             </div>
-            <span class="p3-hero-pct-tag">${targetPct}%</span>
+            <span class="p3-hero-pct-tag" data-today-percent>${targetPct}%</span>
           </div>
         </div>
-        <div class="p3-card-progress" style="height:10px; margin:16px 0"><i style="width:${targetPct}%"></i></div>
+        <div class="p3-card-progress" style="height:10px; margin:16px 0"><i data-today-progress style="width:${targetPct}%"></i></div>
         <div class="p3-hero-stats-row">
           <div class="p3-hero-stat-item">
             <span class="p3-stat-badge green">${ICONS.check}</span>
-            <div><b>${todayCorrect}</b><small>Correct</small></div>
+            <div><b data-today-correct>${todayCorrect}</b><small>Correct</small></div>
           </div>
           <div class="p3-hero-stat-item">
             <span class="p3-stat-badge red">${ICONS.x}</span>
-            <div><b>${todayWrong}</b><small>Wrong</small></div>
+            <div><b data-today-wrong>${todayWrong}</b><small>Wrong</small></div>
           </div>
           <div class="p3-hero-stat-item p3-accuracy-stat" title="${esc3(d.activityText)}">
             <span class="p3-stat-badge blue">${ICONS.trend}</span>
             <div>
-              <b>${todayAccuracy}%</b>
+              <b data-today-accuracy>${todayAccuracy}%</b>
               <small>Accuracy</small>
             </div>
             <div class="p3-accuracy-popup">${esc3(d.activityText)}</div>
           </div>
           <div class="p3-hero-stat-item">
             <span class="p3-stat-badge purple">${ICONS.clock}</span>
-            <div><b>${studyClock}</b><small>Study Time</small></div>
+            <div><b data-today-study-time>${studyClock}</b><small>Study Time</small></div>
           </div>
         </div>
       </article>
