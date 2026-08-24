@@ -222,5 +222,5 @@
 
 ## Cross-tool resume regression
 
-- [ ] Video-matched Vocabulary deep route → other bottom tabs → Home flow-এ resume কেন dashboard-এ reset হচ্ছে root-cause নির্ণয় ও fix করা।
-- [ ] All bottom navigation tabs-এর resume route ও scroll restore mechanism actual live interaction-এ verify করা।
+- [x] Video-matched Vocabulary deep route → other bottom tabs → Home flow-এ resume কেন dashboard-এ reset হচ্ছে root-cause নির্ণয় ও fix করা।
+- [x] All bottom navigation tabs-এর resume route ও scroll restore mechanism actual live interaction-এ verify করা।
