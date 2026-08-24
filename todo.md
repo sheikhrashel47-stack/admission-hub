@@ -172,3 +172,8 @@
 - [x] Global back/home navigation route, viewport reset ও transition jump root cause fix করা।
 - [x] Vocabulary word, synonym ও antonym-এর subtle card-integrated pronunciation controls যোগ করা।
 - [ ] Mobile keyboard/navigation/pronunciation/data-safety regression QA, GitHub Pages deploy ও live verification করা।
+
+## Legacy Open Study Tools card regression
+
+- [ ] Dashboard-এ ফিরে আসা legacy Open Study Tools injection/source permanentভাবে সরানো।
+- [ ] New Study Tools cards intact রেখে GitHub Pages live verification করা।

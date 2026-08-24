@@ -67,27 +67,13 @@
     shellS(`<div class="st-kicker">NINE MODES</div><h1 class="st-title">Exam Modes</h1><p class="st-subtitle">Select a mode from the existing exam engine.</p><div class="st-tools-grid">${modes.map((mode, index) => `<button class="st-tool-card" type="button" onclick="startExamModeRestore(${JSON.stringify(mode)})"><span class="st-tool-icon">${index + 1}</span><span><strong>${escS(mode)}</strong><small>Open exam preparation flow</small></span><span class="st-arrow">›</span></button>`).join('')}</div>`, { title: 'Exam Modes', back: "navigate('study-tools')" });
   }
   window.startExamModeRestore = (mode) => { if (typeof navigate === 'function') navigate('exam/setup'); else toastS(`Exam mode: ${mode}`); };
-  function injectStudyToolsEntry() {
-    const page = document.querySelector('#app .page');
-    if (!page || page.querySelector('[data-study-tools-entry]')) return;
-    const section = document.createElement('section'); section.className = 'st-dashboard-entry'; section.dataset.studyToolsEntry = '';
-    section.innerHTML = `<div class="section-heading"><h2>Study Tools</h2><span>6 utilities</span></div><button class="st-dashboard-button" type="button" onclick="navigate('study-tools')"><span><strong>Open Study Tools</strong><small>Study Helper · Calculator · Web Search · Dictionary · Memorizing 33 · Exam Modes</small></span><span class="st-arrow">›</span></button>`;
-    page.appendChild(section);
-  }
   const previousRender = window.render;
-  window.openStudyTools = () => navigate('study-tools');
+  window.openStudyTools = () => navigate('dashboard');
   window.render = function restoredStudyToolsRouter() {
     const path = (typeof Router !== 'undefined' ? Router.path : location.hash.slice(1)) || 'dashboard';
     if ((path === 'dashboard' || path === 'home' || path === 'question-bank' || path.startsWith('question-bank/') || path === 'question-parser' || path === 'smart-formatter' || path === 'progress' || path === 'exam') && typeof window.__admissionRenderRoute === 'function') return window.__admissionFinalRenderLock ? document.querySelector('#app .page') : window.__admissionRenderRoute();
-    if (path === 'study-tools') return renderStudyTools();
-    if (path === 'web-search') return renderWebSearch();
-    if (path === 'calculator') return renderCalculatorRestore();
-    if (path === 'study-helper') return renderStudyHelperRestore();
-    if (path === 'memorizing-33') return renderMemorizingRestore();
-    if (path === 'exam-modes') return renderExamModesRestore();
-    const result = previousRender();
-    if (path === 'dashboard' || path === 'home' || !path) setTimeout(injectStudyToolsEntry, 0);
-    return result;
+    if (['study-tools','web-search','calculator','study-helper','memorizing-33','exam-modes'].includes(path)) return navigate('dashboard');
+    return previousRender();
   };
   window.renderStudyTools = renderStudyTools;
 })();
