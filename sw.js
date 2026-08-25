@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v48-exam-date-safety-20260825';
+const BUILD_ID = 'v49-offline-first-20260826';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -14,7 +14,6 @@ const APP_SHELL = [
   './index.html',
   './manifest.json',
   './manifest.webmanifest',
-  './mcq_final.json',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
@@ -99,14 +98,23 @@ self.addEventListener('fetch', event => {
   if (requestUrl.origin !== self.location.origin) return;
 
   event.respondWith((async () => {
+    const staticAsset = request.destination === 'script' || request.destination === 'style' || request.destination === 'image' || request.destination === 'font' || /\.(?:js|css|json|png|jpg|jpeg|webp|svg|ico|woff2?)(?:$|\?)/i.test(requestUrl.pathname + requestUrl.search);
+    if (staticAsset) {
+      const cached = await caches.match(request);
+      if (cached && isCurrentBuild(cached)) return cached;
+      try {
+        return await cacheNetworkResponse(request, await fetch(request));
+      } catch (_) {
+        return offlineFallback(request);
+      }
+    }
     try {
-      // Network-first for every same-origin HTML, JS, CSS, JSON, and asset request.
+      // Documents remain network-first so an online launch can pick up a new shell.
       const response = await fetch(request, {cache: 'no-store'});
       const contentType = response.headers.get('content-type') || '';
       if (isDocumentRequest(request) && !contentType.includes('text/html')) return offlineFallback(request);
       return cacheNetworkResponse(request, response);
     } catch (_) {
-      // Cache is used only when the network is unavailable.
       return offlineFallback(request);
     }
   })());

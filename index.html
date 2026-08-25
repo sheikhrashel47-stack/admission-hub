@@ -4978,7 +4978,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v48-exam-date-safety-20260825',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v49-offline-first-20260826',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5460,12 +5460,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./progress-tool.js?v=progress-v4-back-route"></script>
 <script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
 <script src="./smart-revision-tool.js?v=smart-revision-v2-safe-session"></script>
-<script src="./parts-of-speech-course-data.js?v=parts-of-speech-course-v1-160-mcqs"></script>
-<script src="./noun-course-data.js?v=noun-course-v1-148-mcqs"></script>
-<script src="./voice-course-data.js?v=voice-course-v2-144-mcqs"></script>
-<script src="./four-grammar-courses-data.js?v=four-grammar-v1-premium"></script>
-<script src="./mass-grammar-courses-data.js?v=mass-grammar-v1-premium-pack"></script>
-<script src="./pdf-grammar-courses-data.js?v=pdf-grammar-v1-five-courses-380-mcqs"></script>
-<script src="./course-tool.js?v=course-tool-v34-boxed-resume"></script>
+<script src="./course-loader.js?v=course-loader-v1-lazy-course-modules"></script>
 </body>
 </html>
