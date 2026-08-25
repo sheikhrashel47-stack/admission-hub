@@ -11,3 +11,6 @@ English Tense Mastery Lesson 01 loaded directly with the shared Formula visual a
 ## Local checkpoint 3
 
 Figure of Speech Exam Zone loaded with 160/160 questions, 16 pages, search/filter/pagination/order controls, and the full question-card action set. Q01’s correct Simile option was activated through a DOM-targeted control; the answer state and expected correct feedback were present. This verifies the shared exam interaction on a 160-question mass course.
+## Live checkpoint
+
+The fresh GitHub Pages URL loaded the Course Library with 17 active courses, 186 visual lessons, and 2,130 MCQ cards. The ten new course cards and counts were present. Articles Mastery loaded directly at its first lesson/slide route; the six-slide navigation, gold theme, formula visual, Bengali key insight, and bottom navigation were all visible. The live deployment did not show a blank route or loading lock.
