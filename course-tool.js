@@ -155,8 +155,143 @@
     const data=content(),ov=data.overrides?.[course.id]||{};
     const removed=new Set(ov.deleted||[]),edits=ov.edits||{};
     const base=(course.mcqs||[]).map((q,i)=>({id:questionId(q,i),...q,...(edits[questionId(q,i)]||{})})).filter(q=>!removed.has(q.id));
-    return base.concat((ov.added||[]).map(q=>({...q,id:q.id||`added-${Date.now()}-${Math.random().toString(36).slice(2,7)}`})));
+    const practice=course.id===BASE.id?(voicePracticeCache||(voicePracticeCache=buildVoicePractice())):[];
+    return base.concat(practice,(ov.added||[]).map(q=>({...q,id:q.id||`added-${Date.now()}-${Math.random().toString(36).slice(2,7)}`})));
   };
+  const buildVoicePractice=()=>{const out=[],add=(family,q,correct,wrong,rule)=>{const options=[correct,...wrong].slice(0,4),k=out.length%4,rotated=options.slice(k).concat(options.slice(0,k));out.push({id:`practice-${String(out.length+1).padStart(3,'0')}`,tag:'Course Practice',family,q,o:rotated,a:rotated.indexOf(correct),e:`${family}: ${rule}`})};
+    const tense=[
+      ['The chef cooks the meal.','The meal is cooked by the chef.',['The meal was cooked by the chef.','The meal is being cooked by the chef.','The meal has been cooked by the chef.'],'Present Simple uses am/is/are + V3.'],
+      ['They are repairing the bridge.','The bridge is being repaired by them.',['The bridge is repaired by them.','The bridge was being repaired by them.','The bridge has been repaired by them.'],'Present Continuous uses is/are being + V3.'],
+      ['Rina has finished the task.','The task has been finished by Rina.',['The task is finished by Rina.','The task had been finished by Rina.','The task has finished Rina.'],'Present Perfect uses has/have been + V3.'],
+      ['The storm damaged the roof.','The roof was damaged by the storm.',['The roof is damaged by the storm.','The roof was being damaged by the storm.','The roof had damaged the storm.'],'Past Simple uses was/were + V3.'],
+      ['The workers were painting the wall.','The wall was being painted by the workers.',['The wall was painted by the workers.','The wall is being painted by the workers.','The wall had been painted by the workers.'],'Past Continuous uses was/were being + V3.'],
+      ['The team had completed the work.','The work had been completed by the team.',['The work has been completed by the team.','The work was being completed by the team.','The work had completed the team.'],'Past Perfect uses had been + V3.'],
+      ['The committee will publish the notice.','The notice will be published by the committee.',['The notice is published by the committee.','The notice was published by the committee.','The notice will publish the committee.'],'Future Simple uses will be + V3.'],
+      ['They will have completed the bridge.','The bridge will have been completed by them.',['The bridge will be completed by them.','The bridge has been completed by them.','The bridge will have completed them.'],'Future Perfect uses will have been + V3.'],
+      ['People speak Spanish here.','Spanish is spoken here.',['Spanish was spoken here.','Spanish is being spoken here.','Spanish has spoken here.'],'Present Simple passive uses is + V3.'],
+      ['The guard opened the gate.','The gate was opened by the guard.',['The gate is opened by the guard.','The gate was being opened by the guard.','The gate had opened the guard.'],'Past Simple passive uses was + V3.']
+    ];
+    tense.forEach(x=>add('Tense',`Choose the correct passive of: ${x[0]}`,x[1],x[2],x[3]));
+    const modal=[
+      ['You can solve the puzzle.','The puzzle can be solved by you.',['The puzzle can solved by you.','The puzzle is can be solved by you.','The puzzle could solved by you.'],'Modal can must be followed by be + V3.'],
+      ['We must obey the law.','The law must be obeyed by us.',['The law must obeyed by us.','The law is must obeyed by us.','The law was must obeyed by us.'],'Modal must needs be before be + V3.'],
+      ['She may invite the guests.','The guests may be invited by her.',['The guests may invited by her.','The guests are may be invited by her.','The guests may been invited by her.'],'Modal may uses may be + V3.'],
+      ['They should follow the rule.','The rule should be followed by them.',['The rule should followed by them.','The rule is should be followed by them.','The rule should be follow by them.'],'Modal should uses should be + V3.'],
+      ['He ought to protect the child.','The child ought to be protected by him.',['The child ought be protected by him.','The child is ought to protected by him.','The child ought to protected by him.'],'Ought to keeps to and adds be + V3.'],
+      ['You must not waste water.','Water must not be wasted by you.',['Water must not wasted by you.','Water is not must be wasted by you.','Water must be not waste by you.'],'Negative modal: modal + not + be + V3.'],
+      ['He could repair the machine.','The machine could be repaired by him.',['The machine could repaired by him.','The machine was could be repaired by him.','The machine could be repair by him.'],'Could also takes be + V3.'],
+      ['We might cancel the trip.','The trip might be cancelled by us.',['The trip might cancelled by us.','The trip is might be cancelled by us.','The trip might be cancel by us.'],'Might takes be + V3.'],
+      ['She has to submit the form.','The form has to be submitted by her.',['The form has to submitted by her.','The form is has to be submitted by her.','The form had to submitted by her.'],'Has to uses has to be + V3 in passive.'],
+      ['They ought to have saved the files.','The files ought to have been saved by them.',['The files ought to have saved by them.','The files ought have been saved by them.','The files were ought to have saved by them.'],'Perfect modal passive: ought to have been + V3.']
+    ];
+    modal.forEach(x=>add('Modal',`Choose the correct passive of: ${x[0]}`,x[1],x[2],x[3]));
+    const negative=[
+      ['They do not clean the room.','The room is not cleaned by them.',['The room is not clean by them.','The room was not cleaned by them.','The room does not cleaned by them.'],'Present Simple negative passive: is not + V3.'],
+      ['She did not write the letter.','The letter was not written by her.',['The letter is not written by her.','The letter did not written by her.','The letter was not wrote by her.'],'Past Simple negative passive: was not + V3.'],
+      ['He has not opened the box.','The box has not been opened by him.',['The box has not opened by him.','The box was not been opened by him.','The box is not being opened by him.'],'Present Perfect negative passive: has not been + V3.'],
+      ['We are not using the hall.','The hall is not being used by us.',['The hall is not used by us.','The hall was not being used by us.','The hall is not been used by us.'],'Present Continuous negative passive: is not being + V3.'],
+      ['They will not cancel the match.','The match will not be cancelled by them.',['The match will not cancelled by them.','The match is not cancelled by them.','The match was not be cancelled by them.'],'Future negative passive: will not be + V3.'],
+      ['You must not break the rule.','The rule must not be broken by you.',['The rule must not broken by you.','The rule is not must be broken by you.','The rule must be not broke by you.'],'Negative modal keeps not before be + V3.'],
+      ['He cannot solve the problem.','The problem cannot be solved by him.',['The problem cannot solved by him.','The problem is cannot be solved by him.','The problem was not solved by him.'],'Cannot uses cannot be + V3.'],
+      ['The workers had not repaired the road.','The road had not been repaired by the workers.',['The road was not repaired by the workers.','The road had not repaired the workers.','The road has not been repaired by the workers.'],'Past Perfect negative passive: had not been + V3.'],
+      ['She does not teach French.','French is not taught by her.',['French was not taught by her.','French does not taught by her.','French is not teaching by her.'],'Present Simple negative passive: is not taught.'],
+      ['The manager is not signing the papers.','The papers are not being signed by the manager.',['The papers are not signed by the manager.','The papers were not being signed by the manager.','The papers are not been signed by the manager.'],'Present Continuous negative passive: are not being + V3.']
+    ];
+    negative.forEach(x=>add('Negative',`Choose the correct passive of: ${x[0]}`,x[1],x[2],x[3]));
+    const questions=[
+      ['Who teaches you English?','By whom are you taught English?',['By whom you are taught English?','By who are you taught English?','Who are taught English by you?'],'Who becomes by whom; present passive uses are taught.'],
+      ['Did they finish the work?','Was the work finished by them?',['Did the work finished by them?','Is the work finished by them?','Was the work finish by them?'],'Past Simple question passive starts Was/Were.'],
+      ['Is she writing the report?','Is the report being written by her?',['Is the report written by her?','Was the report being written by her?','Is the report being wrote by her?'],'Present Continuous question uses is being + V3.'],
+      ['Who will invite them?','By whom will they be invited?',['By whom they will be invited?','By who will they be invited?','Who will be invited by them?'],'Future question: By whom will + object + be + V3.'],
+      ['Why did he close the door?','Why was the door closed by him?',['Why did the door closed by him?','Why is the door closed by him?','Why was the door close by him?'],'Wh-question keeps why and changes did to was/were.'],
+      ['Has Rafi repaired the bike?','Has the bike been repaired by Rafi?',['Has the bike repaired by Rafi?','Was the bike been repaired by Rafi?','Has Rafi been repaired by the bike?'],'Present Perfect question uses has + been + V3.'],
+      ['Are they cleaning the hall?','Is the hall being cleaned by them?',['Is the hall cleaned by them?','Are the hall being cleaned by them?','Was the hall being clean by them?'],'Continuous question uses is being + V3.'],
+      ['Who broke the window?','By whom was the window broken?',['By who was the window broken?','Who was the window broke?','By whom is the window broken?'],'Past wh-question uses by whom was + V3.'],
+      ['Will the school announce the results?','Will the results be announced by the school?',['Will the results announced by the school?','Are the results announced by the school?','Will the school be announced by the results?'],'Future question uses will + subject + be + V3.'],
+      ['Did she send the email?','Was the email sent by her?',['Did the email sent by her?','Is the email sent by her?','Was the email send by her?'],'Past question passive uses was/were + V3.']
+    ];
+    questions.forEach(x=>add('Question',`Choose the correct passive of: ${x[0]}`,x[1],x[2],x[3]));
+    const imperative=[
+      ['Close the gate.','Let the gate be closed.',['Let the gate closed.','The gate is close.','Let be closed the gate.'],'Affirmative imperative: Let + object + be + V3.'],
+      ['Do not touch the switch.','Let not the switch be touched.',['Let the switch not touched.','Let not the switch touched.','The switch does not be touched.'],'Negative imperative: Let not + object + be + V3.'],
+      ['Please wash the plates.','Let the plates be washed.',['Let the plates washed.','The plates are wash.','Let be washed the plates.'],'Please request uses Let + object + be + V3.'],
+      ['Open the window.','Let the window be opened.',['Let the window opened.','The window is open by you.','Let be opened the window.'],'Imperative object moves after Let.'],
+      ['Never waste water.','Let water never be wasted.',['Let water never wasted.','Water never be waste.','Let never water wasted.'],'Negative command needs be + V3 after the object.'],
+      ['Keep the room clean.','Let the room be kept clean.',['Let the room kept clean.','The room is keep clean.','Let be kept the room clean.'],'Keep becomes be kept in the passive command.'],
+      ['Do not insult the poor.','Let not the poor be insulted.',['Let the poor not insulted.','The poor do not be insulted.','Let not the poor insult.'],'Negative imperative keeps not after Let.'],
+      ['Please read the notice.','Let the notice be read.',['Let the notice read.','The notice is read please.','Let be read the notice.'],'Read uses its V3 form read after be.'],
+      ['Obey the rules.','Let the rules be obeyed.',['Let the rules obeyed.','The rules are obey.','Let be obeyed the rules.'],'Obey becomes be obeyed.'],
+      ['Do not disturb the patient.','Let not the patient be disturbed.',['Let the patient not disturbed.','The patient does not be disturbed.','Let not disturb the patient.'],'Negative command uses Let not + object + be + V3.']
+    ];
+    imperative.forEach(x=>add('Imperative',`Choose the correct passive of: ${x[0]}`,x[1],x[2],x[3]));
+    const special=[
+      ['She gave me a pen.','I was given a pen by her.',['A pen was gave to me by her.','I was given to a pen by her.','I am given a pen by her.'],'With two objects, the first object can become passive subject.'],
+      ['They offered him a job.','He was offered a job by them.',['A job was offered him by they.','He was offered to a job by them.','He is offered a job by them.'],'The first object comes before the second without to.'],
+      ['The teacher taught us grammar.','We were taught grammar by the teacher.',['Grammar was taught us by the teacher only.','We was taught grammar by the teacher.','We were teach grammar by the teacher.'],'Two-object passive may promote us to subject.'],
+      ['He sent his sister a letter.','His sister was sent a letter by him.',['A letter was sent his sister by he.','His sister was sent to a letter by him.','His sister is sent a letter by him.'],'First object passive normally does not need to.'],
+      ['They showed me the room.','I was shown the room by them.',['The room was showed me by them.','I was shown to the room by them.','I am shown the room by them.'],'Show has V3 shown; first object can be promoted.'],
+      ['Someone looked after the child.','The child was looked after by someone.',['The child was looked by someone.','The child was looked after someone.','The child is looked after by someone.'],'Preposition after a phrasal verb must remain.'],
+      ['Everyone laughed at the clown.','The clown was laughed at by everyone.',['The clown was laughed by everyone.','The clown was laughed at everyone.','The clown is laughed at by everyone.'],'Laugh at keeps at in passive.'],
+      ['We insisted on punctuality.','Punctuality was insisted on by us.',['Punctuality was insisted by us.','Punctuality was insisted in by us.','Punctuality is insisted on by us.'],'Insist on keeps on in passive.'],
+      ['They called off the match.','The match was called off by them.',['The match was called by them.','The match was called off them.','The match is called off by them.'],'Call off keeps the particle off.'],
+      ['She listened to the song.','The song was listened to by her.',['The song was listened by her.','The song was listened at by her.','The song is listened to by her.'],'Listen to keeps to in passive.']
+    ];
+    special.forEach(x=>add('Special move',`Choose the correct passive of: ${x[0]}`,x[1],x[2],x[3]));
+    const perception=[
+      ['The coach made the players run.','The players were made to run by the coach.',['The players were made run by the coach.','The players were made running by the coach.','The players made to run the coach.'],'Make + object + V1 becomes be made to + V1.'],
+      ['She made him apologize.','He was made to apologize by her.',['He was made apologize by her.','He was made apologizing by her.','He made to apologize by her.'],'Passive make requires to before the infinitive.'],
+      ['I saw her cross the street.','She was seen to cross the street by me.',['She was seen cross the street by me.','She was seen crossing the street by me.','She saw to cross the street by me.'],'See + object + V1 adds to in passive.'],
+      ['We heard him sing.','He was heard to sing by us.',['He was heard sing by us.','He was heard singing by us.','He heard to sing by us.'],'Hear + object + V1 adds to in passive.'],
+      ['People say that Mina is clever.','It is said that Mina is clever.',['It said that Mina is clever.','Mina is say clever.','It is saying that Mina clever.'],'People say that can become It is said that.'],
+      ['People think that he is honest.','He is thought to be honest.',['He is thought be honest.','He is thinking to honest.','It thought he honest.'],'Reporting verb can use subject + is thought to be.'],
+      ['People believe that she stole the money.','She is believed to have stolen the money.',['She is believed to stolen the money.','She believed to have stolen the money.','She is believed having stolen the money.'],'Earlier action uses to have + V3.'],
+      ['They say that the plan will work.','It is said that the plan will work.',['It said the plan will work.','The plan is say to work.','It is saying the plan worked.'],'Impersonal reporting passive uses It is said that.'],
+      ['The audience heard the singer perform.','The singer was heard to perform by the audience.',['The singer was heard perform by the audience.','The singer was heard performing by the audience.','The singer heard to perform the audience.'],'Perception verb with bare infinitive adds to in passive.'],
+      ['The teacher made us repeat the sentence.','We were made to repeat the sentence by the teacher.',['We were made repeat the sentence by the teacher.','We made to repeat the sentence by the teacher.','We were made repeating the sentence by the teacher.'],'Made + object + V1 becomes were made to + V1.']
+    ];
+    perception.forEach(x=>add('Make / see / report',`Choose the correct passive of: ${x[0]}`,x[1],x[2],x[3]));
+    const forms=[
+      ['Which form completes: The door is ___?','to be locked',['to locked','to have lock','being lock'],'Passive infinitive is to be + V3.'],
+      ['Which form completes: I dislike ___?','being criticized',['being criticize','to being criticized','been criticizing'],'Passive gerund is being + V3.'],
+      ['Choose the passive: They expect him to win.','He is expected to win.',['He is expected win.','He expects to be win.','It is expected him win.'],'Expect can become subject + is expected to + V1.'],
+      ['Choose the correct form: He is believed ___ early.','to have left',['to has left','to have leave','being left'],'Perfect passive infinitive is to have been + V3 when passive; here reported perfect is to have left.'],
+      ['Avoid ___ by the enemy plane.','being seen',['being see','to be seeing','been seen'],'Avoid takes a gerund; passive gerund is being + V3.'],
+      ['Which sentence normally cannot be passive?','The baby slept.',['The baby was slept.','The baby is slept by someone.','The baby had been slept.'],'Sleep is intransitive here and has no object to promote.'],
+      ['Which sentence normally cannot be passive?','The accident happened.',['The accident was happened.','The accident is happened by someone.','The accident had been happened.'],'Happen is intransitive and normally has no passive form.'],
+      ['Which sentence is not passive?','Sugar tastes sweet.',['Sugar is tasted sweet.','Sweet is tasted by sugar.','Sugar was tasted sweet.'],'Tastes is a linking verb and sweet is an adjective.'],
+      ['Which sentence is not passive?','She looks happy.',['Happy is looked by her.','She is looked happy.','Happy was looked by her.'],'Looks is a linking verb and happy is an adjective.'],
+      ['Choose the passive meaning: I remember people praising me.','I remember being praised.',['I remember being praise.','I remember to be praised people.','I remember praised me.'],'A passive gerund uses being + V3.']
+    ];
+    forms.forEach(x=>add('Infinitive / gerund',x[0],x[1],x[2],x[3]));
+    const pronouns=[
+      ['She helps me.','I am helped by her.',['I am helped by she.','Me is helped by her.','I was helped by her.'],'Active me becomes passive subject I; her follows by.'],
+      ['We invited them.','They were invited by us.',['Them were invited by we.','They are invited by us.','They were invite by us.'],'Pronouns switch to them as subject and us after by.'],
+      ['He gave her a book.','She was given a book by him.',['Her was given a book by he.','A book was gave to she by him.','She is given a book by him.'],'Her becomes she; he becomes him after by.'],
+      ['I wrote the letter.','The letter was written by me.',['The letter was wrote by I.','The letter is written by me.','The letter had written by me.'],'I becomes me after by and write becomes written.'],
+      ['They will help him.','He will be helped by them.',['Him will be helped by they.','He will helped by them.','He is being helped by them.'],'Him becomes he; will be + V3 follows.'],
+      ['You can solve it.','It can be solved by you.',['It can solved by you.','It could be solve by you.','It is can be solved by you.'],'Modal can requires be + solved.'],
+      ['The nurse examined the patient.','The patient was examined by the nurse.',['The patient is examined by the nurse.','The patient was examine by the nurse.','The nurse was examined by the patient.'],'Patient becomes subject; past simple uses was examined.'],
+      ['Someone cleaned the room.','The room was cleaned.',['The room cleaned someone.','The room is being cleaned yesterday.','Someone was cleaned by the room.'],'An unknown agent can be omitted in passive.'],
+      ['The child broke the glass.','The glass was broken by the child.',['The glass was broke by the child.','The child was broken by the glass.','The glass is broken by the child.'],'Break has V3 broken; past simple uses was.'],
+      ['The officer praised us.','We were praised by the officer.',['Us were praised by the officer.','We was praised by the officer.','The officer was praised by us.'],'Us becomes we; plural subject takes were.']
+    ];
+    pronouns.forEach(x=>add('Pronoun / object',`Choose the correct passive of: ${x[0]}`,x[1],x[2],x[3]));
+    const traps=[
+      ['The law must ___.','be obeyed',['obeyed','be obey','being obeyed'],'Modal passive must be + V3.'],
+      ['The letter has ___.','been written',['been write','being written','be written'],'Present Perfect passive has been + V3.'],
+      ['The road is ___.','being repaired',['been repaired','be repaired','being repair'],'Present Continuous passive is being + V3.'],
+      ['The work was ___ yesterday.','completed',['complete','completing','been complete'],'Past Simple passive was + V3.'],
+      ['By whom ___ the cake baked?','was',['were','is','has'],'Singular cake and past question take was.'],
+      ['A book was given ___ him.','to',['by','at','on'],'When the second object is foregrounded, use to.'],
+      ['The child was looked ___.','after',['at','on','by'],'Look after keeps after.'],
+      ['I was made ___ the work.','to do',['do','doing','done'],'Passive of make requires to + V1.'],
+      ['He is believed ___ honest.','to be',['be','being','to being'],'Reporting passive uses to be after believed.'],
+      ['I dislike ___ criticized.','being',['be','been','to be'],'Passive gerund uses being + V3.']
+    ];
+    traps.forEach(x=>add('Quick trap',x[0],x[1],x[2],x[3]));
+    return out;
+  };
+  let voicePracticeCache=null;
   const saveOverride=(courseId,patch)=>{const data=content(),old=data.overrides?.[courseId]||{};data.overrides={...(data.overrides||{}),[courseId]:{...old,...patch}};saveContent(data)};
   const shell=(html,title='Courses')=>typeof window.renderShell==='function'?window.renderShell(html,{title,back:"navigate('courses')"}):html;
   const go=p=>typeof navigate==='function'?navigate(p):location.hash='#'+p;
