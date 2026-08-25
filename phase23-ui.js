@@ -119,13 +119,13 @@
     const currentPath=String(window.Router?.path||location.hash.replace(/^#\/?/,'').split('?')[0]||'dashboard');
     if(currentPath!=='dashboard'&&currentPath!=='home'&&currentPath!=='')return;
     const track=document.getElementById('commandTrack');if(!track||!track.isConnected)return;
-    commandPage=Math.max(0,Math.min(1,Number(index)||0));requestAnimationFrame(()=>{
+    const slideCount=Math.max(1,track.querySelectorAll('.command-slide').length);
+    commandPage=Math.max(0,Math.min(slideCount-1,Number(index)||0));requestAnimationFrame(()=>{
       const activePath=String(window.Router?.path||location.hash.replace(/^#\/?/,'').split('?')[0]||'dashboard');
       if(activePath!=='dashboard'&&activePath!=='home'&&activePath!=='')return;
       if(!track.isConnected)return;
-      // The track is 200% wide and each slide is 50% of that track.
-      // Move by one slide (50% of the track), not 100% of the track.
-      track.style.transform=`translate3d(${-commandPage*50}%,0,0)`;
+      // Translate by one slide; percentage is relative to the full track width.
+      track.style.transform=`translate3d(${-commandPage*(100/slideCount)}%,0,0)`;
       document.querySelectorAll('.command-dot').forEach((dot,i)=>{dot.classList.toggle('active',i===commandPage);dot.setAttribute('aria-selected',i===commandPage?'true':'false')});
     });
   }
