@@ -19,3 +19,6 @@ A coordinate/index answer click from the long Exam Zone viewport landed on the b
 ## Checkpoint 5
 
 The Degree Q01 correct option was successfully activated with a DOM-targeted control. The answer state updated and the page body contained the expected correct-answer feedback. This confirms the shared Exam Zone interaction works for the new course; the earlier mis-click was only a stale viewport-index issue.
+## Live Checkpoint
+
+GitHub Pages fresh cache-buster URL loaded the Course Library successfully. The live Library reports 7 active courses, 80 visual lessons, and 708 MCQ cards. The four new course cards are present with the correct counts: Degree 8 lessons/70 MCQs, Subject–Verb Agreement 8/76, Same Word 8/50, and Right Form 8/60. Live Degree overview loaded with its 8-lesson roadmap, 40 visual slides, and 70-question Exam Zone.
