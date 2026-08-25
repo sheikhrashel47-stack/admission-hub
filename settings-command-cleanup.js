@@ -25,8 +25,10 @@
   }
 
   function feedbackPanel(app) {
+    // The app observer watches this subtree. Replacing an existing panel on every
+    // mutation creates an endless remove/add loop and freezes Settings on mobile.
+    if (app.querySelector('#admission-feedback-controls')) return;
     app.querySelector('#phase-feedback-controls')?.remove();
-    app.querySelector('#admission-feedback-controls')?.remove();
     [...app.querySelectorAll('.togglerow')].forEach(row => {
       const label = row.querySelector(':scope > span')?.textContent?.trim().toLowerCase();
       if (['visual feedback', 'success effects', 'error effects'].includes(label)) row.remove();
