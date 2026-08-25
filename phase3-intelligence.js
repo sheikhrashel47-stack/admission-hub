@@ -177,6 +177,8 @@
     const todayAccuracy = todayAttempts ? pct(todayCorrect, todayAttempts) : (z.accuracy || 0);
     const studyClock = fmtTimeClock(study);
     const goalComplete = d.done >= d.target;
+    const chartSource = z.recent.length ? z.recent.slice(-7).map(item => Math.max(8, Math.min(96, Number(item.accuracy || item.score || 0)))) : [28,46,35,58,51,70,86];
+    const quickChartPoints = chartSource.map((value,index) => `${14 + index * 25},${66 - Math.round(value * .45)}`).join(' ');
 
     return `
     <section class="p3-dashboard-v3" data-p3-command>
@@ -252,37 +254,26 @@
       <div class="p3-two-col-v3">
         <section class="p3-card-v3 p3-progress-v3">
           <div class="p3-section-head-v3">
-            <div class="p3-title-with-icon">${ICONS.trend} Current Study Progress</div>
+            <div class="p3-title-with-icon">${ICONS.trend} <span>Current Study<br>Progress</span></div>
           </div>
           <div class="p3-progress-body-v3">
-            <div class="p3-circle-container">
-              <svg viewBox="0 0 36 36" class="p3-circular-chart">
-                <path class="p3-circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <path class="p3-circle" stroke-dasharray="${targetPct}, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                <text x="18" y="20.35" class="p3-percentage">${targetPct}%</text>
+            <div class="p3-circle-container p3-multi-ring-v3">
+              <svg viewBox="0 0 120 120" class="p3-circular-chart p3-rings-chart" aria-label="${targetPct}% progress">
+                <circle class="p3-ring-track" cx="60" cy="60" r="47"></circle>
+                <circle class="p3-ring ring-green" cx="60" cy="60" r="47" pathLength="100" stroke-dasharray="${targetPct} 100"></circle>
+                <circle class="p3-ring ring-blue" cx="60" cy="60" r="35" pathLength="100" stroke-dasharray="${Math.min(100,z.accuracy||0)} 100"></circle>
+                <circle class="p3-ring ring-purple" cx="60" cy="60" r="23" pathLength="100" stroke-dasharray="${Math.max(18,Math.min(100,Math.round((z.answered.length/Math.max(1,d.target))*100)))} 100"></circle>
+                <text x="60" y="66" class="p3-percentage">${targetPct}%</text>
               </svg>
             </div>
             <div class="p3-progress-stats-v3">
               <div class="p3-prog-stat">
-                <div class="p3-prog-icon-box">${ICONS.question}</div>
-                <div>
-                  <small>Questions solved</small>
-                  <b>${z.answered.length||0}</b>
-                </div>
+                <span class="p3-prog-dot dot-green"></span>
+                <div><small>Questions solved</small><b>${z.answered.length||0}</b></div>
               </div>
               <div class="p3-prog-stat">
-                <div class="p3-prog-icon-box">${ICONS.clock}</div>
-                <div>
-                  <small>Study time</small>
-                  <b>${fmtTime(study)}</b>
-                </div>
-              </div>
-              <div class="p3-prog-stat">
-                <div class="p3-prog-icon-box">${ICONS.trend}</div>
-                <div>
-                  <small>Recent trend</small>
-                  <b class="p3-trend-text">Improving</b>
-                </div>
+                <span class="p3-prog-dot dot-purple"></span>
+                <div><small>Study time</small><b>${fmtTime(study)}</b></div>
               </div>
             </div>
           </div>
@@ -291,38 +282,14 @@
         <section class="p3-card-v3 p3-quick-stats-v3">
           <div class="p3-section-head-v3">
             <b>Quick Stats</b>
-            <button class="p3-more-btn">⋮</button>
+            <button class="p3-more-btn" aria-label="More quick stats">⋮</button>
           </div>
           <div class="p3-quick-grid-v3">
-            <div class="p3-quick-box">
-              <div class="p3-quick-icon q1">${ICONS.question}</div>
-              <div class="p3-quick-data">
-                <b>${z.answered.length||0}</b>
-                <small>Questions Solved</small>
-              </div>
-            </div>
-            <div class="p3-quick-box">
-              <div class="p3-quick-icon q2">${ICONS.check}</div>
-              <div class="p3-quick-data">
-                <b>${z.correct.length||0}</b>
-                <small>Correct</small>
-              </div>
-            </div>
-            <div class="p3-quick-box">
-              <div class="p3-quick-icon q3">${ICONS.x}</div>
-              <div class="p3-quick-data">
-                <b>${z.wrong.length||0}</b>
-                <small>Wrong</small>
-              </div>
-            </div>
-            <div class="p3-quick-box">
-              <div class="p3-quick-icon q4">${ICONS.target}</div>
-              <div class="p3-quick-data">
-                <b>${z.accuracy||0}%</b>
-                <small>Accuracy</small>
-              </div>
-            </div>
+            <div class="p3-quick-box"><div class="p3-quick-icon q1">${ICONS.question}</div><div class="p3-quick-data"><b>${z.answered.length||0}</b><small>Questions solved</small></div></div>
+            <div class="p3-quick-box"><div class="p3-quick-icon q2">${ICONS.check}</div><div class="p3-quick-data"><b>${z.correct.length||0}</b><small>Correct</small></div></div>
+            <div class="p3-quick-box"><div class="p3-quick-icon q4">${ICONS.target}</div><div class="p3-quick-data"><b>${z.accuracy||0}%</b><small>Accuracy</small></div></div>
           </div>
+          <svg class="p3-quick-line-v3" viewBox="0 0 180 80" preserveAspectRatio="none" aria-hidden="true"><polyline points="${quickChartPoints}" fill="none" stroke="#76bde2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></polyline>${chartSource.map((value,index)=>`<circle cx="${14 + index * 25}" cy="${66 - Math.round(value * .45)}" r="3.2" fill="${index > chartSource.length-3 ? '#aa8ce7' : '#62b9df'}"></circle>`).join('')}</svg>
         </section>
       </div>
 
@@ -586,9 +553,10 @@
     .p3-today-hero-card{position:relative;overflow:hidden;margin:0 14px 12px;background:linear-gradient(140deg,rgba(255,255,255,.92),rgba(235,251,248,.88) 55%,rgba(241,237,255,.92));border:1px solid rgba(125,188,212,.38);border-radius:25px;padding:22px;box-shadow:0 12px 30px rgba(61,123,163,.12),0 0 0 1px rgba(255,255,255,.72) inset}.p3-today-hero-card:before{content:"";position:absolute;right:-32px;top:-48px;width:210px;height:210px;border:1px solid rgba(74,178,194,.18);border-radius:50%;box-shadow:0 0 0 22px rgba(112,205,198,.05),0 0 0 48px rgba(156,180,255,.04);pointer-events:none}.p3-today-hero-card:after{content:"";position:absolute;left:-55px;bottom:-92px;width:190px;height:190px;border:1px solid rgba(78,195,165,.13);border-radius:50%;pointer-events:none}.p3-today-head{position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:16px}.p3-today-copy{min-width:0}.p3-hero-kicker{color:#168b75;font-size:10px;letter-spacing:.16em}.p3-hero-title{font-size:18px;color:#1a4351;margin:5px 0 8px}.p3-hero-num{font-size:48px;color:#173b4c;letter-spacing:-.05em}.p3-hero-num strong{color:#159f7b}.p3-hero-num small{font-size:16px;color:#6f818d}.p3-today-dial{position:relative;flex:0 0 126px;width:126px;height:126px;border-radius:50%;display:grid;place-items:center;align-content:center;background:conic-gradient(from 220deg,#16a27e 0 var(--today-progress),#d9eee8 var(--today-progress) 100%);box-shadow:0 0 0 8px rgba(255,255,255,.45),0 10px 24px rgba(21,159,123,.12)}.p3-today-dial:before{content:"";position:absolute;inset:10px;border-radius:50%;background:rgba(249,255,254,.94);box-shadow:0 0 0 1px rgba(255,255,255,.8) inset}.p3-today-dial b,.p3-today-dial small{position:relative;z-index:1;display:block;text-align:center}.p3-today-dial b{font-size:27px;color:#13795f}.p3-today-dial small{margin-top:2px;font-size:9px;letter-spacing:.15em;color:#6e8987;font-weight:900}.p3-card-progress.p3-today-progress{position:relative;z-index:1;height:8px;margin-top:20px;background:rgba(205,232,226,.75)}.p3-card-progress.p3-today-progress i{background:linear-gradient(90deg,#1a9c79,#52cdb0);box-shadow:0 2px 7px rgba(28,165,126,.22)}.p3-today-progress-meta{position:relative;z-index:1}.p3-goal-status-v3{background:rgba(225,248,240,.88);color:#21866d;border:1px solid rgba(92,194,161,.2)}.p3-hero-stats-row{position:relative;z-index:1;margin-top:17px;padding-top:16px;border-top:1px solid rgba(132,190,191,.22);gap:0}.p3-hero-stat-item{padding:0 13px;border-right:1px solid rgba(132,190,191,.22)}.p3-hero-stat-item:first-child{padding-left:0}.p3-hero-stat-item:last-child{border-right:0;padding-right:0}.p3-stat-badge{background:rgba(255,255,255,.6)!important;border:1px solid rgba(114,191,195,.22)}.p3-hero-stat-item b{color:#1b5d61}.p3-hero-stat-item small{color:#7d9298}
     .p3-command-section-v3{margin:10px 14px 14px;padding:17px 0 14px;background:rgba(255,255,255,.67);border:1px solid rgba(255,255,255,.9);border-radius:26px;box-shadow:0 11px 26px rgba(82,128,164,.09);backdrop-filter:blur(16px)}.p3-command-section-v3 .p3-section-head-v3{padding:0 19px}.p3-section-head-v3 b{color:#18344a}.p3-swipe-hint-v3{color:#8396a7}.p3-command-card-v3{position:relative;overflow:hidden;min-height:100px;padding:14px 13px;background:rgba(255,255,255,.78);border:1px solid rgba(255,255,255,.95);border-radius:18px;box-shadow:0 7px 17px rgba(93,138,170,.10),0 0 0 1px rgba(161,210,212,.08) inset;transition:transform .16s ease,box-shadow .16s ease}.p3-command-card-v3:before{content:"";position:absolute;right:-16px;top:-22px;width:56px;height:56px;border:1px solid rgba(113,192,198,.15);border-radius:50%;pointer-events:none}.p3-command-card-v3:after{content:"›";position:absolute;right:10px;top:50%;width:20px;height:20px;transform:translateY(-50%);display:grid;place-items:center;border:1px solid rgba(123,165,185,.2);border-radius:50%;color:#7e9bae;font-size:18px;line-height:1}.p3-command-card-v3:active{transform:scale(.985);box-shadow:0 3px 8px rgba(93,138,170,.10)}.p3-command-icon-v3{font-size:26px}.p3-command-title-v3{font-size:14px;color:#18344a}.p3-command-subtitle-v3{font-size:10px;color:#718796}
     .p3-two-col-v3{gap:14px;margin:0 14px 14px}.p3-progress-v3,.p3-quick-stats-v3{position:relative;min-height:280px;background:linear-gradient(145deg,rgba(255,255,255,.86),rgba(239,250,253,.76));border:1px solid rgba(255,255,255,.96);border-radius:25px;box-shadow:0 12px 27px rgba(92,132,165,.10),0 0 0 1px rgba(149,203,220,.10) inset;overflow:hidden}.p3-section-head-v3{position:relative;z-index:1}.p3-progress-body-v3{gap:12px;min-height:210px;align-items:center}.p3-circle-container{position:relative;width:108px;height:108px;flex:0 0 108px}.p3-circle-container:before,.p3-circle-container:after{content:"";position:absolute;border:3px solid rgba(102,194,210,.16);border-radius:50%;pointer-events:none}.p3-circle-container:before{inset:-9px}.p3-circle-container:after{inset:8px;border-color:rgba(157,155,237,.14)}.p3-circular-chart{position:relative;z-index:1}.p3-circle-bg{stroke:#e7f1f4}.p3-circle{stroke:#20b795}.p3-percentage{fill:#1a5262}.p3-prog-icon-box{background:rgba(241,250,252,.75);color:#4e8e9a;border:1px solid rgba(145,204,211,.18)}.p3-prog-stat small{color:#879aa5;font-size:11px}.p3-prog-stat b{color:#1d5360;font-size:15px}.p3-more-btn{color:#8295a7}.p3-quick-grid-v3{position:relative;z-index:1;gap:11px}.p3-quick-stats-v3:after{content:"";position:absolute;left:20px;right:20px;bottom:17px;height:45px;opacity:.42;background:linear-gradient(160deg,transparent 42%,#77bde0 44%,#77bde0 48%,transparent 50%) 0 21px/48px 30px repeat-x;pointer-events:none}.p3-quick-box{background:rgba(255,255,255,.58);border:1px solid rgba(255,255,255,.86);box-shadow:0 5px 14px rgba(111,149,179,.07);min-height:90px;padding:13px}.p3-quick-data b{color:#18344a;font-size:21px}.p3-quick-data small{color:#758a99;font-size:10px}.p3-special-section-v3{margin:18px 14px 0}.p3-special-grid-v3{background:rgba(255,255,255,.68);border-color:rgba(179,211,222,.42);box-shadow:0 9px 21px rgba(85,132,168,.07)}.p3-special-card-v3{background:rgba(255,255,255,.46)}.p3-routine-today-v3{margin-left:14px;margin-right:14px;background:linear-gradient(140deg,rgba(255,255,255,.82),rgba(232,251,248,.88),rgba(244,240,255,.82))!important;border-color:rgba(137,205,209,.42)!important;box-shadow:0 8px 0 rgba(190,225,225,.64),0 16px 25px rgba(69,127,158,.09)!important}
+    .p3-progress-v3,.p3-quick-stats-v3{min-height:0;height:250px;padding:16px}.p3-progress-v3 .p3-title-with-icon{font-size:16px;line-height:1.18}.p3-progress-v3 .p3-title-with-icon svg{flex:0 0 20px;color:#39aeb4}.p3-progress-body-v3{min-height:192px;align-items:center}.p3-rings-chart{width:100%;height:100%;overflow:visible}.p3-ring-track,.p3-ring{fill:none;transform:rotate(-90deg);transform-origin:60px 60px;stroke-linecap:round}.p3-ring-track{stroke:#e9f1f2;stroke-width:7}.p3-ring{stroke-width:7}.p3-ring.ring-green{stroke:#48cda6}.p3-ring.ring-blue{stroke:#7fa7e7}.p3-ring.ring-purple{stroke:#a697dd}.p3-multi-ring-v3 .p3-percentage{font-size:15px;font-weight:800}.p3-progress-stats-v3{gap:22px;min-width:0}.p3-prog-stat{gap:8px;min-width:0}.p3-prog-stat>div{min-width:0}.p3-prog-dot{width:12px;height:12px;flex:0 0 12px;border-radius:50%;background:#42c6a2}.p3-prog-dot.dot-purple{background:#a694de}.p3-prog-stat small{display:block;max-width:110px;white-space:normal;overflow-wrap:normal;word-break:normal;font-size:11px;line-height:1.25}.p3-prog-stat b{display:block;font-size:17px;margin-top:4px}.p3-quick-grid-v3{grid-template-columns:repeat(3,1fr);gap:9px}.p3-quick-box{display:flex;align-items:center;justify-content:flex-start;text-align:center;min-width:0;min-height:112px;padding:10px 6px}.p3-quick-icon{width:38px;height:38px;flex:0 0 38px}.p3-quick-data{min-width:0;width:100%}.p3-quick-data b{font-size:20px;margin-top:8px}.p3-quick-data small{display:block;white-space:normal;overflow-wrap:normal;word-break:normal;line-height:1.2;font-size:10px}.p3-quick-line-v3{display:block;position:relative;z-index:2;width:100%;height:48px;margin-top:3px;overflow:visible}.p3-quick-stats-v3:after{display:none}
     @media(max-width:620px){
       .p3-grid-v3, .p3-two-col-v3{grid-template-columns:1fr 1fr}
-      .p3-dashboard-v3{width:calc(100% + 24px);margin-left:-12px;margin-right:-12px;padding-left:0;padding-right:0}.p3-today-head{gap:10px}.p3-today-dial{flex-basis:112px;width:112px;height:112px}.p3-today-hero-card{margin-left:12px;margin-right:12px}.p3-command-section-v3{margin-left:12px;margin-right:12px}.p3-two-col-v3{margin-left:12px;margin-right:12px}.p3-routine-today-v3{margin-left:12px;margin-right:12px}.p3-special-section-v3{margin-left:12px;margin-right:12px}
+      .p3-dashboard-v3{width:calc(100% + 24px);margin-left:-12px;margin-right:-12px;padding-left:0;padding-right:0}.p3-today-head{gap:10px}.p3-today-dial{flex-basis:112px;width:112px;height:112px}.p3-today-hero-card{margin-left:12px;margin-right:12px}.p3-command-section-v3{margin-left:12px;margin-right:12px}.p3-two-col-v3{margin-left:12px;margin-right:12px;gap:10px}.p3-progress-v3,.p3-quick-stats-v3{height:232px;padding:13px 10px}.p3-progress-v3 .p3-title-with-icon{font-size:14px}.p3-progress-body-v3{gap:5px;min-height:178px}.p3-circle-container{width:74px;height:74px;flex-basis:74px}.p3-ring-track,.p3-ring{stroke-width:6;transform-origin:60px 60px}.p3-progress-stats-v3{gap:15px}.p3-prog-dot{width:9px;height:9px;flex-basis:9px}.p3-prog-stat small{font-size:9px;max-width:74px}.p3-prog-stat b{font-size:14px}.p3-quick-box{min-height:96px;padding:7px 3px}.p3-quick-icon{width:30px;height:30px;flex-basis:30px}.p3-quick-data b{font-size:16px;margin-top:5px}.p3-quick-data small{font-size:8px}.p3-quick-line-v3{height:37px}.p3-routine-today-v3{margin-left:12px;margin-right:12px}.p3-special-section-v3{margin-left:12px;margin-right:12px}
       .p3-bottom-row-v3{grid-template-columns:1fr}
       .p3-recommend-illustration{display:none}
     }
