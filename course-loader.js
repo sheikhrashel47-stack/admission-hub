@@ -7,9 +7,10 @@
     './voice-course-data.js?v=voice-course-v2-144-mcqs',
     './four-grammar-courses-data.js?v=four-grammar-v1-premium',
     './mass-grammar-courses-data.js?v=mass-grammar-v1-premium-pack',
-    './pdf-grammar-courses-data.js?v=pdf-grammar-v1-five-courses-380-mcqs'
+    './pdf-grammar-courses-data.js?v=pdf-grammar-v1-five-courses-380-mcqs',
+    './bangla-courses-data.js?v=bangla-courses-v1-18-source-isolated-498-mcqs'
   ];
-  const TOOL_SOURCE = './course-tool.js?v=course-tool-v34-boxed-resume';
+  const TOOL_SOURCE = './course-tool.js?v=course-tool-v35-bangla-categories';
   let loadPromise = null;
 
   const currentPath = () => String(location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
