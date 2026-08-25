@@ -11,8 +11,10 @@ function must(pattern, message) {
 }
 
 must(/function cardFlashQuestions\(record\)/, 'card-specific generator is missing');
-must(/return shuffle\(questions\)\.slice\(0, 20\)/, 'generator must cap the session at exactly 20 questions');
-must(/const variants = \[/, 'rotated fallback templates are missing');
+must(/return shuffle\((?:chosen|questions)\)\.slice\(0, 20\)/, 'generator must cap the session at exactly 20 questions');
+must(/const refill = \[\]/, 'dynamic refill candidates are missing');
+must(/main-meaning', 1/, 'primary Bengali meaning must be limited to one question');
+must(/Dynamic relation rotation/, 'data-aware relation distribution is missing');
 must(/function flashOptions\(correct, pool\)/, 'four-option helper is missing');
 must(/const key = lower\(value\)/, 'options must be deduplicated case-insensitively');
 must(/if \(questions\.length < 20\) return null/, 'insufficient banks must not receive fabricated questions');

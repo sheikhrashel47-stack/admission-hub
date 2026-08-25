@@ -16,3 +16,9 @@ The sandbox records are isolated from the user's production GitHub Pages origin 
 The Copy AI image prompt action was exposed in the overflow menu and remained on the vocabulary route. After the thumbnail was attached, the same menu correctly exposed Replace and Remove image actions while the image remained visible in the card.
 
 The updated Vocabulary card menu exposed the Flash action. A browser coordinate click did not navigate, which was confirmed as an interaction-targeting artifact because the same public action invoked directly changed the hash to `vocabulary-master/flash/qa-abandon`. The Flash page then rendered `Question 1 of 20`, card context, four options, Exit, Skip, and the explicit `no history saved` notice without errors.
+
+## Refined Flash generator QA
+
+- On the seeded `qa-abandon` card, a complete temporary session produced exactly 20 questions with 20 unique prompt texts. The primary direct Bengali-meaning prompt appeared exactly once. The observed distribution included 10 synonym, 5 antonym, 3 reverse-meaning and 2 pair questions.
+- On the acronym-bearing `qa-ability` card, a complete temporary session again produced exactly 20 unique prompts, the primary Bengali-meaning prompt appeared exactly once, and 3 acronym/abbreviation questions were included.
+- Both sessions reached the temporary result page without errors.

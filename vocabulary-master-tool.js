@@ -456,58 +456,134 @@
     return { words, meanings, synonyms, synonymMeanings, antonyms, acronymWords, acronymMeanings, pairs, record };
   }
   function cardFlashQuestions(record) {
-    const bank = cardFlashBanks(record), questions = [], seen = new Set();
-    const add = (kind, prompt, correct, pool, explanation) => {
+    const bank = cardFlashBanks(record), candidates = [], seen = new Set(), familyCounts = new Map();
+    const add = (kind, prompt, correct, pool, explanation, family = kind, cap = 5, difficulty = 'standard', sourceData = '') => {
+      if (candidates.length >= 180) return;
       const answer = String(correct || '').trim(); if (!answer) return;
       const options = flashOptions(answer, pool); if (!options) return;
       const signature = `${lower(prompt)}|${lower(answer)}`; if (seen.has(signature)) return;
-      seen.add(signature); questions.push({ id:`card-flash-${record.id}-${kind}-${questions.length}`, prompt, options, correct:answer, explanation });
+      const used = familyCounts.get(`${family}|${lower(answer)}`) || 0; if (used >= cap) return;
+      seen.add(signature); familyCounts.set(`${family}|${lower(answer)}`, used + 1);
+      candidates.push({ id:`card-flash-${record.id}-${kind}-${candidates.length}`, prompt, options, correct:answer, explanation, type:family, difficulty, sourceWord:record.word, sourceData:sourceData || explanation });
     };
     const word = record.word, meaning = record.meaning, syn = relations(record, 'synonyms'), ant = relations(record, 'antonyms'), acr = relations(record, 'acronyms');
-    const wordPool = bank.words.filter(item => item !== word), meaningPool = bank.meanings.filter(item => item !== meaning), pairPool = bank.pairs.filter(item => item !== `${word} — ${meaning}`);
-    add('meaning-direct', `“${word}” শব্দটির সঠিক বাংলা meaning কোনটি?`, meaning, meaningPool, `${word} — ${meaning}`);
-    add('meaning-recall', `Flash recall: ${word} মনে করলে কোন বাংলা অর্থটি আগে আসবে?`, meaning, meaningPool, `${word} — ${meaning}`);
-    add('meaning-clue', `নিচের কোন Bengali clue-টি “${word}” শব্দটির সঙ্গে মেলে?`, meaning, meaningPool, `Card meaning: ${meaning}`);
-    add('word-from-meaning', `“${meaning}” অর্থ প্রকাশ করে এমন English word কোনটি?`, word, wordPool, `${word} — ${meaning}`);
-    add('word-from-clue', `এই Bengali meaning-এর জন্য vocabulary card-এর word বেছে নাও: ${meaning}`, word, wordPool, `${word} — ${meaning}`);
-    add('pair-match', `নিচের কোন pair-টি এই card-এর সঙ্গে সঠিকভাবে মিলে?`, `${word} — ${meaning}`, pairPool, `সঠিক pair: ${word} — ${meaning}`);
-    add('pair-recall', `Word ও বাংলা meaning-এর সম্পূর্ণ সঠিক pair কোনটি?`, `${word} — ${meaning}`, pairPool, `সঠিক pair: ${word} — ${meaning}`);
-    add('translation-check', `Which Bengali translation best matches “${word}”?`, meaning, meaningPool, `${word} — ${meaning}`);
-    add('definition-check', `Choose the exact Bengali gloss stored for “${word}”.`, meaning, meaningPool, `${word} — ${meaning}`);
-    add('card-entry', `Vocabulary card-এ “${word}”-এর নিচে কোন meaning লেখা আছে?`, meaning, meaningPool, `${word} — ${meaning}`);
-    if (syn.length) {
-      syn.forEach((item, index) => {
-        if (index > 2) return;
-        add(`synonym-${index}`, `${word}-এর synonym কোনটি?`, item.word, [...bank.synonyms, ...wordPool], `${word} → synonym: ${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`);
-        if (item.meaning) add(`synonym-meaning-${index}`, `এই synonym-এর বাংলা meaning কোনটি? “${item.word}”`, item.meaning, [...bank.synonymMeanings, ...meaningPool], `${item.word} — ${item.meaning}`);
-      });
+    const wordPool = bank.words.filter(item => lower(item) !== lower(word)), meaningPool = bank.meanings.filter(item => lower(item) !== lower(meaning)), pairPool = bank.pairs.filter(item => lower(item) !== lower(`${word} — ${meaning}`));
+    const synonymPool = [...bank.synonyms, ...wordPool], antonymPool = [...bank.antonyms, ...wordPool], acronymPool = [...bank.acronymWords, ...wordPool];
+    const context = String(record.tips || '').trim();
+    const usableContext = context && !/^(qa sample only|none|n\/a|not available)$/i.test(context);
+
+    // The card's primary Bengali meaning is deliberately asked only once.
+    add('meaning-direct', `“${word}” শব্দটির সঠিক বাংলা meaning কোনটি?`, meaning, meaningPool, `${word} — ${meaning}`, 'main-meaning', 1, 'foundation', `Primary Bengali meaning: ${meaning}`);
+
+    // Reverse meaning is a different skill: identify the English entry from a Bengali clue.
+    if (meaning) {
+      add('reverse-meaning-1', `“${meaning}” অর্থ প্রকাশ করে এমন English word কোনটি?`, word, wordPool, `${word} — ${meaning}`, 'reverse-meaning', 3, 'standard', `Bengali clue: ${meaning}`);
+      add('reverse-meaning-2', `এই Bengali clue-এর matching vocabulary entry কোনটি: ${meaning}?`, word, wordPool, `${word} — ${meaning}`, 'reverse-meaning', 3, 'standard', `Bengali clue: ${meaning}`);
+      add('reverse-meaning-3', `বাংলা অর্থ দেখে সঠিক English word নির্বাচন করো: “${meaning}”`, word, wordPool, `${word} — ${meaning}`, 'reverse-meaning', 3, 'challenge', `Bengali clue: ${meaning}`);
     }
-    if (ant.length) ant.slice(0, 2).forEach((item, index) => add(`antonym-${index}`, `${word}-এর antonym কোনটি?`, item.word, [...bank.antonyms, ...wordPool], `${word} → antonym: ${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`));
-    if (acr.length) {
-      acr.slice(0, 3).forEach((item, index) => {
-        add(`acronym-word-${index}`, `${word}-এর সঙ্গে যুক্ত acronym / short form কোনটি?`, item.word, [...bank.acronymWords, ...wordPool], `${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`);
-        if (item.meaning) add(`acronym-meaning-${index}`, `“${item.word}” acronym-এর বাংলা meaning বা expansion কোনটি?`, item.meaning, [...bank.acronymMeanings, ...meaningPool], `${item.word} — ${item.meaning}`);
-      });
+
+    // Synonym questions receive the largest share when synonym data is available.
+    syn.forEach((item, index) => {
+      const relationNote = `${word} → synonym: ${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`;
+      add(`synonym-choice-${index}`, `${word}-এর synonym কোনটি?`, item.word, synonymPool, relationNote, 'synonym-identification', 5, 'standard', relationNote);
+      add(`synonym-near-${index}`, `নিচের কোন শব্দটি “${word}”-এর কাছাকাছি অর্থ প্রকাশ করে?`, item.word, synonymPool, relationNote, 'synonym-identification', 5, 'standard', relationNote);
+      add(`synonym-card-${index}`, `Card data অনুযায়ী “${item.word}” কোন মূল word-এর synonym?`, word, wordPool, relationNote, 'synonym-relation', 4, 'challenge', relationNote);
+      if (item.meaning) {
+        const meaningNote = `${item.word} — ${item.meaning}`;
+        add(`synonym-bengali-${index}`, `“${item.word}” synonym-এর বাংলা meaning কোনটি?`, item.meaning, [...bank.synonymMeanings, ...meaningPool], meaningNote, 'synonym-bengali', 3, 'standard', meaningNote);
+        add(`synonym-gloss-${index}`, `“${item.meaning}” অর্থের সঙ্গে কোন synonym-টি মেলে?`, item.word, synonymPool, meaningNote, 'synonym-gloss', 3, 'challenge', meaningNote);
+      }
+    });
+
+    // Antonym questions are balanced against synonym availability.
+    ant.forEach((item, index) => {
+      const relationNote = `${word} → antonym: ${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`;
+      add(`antonym-choice-${index}`, `${word}-এর antonym কোনটি?`, item.word, antonymPool, relationNote, 'antonym-identification', 5, 'standard', relationNote);
+      add(`antonym-opposite-${index}`, `“${item.word}” কোন word-এর বিপরীত অর্থ প্রকাশ করে?`, word, wordPool, relationNote, 'antonym-relation', 4, 'standard', relationNote);
+      add(`antonym-card-${index}`, `Card data অনুযায়ী “${item.word}” কোন মূল word-এর antonym?`, word, wordPool, relationNote, 'antonym-relation', 4, 'challenge', relationNote);
+      if (item.meaning) {
+        const meaningNote = `${item.word} — ${item.meaning}`;
+        add(`antonym-bengali-${index}`, `এই antonym-এর বাংলা meaning কোনটি? “${item.word}”`, item.meaning, [...bank.meanings, ...bank.synonymMeanings], meaningNote, 'antonym-bengali', 3, 'standard', meaningNote);
+      }
+    });
+
+    // Acronym/abbreviation data is used only when the card actually contains it.
+    acr.forEach((item, index) => {
+      const relationNote = `${word} → acronym: ${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`;
+      add(`acronym-choice-${index}`, `${word}-এর সঙ্গে যুক্ত acronym / short form কোনটি?`, item.word, acronymPool, relationNote, 'acronym-identification', 4, 'standard', relationNote);
+      add(`acronym-card-${index}`, `Card data অনুযায়ী “${item.word}” কোন word-এর abbreviation?`, word, wordPool, relationNote, 'acronym-relation', 3, 'challenge', relationNote);
+      if (item.meaning) {
+        const meaningNote = `${item.word} — ${item.meaning}`;
+        add(`acronym-expansion-${index}`, `“${item.word}” acronym-এর বাংলা meaning বা expansion কোনটি?`, item.meaning, [...bank.acronymMeanings, ...meaningPool], meaningNote, 'acronym-expansion', 3, 'standard', meaningNote);
+      }
+    });
+
+    // Pair and source explanation questions add variety without inventing facts.
+    add('pair-match', `নিচের কোন pair-টি এই card-এর সঙ্গে সঠিকভাবে মিলে?`, `${word} — ${meaning}`, pairPool, `সঠিক pair: ${word} — ${meaning}`, 'pair-matching', 3, 'standard', `Stored pair: ${word} — ${meaning}`);
+    add('pair-recall', `Word ও বাংলা meaning-এর সম্পূর্ণ সঠিক pair কোনটি?`, `${word} — ${meaning}`, pairPool, `সঠিক pair: ${word} — ${meaning}`, 'pair-matching', 3, 'challenge', `Stored pair: ${word} — ${meaning}`);
+    add('pair-entry', `শব্দ ও অর্থ মিলিয়ে correct entry নির্বাচন করো: “${word}”`, `${word} — ${meaning}`, pairPool, `সঠিক pair: ${word} — ${meaning}`, 'pair-matching', 3, 'standard', `Stored pair: ${word} — ${meaning}`);
+    if (usableContext) {
+      add('context-identification-1', `এই card-এর explanation অনুযায়ী কোন vocabulary word-টি সঠিক? “${context}”`, word, wordPool, `${word} — ${context}`, 'context-identification', 2, 'challenge', `Card explanation: ${context}`);
+      add('context-identification-2', `“${context}” কোন word-এর সঙ্গে যুক্ত card explanation?`, word, wordPool, `${word} — ${context}`, 'context-identification', 2, 'challenge', `Card explanation: ${context}`);
     }
-    const variants = [
-      ['meaning-variant-1', `Revision check: “${word}” শব্দটির exact Bengali meaning কোনটি?`, meaning, meaningPool],
-      ['meaning-variant-2', `Card review: “${word}” মানে কোনটি?`, meaning, meaningPool],
-      ['meaning-variant-3', `“${word}” দেখলে কোন বাংলা অর্থ মনে রাখা উচিত?`, meaning, meaningPool],
-      ['meaning-variant-4', `Which Bengali gloss is attached to “${word}”?`, meaning, meaningPool],
-      ['word-variant-1', `“${meaning}” অর্থের জন্য correct English word কোনটি?`, word, wordPool],
-      ['word-variant-2', `এই Bengali meaning-এর matching card word কোনটি: ${meaning}?`, word, wordPool],
-      ['pair-variant-1', `“${word}” এবং “${meaning}”-এর সঠিক pair কোনটি?`, `${word} — ${meaning}`, pairPool],
-      ['meaning-variant-5', `Card data অনুযায়ী “${word}”-এর recorded meaning কোনটি?`, meaning, meaningPool],
-      ['meaning-variant-6', `নিচের কোন option-টি “${word}” শব্দের বাংলা translation?`, meaning, meaningPool],
-      ['meaning-variant-7', `“${word}” শব্দটি বাংলায় কী বোঝায়?`, meaning, meaningPool],
-      ['word-variant-3', `Vocabulary revision: “${meaning}” এর ইংরেজি entry কোনটি?`, word, wordPool],
-      ['pair-variant-2', `শব্দ ও অর্থ মিলিয়ে correct entry নির্বাচন করো: “${word}”`, `${word} — ${meaning}`, pairPool]
-    ];
-    for (const [kind, prompt, correct, pool] of variants) {
-      if (questions.length >= 20) break;
-      add(kind, prompt, correct, pool, `${word} — ${meaning}`);
+
+    // Dynamic refill: relation-rich cards get more relation variants; no new data is invented.
+    const refill = [];
+    syn.forEach((item, index) => {
+      refill.push(['synonym-revision-a', `Revision: “${item.word}” কোন word-এর synonym?`, word, wordPool, `${item.word} — synonym of ${word}`, 'synonym-relation']);
+      refill.push(['synonym-revision-b', `নিচের কোনটি “${word}”-এর recorded synonym?`, item.word, synonymPool, `${word} → synonym: ${item.word}`, 'synonym-identification']);
+    });
+    ant.forEach((item, index) => {
+      refill.push(['antonym-revision-a', `Revision: “${item.word}” কোন word-এর antonym?`, word, wordPool, `${item.word} — antonym of ${word}`, 'antonym-relation']);
+      refill.push(['antonym-revision-b', `নিচের কোনটি “${word}”-এর recorded antonym?`, item.word, antonymPool, `${word} → antonym: ${item.word}`, 'antonym-identification']);
+    });
+    acr.forEach(item => {
+      refill.push(['acronym-revision-a', `“${item.word}” short form-টি কোন card word-এর সঙ্গে যুক্ত?`, word, wordPool, `${item.word} — acronym of ${word}`, 'acronym-relation']);
+    });
+    refill.push(['reverse-meaning-4', `Vocabulary revision-এ “${meaning}” clue-এর সঠিক entry কোনটি?`, word, wordPool, `${word} — ${meaning}`, 'reverse-meaning']);
+    refill.push(['pair-review', `এই card-এর stored word–meaning pair শনাক্ত করো।`, `${word} — ${meaning}`, pairPool, `${word} — ${meaning}`, 'pair-matching']);
+    for (const [kind, prompt, correct, pool, explanation, family] of refill) {
+      if (candidates.length >= 180) break;
+      add(kind, prompt, correct, pool, explanation, family, family === 'pair-matching' ? 4 : 5, 'challenge', explanation);
     }
-    return shuffle(questions).slice(0, 20);
+    const byFamily = new Map();
+    candidates.forEach(question => { if (!byFamily.has(question.type)) byFamily.set(question.type, []); byFamily.get(question.type).push(question); });
+    const chosen = [], picked = new Set();
+    const takeFamily = (family, count) => {
+      const list = shuffle([...(byFamily.get(family) || [])]);
+      for (const question of list) { if (chosen.length >= 20 || count <= 0) break; if (picked.has(question.id)) continue; picked.add(question.id); chosen.push(question); count--; }
+    };
+    // Stable anchors: one direct meaning question only; reverse meaning tests a different direction.
+    takeFamily('main-meaning', 1);
+    takeFamily('reverse-meaning', 2);
+    takeFamily('pair-matching', 2);
+    takeFamily('context-identification', usableContext ? 2 : 0);
+    takeFamily('acronym-identification', acr.length ? 1 : 0);
+    takeFamily('acronym-expansion', acr.length ? 1 : 0);
+
+    // Dynamic relation rotation: distribute the remaining slots by available source data.
+    const relationFamilies = [
+      ['synonym-identification', syn.length * 2.2], ['synonym-bengali', syn.filter(item => item.meaning).length * 1.4], ['synonym-gloss', syn.filter(item => item.meaning).length * 1.2], ['synonym-relation', syn.length * 1.1],
+      ['antonym-identification', ant.length * 1.8], ['antonym-bengali', ant.filter(item => item.meaning).length * 1.2], ['antonym-relation', ant.length * 1.1],
+      ['acronym-identification', acr.length * 1.5], ['acronym-expansion', acr.filter(item => item.meaning).length * 1.4], ['acronym-relation', acr.length]
+    ].filter(([family, weight]) => weight > 0 && (byFamily.get(family) || []).length).sort((a, b) => b[1] - a[1]);
+    while (chosen.length < 20) {
+      let progressed = false;
+      for (const [family] of relationFamilies) {
+        const before = chosen.length; takeFamily(family, 1); if (chosen.length > before) progressed = true;
+        if (chosen.length >= 20) break;
+      }
+      if (!progressed) break;
+    }
+
+    // If a family has sparse data, use remaining valid candidates, never invented facts.
+    if (chosen.length < 20) {
+      for (const question of shuffle(candidates)) {
+        if (chosen.length >= 20) break;
+        if (!picked.has(question.id)) { picked.add(question.id); chosen.push(question); }
+      }
+    }
+    return shuffle(chosen).slice(0, 20);
   }
   function createCardFlashSession(record) {
     const questions = cardFlashQuestions(record);
