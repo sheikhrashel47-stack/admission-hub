@@ -19,6 +19,9 @@
     parser: { text: '', records: [], stage: 'input' },
     practice: null,
     cardFlash: null,
+    cardAnchorId: '',
+    cardAnchorTop: 0,
+    pendingCardRestore: false,
     practiceSetup: defaultPracticeSetup(),
     practiceSetupRestored: false,
     test: { category: '', selectedIds: [], count: 10, duration: 10, negative: 0 },
@@ -134,9 +137,45 @@
     recordsLoaded = true;
     return state.records;
   }
+  function visibleCardId() {
+    const cards = [...document.querySelectorAll('#vmCategoryResults [data-vm-record-id]')];
+    if (!cards.length) return '';
+    const guideY = Math.max(84, Math.min(window.innerHeight * .24, 190));
+    const active = cards.find(card => { const rect = card.getBoundingClientRect(); return rect.top <= guideY && rect.bottom >= guideY; });
+    if (active) return active.dataset.vmRecordId || '';
+    const passed = cards.filter(card => card.getBoundingClientRect().top <= guideY);
+    return (passed[passed.length - 1] || cards[0])?.dataset.vmRecordId || '';
+  }
+  let categoryScrollFrame = 0;
+  let categoryScrollBound = false;
+  function bindCategoryScrollTracking() {
+    if (categoryScrollBound) return;
+    categoryScrollBound = true;
+    window.addEventListener('scroll', () => {
+      if (categoryScrollFrame) return;
+      categoryScrollFrame = requestAnimationFrame(() => { categoryScrollFrame = 0; if (String(Router?.path || '').startsWith(route('category/'))) { const id = visibleCardId(); if (id) state.cardAnchorId = id; } });
+    }, { passive:true });
+  }
+  function restoreCategoryPosition() {
+    if (!state.pendingCardRestore) return;
+    const targetId = String(state.cardAnchorId || '');
+    const fallbackTop = Math.max(0, Number(state.cardAnchorTop) || 0);
+    const apply = () => {
+      if (!state.pendingCardRestore || !String(Router?.path || '').startsWith(route('category/'))) return;
+      const target = targetId ? [...document.querySelectorAll('#vmCategoryResults [data-vm-record-id]')].find(card => String(card.dataset.vmRecordId) === targetId) : null;
+      const top = target ? Math.max(0, Math.round(target.getBoundingClientRect().top + window.scrollY - 16)) : fallbackTop;
+      if (!target && !fallbackTop) return;
+      window.scrollTo({ top, left:0, behavior:'auto' });
+      state.pendingCardRestore = false;
+    };
+    [80, 300, 760].forEach(wait => window.setTimeout(apply, wait));
+  }
   function snapshotResume(path = String(Router?.path || ''), top = window.scrollY || 0) {
     if (!String(path).startsWith(ROUTE)) return;
-    try { sessionStorage.setItem(VIEW_KEY, JSON.stringify({ path:String(path), category:state.category, query:state.query, visible:state.visible, top:Math.max(0, Number(top) || 0), savedAt:Date.now() })); } catch (_) {}
+    const savedTop = Math.max(0, Number(top) || 0);
+    const cardId = state.cardAnchorId || visibleCardId();
+    state.cardAnchorTop = savedTop;
+    try { sessionStorage.setItem(VIEW_KEY, JSON.stringify({ path:String(path), category:state.category, query:state.query, visible:state.visible, top:savedTop, cardId, savedAt:Date.now() })); } catch (_) {}
   }
   function restoreResume(path = String(Router?.path || '')) {
     try {
@@ -145,6 +184,9 @@
       state.category = String(saved.category || state.category || '').toUpperCase();
       state.query = String(saved.query || '');
       state.visible = Math.max(36, Number(saved.visible) || 36);
+      state.cardAnchorId = String(saved.cardId || '');
+      state.cardAnchorTop = Math.max(0, Number(saved.top) || 0);
+      state.pendingCardRestore = !!(state.cardAnchorId || state.cardAnchorTop);
     } catch (_) {}
   }
   function recordsFor(query = state.query, category = state.category) {
@@ -216,7 +258,7 @@
   function card(record, number) {
     const synonyms = relations(record, 'synonyms'); const antonyms = relations(record, 'antonyms'); const acronyms = relations(record, 'acronyms'); const image = record.imageDataUrl;
     const menuId = `vm-card-menu-${String(record.id).replace(/[^A-Za-z0-9_-]/g, '-')}`; const inputId = `${menuId}-input`;
-    return `<article class="vm-word-card"><div class="vm-card-image-shell ${image ? 'has-image' : ''}">${image ? `<img class="vm-card-image" src="${escape(image)}" alt="Memory image for ${escape(record.word)}" loading="eager" decoding="async">` : `<div class="vm-card-image-empty"><span aria-hidden="true">▧</span><span>Memory image slot · 16:9</span></div>`}</div><div class="vm-card-top"><div class="vm-card-word"><span class="vm-card-ordinal">${number}</span><h3>${escape(record.word)}</h3>${pronounceButton(record.word, `${record.word} pronunciation`)}</div><details class="vm-card-menu" id="${menuId}"><summary aria-label="More actions for ${escape(record.word)}" title="More actions"><span aria-hidden="true">•••</span></summary><div class="vm-card-menu-panel"><button type="button" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.startCardFlash('${escape(record.id)}')"><span>⚡</span><span>Temporary Flash Test</span></button><button type="button" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.copyImagePrompt('${escape(record.id)}')"><span>✦</span><span>Copy AI image prompt</span></button><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('${inputId}')?.click()"><span>▣</span><span>${image ? 'Replace memory image' : 'Add memory image'}</span></button>${image ? `<button type="button" class="danger" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.removeCardImage('${escape(record.id)}')"><span>×</span><span>Remove image</span></button>` : ''}</div></details><input id="${inputId}" class="vm-card-image-input" type="file" accept="image/*" onchange="VocabularyMaster.attachCardImage('${escape(record.id)}', this)"></div><div class="vm-meaning">${escape(record.meaning)}</div>${relationSection('SYNONYMS', synonyms)}${relationSection('ANTONYMS', antonyms)}${relationSection('ACRONYMS', acronyms)}${record.tips ? `<div class="vm-card-section"><div class="vm-tip"><span class="vm-tip-icon">✦</span><span><b>TIPS & EXPLANATION</b>${escape(record.tips)}</span></div></div>` : ''}</article>`;
+    return `<article class="vm-word-card" data-vm-record-id="${escape(record.id)}"><div class="vm-card-image-shell ${image ? 'has-image' : ''}">${image ? `<img class="vm-card-image" src="${escape(image)}" alt="Memory image for ${escape(record.word)}" loading="eager" decoding="async">` : `<div class="vm-card-image-empty"><span aria-hidden="true">▧</span><span>Memory image slot · 16:9</span></div>`}</div><div class="vm-card-top"><div class="vm-card-word"><span class="vm-card-ordinal">${number}</span><h3>${escape(record.word)}</h3>${pronounceButton(record.word, `${record.word} pronunciation`)}</div><details class="vm-card-menu" id="${menuId}"><summary aria-label="More actions for ${escape(record.word)}" title="More actions"><span aria-hidden="true">•••</span></summary><div class="vm-card-menu-panel"><button type="button" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.startCardFlash('${escape(record.id)}')"><span>⚡</span><span>Temporary Flash Test</span></button><button type="button" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.copyImagePrompt('${escape(record.id)}')"><span>✦</span><span>Copy AI image prompt</span></button><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('${inputId}')?.click()"><span>▣</span><span>${image ? 'Replace memory image' : 'Add memory image'}</span></button>${image ? `<button type="button" class="danger" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.removeCardImage('${escape(record.id)}')"><span>×</span><span>Remove image</span></button>` : ''}</div></details><input id="${inputId}" class="vm-card-image-input" type="file" accept="image/*" onchange="VocabularyMaster.attachCardImage('${escape(record.id)}', this)"></div><div class="vm-meaning">${escape(record.meaning)}</div>${relationSection('SYNONYMS', synonyms)}${relationSection('ANTONYMS', antonyms)}${relationSection('ACRONYMS', acronyms)}${record.tips ? `<div class="vm-card-section"><div class="vm-tip"><span class="vm-tip-icon">✦</span><span><b>TIPS & EXPLANATION</b>${escape(record.tips)}</span></div></div>` : ''}</article>`;
   }
   function categoryResultsContent() {
     const all = recordsFor(state.query, state.category);
@@ -235,6 +277,8 @@
     const all = recordsFor(state.query, state.category);
     const body = `<main class="vm-page">${heading(`${state.category || 'ALL'} VOCABULARY`, `${state.category || 'Vocabulary'} Vocabulary`, `${all.length.toLocaleString()} words found`)}<div class="vm-category-intro"><b>${state.category || 'Vocabulary'} category</b><span>Search word, বাংলা অর্থ, synonym বা antonym থেকে খুঁজুন।</span></div><div class="vm-count" id="vmCategoryFound" style="margin:0 0 8px">${all.length.toLocaleString()} words found</div><div class="vm-tool-row"><div class="searchbar"><span>🔍</span><input id="vmBankSearch" value="${escape(state.query)}" placeholder="Search vocabulary" autocomplete="off" oninput="VocabularyMaster.searchCategory(this.value)"></div><select class="vm-filter" onchange="VocabularyMaster.openCategory(this.value)"><option value="">All A–Z</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => `<option value="${letter}" ${state.category === letter ? 'selected' : ''}>${letter}</option>`).join('')}</select></div><div id="vmCategoryResults">${categoryResultsContent()}</div></main>`;
     renderShell(body, { title:`${state.category || 'Vocabulary'} Vocabulary`, back:`navigate('${route('bank')}` });
+    bindCategoryScrollTracking();
+    restoreCategoryPosition();
   }
   function renderWord(id) {
     const record = state.records.find(row => row.id === id);
@@ -676,15 +720,15 @@
         }
         return renderCardFlash();
       }
-      if (parts[1] === 'category') { const nextCategory = String(parts[2] || '').toUpperCase(); if (state.category !== nextCategory) { state.category = nextCategory; state.query = ''; state.visible = 36; } return renderCategory(); }
+      if (parts[1] === 'category') { const nextCategory = String(parts[2] || '').toUpperCase(); if (state.category !== nextCategory) { state.category = nextCategory; state.query = ''; state.visible = 36; state.cardAnchorId = ''; state.cardAnchorTop = 0; state.pendingCardRestore = false; } return renderCategory(); }
       if (parts[1] === 'word') return renderWord(decodeURIComponent(parts.slice(2).join('/')));
       if (current === route('parser')) return renderParser();
       if (current === route('practice')) { if (!state.practice) return renderPracticeHome(); if (state.practice.type === 'match') return renderMatching(); if (state.practice.complete) return renderPracticeSummary(); return renderPracticeQuiz(); }
       if (current === route('test')) return renderTest();
       return renderLanding();
     },
-    openCategory(letter) { state.category = String(letter || '').toUpperCase(); state.query = ''; state.visible = 36; navigate(route(`category/${state.category}`)); },
-    searchCategory(query) { const next = String(query || ''); clearTimeout(state.searchTimer); state.searchTimer = window.setTimeout(() => { state.query = next; state.visible = 36; snapshotResume(); refreshCategoryResults(); }, 120); },
+    openCategory(letter) { state.category = String(letter || '').toUpperCase(); state.query = ''; state.visible = 36; state.cardAnchorId = ''; state.cardAnchorTop = 0; state.pendingCardRestore = false; navigate(route(`category/${state.category}`)); },
+    searchCategory(query) { const next = String(query || ''); clearTimeout(state.searchTimer); state.searchTimer = window.setTimeout(() => { state.query = next; state.visible = 36; state.cardAnchorId = ''; state.cardAnchorTop = 0; state.pendingCardRestore = false; snapshotResume(); refreshCategoryResults(); }, 120); },
     loadMore() { state.visible += 36; snapshotResume(); refreshCategoryResults(); },
     parseInput() { state.parser.text = document.getElementById('vmParserInput')?.value || ''; state.parser.records = parseVocabulary(state.parser.text); state.parser.stage = 'preview'; renderParser(); },
     backToPaste() { state.parser.stage = 'input'; renderParser(); },
