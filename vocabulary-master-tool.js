@@ -18,6 +18,7 @@
     visible: 36,
     parser: { text: '', records: [], stage: 'input' },
     practice: null,
+    cardFlash: null,
     practiceSetup: defaultPracticeSetup(),
     practiceSetupRestored: false,
     test: { category: '', selectedIds: [], count: 10, duration: 10, negative: 0 },
@@ -44,6 +45,12 @@
   .vm-setup{display:grid;gap:14px;margin-top:18px}.vm-setup-card{padding:17px;border:1px solid var(--line);border-radius:18px;background:var(--card);box-shadow:var(--shadow)}.vm-step{display:flex;align-items:center;gap:9px;color:var(--emerald-d);font-size:11px;font-weight:900;letter-spacing:.11em}.vm-step i{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;background:var(--mint);font-style:normal}.vm-setup-card h3{margin:9px 0 5px;font-size:20px;letter-spacing:-.35px}.vm-setup-card p{margin:0;color:var(--sub);font-size:12px;line-height:1.5}.vm-setup-card select,.vm-setup-card input{width:100%;min-height:48px;margin-top:13px;font:inherit}.vm-setup-note{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;padding:10px 11px;border-radius:11px;background:var(--mint);color:var(--emerald-d);font-size:12px;font-weight:800}.vm-presets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}.vm-preset{min-height:64px;padding:8px;border:1px solid var(--line);border-radius:12px;background:#fbfefc;color:var(--text);font:inherit;text-align:left;cursor:pointer}.vm-preset b,.vm-preset small{display:block}.vm-preset b{font-size:12px}.vm-preset small{margin-top:3px;color:var(--sub);font-size:10px;line-height:1.3}.vm-count-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:center}.vm-count-row .btn{min-height:48px;padding:9px 12px;white-space:nowrap}.vm-setup-warning{margin-top:10px;padding:10px 11px;border-left:3px solid var(--orange);border-radius:9px;background:#fff9ee;color:#875417;font-size:12px;line-height:1.48}.vm-advanced{margin-top:2px;border:1px solid var(--line);border-radius:15px;background:var(--card)}.vm-advanced>summary{padding:14px 15px;color:var(--emerald-d);font-size:13px;font-weight:800;cursor:pointer}.vm-advanced-body{display:grid;gap:12px;padding:2px 15px 15px}.vm-checkline{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;font-weight:700}.vm-checkline input{width:20px;height:20px;margin:0;accent-color:var(--emerald)}.vm-summary{padding:17px;border:1px solid #cce4da;border-radius:18px;background:linear-gradient(145deg,#f7fcfa,#ecf8f3)}.vm-summary-kicker{color:var(--emerald-d);font-size:10px;font-weight:900;letter-spacing:.14em}.vm-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:13px}.vm-summary-grid div{min-width:0}.vm-summary-grid small,.vm-summary-grid b{display:block}.vm-summary-grid small{color:var(--sub);font-size:10px}.vm-summary-grid b{margin-top:3px;font-size:14px;line-height:1.35;overflow-wrap:anywhere}.vm-custom-tools{display:flex;gap:8px;margin:12px 0}.vm-custom-tools .btn{flex:1;min-height:42px;padding:8px}.vm-custom-list{display:grid;gap:7px;max-height:350px;margin-top:11px;overflow:auto;overscroll-behavior:contain}.vm-custom-item{display:flex;align-items:center;gap:10px;padding:11px;border:1px solid var(--line);border-radius:12px;background:#fbfefc;cursor:pointer}.vm-custom-item input{width:19px;height:19px;min-height:auto;margin:0;accent-color:var(--emerald)}.vm-custom-item span{display:grid;gap:2px;min-width:0}.vm-custom-item b{font-size:14px}.vm-custom-item small{color:var(--sub);font-family:'Noto Serif Bengali',Georgia,serif;font-size:12px}.vm-custom-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px;color:var(--sub);font-size:12px}.vm-custom-foot .btn{min-height:39px;padding:7px 10px}.vm-time-custom{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.vm-time-custom label{display:grid;gap:4px;color:var(--sub);font-size:10px;font-weight:800}.vm-time-custom input{margin:0!important;text-align:center}.vm-timer{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:9px;background:#fff4e8;color:#9a581d;font-size:12px;font-weight:900}.vm-start{min-height:56px;font-size:15px!important}.vm-empty-setup{padding:26px 16px;text-align:center;border:1px dashed var(--line);border-radius:18px;background:var(--card)}@media(max-width:360px){.vm-presets,.vm-summary-grid{grid-template-columns:1fr}.vm-count-row{grid-template-columns:1fr}.vm-count-row .btn{width:100%}}
   `;
   document.head.appendChild(practiceSetupStyle);
+  const cardFlashStyle = document.createElement('style');
+  cardFlashStyle.setAttribute('data-vocabulary-card-flash-style', 'true');
+  cardFlashStyle.textContent = `
+    .vm-card-flash{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border:1px solid #c6e5da;border-radius:13px;background:linear-gradient(145deg,#effcf6,#e5f4ff);color:#16715e;font:inherit;font-size:18px;cursor:pointer;box-shadow:0 5px 12px rgba(15,107,79,.1);transition:transform .16s ease,box-shadow .16s ease,background .16s ease}.vm-card-flash:hover{transform:translateY(-2px);box-shadow:0 8px 16px rgba(15,107,79,.14);background:#fff}.vm-card-flash:active{transform:scale(.92)}.vm-card-flash span{line-height:1}.vm-card-flash-page{padding-bottom:30px}.vm-card-flash-context{display:flex;align-items:center;gap:10px;margin:12px 0;padding:11px 13px;border:1px solid #cbe4da;border-radius:15px;background:linear-gradient(135deg,#f3fcf8,#f3f8ff);color:#315d68}.vm-card-flash-context strong{font-size:16px}.vm-card-flash-context small{display:block;color:#6d858b;font-size:11px;margin-top:2px}.vm-card-flash-context .vm-pronounce{margin-left:auto}.vm-card-flash-temporary{display:inline-flex;margin-left:auto;padding:5px 8px;border-radius:8px;background:#fff4d8;color:#89621e;font-size:9px;font-weight:900;letter-spacing:.06em;white-space:nowrap}.vm-card-flash-page .flash-q-card{border:1px solid #d7e8e3;background:var(--card)}.vm-card-flash-page .flash-q-text{font-size:18px}.vm-card-flash-page .flash-opt{font:inherit}.vm-card-flash-page .flash-feedback{line-height:1.55}.vm-card-flash-page .flash-explanation{font-size:13px}.vm-card-flash-actions{display:flex;gap:8px;margin-top:12px}.vm-card-flash-actions .btn{flex:1;min-height:46px}.vm-card-flash-note{margin:10px 0;padding:10px 12px;border-left:3px solid #e0a33a;border-radius:10px;background:#fff9e9;color:#765a21;font-size:11px;line-height:1.45}@media(max-width:390px){.vm-card-flash-context{align-items:flex-start}.vm-card-flash-temporary{font-size:8px}.vm-card-flash-page .flash-q-text{font-size:17px}}
+  `;
+  document.head.appendChild(cardFlashStyle);
 
   const escape = value => String(value ?? '').replace(/[&<>'"]/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', "'":'&#39;', '"':'&quot;' })[char]);
   const safeJson = value => escape(JSON.stringify(value));
@@ -72,6 +79,8 @@
   function normalizeRecord(raw) {
     const word = String(raw?.word || '').trim();
     const meaning = String(raw?.meaning || '').trim();
+    const rawAcronyms = raw?.acronyms ?? raw?.acronym ?? [];
+    const acronyms = relationItems(Array.isArray(rawAcronyms) ? rawAcronyms : [rawAcronyms]);
     return {
       id: raw?.id || (typeof uid === 'function' ? uid() : `vm-${now()}-${Math.random().toString(36).slice(2,8)}`),
       tool: 'vocabulary-master',
@@ -79,6 +88,7 @@
       meaning,
       synonyms: relationItems(raw?.synonyms),
       antonyms: relationItems(raw?.antonyms),
+      acronyms,
       tips: String(raw?.tips || '').trim(),
       category: categoryOf(word),
       normalized: lower(word),
@@ -112,7 +122,7 @@
     return state.records.filter(record => {
       if (category && record.category !== category) return false;
       if (!q) return true;
-      const haystack = [record.word, record.meaning, record.tips, ...record.synonyms.flatMap(item => [item.word, item.meaning]), ...record.antonyms.flatMap(item => [item.word, item.meaning])].join(' ').toLocaleLowerCase('en-US');
+      const haystack = [record.word, record.meaning, record.tips, ...record.synonyms.flatMap(item => [item.word, item.meaning]), ...record.antonyms.flatMap(item => [item.word, item.meaning]), ...record.acronyms.flatMap(item => [item.word, item.meaning])].join(' ').toLocaleLowerCase('en-US');
       return haystack.includes(q);
     });
   }
@@ -144,7 +154,7 @@
   }
   function card(record, number) {
     const synonyms = relations(record, 'synonyms'); const antonyms = relations(record, 'antonyms');
-    return `<article class="vm-word-card"><div class="vm-card-top"><div class="vm-card-word"><span class="vm-card-ordinal">${number}</span><h3>${escape(record.word)}</h3>${pronounceButton(record.word, `${record.word} pronunciation`)}</div></div><div class="vm-meaning">${escape(record.meaning)}</div>${relationSection('SYNONYMS', synonyms)}${relationSection('ANTONYMS', antonyms)}${record.tips ? `<div class="vm-card-section"><div class="vm-tip"><span class="vm-tip-icon">✦</span><span><b>TIPS & EXPLANATION</b>${escape(record.tips)}</span></div></div>` : ''}</article>`;
+    return `<article class="vm-word-card"><div class="vm-card-top"><div class="vm-card-word"><span class="vm-card-ordinal">${number}</span><h3>${escape(record.word)}</h3>${pronounceButton(record.word, `${record.word} pronunciation`)}</div><button type="button" class="vm-card-flash" aria-label="Start temporary flash test for ${escape(record.word)}" title="Temporary 20-question Flash Test" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.startCardFlash('${escape(record.id)}')"><span aria-hidden="true">⚡</span></button></div><div class="vm-meaning">${escape(record.meaning)}</div>${relationSection('SYNONYMS', synonyms)}${relationSection('ANTONYMS', antonyms)}${relationSection('ACRONYMS', relations(record, 'acronyms'))}${record.tips ? `<div class="vm-card-section"><div class="vm-tip"><span class="vm-tip-icon">✦</span><span><b>TIPS & EXPLANATION</b>${escape(record.tips)}</span></div></div>` : ''}</article>`;
   }
   function categoryResultsContent() {
     const all = recordsFor(state.query, state.category);
@@ -191,6 +201,7 @@
     const value = match[2].trim();
     if (/^(synonym|synonyms|similarword|similarwords|সমার্থক|সমার্থকশব্দ)$/.test(label)) return { kind:'synonyms', value };
     if (/^(antonym|antonyms|opposite|opposites|বিপরীত|বিপরীতশব্দ)$/.test(label)) return { kind:'antonyms', value };
+    if (/^(acronym|acronyms|abbreviation|abbreviations|সংক্ষিপ্তরূপ|সংক্ষিপ্তরূপ)$/.test(label)) return { kind:'acronyms', value };
     if (/^(tip|tips|explanation|tips&explanation|tipsandexplanation|ব্যাখ্যা|টিপস)$/.test(label)) return { kind:'tips', value };
     return null;
   }
@@ -215,7 +226,7 @@
       if (!head) return { raw:lines.join('\n'), valid:false, error:'Word এবং Bengali meaning পাওয়া যায়নি।' };
       const word = head[1].trim();
       const meaning = head[2].trim();
-      const synonyms = [], antonyms = [], tips = [];
+      const synonyms = [], antonyms = [], acronyms = [], tips = [];
       let section = '';
       let started = false;
       lines.forEach(line => {
@@ -225,25 +236,25 @@
           section = sectionHeader.kind;
           if (sectionHeader.value) {
             if (section === 'tips') tips.push(sectionHeader.value);
-            else { const item = parserRelation(sectionHeader.value); if (item) (section === 'synonyms' ? synonyms : antonyms).push(item); }
+            else { const item = parserRelation(sectionHeader.value); if (item) (section === 'synonyms' ? synonyms : section === 'antonyms' ? antonyms : acronyms).push(item); }
           }
           return;
         }
         if (!line.trim()) return;
         if (section === 'tips') { tips.push(line.trim().replace(/^\s*[-*•]\s*/, '')); return; }
-        if (section === 'synonyms' || section === 'antonyms') {
+        if (section === 'synonyms' || section === 'antonyms' || section === 'acronyms') {
           const item = parserRelation(line);
-          if (item) (section === 'synonyms' ? synonyms : antonyms).push(item);
+          if (item) (section === 'synonyms' ? synonyms : section === 'antonyms' ? antonyms : acronyms).push(item);
         }
       });
-      const record = normalizeRecord({ word, meaning, synonyms, antonyms, tips:tips.join(' ').trim() });
+      const record = normalizeRecord({ word, meaning, synonyms, antonyms, acronyms, tips:tips.join(' ').trim() });
       return { ...record, raw:lines.join('\n'), valid:!!(word && meaning), sourceIndex:index, error:word && meaning ? '' : 'Incomplete record' };
     });
   }
   function parserPreviewCard(record, index) {
     const duplicate = state.records.some(existing => existing.normalized === record.normalized);
     const status = !record.valid ? 'invalid' : duplicate ? 'duplicate' : '';
-    return `<article class="vm-preview-card ${status}"><div class="row between"><div><b>${escape(record.word || 'Incomplete record')}</b><div class="muted" style="margin-top:3px">${escape(record.meaning || record.error || 'Missing Bengali meaning')}</div></div><button class="btn ghost sm" onclick="VocabularyMaster.editParsed(${index})">Edit</button></div><div class="vm-preview-meta"><span>${record.valid ? '✓ Valid' : '⚠ Incomplete'}</span><span>Synonyms: ${relations(record, 'synonyms').length}</span><span>Antonyms: ${relations(record, 'antonyms').length}</span><span>${record.tips ? 'Explanation: Available' : 'Explanation: —'}</span>${duplicate ? '<span>Duplicate Found</span>' : ''}</div>${!record.valid ? `<button class="btn ghost sm" style="margin-top:11px" onclick="VocabularyMaster.skipParsed(${index})">Skip</button>` : ''}</article>`;
+        return `<article class="vm-preview-card ${status}"><div class="row between"><div><b>${escape(record.word || 'Incomplete record')}</b><div class="muted" style="margin-top:3px">${escape(record.meaning || record.error || 'Missing Bengali meaning')}</div></div><button class="btn ghost sm" onclick="VocabularyMaster.editParsed(${index})">Edit</button></div><div class="vm-preview-meta"><span>${record.valid ? '✓ Valid' : '⚠ Incomplete'}</span><span>Synonyms: ${relations(record, 'synonyms').length}</span><span>Antonyms: ${relations(record, 'antonyms').length}</span><span>Acronyms: ${relations(record, 'acronyms').length}</span><span>${record.tips ? 'Explanation: Available' : 'Explanation: —'}</span>${duplicate ? '<span>Duplicate Found</span>' : ''}</div>${!record.valid ? `<button class="btn ghost sm" style="margin-top:11px" onclick="VocabularyMaster.skipParsed(${index})">Skip</button>` : ''}</article>`;
   }
   function renderParser() {
     const preview = state.parser.stage === 'preview';
@@ -364,6 +375,103 @@
     return generated.map(question => question.id);
   }
 
+  function flashOptions(correct, pool) {
+    const seen = new Set();
+    const values = [correct, ...shuffle(pool || [])].map(value => String(value || '').trim()).filter(Boolean).filter(value => {
+      const key = lower(value); if (seen.has(key)) return false; seen.add(key); return true;
+    });
+    return values.length >= 4 ? shuffle(values.slice(0, 4)) : null;
+  }
+  function cardFlashBanks(record) {
+    const words = unique(state.records.map(row => row.word));
+    const meanings = unique(state.records.map(row => row.meaning));
+    const synonyms = unique(state.records.flatMap(row => relations(row, 'synonyms').map(item => item.word)));
+    const synonymMeanings = unique(state.records.flatMap(row => relations(row, 'synonyms').map(item => item.meaning)));
+    const antonyms = unique(state.records.flatMap(row => relations(row, 'antonyms').map(item => item.word)));
+    const acronymWords = unique(state.records.flatMap(row => relations(row, 'acronyms').map(item => item.word)));
+    const acronymMeanings = unique(state.records.flatMap(row => relations(row, 'acronyms').map(item => item.meaning)));
+    const pairs = unique(state.records.map(row => `${row.word} — ${row.meaning}`));
+    return { words, meanings, synonyms, synonymMeanings, antonyms, acronymWords, acronymMeanings, pairs, record };
+  }
+  function cardFlashQuestions(record) {
+    const bank = cardFlashBanks(record), questions = [], seen = new Set();
+    const add = (kind, prompt, correct, pool, explanation) => {
+      const answer = String(correct || '').trim(); if (!answer) return;
+      const options = flashOptions(answer, pool); if (!options) return;
+      const signature = `${lower(prompt)}|${lower(answer)}`; if (seen.has(signature)) return;
+      seen.add(signature); questions.push({ id:`card-flash-${record.id}-${kind}-${questions.length}`, prompt, options, correct:answer, explanation });
+    };
+    const word = record.word, meaning = record.meaning, syn = relations(record, 'synonyms'), ant = relations(record, 'antonyms'), acr = relations(record, 'acronyms');
+    const wordPool = bank.words.filter(item => item !== word), meaningPool = bank.meanings.filter(item => item !== meaning), pairPool = bank.pairs.filter(item => item !== `${word} — ${meaning}`);
+    add('meaning-direct', `“${word}” শব্দটির সঠিক বাংলা meaning কোনটি?`, meaning, meaningPool, `${word} — ${meaning}`);
+    add('meaning-recall', `Flash recall: ${word} মনে করলে কোন বাংলা অর্থটি আগে আসবে?`, meaning, meaningPool, `${word} — ${meaning}`);
+    add('meaning-clue', `নিচের কোন Bengali clue-টি “${word}” শব্দটির সঙ্গে মেলে?`, meaning, meaningPool, `Card meaning: ${meaning}`);
+    add('word-from-meaning', `“${meaning}” অর্থ প্রকাশ করে এমন English word কোনটি?`, word, wordPool, `${word} — ${meaning}`);
+    add('word-from-clue', `এই Bengali meaning-এর জন্য vocabulary card-এর word বেছে নাও: ${meaning}`, word, wordPool, `${word} — ${meaning}`);
+    add('pair-match', `নিচের কোন pair-টি এই card-এর সঙ্গে সঠিকভাবে মিলে?`, `${word} — ${meaning}`, pairPool, `সঠিক pair: ${word} — ${meaning}`);
+    add('pair-recall', `Word ও বাংলা meaning-এর সম্পূর্ণ সঠিক pair কোনটি?`, `${word} — ${meaning}`, pairPool, `সঠিক pair: ${word} — ${meaning}`);
+    add('translation-check', `Which Bengali translation best matches “${word}”?`, meaning, meaningPool, `${word} — ${meaning}`);
+    add('definition-check', `Choose the exact Bengali gloss stored for “${word}”.`, meaning, meaningPool, `${word} — ${meaning}`);
+    add('card-entry', `Vocabulary card-এ “${word}”-এর নিচে কোন meaning লেখা আছে?`, meaning, meaningPool, `${word} — ${meaning}`);
+    if (syn.length) {
+      syn.forEach((item, index) => {
+        if (index > 2) return;
+        add(`synonym-${index}`, `${word}-এর synonym কোনটি?`, item.word, [...bank.synonyms, ...wordPool], `${word} → synonym: ${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`);
+        if (item.meaning) add(`synonym-meaning-${index}`, `এই synonym-এর বাংলা meaning কোনটি? “${item.word}”`, item.meaning, [...bank.synonymMeanings, ...meaningPool], `${item.word} — ${item.meaning}`);
+      });
+    }
+    if (ant.length) ant.slice(0, 2).forEach((item, index) => add(`antonym-${index}`, `${word}-এর antonym কোনটি?`, item.word, [...bank.antonyms, ...wordPool], `${word} → antonym: ${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`));
+    if (acr.length) {
+      acr.slice(0, 3).forEach((item, index) => {
+        add(`acronym-word-${index}`, `${word}-এর সঙ্গে যুক্ত acronym / short form কোনটি?`, item.word, [...bank.acronymWords, ...wordPool], `${item.word}${item.meaning ? ` — ${item.meaning}` : ''}`);
+        if (item.meaning) add(`acronym-meaning-${index}`, `“${item.word}” acronym-এর বাংলা meaning বা expansion কোনটি?`, item.meaning, [...bank.acronymMeanings, ...meaningPool], `${item.word} — ${item.meaning}`);
+      });
+    }
+    const variants = [
+      ['meaning-variant-1', `Revision check: “${word}” শব্দটির exact Bengali meaning কোনটি?`, meaning, meaningPool],
+      ['meaning-variant-2', `Card review: “${word}” মানে কোনটি?`, meaning, meaningPool],
+      ['meaning-variant-3', `“${word}” দেখলে কোন বাংলা অর্থ মনে রাখা উচিত?`, meaning, meaningPool],
+      ['meaning-variant-4', `Which Bengali gloss is attached to “${word}”?`, meaning, meaningPool],
+      ['word-variant-1', `“${meaning}” অর্থের জন্য correct English word কোনটি?`, word, wordPool],
+      ['word-variant-2', `এই Bengali meaning-এর matching card word কোনটি: ${meaning}?`, word, wordPool],
+      ['pair-variant-1', `“${word}” এবং “${meaning}”-এর সঠিক pair কোনটি?`, `${word} — ${meaning}`, pairPool],
+      ['meaning-variant-5', `Card data অনুযায়ী “${word}”-এর recorded meaning কোনটি?`, meaning, meaningPool],
+      ['meaning-variant-6', `নিচের কোন option-টি “${word}” শব্দের বাংলা translation?`, meaning, meaningPool],
+      ['meaning-variant-7', `“${word}” শব্দটি বাংলায় কী বোঝায়?`, meaning, meaningPool],
+      ['word-variant-3', `Vocabulary revision: “${meaning}” এর ইংরেজি entry কোনটি?`, word, wordPool],
+      ['pair-variant-2', `শব্দ ও অর্থ মিলিয়ে correct entry নির্বাচন করো: “${word}”`, `${word} — ${meaning}`, pairPool]
+    ];
+    for (const [kind, prompt, correct, pool] of variants) {
+      if (questions.length >= 20) break;
+      add(kind, prompt, correct, pool, `${word} — ${meaning}`);
+    }
+    return shuffle(questions).slice(0, 20);
+  }
+  function createCardFlashSession(record) {
+    const questions = cardFlashQuestions(record);
+    if (questions.length < 20) return null;
+    return { recordId:record.id, questions, index:0, selected:null, correct:0, wrong:0, complete:false, startedAt:now(), returnPath:route('bank') };
+  }
+  function renderCardFlashContext(record) {
+    const syn = relations(record, 'synonyms').slice(0, 2).map(item => item.word).join(', ');
+    const acr = relations(record, 'acronyms').slice(0, 2).map(item => item.word).join(', ');
+    return `<div class="vm-card-flash-context"><div><strong>${escape(record.word)}</strong><small>${escape(record.meaning)}${syn ? ` · synonym: ${escape(syn)}` : ''}${acr ? ` · acronym: ${escape(acr)}` : ''}</small></div>${pronounceButton(record.word, `${record.word} pronunciation`)}<span class="vm-card-flash-temporary">TEMPORARY · NOT SAVED</span></div>`;
+  }
+  function renderCardFlashSummary() {
+    const session = state.cardFlash, record = state.records.find(row => row.id === session?.recordId);
+    if (!session || !record) { navigate(route('bank')); return ''; }
+    const total = session.correct + session.wrong, score = total ? Math.round(session.correct / total * 100) : 0;
+    const body = `<main class="vm-page vm-card-flash-page">${heading('FLASH TEST COMPLETE', `${record.word} · Result`, 'এই result শুধু এই temporary session-এর জন্য। কোথাও save করা হয়নি।')}${renderCardFlashContext(record)}<section class="flash-summary-hero"><div class="flash-summary-kicker">CARD-SPECIFIC FLASH TEST</div><h1>${escape(record.word)} revision complete</h1><p>${session.questions.length}টি standard MCQ-এর temporary result। Vocabulary progress, history বা app result-এ এটি যোগ হয়নি।</p></section><div class="flash-summary-grid"><div class="flash-summary-stat correct"><b>${session.correct}</b><span>Correct</span></div><div class="flash-summary-stat wrong"><b>${session.wrong}</b><span>Wrong</span></div><div class="flash-summary-stat"><b>${score}%</b><span>Accuracy</span></div><div class="flash-summary-stat"><b>${session.questions.length}</b><span>Questions</span></div></div><div class="vm-card-flash-actions"><button class="btn" onclick="VocabularyMaster.startCardFlash('${escape(record.id)}')">Retake 20</button><button class="btn secondary" onclick="VocabularyMaster.exitCardFlash()">Back to vocabulary</button></div><div class="vm-card-flash-note">Temporary privacy rule: এই score, answer, wrong list এবং attempt time localStorage, IndexedDB, Question Bank বা History-তে রাখা হয়নি। Page ছেড়ে বের হলে session clear হবে।</div></main>`;
+    renderShell(body, { title:`${record.word} Flash Result`, back:`VocabularyMaster.exitCardFlash()` });
+  }
+  function renderCardFlash() {
+    const session = state.cardFlash, record = state.records.find(row => row.id === session?.recordId), question = session?.questions?.[session.index];
+    if (!session || !record) { navigate(route('bank')); return ''; }
+    if (session.complete || !question) return renderCardFlashSummary();
+    const answered = session.selected !== null, progress = Math.round((session.index / session.questions.length) * 100), selected = session.selected;
+    const body = `<main class="vm-page vm-card-flash-page">${heading('CARD FLASH TEST', `Question ${session.index + 1} of ${session.questions.length}`, `${session.correct} correct · ${session.wrong} wrong · no history saved`)}${renderCardFlashContext(record)}<div class="flash-progress-section"><div class="flash-meta"><span>${progress}% complete</span></div><div class="progbar flash-prog"><div style="width:${progress}%"></div></div></div><section class="flash-q-card card"><div class="row between"><span class="flash-badge">Q ${String(session.index + 1).padStart(2, '0')} · ${escape(record.word)}</span><span class="flash-points">1 point</span></div><div class="flash-q-text">${escape(question.prompt)}</div><div class="flash-options">${question.options.map((option, index) => { const cls = answered ? (option === question.correct ? 'correct' : option === selected ? 'wrong' : '') : ''; return `<button type="button" class="flash-opt ${cls}" ${answered ? 'disabled' : ''} onclick="VocabularyMaster.answerCardFlash(${safeJson(option)})"><span class="flash-opt-let">${String.fromCharCode(65 + index)}</span><span class="flash-opt-text">${escape(option)}</span>${answered && option === question.correct ? '<span class="flash-opt-icon">✓</span>' : answered && option === selected ? '<span class="flash-opt-icon">×</span>' : ''}</button>`; }).join('')}</div>${answered ? `<div class="flash-feedback ${selected === question.correct ? 'correct' : 'wrong'}"><div class="flash-feedback-title">${selected === question.correct ? '✓ সঠিক উত্তর' : '✕ ভুল উত্তর'}</div><div class="flash-explanation">${escape(question.explanation)}</div></div><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.nextCardFlash()">${session.index === session.questions.length - 1 ? 'See Temporary Result' : 'Next Question →'}</button>` : ''}</section><div class="vm-card-flash-actions"><button class="btn secondary" onclick="VocabularyMaster.exitCardFlash()">Exit test</button><button class="btn ghost" ${answered ? '' : 'disabled'} onclick="VocabularyMaster.nextCardFlash()">Skip to next</button></div></main>`;
+    renderShell(body, { title:`${record.word} Flash Test`, back:`VocabularyMaster.exitCardFlash()` });
+  }
   function practiceRouteActive() {
     const path = String(window.Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
     return path === route('practice');
@@ -420,6 +528,16 @@
       const parts = current.split('/');
       if (current === ROUTE) return renderLanding();
       if (current === route('bank')) return renderBank();
+      if (parts[1] === 'flash') {
+        const recordId = decodeURIComponent(parts.slice(2).join('/'));
+        if (!state.cardFlash || state.cardFlash.recordId !== recordId) {
+          const record = state.records.find(row => row.id === recordId);
+          const session = record && createCardFlashSession(record);
+          if (!session) { toast('এই card-এর জন্য 20টি distinct option তৈরি করা যাচ্ছে না। Vocabulary Bank-এ আরও valid words যোগ করো।'); navigate(route('bank')); return; }
+          state.cardFlash = session;
+        }
+        return renderCardFlash();
+      }
       if (parts[1] === 'category') { const nextCategory = String(parts[2] || '').toUpperCase(); if (state.category !== nextCategory) { state.category = nextCategory; state.query = ''; state.visible = 36; } return renderCategory(); }
       if (parts[1] === 'word') return renderWord(decodeURIComponent(parts.slice(2).join('/')));
       if (current === route('parser')) return renderParser();
@@ -435,9 +553,9 @@
     skipParsed(index) { state.parser.records.splice(index, 1); renderParser(); },
     editParsed(index) {
       const record = state.parser.records[index]; if (!record) return;
-      openModal(`<h3>Edit vocabulary</h3><label class="flabel">Word</label><input id="vmEditWord" value="${escape(record.word)}"><label class="flabel">Bengali Meaning</label><input id="vmEditMeaning" value="${escape(record.meaning)}"><label class="flabel">Synonyms (one per line: word : meaning)</label><textarea id="vmEditSyn">${escape(record.synonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Antonyms (one per line: word : meaning)</label><textarea id="vmEditAnt">${escape(record.antonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Tips & Explanation</label><textarea id="vmEditTips">${escape(record.tips)}</textarea><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.saveParsedEdit(${index})">Save changes</button>`);
+      openModal(`<h3>Edit vocabulary</h3><label class="flabel">Word</label><input id="vmEditWord" value="${escape(record.word)}"><label class="flabel">Bengali Meaning</label><input id="vmEditMeaning" value="${escape(record.meaning)}"><label class="flabel">Synonyms (one per line: word : meaning)</label><textarea id="vmEditSyn">${escape(record.synonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Antonyms (one per line: word : meaning)</label><textarea id="vmEditAnt">${escape(record.antonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Acronyms / Abbreviations (one per line: short form : meaning)</label><textarea id="vmEditAcr">${escape(record.acronyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Tips & Explanation</label><textarea id="vmEditTips">${escape(record.tips)}</textarea><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.saveParsedEdit(${index})">Save changes</button>`);
     },
-    saveParsedEdit(index) { const current = state.parser.records[index]; if (!current) return; const parseLines = id => parsePairs(document.getElementById(id)?.value || ''); const updated = normalizeRecord({ ...current, word:document.getElementById('vmEditWord')?.value || '', meaning:document.getElementById('vmEditMeaning')?.value || '', synonyms:parseLines('vmEditSyn'), antonyms:parseLines('vmEditAnt'), tips:document.getElementById('vmEditTips')?.value || '' }); state.parser.records[index] = { ...updated, raw:current.raw, valid:!!(updated.word && updated.meaning), error:updated.word && updated.meaning ? '' : 'Incomplete record' }; closeModal(); renderParser(); },
+    saveParsedEdit(index) { const current = state.parser.records[index]; if (!current) return; const parseLines = id => parsePairs(document.getElementById(id)?.value || ''); const updated = normalizeRecord({ ...current, word:document.getElementById('vmEditWord')?.value || '', meaning:document.getElementById('vmEditMeaning')?.value || '', synonyms:parseLines('vmEditSyn'), antonyms:parseLines('vmEditAnt'), acronyms:parseLines('vmEditAcr'), tips:document.getElementById('vmEditTips')?.value || '' }); state.parser.records[index] = { ...updated, raw:current.raw, valid:!!(updated.word && updated.meaning), error:updated.word && updated.meaning ? '' : 'Incomplete record' }; closeModal(); renderParser(); },
     async saveParsed() { const strategy = document.getElementById('vmDuplicateChoice')?.value || 'skip'; const valid = state.parser.records.filter(record => record.valid); if (!valid.length) return toast('No valid vocabulary to save'); const byNormalized = new Map(state.records.map(record => [record.normalized, record])); let saved = 0, skipped = 0; for (const source of valid) { const record = normalizeRecord(source); const duplicate = byNormalized.get(record.normalized); if (duplicate && strategy === 'skip') { skipped++; continue; } if (duplicate && strategy === 'replace') { record.id = duplicate.id; record.createdAt = duplicate.createdAt; } await dbPut(STORE, record); byNormalized.set(record.normalized, record); saved++; } await loadRecords(true); state.parser = { text:'', records:[], stage:'input' }; toast(`${saved} vocabulary saved${skipped ? ` · ${skipped} duplicate skipped` : ''}`); navigate(route('bank')); },
     setPracticeSource(value) { const setup = state.practiceSetup; if (value === 'custom') setup.sourceType = 'custom'; else if (/^[A-Z]$/.test(value)) { setup.sourceType = 'category'; setup.category = value; } else { setup.sourceType = 'all'; setup.category = ''; } renderPracticeHome(); },
     setPracticeType(value) { if (PRACTICE_TYPES[value]) state.practiceSetup.practiceType = value; renderPracticeHome(); },
@@ -466,6 +584,10 @@
     cancelPractice() { stopPracticeTimer(); state.practice = null; navigate(route('practice')); },
     finishPractice() { stopPracticeTimer(); state.practice = null; navigate(route('practice')); },
     testRecord(id) { state.test.selectedIds = [id]; state.test.category = ''; navigate(route('test')); },
+    startCardFlash(id) { const record = state.records.find(row => row.id === id); const current = String(Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || route('bank')); const returnPath = state.cardFlash?.recordId === id && state.cardFlash.returnPath ? state.cardFlash.returnPath : (current.startsWith(route('category/')) ? current : route('bank')); const session = record && createCardFlashSession(record); if (!session) return toast('এই card-এর জন্য 20টি distinct option তৈরি করা যাচ্ছে না। Vocabulary Bank-এ আরও valid words যোগ করো।'); session.returnPath = returnPath; state.cardFlash = session; navigate(route(`flash/${encodeURIComponent(id)}`)); },
+    answerCardFlash(value) { const session = state.cardFlash, question = session?.questions?.[session.index]; if (!question || session.selected !== null) return; session.selected = String(value); if (session.selected === question.correct) session.correct++; else session.wrong++; renderCardFlash(); },
+    nextCardFlash() { const session = state.cardFlash; if (!session || session.selected === null) return; session.index++; session.selected = null; if (session.index >= session.questions.length) session.complete = true; renderCardFlash(); },
+    exitCardFlash() { const returnPath = state.cardFlash?.returnPath || route('bank'); state.cardFlash = null; navigate(returnPath); },
     setTestCategory(value) { state.test.category = String(value || ''); state.test.selectedIds = []; renderTest(); },
     setTestCount(value) { state.test.count = Number(value) || 10; renderTest(); },
     setTestDuration(value) { state.test.duration = Number(value) || 10; renderTest(); },
