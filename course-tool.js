@@ -400,4 +400,6 @@
   window.render=function(){const p=path();if(p==='courses'||p==='course')return renderLibrary();if(p==='courses/new'){if(location.hash!=='#courses')history.replaceState(null,'','#courses');return renderLibrary();}if(p==='courses/manage')return renderManage();const ov=p.match(/^courses\/([^/]+)$/);if(ov){const c=courseById(ov[1]);return c?renderOverview(c):renderLibrary()}const lm=p.match(/^courses\/([^/]+)\/lesson\/([^/]+)\/slide\/(\d+)$/);if(lm){const c=courseById(lm[1]),l=c?.lessons?.find(x=>x.id===lm[2]);return c&&l?renderLesson(c,l,lm[3]):renderLibrary()}const em=p.match(/^courses\/([^/]+)\/exam$/);if(em){const c=courseById(em[1]);return c?renderExam(c):renderLibrary()}const rm=p.match(/^courses\/([^/]+)\/result$/);if(rm){const c=courseById(rm[1]);return c?renderResult(c):renderLibrary()}return baseRender?baseRender.apply(this,arguments):undefined};
   window.addEventListener('hashchange',()=>{if(!path().includes('/exam'))examSession=null;if(path().startsWith('courses'))setTimeout(()=>refreshCourse(),0)});
   inject();
+  // Core boot can finish before this late-loaded route module installs its renderer.
+  if(path().startsWith('courses')) setTimeout(()=>window.render(),0);
 })();
