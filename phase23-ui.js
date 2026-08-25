@@ -138,7 +138,7 @@
     track.dataset.bound='1';let startX=0,startY=0,dragging=false,ignorePointerUntil=0;
     const beginSwipe=(x,y)=>{startX=x;startY=y;dragging=true};
     const finishSwipe=(x,y)=>{if(!dragging)return;dragging=false;const dx=x-startX,dy=y-startY;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)){requestAnimationFrame(()=>updateCommandPage(commandPage+(dx<0?1:-1)))}};
-    carousel.addEventListener('pointerdown',e=>{if(Date.now()<ignorePointerUntil||(e.pointerType==='mouse'&&e.button!==0))return;beginSwipe(e.clientX,e.clientY);carousel.setPointerCapture?.(e.pointerId)},{passive:true});
+    carousel.addEventListener('pointerdown',e=>{if(Date.now()<ignorePointerUntil||(e.pointerType==='mouse'&&e.button!==0))return;beginSwipe(e.clientX,e.clientY);try{if(e.pointerId!=null&&carousel.setPointerCapture)carousel.setPointerCapture(e.pointerId)}catch(_){ }},{passive:true});
     carousel.addEventListener('pointerup',e=>{if(Date.now()<ignorePointerUntil)return;finishSwipe(e.clientX,e.clientY)},{passive:true});
     carousel.addEventListener('pointercancel',()=>{dragging=false});
     carousel.addEventListener('lostpointercapture',()=>{dragging=false});
