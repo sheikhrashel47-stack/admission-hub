@@ -946,6 +946,7 @@ function render(){
   if(p==='deleted-questions' && window.renderDeletedQuestions) return window.renderDeletedQuestions();
   if(p==='web-chat' && window.renderWebChatV2) return window.renderWebChatV2();
   if(p==='dictionary' && window.renderDictionaryV2) return window.renderDictionaryV2();
+  if(p==='question-bank/settings' && window.renderQuestionBankSettings) return window.renderQuestionBankSettings();
   if((p==='question-bank'||p.startsWith('question-bank/')) && window.renderQuestionBankV2) return window.renderQuestionBankV2();
   if(p==='dashboard') return renderDashboard();
   if(p==='question-bank') return renderQuestionBank();
@@ -1511,7 +1512,8 @@ async function saveSubject(id){
     await dbPut('subjects',{id:uid(),name,icon,color,order,createdAt:Date.now()});
   }
   CACHE.subjects=await dbGetAll('subjects');
-  closeModal(); toast('Saved'); render();
+  closeModal(); toast('Saved');
+  if(String(location.hash.replace(/^#\/?/,'').split('?')[0])==='question-bank/settings' && typeof window.renderQuestionBankSettings==='function') window.renderQuestionBankSettings(); else render();
 }
 async function moveSubject(id,dir){
   const subs=[...CACHE.subjects].sort((a,b)=>a.order-b.order);
@@ -1585,7 +1587,8 @@ async function saveTopic(subId,topId){
     await dbPut('topics',{id:uid(),subjectId:subId,name,order,createdAt:Date.now()});
   }
   CACHE.topics=await dbGetAll('topics');
-  closeModal(); toast('Saved'); render();
+  closeModal(); toast('Saved');
+  if(String(location.hash.replace(/^#\/?/,'').split('?')[0])==='question-bank/settings' && typeof window.renderQuestionBankSettings==='function') window.renderQuestionBankSettings(); else render();
 }
 async function moveTopic(id,subId,dir){
   const topics=topicsOf(subId);
@@ -5227,11 +5230,11 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 })();
 </script>
 <script src="mcq-qbank-import.js?v=1"></script>
-<script src="admission-hub-feature-suite.js?v=question-parser-v8-duplicate-choice"></script>
+<script src="admission-hub-feature-suite.js?v=question-parser-v9-settings-refresh"></script>
 <script src="ai-mentor-integration.js?v=gemini-v2-0816"></script>
 <script src="mistake-analysis.js?v=gemini-v4-0816"></script>
 <script src="question-bank-performance.js?v=10-note-return"></script>
-<script src="hierarchy-and-exam-fix.js?v=15"></script>
+<script src="hierarchy-and-exam-fix.js?v=18-settings-route-listener"></script>
 
 <script src="global-app-fix.js?v=3"></script>
 <script src="exam-dropdowns.js?v=1"></script>

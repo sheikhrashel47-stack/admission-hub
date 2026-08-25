@@ -253,7 +253,9 @@
     await dbPut('topics', { id: uid(), subjectId, [CHILD_KEY]: parentId, name, order, createdAt: Date.now(), updatedAt: Date.now() });
     CACHE.topics = await dbGetAll('topics');
     CACHE.questions = await dbGetAll('questions');
-    closeModal(); toast('Sub-topic saved'); render();
+    closeModal(); toast('Sub-topic saved');
+    const current=String(location.hash.replace(/^#\/?/,'').split('?')[0]||'');
+    if(current==='question-bank/settings' && typeof window.renderQuestionBankSettings==='function') window.renderQuestionBankSettings(); else render();
   };
 
   const originalImportAddTopic = window.openImportAddTopic;
@@ -411,4 +413,8 @@
     if (migrationState === 'done' || attempts > 60) clearInterval(reconcile);
   }, 500);
   setTimeout(applyQuestionBankDesign, 0);
+  const restoreSettingsRoute = () => { const current=String(location.hash.replace(/^#\/?/,'').split('?')[0]||''); if(current==='question-bank/settings' && typeof window.renderQuestionBankSettings==='function') window.renderQuestionBankSettings(); };
+  window.addEventListener('hashchange', restoreSettingsRoute);
+  setTimeout(restoreSettingsRoute, 0);
+  setTimeout(restoreSettingsRoute, 250);
 })();

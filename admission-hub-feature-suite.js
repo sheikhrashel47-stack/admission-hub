@@ -5,7 +5,7 @@
   'use strict';
   const escA = (v) => typeof esc === 'function' ? esc(v == null ? '' : String(v)) : String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const uidA = () => typeof uid === 'function' ? uid() : `ah-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-  const refresh = async () => { if (typeof loadCache === 'function') await loadCache(); if (typeof render === 'function') render(); };
+  const refresh = async () => { if (typeof loadCache === 'function') await loadCache(); const current=String(location.hash.replace(/^#\/?/,'').split('?')[0]||''); if(current==='question-bank/settings' && typeof window.renderQuestionBankSettings==='function') return window.renderQuestionBankSettings(); if (typeof render === 'function') render(); };
   const put = (table, value) => dbPut(table, value);
   const state = { format: 'text', text: '', fileName: '', rows: [], rejected: [], parserMode: false, subjectId: '', rootTopicId: '', subTopicId: '', topicId: '', successMessage: '', successAdded: 0, successSkipped: 0, importing: false };
 
