@@ -1,53 +1,38 @@
-# Vocabulary Master — Card Flash Test QA
+# Admission Hub — Vocabulary Card and Course Layout QA
 
-## Scope
+## Release scope
 
-This release adds a small **⚡ Card Flash** action to every Vocabulary Master card. The action opens the independent hash route `vocabulary-master/flash/<record-id>` and creates a card-specific, in-memory 20-question MCQ session.
+This release keeps the temporary Card Flash Test behavior and adds a responsive course text-layout correction, a premium Vocabulary card presentation, a compact overflow action menu, offline memory thumbnails, and a copy-ready AI image prompt generated from the complete vocabulary record.
 
-## Implemented behavior
+## Functional acceptance
 
-| Area | Result |
+| Area | Verified behavior |
 |---|---|
-| Card action | Each vocabulary card renders a top-right ⚡ button beside pronunciation. |
-| Question generation | Meaning, reverse word-meaning, synonym, synonym Bengali meaning, antonym, acronym/abbreviation and acronym Bengali meaning templates are supported. Rotated revision templates fill the remaining questions only when valid distractors exist. |
-| Uniqueness | Prompt + answer signatures are deduplicated; options are case-insensitively unique and contain exactly four choices. |
-| Data quality guard | A session is not fabricated when the bank cannot supply four distinct valid options; the user receives a clear Bengali notice to add more valid vocabulary records. |
-| Feedback | Existing Flash Test-style question card, green correct state, red wrong state, explanation and Next action are used. |
-| Persistence | Card Flash methods do not call `dbPut`, `dbDel`, `localStorage`, `saveResult`, `createExamQuestions`, `beginExam` or the global exam engine. The result is memory-only and is discarded on exit/page leave. |
-| Navigation | The originating vocabulary category is remembered so Back/Exit returns to that category. Retake creates a fresh temporary session. |
-| Acronyms | Parser normalization, edit modal, preview count and card relation section support `Acronym`, `Abbreviation`, plural variants and Bengali `সংক্ষিপ্তরূপ`. |
-| Pronunciation | Natural English voices are ranked ahead of compact/espeak/festival/robot voices; rate is `.88`, pitch `1.02`, volume `1`, and selected voice language is respected. Actual voice quality remains browser/device dependent. |
+| Course text layout | The previous global `overflow-wrap: anywhere` behavior was removed for course content. Words now break only at normal word boundaries. Standard course tables remain three-column tables and use horizontal scrolling on narrow screens rather than squeezing or splitting words. |
+| Visual cards in courses | Parts of Speech, Noun, Voice, Grammar and related visual grids use safer minimum column widths so labels such as `Noun`, `Pronoun`, `Adjective` and `Conjunction` remain readable. |
+| Vocabulary header | The card header keeps the pronunciation control and one compact `•••` control. Flash, image prompt and image management actions are no longer shown as multiple permanent icons. |
+| Memory thumbnail | Each card has a 16:9 YouTube-thumbnail-sized image area. A missing image shows a neutral memory-image slot; an uploaded image is cropped to 1280×720, compressed as JPEG and rendered from a local data URL. |
+| Offline behavior | The explicit image upload action stores the compressed data URL inside the vocabulary record in IndexedDB. The card does not depend on a remote image URL or network loading after upload. |
+| AI image prompt | The menu creates one prompt containing the word, Bengali meaning, synonyms, acronym/abbreviation, tips and a precise 16:9 visual direction. The prompt is copied with one click using Clipboard API with a fallback copy path. |
+| Card Flash | The existing card-specific temporary test still creates exactly 20 distinct MCQs with four unique options, instant feedback and no history saving. |
+| Persistence boundary | Image upload/remove is an explicit vocabulary-card edit and is intentionally saved. Flash answers and results remain memory-only and do not write to Question Bank, exam history, progress, `examResults`, localStorage or IndexedDB. |
 
-## Runtime QA in isolated local origin
+## Isolated browser QA
 
-A sandbox-only IndexedDB seed of five sample records was used on `127.0.0.1`; the user's GitHub Pages data was not touched.
+A five-record sample bank was used only on the local `127.0.0.1` origin. The production GitHub Pages IndexedDB was not touched. The Parts of Speech table slide loaded in a mobile viewport and showed intact labels and readable three-column rows. Vocabulary category A rendered five cards with the new image slot and only the sound plus `•••` header controls. The overflow menu exposed Temporary Flash Test, Copy AI image prompt and Add memory image. A synthetic 16:9 image was uploaded to `qa-abandon`; it was converted to an offline JPEG data URL, saved by the explicit upload action and rendered immediately. The menu then changed to Replace memory image and Remove image.
 
-- Category A rendered five cards, each with the ⚡ action.
-- Clicking abandon's ⚡ opened `#vocabulary-master/flash/qa-abandon`.
-- The page displayed `Question 1 of 20`, card context and `TEMPORARY · NOT SAVED`.
-- A correct answer produced instant green feedback and explanation.
-- All 20 questions were answered in a temporary session; the summary showed `20 Questions`.
-- Exit from the summary returned to `#vocabulary-master/category/A`.
-- Before and after the full session: `vocabularyMaster = 5`, `questions = 1046`, `examResults = 0`.
-- No new card-flash/local-result localStorage key appeared.
+The Flash route rendered `Question 1 of 20`, the card context, four options, Exit and the explicit `TEMPORARY · NOT SAVED` notice. A direct route transition confirmed that the temporary engine remained available after the UI changes. A Clipboard API mock confirmed that the generated prompt contained the word `abandon`, Bengali meaning `পরিত্যাগ করা`, synonym information, context information and the 16:9 image instruction.
 
-## Automated checks
+## Automated validation
 
-The following checks passed:
+| Check | Result |
+|---|---|
+| `node --check course-tool.js` | PASS |
+| `node --check vocabulary-master-tool.js` | PASS |
+| `node --check vocabulary-pronunciation.js` | PASS |
+| `node test_vocabulary_card_flash.js` | PASS |
+| `node test_all_course_integrity.js` | PASS |
+| `git diff --check` | PASS |
+| Course totals | 17 unique courses, 186 lessons, 2,130 MCQs |
 
-```text
-node test_vocabulary_card_flash.js
-node --check vocabulary-master-tool.js
-node --check vocabulary-pronunciation.js
-git diff --check
-node test_all_course_integrity.js
-node test_four_grammar_courses.js
-node test_mass_grammar_courses.js
-node --test runtime-stability.static.test.mjs navigation-resume.static.test.mjs
-```
-
-Course regression totals remained unchanged: **17 courses, 186 lessons, 2,130 MCQs**. The static contract test verifies the 20-question cap, rotated templates, option uniqueness, acronym coverage, originating-route return and persistence-free Flash API.
-
-## Release note
-
-Cache-busters were updated in `index.html` to load `vm-native-v18-card-flash-temp` and `pronunciation-native-v2-natural-voice`.
+The release cache-busters are `vm-native-v19-card-image-menu` and `pronunciation-native-v3-natural-voice`. The local QA note is retained separately in `VOCABULARY_COURSE_LAYOUT_QA_NOTES.md` for implementation evidence.

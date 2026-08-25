@@ -35,6 +35,34 @@
     .vm-tool-row .searchbar{min-height:54px;padding:0 15px;border-radius:16px}
     .vm-tool-row .searchbar input{min-width:0;min-height:52px;font-size:16px;line-height:1.25}
     .vm-tool-row .searchbar span{font-size:18px}
+    .vm-word-card{position:relative;overflow:visible;border:1px solid #d4e8df;border-radius:26px;background:linear-gradient(145deg,#ffffff 0%,#fbfffd 58%,#f3f8ff 100%);box-shadow:0 14px 32px rgba(21,91,72,.1);transition:transform .18s cubic-bezier(.23,1,.32,1),box-shadow .18s ease}
+    .vm-word-card:hover{transform:translateY(-2px);box-shadow:0 18px 38px rgba(21,91,72,.14)}
+    .vm-card-image-shell{position:relative;aspect-ratio:16/9;width:100%;overflow:hidden;border-radius:25px 25px 0 0;background:linear-gradient(135deg,#e9f8f1,#edf4ff 60%,#f9efff)}
+    .vm-card-image{display:block;width:100%;height:100%;object-fit:cover}
+    .vm-card-image-shell:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,49,43,.02),rgba(8,49,43,.16));pointer-events:none}
+    .vm-card-image-empty{display:grid;place-items:center;align-content:center;gap:7px;height:100%;color:#5d8b83;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase}
+    .vm-card-image-empty span:first-child{display:grid;place-items:center;width:39px;height:39px;border:1px solid #afd9c8;border-radius:13px;background:rgba(255,255,255,.66);font-size:20px}
+    .vm-card-top{padding:18px 20px 14px}
+    .vm-card-word{gap:8px}
+    .vm-card-word h3{font-size:27px;line-height:1.18;overflow-wrap:normal;word-break:normal;hyphens:none}
+    .vm-card-ordinal{font-size:15px}
+    .vm-meaning{margin:5px 20px 17px;font-size:20px;line-height:1.42}
+    .vm-card-section{padding:17px 20px;border-top-color:#e2eee9}
+    .vm-relation-item{padding:10px;border-radius:15px}
+    .vm-relation-copy strong{font-size:17px;overflow-wrap:normal;word-break:normal;hyphens:none}
+    .vm-relation-copy span{font-size:15px}
+    .vm-tip{padding:15px 17px;font-size:15px}
+    .vm-card-menu{position:relative;flex:0 0 auto}
+    .vm-card-menu>summary{display:grid;place-items:center;width:38px;height:38px;border:1px solid #c6e5da;border-radius:13px;background:linear-gradient(145deg,#effcf6,#eaf2ff);color:#347467;cursor:pointer;list-style:none;box-shadow:0 5px 12px rgba(15,107,79,.09);font-weight:900;letter-spacing:2px}
+    .vm-card-menu>summary::-webkit-details-marker{display:none}
+    .vm-card-menu>summary:active{transform:scale(.94)}
+    .vm-card-menu-panel{position:absolute;z-index:12;right:0;top:45px;display:grid;gap:5px;width:228px;padding:8px;border:1px solid #cfe6dd;border-radius:16px;background:rgba(255,255,255,.98);box-shadow:0 16px 32px rgba(22,78,68,.18);backdrop-filter:blur(12px)}
+    .vm-card-menu-panel button{display:flex;align-items:center;gap:9px;width:100%;padding:10px 9px;border:0;border-radius:10px;background:transparent;color:#234d42;font:inherit;font-size:12px;text-align:left;cursor:pointer}
+    .vm-card-menu-panel button:hover{background:#eef8f3}
+    .vm-card-menu-panel button>span:first-child{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;background:#e6f5ef;color:#1a725f;font-weight:900}
+    .vm-card-menu-panel button.danger{color:#a64d53}.vm-card-menu-panel button.danger>span:first-child{background:#fff0f0;color:#b85158}
+    .vm-card-image-input{display:none}
+    @media(max-width:520px){.vm-word-card{border-radius:22px}.vm-card-image-shell{border-radius:21px 21px 0 0}.vm-card-top{padding:16px 17px 13px}.vm-card-word h3{font-size:24px}.vm-meaning{margin-left:17px;margin-right:17px;font-size:18px}.vm-card-section{padding:15px 17px}.vm-card-menu-panel{right:-3px;width:min(228px,calc(100vw - 48px))}}
   `;
   document.head.appendChild(style);
 
@@ -81,6 +109,7 @@
     const meaning = String(raw?.meaning || '').trim();
     const rawAcronyms = raw?.acronyms ?? raw?.acronym ?? [];
     const acronyms = relationItems(Array.isArray(rawAcronyms) ? rawAcronyms : [rawAcronyms]);
+    const imageDataUrl = String(raw?.imageDataUrl || raw?.image || raw?.thumbnail || '').trim();
     return {
       id: raw?.id || (typeof uid === 'function' ? uid() : `vm-${now()}-${Math.random().toString(36).slice(2,8)}`),
       tool: 'vocabulary-master',
@@ -89,6 +118,7 @@
       synonyms: relationItems(raw?.synonyms),
       antonyms: relationItems(raw?.antonyms),
       acronyms,
+      imageDataUrl,
       tips: String(raw?.tips || '').trim(),
       category: categoryOf(word),
       normalized: lower(word),
@@ -152,9 +182,41 @@
     const encoded = encodeURIComponent(String(word || '')).replace(/'/g, '%27');
     return `<button type="button" class="vm-pronounce" aria-label="${escape(label || `Pronounce ${word}`)}" title="Listen to pronunciation" onclick="event.preventDefault();event.stopPropagation();window.VocabularyPronunciation?.play(decodeURIComponent('${encoded}'))"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10v4h4l5 4V6L7 10H3zm11.5 2c0-1.41-.81-2.63-2-3.22v6.44c1.19-.59 2-1.81 2-3.22zM12.5 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.5 7-8.77s-2.99-7.86-7-8.77z"/></svg></button>`;
   }
+  function imagePromptFor(record) {
+    const synonyms = relations(record, 'synonyms').map(item => `${item.word}${item.meaning ? ` (${item.meaning})` : ''}`).join(', ');
+    const acronyms = relations(record, 'acronyms').map(item => `${item.word}${item.meaning ? ` (${item.meaning})` : ''}`).join(', ');
+    return `Create a single premium 16:9 educational vocabulary memory image for an English-learning app.\n\nVocabulary word: ${record.word}\nBengali meaning: ${record.meaning}\nSynonyms: ${synonyms || 'None provided'}\nAcronym or abbreviation: ${acronyms || 'None provided'}\nContext or explanation: ${record.tips || 'Use the word meaning as the main context.'}\n\nVisual direction: show one clear, memorable real-world scene that communicates the exact meaning; include the English word as a small, clean title only if it improves recall; do not add unrelated objects, long paragraphs, watermark, logo, frame, or distorted text. Use crisp lighting, uncluttered composition, premium educational editorial style, high visual contrast, and a YouTube-thumbnail-like 16:9 composition. The image must be understandable without reading a long explanation.`;
+  }
+  function copyPlainText(text) {
+    const value = String(text || '');
+    if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(value).then(() => toast('AI image prompt copy হয়েছে।')).catch(() => fallbackCopy(value));
+    return fallbackCopy(value);
+  }
+  function fallbackCopy(value) {
+    const area = document.createElement('textarea'); area.value = value; area.style.position = 'fixed'; area.style.opacity = '0'; document.body.appendChild(area); area.select();
+    try { document.execCommand('copy'); toast('AI image prompt copy হয়েছে।'); } catch (_) { toast('Prompt copy করা যায়নি—লেখাটি manually copy করো।'); } finally { area.remove(); }
+  }
+  function imageDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(reader.error || Error('Image read failed'));
+      reader.onload = () => {
+        const raw = String(reader.result || ''); const image = new Image();
+        image.onload = () => {
+          try {
+            const width = 1280, height = 720, scale = Math.max(width / image.naturalWidth, height / image.naturalHeight), sw = Math.round(width / scale), sh = Math.round(height / scale), sx = Math.max(0, Math.round((image.naturalWidth - sw) / 2)), sy = Math.max(0, Math.round((image.naturalHeight - sh) / 2));
+            const canvas = document.createElement('canvas'); canvas.width = width; canvas.height = height; canvas.getContext('2d').drawImage(image, sx, sy, sw, sh, 0, 0, width, height); resolve(canvas.toDataURL('image/jpeg', .84));
+          } catch (_) { resolve(raw); }
+        };
+        image.onerror = () => resolve(raw); image.src = raw;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
   function card(record, number) {
-    const synonyms = relations(record, 'synonyms'); const antonyms = relations(record, 'antonyms');
-    return `<article class="vm-word-card"><div class="vm-card-top"><div class="vm-card-word"><span class="vm-card-ordinal">${number}</span><h3>${escape(record.word)}</h3>${pronounceButton(record.word, `${record.word} pronunciation`)}</div><button type="button" class="vm-card-flash" aria-label="Start temporary flash test for ${escape(record.word)}" title="Temporary 20-question Flash Test" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.startCardFlash('${escape(record.id)}')"><span aria-hidden="true">⚡</span></button></div><div class="vm-meaning">${escape(record.meaning)}</div>${relationSection('SYNONYMS', synonyms)}${relationSection('ANTONYMS', antonyms)}${relationSection('ACRONYMS', relations(record, 'acronyms'))}${record.tips ? `<div class="vm-card-section"><div class="vm-tip"><span class="vm-tip-icon">✦</span><span><b>TIPS & EXPLANATION</b>${escape(record.tips)}</span></div></div>` : ''}</article>`;
+    const synonyms = relations(record, 'synonyms'); const antonyms = relations(record, 'antonyms'); const acronyms = relations(record, 'acronyms'); const image = record.imageDataUrl;
+    const menuId = `vm-card-menu-${String(record.id).replace(/[^A-Za-z0-9_-]/g, '-')}`; const inputId = `${menuId}-input`;
+    return `<article class="vm-word-card"><div class="vm-card-image-shell ${image ? 'has-image' : ''}">${image ? `<img class="vm-card-image" src="${escape(image)}" alt="Memory image for ${escape(record.word)}" loading="eager" decoding="async">` : `<div class="vm-card-image-empty"><span aria-hidden="true">▧</span><span>Memory image slot · 16:9</span></div>`}</div><div class="vm-card-top"><div class="vm-card-word"><span class="vm-card-ordinal">${number}</span><h3>${escape(record.word)}</h3>${pronounceButton(record.word, `${record.word} pronunciation`)}</div><details class="vm-card-menu" id="${menuId}"><summary aria-label="More actions for ${escape(record.word)}" title="More actions"><span aria-hidden="true">•••</span></summary><div class="vm-card-menu-panel"><button type="button" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.startCardFlash('${escape(record.id)}')"><span>⚡</span><span>Temporary Flash Test</span></button><button type="button" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.copyImagePrompt('${escape(record.id)}')"><span>✦</span><span>Copy AI image prompt</span></button><button type="button" onclick="event.preventDefault();event.stopPropagation();document.getElementById('${inputId}')?.click()"><span>▣</span><span>${image ? 'Replace memory image' : 'Add memory image'}</span></button>${image ? `<button type="button" class="danger" onclick="event.preventDefault();event.stopPropagation();VocabularyMaster.removeCardImage('${escape(record.id)}')"><span>×</span><span>Remove image</span></button>` : ''}</div></details><input id="${inputId}" class="vm-card-image-input" type="file" accept="image/*" onchange="VocabularyMaster.attachCardImage('${escape(record.id)}', this)"></div><div class="vm-meaning">${escape(record.meaning)}</div>${relationSection('SYNONYMS', synonyms)}${relationSection('ANTONYMS', antonyms)}${relationSection('ACRONYMS', acronyms)}${record.tips ? `<div class="vm-card-section"><div class="vm-tip"><span class="vm-tip-icon">✦</span><span><b>TIPS & EXPLANATION</b>${escape(record.tips)}</span></div></div>` : ''}</article>`;
   }
   function categoryResultsContent() {
     const all = recordsFor(state.query, state.category);
@@ -585,6 +647,9 @@
     finishPractice() { stopPracticeTimer(); state.practice = null; navigate(route('practice')); },
     testRecord(id) { state.test.selectedIds = [id]; state.test.category = ''; navigate(route('test')); },
     startCardFlash(id) { const record = state.records.find(row => row.id === id); const current = String(Router?.path || location.hash.replace(/^#\/?/, '').split('?')[0] || route('bank')); const returnPath = state.cardFlash?.recordId === id && state.cardFlash.returnPath ? state.cardFlash.returnPath : (current.startsWith(route('category/')) ? current : route('bank')); const session = record && createCardFlashSession(record); if (!session) return toast('এই card-এর জন্য 20টি distinct option তৈরি করা যাচ্ছে না। Vocabulary Bank-এ আরও valid words যোগ করো।'); session.returnPath = returnPath; state.cardFlash = session; navigate(route(`flash/${encodeURIComponent(id)}`)); },
+    copyImagePrompt(id) { const record = state.records.find(row => row.id === id); if (!record) return toast('Vocabulary card পাওয়া যায়নি।'); return copyPlainText(imagePromptFor(record)); },
+    async attachCardImage(id, input) { const record = state.records.find(row => row.id === id), file = input?.files?.[0]; if (!record || !file) return; if (!String(file.type || '').startsWith('image/')) return toast('শুধু image file যোগ করা যাবে।'); try { const dataUrl = await imageDataUrl(file); const updated = normalizeRecord({ ...record, imageDataUrl:dataUrl, id:record.id, createdAt:record.createdAt }); await dbPut(STORE, updated); await loadRecords(true); toast('Vocabulary memory image offline save হয়েছে।'); refreshCategoryResults(); } catch (_) { toast('Image save করা যায়নি।'); } finally { if (input) input.value = ''; } },
+    async removeCardImage(id) { const record = state.records.find(row => row.id === id); if (!record || !record.imageDataUrl) return; const updated = normalizeRecord({ ...record, imageDataUrl:'', id:record.id, createdAt:record.createdAt }); await dbPut(STORE, updated); await loadRecords(true); toast('Memory image remove হয়েছে।'); refreshCategoryResults(); },
     answerCardFlash(value) { const session = state.cardFlash, question = session?.questions?.[session.index]; if (!question || session.selected !== null) return; session.selected = String(value); if (session.selected === question.correct) session.correct++; else session.wrong++; renderCardFlash(); },
     nextCardFlash() { const session = state.cardFlash; if (!session || session.selected === null) return; session.index++; session.selected = null; if (session.index >= session.questions.length) session.complete = true; renderCardFlash(); },
     exitCardFlash() { const returnPath = state.cardFlash?.returnPath || route('bank'); state.cardFlash = null; navigate(returnPath); },

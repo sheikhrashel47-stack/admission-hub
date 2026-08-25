@@ -22,11 +22,13 @@ must(/returnPath:route\('bank'\)/, 'temporary session return path is missing');
 must(/session\.returnPath = returnPath/, 'originating category must be preserved');
 must(/exitCardFlash\(\) \{ const returnPath = state\.cardFlash\?\.returnPath/, 'exit must return to the originating route');
 
-const apiStart = source.indexOf("startCardFlash(id)");
-const apiEnd = source.indexOf("setTestCategory(value)");
-assert.ok(apiStart >= 0 && apiEnd > apiStart, 'flash API block is missing');
-const flashApi = source.slice(apiStart, apiEnd);
-assert.doesNotMatch(flashApi, /dbPut|dbDel|localStorage|saveResult|createExamQuestions|beginExam|ExamSetup/, 'card Flash API must remain persistence-free');
+const flashMethods = ['startCardFlash(id)', 'answerCardFlash(value)', 'nextCardFlash()', 'exitCardFlash()'];
+flashMethods.forEach(name => {
+  const start = source.indexOf(`    ${name}`);
+  const end = source.indexOf('\n    ', start + 5);
+  assert.ok(start >= 0 && end > start, `${name} method is missing or malformed`);
+  assert.doesNotMatch(source.slice(start, end), /dbPut|dbDel|localStorage|saveResult|createExamQuestions|beginExam|ExamSetup/, `${name} must remain persistence-free`);
+});
 
 console.log('Vocabulary Card Flash static contract: PASS');
 console.log('Verified: 20-question cap, rotated templates, case-insensitive option uniqueness, acronym coverage, origin return path and no-save API contract.');
