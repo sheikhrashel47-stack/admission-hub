@@ -133,3 +133,11 @@ Page 55 is `Most Repeated Micro-Rules`, an 18-item condensed list of the highest
 ## Final source-backed course direction
 
 The PDF supports a large professional course with these backbone assets: cover/overview, prerequisites, 12 core lessons, exception bank, trap database, 45 micro-rules, rapid revision, master memory map, pattern-analysis slide, 72 source MCQs with answer key, and score rubric. To make the app bigger and more modern without inventing unsupported content, I should turn these compressed revision pages into multiple rich interactive lessons and add a separate practice-MCQ layer on top of the 72 source MCQs.
+
+## Live QA after deployment da12cf2
+
+The live Course Library at `?qa=voice-live-v1#courses` displayed 3 active courses and 452 total MCQ cards: Parts (160), Noun (148), Voice (144). Voice Active–Passive Mastery opened successfully. The overview showed 16 lessons, 80 visual slides, 144 MCQs, source/practice scope text, cockpit actions, roadmap, result sheet route, and exam zone. All 16 Voice lesson cards were visible with 5 visual slides each.
+
+## Live visual QA
+
+Lesson 01 live slide rendered the dedicated Voice split visual correctly: ACTIVE `Doer performs` versus PASSIVE `Receiver receives`, with clear English examples and Bengali key insight. Lesson 03 live slide rendered the `12-Tense Passive Command Center` table with readable columns for tense family, passive formula, and example; the surrounding formula/insight text also appeared correctly on mobile-sized viewport.
