@@ -22,3 +22,7 @@ The updated Vocabulary card menu exposed the Flash action. A browser coordinate 
 - On the seeded `qa-abandon` card, a complete temporary session produced exactly 20 questions with 20 unique prompt texts. The primary direct Bengali-meaning prompt appeared exactly once. The observed distribution included 10 synonym, 5 antonym, 3 reverse-meaning and 2 pair questions.
 - On the acronym-bearing `qa-ability` card, a complete temporary session again produced exactly 20 unique prompts, the primary Bengali-meaning prompt appeared exactly once, and 3 acronym/abbreviation questions were included.
 - Both sessions reached the temporary result page without errors.
+
+## Live deployment QA
+
+The new Pages workflow for commit `9dca7d5` completed successfully. Live browser inspection loaded `vocabulary-master-tool.js?v=vm-native-v19-card-image-menu` and `vocabulary-pronunciation.js?v=pronunciation-native-v3-natural-voice`. The production-origin Vocabulary Bank currently contains zero cards in the sandbox browser session, so no production vocabulary data was seeded or modified.
