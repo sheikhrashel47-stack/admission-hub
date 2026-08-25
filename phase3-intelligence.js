@@ -59,6 +59,52 @@
     const minutes = Math.floor((totalSeconds % 3600) / 60);
     return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
   }
+
+  // Dashboard-only mirror of the existing 90 Day Routine data. It never navigates;
+  // it reads/writes only the routine's existing localStorage record.
+  const ROUTINE90_KEY = 'routine90_data';
+  const ROUTINE90_SUBJECTS = ['Bangla 1st','Bangla 2nd','English 2nd','Memorizing','বিরচন','GK'];
+  const ROUTINE90_ALIASES = { Bangla:'Bangla 1st', English:'English 2nd', Vocabulary:'Memorizing' };
+  const routine90DateKey = date => { const d = new Date(date); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+  const routine90Read = () => { try { return JSON.parse(localStorage.getItem(ROUTINE90_KEY) || '{}') || {}; } catch (_) { return {}; } };
+  function routine90Today(){
+    const raw = routine90Read(), today = routine90DateKey(new Date()), days = raw.days && typeof raw.days === 'object' ? raw.days : {};
+    const day = Object.values(days).find(item => String(item?.date || '') === today) || null;
+    const source = Array.isArray(day?.items) ? day.items : [];
+    const normalized = source.map(item => ({ id:String(item?.id || ''), subject:ROUTINE90_ALIASES[item?.subject] || item?.subject || 'Custom', topic:String(item?.topic || ''), done:!!item?.done }));
+    const items = ROUTINE90_SUBJECTS.map(subject => normalized.find(item => item.subject === subject) || { id:`placeholder-${subject}`, subject, topic:'', done:false, placeholder:true });
+    normalized.filter(item => !ROUTINE90_SUBJECTS.includes(item.subject)).forEach(item => items.push(item));
+    return { raw, day, today, items };
+  }
+  const routine90Esc = value => esc3(value);
+  function routine90CardHTML(){
+    const { day, today, items } = routine90Today();
+    const active = items.filter(item => item.topic), done = active.filter(item => item.done).length;
+    const dateLabel = day?.date ? new Date(`${day.date}T00:00:00`).toLocaleDateString('bn-BD',{day:'numeric',month:'long',weekday:'long'}) : 'আজকের দিনের পরিকল্পনা';
+    const rows = items.map(item => item.topic
+      ? `<div class="p3-routine-topic-v3" role="button" tabindex="0" onclick="if(!event.target.closest('button'))window.__toggleTodayRoutineTopic('${routine90Esc(item.id)}')"><button type="button" class="p3-routine-check-v3 ${item.done?'is-done':''}" aria-pressed="${item.done}" aria-label="${routine90Esc(item.done?'চিহ্নিত: '+item.topic:'শেষ হিসেবে চিহ্নিত করুন: '+item.topic)}" onclick="window.__toggleTodayRoutineTopic('${routine90Esc(item.id)}')">${item.done?'✓':''}</button><span><b>${routine90Esc(item.subject)}</b><small class="${item.done?'is-done':''}">${routine90Esc(item.topic)}</small></span></div>`
+      : `<div class="p3-routine-topic-v3 is-empty"><span class="p3-routine-empty-dot"></span><span><b>${routine90Esc(item.subject)}</b><small>আজকের topic এখনো যোগ করা হয়নি</small></span></div>`).join('');
+    return `<section class="p3-card-v3 p3-routine-today-v3" data-today-routine data-routine-date="${today}"><div class="p3-routine-decor" aria-hidden="true"></div><div class="p3-routine-head-v3"><div><div class="p3-routine-kicker-v3">TODAY'S 90 DAY ROUTINE</div><h3>আজকের পড়ার card</h3><p>${routine90Esc(dateLabel)}</p></div><div class="p3-routine-count-v3"><b>${done}/${active.length || 0}</b><small>COMPLETED</small></div></div><div class="p3-routine-list-v3">${rows}</div></section>`;
+  }
+  function replaceTodayRoutineCard(){
+    const dashboardPath = String((window.Router && window.Router.path) || location.hash.replace(/^#\/?/,'').split('?')[0] || 'dashboard');
+    if (dashboardPath !== 'dashboard') return;
+    const current = document.querySelector('[data-today-routine]');
+    if (!current) return;
+    const holder = document.createElement('div'); holder.innerHTML = routine90CardHTML(); current.replaceWith(holder.firstElementChild);
+  }
+  window.__toggleTodayRoutineTopic = function(id){
+    const { raw, day } = routine90Today();
+    if (!day || !Array.isArray(day.items)) return;
+    const item = day.items.find(row => String(row?.id || '') === String(id));
+    if (!item) return;
+    item.done = !item.done;
+    try { localStorage.setItem(ROUTINE90_KEY, JSON.stringify(raw)); } catch (_) {}
+    window.dispatchEvent(new CustomEvent('routine90-updated'));
+    replaceTodayRoutineCard();
+  };
+  window.addEventListener('routine90-updated', replaceTodayRoutineCard);
+  window.addEventListener('storage', event => { if (event.key === ROUTINE90_KEY) replaceTodayRoutineCard(); });
   function bars(items,label){if(!items.length)return '<div class="p3-empty">এই সময়সীমায় কোনো stored data নেই।</div>';return items.map(x=>`<div class="p3-bar-row"><div class="p3-bar-label"><span>${esc3(x.name)}</span><b>${x.accuracy}%</b></div><div class="p3-bar"><i style="width:${Math.min(100,Math.max(0,x.accuracy))}%"></i></div><small>${x.answered||0} answered · ${x.wrong||0} wrong</small></div>`).join('')}
   const ICONS = {
     crown: `<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7z"></path></svg>`,
@@ -280,7 +326,7 @@
         </section>
       </div>
 
-
+      ${routine90CardHTML()}
 
       <section class="p3-special-section-v3">
         <div class="p3-section-head-v3">
@@ -519,6 +565,20 @@
     .p3-bottom-value{font-size:13px;font-weight:800;color:#1e293b}
     .p3-bottom-sub{font-size:10px;color:#94a3b8}
 
+    .p3-routine-today-v3{position:relative;isolation:isolate;overflow:hidden;margin-bottom:12px;padding:18px!important;border:1.5px solid #bcdace!important;border-radius:22px!important;background:linear-gradient(145deg,#ffffff 0%,#effaf4 100%)!important;box-shadow:0 7px 0 #cce8db,0 16px 28px rgba(13,76,57,.10)!important}
+    .p3-routine-decor{position:absolute;z-index:-1;right:-42px;top:-55px;width:150px;height:150px;border:1px solid rgba(43,155,124,.16);border-radius:50%;background:radial-gradient(circle at 35% 35%,rgba(169,238,216,.28),rgba(169,238,216,0) 68%);pointer-events:none}
+    .p3-routine-decor:after{content:"";position:absolute;right:18px;bottom:8px;width:78px;height:78px;border:1px solid rgba(43,155,124,.10);border-radius:50%}
+    .p3-routine-head-v3{position:relative;display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding-bottom:13px;border-bottom:1px solid #dceee5}
+    .p3-routine-kicker-v3{color:#2a8368;font-size:9px;font-weight:900;letter-spacing:.14em}
+    .p3-routine-head-v3 h3{margin:5px 0 2px;color:#174b3a;font-size:18px;line-height:1.2}
+    .p3-routine-head-v3 p{margin:0;color:#719082;font-size:11px}
+    .p3-routine-count-v3{flex:0 0 auto;min-width:58px;padding:7px 8px;border:1px solid #c3e4d5;border-radius:12px;background:#f4fcf8;text-align:center}
+    .p3-routine-count-v3 b,.p3-routine-count-v3 small{display:block}.p3-routine-count-v3 b{color:#167153;font-size:16px;line-height:1.05}.p3-routine-count-v3 small{margin-top:3px;color:#719082;font-size:7px;font-weight:900;letter-spacing:.08em}
+    .p3-routine-list-v3{display:grid;gap:2px;margin-top:10px}
+    .p3-routine-topic-v3{display:flex;align-items:center;gap:9px;min-width:0;padding:8px 0;border-bottom:1px solid rgba(211,235,224,.72);cursor:pointer}
+    .p3-routine-topic-v3:last-child{border-bottom:0}
+    .p3-routine-topic-v3>span:last-child{display:grid;min-width:0;gap:2px}.p3-routine-topic-v3 b{color:#235b48;font-size:12px}.p3-routine-topic-v3 small{color:#4e7566;font-size:12px;line-height:1.35;overflow-wrap:anywhere}.p3-routine-topic-v3 small.is-done{color:#8ba79b;text-decoration:line-through}.p3-routine-topic-v3.is-empty{opacity:.62}.p3-routine-empty-dot{width:19px;height:19px;flex:0 0 19px;border:1.5px solid #acd5c2;border-radius:7px;background:#fbfffd}
+    .p3-routine-check-v3{display:grid;place-items:center;width:22px;height:22px;flex:0 0 22px;padding:0;border:1.5px solid #8ec9b0;border-radius:7px;background:#fbfffd;color:#fff;font-size:14px;font-weight:900;line-height:1;cursor:pointer}.p3-routine-check-v3.is-done{border-color:#1c9a6b;background:#1c9a6b}.p3-routine-check-v3:active{transform:none}
     @media(max-width:620px){
       .p3-grid-v3, .p3-two-col-v3{grid-template-columns:1fr 1fr}
       .p3-bottom-row-v3{grid-template-columns:1fr}
