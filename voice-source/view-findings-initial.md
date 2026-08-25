@@ -141,3 +141,13 @@ The live Course Library at `?qa=voice-live-v1#courses` displayed 3 active course
 ## Live visual QA
 
 Lesson 01 live slide rendered the dedicated Voice split visual correctly: ACTIVE `Doer performs` versus PASSIVE `Receiver receives`, with clear English examples and Bengali key insight. Lesson 03 live slide rendered the `12-Tense Passive Command Center` table with readable columns for tense family, passive formula, and example; the surrounding formula/insight text also appeared correctly on mobile-sized viewport.
+
+## Live QA after cache refresh 5a08604
+
+Fresh cache-buster URL `?qa=voice-live-v3` loaded the updated Voice data. The Exception Table slide now shows one dedicated visual table only; the previous duplicate generic table is gone. The slide remains readable and keeps its Bengali rule/example content.
+
+The Voice Exam Zone loaded successfully with 144/144 questions, 15 pages, source Basic questions first, search, filter, result sheet, review actions, bookmark/note/edit/duplicate/delete controls, and normal question card layout.
+
+## Live Exam interaction QA
+
+The initial coordinate click was not a reliable interaction test because the option was partly below the viewport. A direct DOM button click and then a direct `courseAnswerV3('voice-active-passive-mastery','voice-source-01',1)` call confirmed the runtime handler works: the Exam summary changed to `1/144 answered`, `1 correct`, `0 mistakes`, `100% accuracy`, and Q01 changed to Correct. No console error appeared.
