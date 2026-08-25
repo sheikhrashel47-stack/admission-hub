@@ -268,7 +268,7 @@
     ])
   ];
   const mcqs=sourceRows.map((x,i)=>({id:`voice-source-${String(x.n).padStart(2,'0')}`,q:x.q,o:x.o,a:x.a,family:x.family,e:x.e,topic:x.topic,tag:'VOICE PDF Source'})).concat(practice);
-  const course={id:'voice-active-passive-mastery',title:'Voice Active–Passive Mastery',subtitle:'Object Shift • Tense Control • Admission Traps',subject:'English Grammar',level:'University Admission Focus',time:'180 min+',icon:'🔄',status:'published',source:'Voice (Active & Passive) — Visual Admission Master Guide',sourceFileName:'Voice_Active_Passive_Admission_Master_Guide.pdf',sourceNote:'Voice PDF-এর 72টি source MCQ, answer key, 45 micro-rules, 13 admission traps, 12 core lessons, exception bank ও rapid revision map + 72টি নতুন Course Practice MCQ।',lessons,mcqs};
+  const course={id:'voice-active-passive-mastery',title:'Voice Active–Passive Mastery',subtitle:'Object Shift • Tense Control • Admission Traps',subject:'English Grammar',level:'University Admission Focus',time:'180 min+',icon:'🔄',status:'published',source:'Voice (Active & Passive) — Visual Admission Master Guide',sourceFileName:'Voice_Active_Passive_Admission_Master_Guide.pdf',sourceNote:'Voice PDF-এর 72টি source MCQ, answer key, 45 micro-rules, 13 admission traps, 16 structured lessons, exception bank ও rapid revision map + 72টি নতুন Course Practice MCQ।',lessons,mcqs};
   window.__admissionExtraCourses=Array.isArray(window.__admissionExtraCourses)?window.__admissionExtraCourses:[];
   window.__admissionExtraCourses.push(course);
   window.__admissionVoiceCourse=course;
