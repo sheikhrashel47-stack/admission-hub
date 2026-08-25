@@ -141,8 +141,10 @@
   const RESULT_KEY='admissionHubCourseResultsV1';
   const esc=v=>typeof esc5==='function'?esc5(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const path=()=>String(location.hash||'').replace(/^#\/?/,'').split('?')[0]||'dashboard';
-  const read=(key,fallback)=>{try{const x=JSON.parse(localStorage.getItem(key)||'null');return x??fallback}catch(_){return fallback}};
-  const write=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value))}catch(_){}};
+  const runtimeCache=Object.create(null);
+  const read=(key,fallback)=>{if(Object.prototype.hasOwnProperty.call(runtimeCache,key))return runtimeCache[key];try{const x=JSON.parse(localStorage.getItem(key)||'null');runtimeCache[key]=x??fallback;return runtimeCache[key]}catch(_){runtimeCache[key]=fallback;return fallback}};
+  const write=(key,value)=>{runtimeCache[key]=value;try{localStorage.setItem(key,JSON.stringify(value))}catch(_){} };
+  window.addEventListener('storage',ev=>{if(ev.key)delete runtimeCache[ev.key]});
   const content=()=>read(CONTENT_KEY,{courses:[],overrides:{}});
   const saveContent=v=>write(CONTENT_KEY,v);
   const resultAll=()=>read(RESULT_KEY,{});
