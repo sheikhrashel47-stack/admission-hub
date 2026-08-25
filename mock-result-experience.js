@@ -114,16 +114,16 @@
     }).slice(0, 3);
     const subjectRows = [...currentSubjects].sort((a, b) => pct(b) - pct(a)).slice(0, 4);
     const singleSubject = currentSubjects.length === 1 ? currentSubjects[0] : null;
-    const strongText = strengths.strong ? `${strengths.strong.name} · ${strengths.strong.accuracy}%` : (singleSubject ? 'একটি বিষয় ছিল' : 'সমমান ফলাফল');
-    const weakText = strengths.weak ? `${strengths.weak.name} · ${strengths.weak.accuracy}%` : (singleSubject ? 'আলাদা দুর্বল বিষয় নেই' : 'কোনোটি আলাদা দুর্বল নয়');
-    const topicText = topicStrengths.weak ? `${topicStrengths.weak.name} (${topicStrengths.weak.accuracy}%)` : (priorityTopics[0] ? `${priorityTopics[0].name} (${pct(priorityTopics[0])}%)` : 'পর্যাপ্ত topic data নেই');
+    const strongText = strengths.strong ? `${strengths.strong.name} · ${strengths.strong.accuracy}%` : (singleSubject ? `${singleSubject.name} · ${pct(singleSubject)}%` : (currentSubjects.length ? 'সমমান ফলাফল' : 'subject data নেই'));
+    const weakText = strengths.weak ? `${strengths.weak.name} · ${strengths.weak.accuracy}%` : (singleSubject ? `${singleSubject.name} · ${pct(singleSubject)}%` : (currentSubjects.length ? 'সব subject-এর ফল কাছাকাছি' : 'subject data নেই'));
+    const topicText = topicStrengths.weak ? `${topicStrengths.weak.name} (${topicStrengths.weak.accuracy}%)` : (priorityTopics[0] ? `${priorityTopics[0].name} (${pct(priorityTopics[0])}%)` : (currentTopics.length ? 'সব topic-এর result recorded' : 'topic data নেই'));
     const pace = Number(result.timeUsed || 0) && total ? Math.round(Number(result.timeUsed || 0) / Math.max(1, total)) : null;
     const variables = {
       overall: `তুমি ${total}টির মধ্যে ${correct}টি সঠিক করেছো; accuracy ${accuracy}%।`,
       participation: `উত্তরদানের হার ${attemptRate}%${skipped ? `, ${skipped}টি প্রশ্ন উত্তরহীন ছিল` : ' এবং কোনো প্রশ্ন উত্তরহীন ছিল না'}।`,
       comparison: overallChange,
       subjectSignal: strengths.comparable ? `শক্তিশালী বিষয় ${strengths.strong.name} (${strengths.strong.accuracy}%), priority subject ${strengths.weak.name} (${strengths.weak.accuracy}%)।` : (singleSubject ? `এই পরীক্ষায় শুধু ${singleSubject.name} ছিল, তাই subject strength তুলনা করা হয়নি।` : 'বিষয়গুলোর accuracy কাছাকাছি; আলাদা করে শক্তিশালী বা দুর্বল বলা হচ্ছে না।'),
-      topicSignal: topicStrengths.weak ? `সবচেয়ে বেশি attention দরকার ${topicStrengths.weak.name} topic-এ (${topicStrengths.weak.accuracy}%)।` : 'বর্তমান topic data-তে কোনো আলাদা দুর্বলতা পাওয়া যায়নি।',
+      topicSignal: (() => { const ranked=[...currentTopics].filter((row) => Number(row.total || 0) > 0).sort((a,b) => (Number(b.wrong || 0) + Number(b.skipped || 0)) - (Number(a.wrong || 0) + Number(a.skipped || 0)) || pct(a) - pct(b)); const top=ranked[0]; if(!top)return 'এই ফলাফলে topic breakdown পাওয়া যায়নি।'; const topAttempted=Number(top.correct || 0)+Number(top.wrong || 0), topAccuracy=topAttempted?Math.round(Number(top.correct || 0)/topAttempted*100):0; if(Number(top.wrong || 0)+Number(top.skipped || 0)>0)return `সবচেয়ে বেশি ভুল/উত্তরহীনতা “${top.name}” topic-এ: ${top.wrong || 0}টি ভুল, ${top.skipped || 0}টি উত্তরহীন; topic accuracy ${topAccuracy}%।`; return `এই attempt-এ “${top.name}” topic-এ ${top.correct || 0}/${top.total || 0}টি সঠিক হয়েছে; topic accuracy ${topAccuracy}%।`; })(),
       paceSignal: pace === null ? 'সময় সংক্রান্ত তথ্য এই পরীক্ষায় পাওয়া যায়নি।' : `গড়ে প্রতি প্রশ্নে ${pace} সেকেন্ড সময় লেগেছে।`
     };
     const template = RESULT_INSIGHT_LIBRARY[hash(`${result.id}|${accuracy}|${correct}|${wrong}|${skipped}|${history.length}`) % RESULT_INSIGHT_LIBRARY.length];
