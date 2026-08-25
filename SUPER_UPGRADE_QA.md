@@ -21,3 +21,12 @@ The local Course Library loaded with 17 active courses, 186 visual lessons, and 
 ## Library search test
 
 After bumping the course-tool cache version, the fresh local Library rendered the search input. Typing `tense` filtered the grid to 3 matching courses—Voice Active–Passive, Right Form of Verb, and English Tense—and updated the counter to `3 shown` without route changes.
+## Live deployment checkpoint
+
+Fresh GitHub Pages URL loaded after commit `36fcd02`. The live Library rendered the Super Upgrade search bar, `17 shown`, all 17 active course cards, and aggregate `186 visual lessons / 2,130 MCQ cards`.
+## Live visual lesson checkpoint
+
+Live Pronoun Lesson 01 loaded from the new cache-busted script. The existing visual formula/diagram, readable card layout, lesson rail, slide map, Back/Next controls, and new Focus mode control all rendered without route or loading errors.
+## Live smart MCQ checkpoint
+
+Live Pronoun Exam Zone loaded with the new Confidence controls (`Sure`, `Maybe`, `Guess`) and per-option `Cross out` controls, alongside the existing answer, bookmark, note, edit, duplicate, delete and Result Sheet actions. The route remained stable on fresh Pages deployment.
