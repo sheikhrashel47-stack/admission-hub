@@ -16,11 +16,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Admission Hub">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
-<link rel="apple-touch-startup-image" href="./icons/startup-splash-1179x2556.png">
-<link rel="apple-touch-startup-image" href="./icons/startup-splash-1290x2796.png" media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)">
-<link rel="apple-touch-startup-image" href="./icons/startup-splash-1179x2556.png" media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
-<link rel="apple-touch-startup-image" href="./icons/startup-splash-828x1792.png" media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
-<link rel="apple-touch-startup-image" href="./icons/startup-splash-750x1334.png" media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
 <meta name="description" content="A privacy-first admission preparation hub with smart importing and real progress tracking.">
 <style>
 :root{
@@ -4991,7 +4986,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v51-single-mint-startup-20260826',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v52-single-html-loading-20260826',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);

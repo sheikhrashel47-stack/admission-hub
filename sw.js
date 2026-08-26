@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v51-single-mint-startup-20260826';
+const BUILD_ID = 'v52-single-html-loading-20260826';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -15,11 +15,7 @@ const APP_SHELL = [
   './manifest.json',
   './manifest.webmanifest',
   './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/startup-splash-1290x2796.png',
-  './icons/startup-splash-1179x2556.png',
-  './icons/startup-splash-828x1792.png',
-  './icons/startup-splash-750x1334.png'
+  './icons/icon-512.png'
 ];
 
 const isDocumentRequest = request => request.mode === 'navigate' || request.destination === 'document';
