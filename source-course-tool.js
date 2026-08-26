@@ -6,7 +6,7 @@
   const SOURCE_HASH = 'bf1ecb9767937231a3dcf36250e62eda8645f996f06a3806edf51ed06e6bd0ff';
   const STORAGE_PREFIX = `admissionHubNativeCourseV1:${COURSE_ID}`;
   const SOURCE_STYLE_ID = 'source-course-native-style';
-  const state = { payload: null, loading: null, routeMounted: false, flash: null, previousTheme: null, previousBodyTheme: null };
+  const state = { payload: null, loading: null, routeMounted: false, flash: null, previousTheme: null, previousBodyTheme: null, quizFilterTouched: false };
   let routeCleanupInstalled = false;
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -59,6 +59,7 @@
     state.previousBodyTheme = null;
     state.routeMounted = false;
     state.flash = null;
+    state.quizFilterTouched = false;
     delete window.__sourceCourseMCQ;
   };
 
@@ -144,7 +145,13 @@
 
   const nativeQuiz = mcqs => {
     const store = quizStore();
-    const visible = filteredQuestions(store);
+    let visible = filteredQuestions(store);
+    if (!visible.length && store.filter !== 'all' && !state.quizFilterTouched) {
+      store.filter = 'all';
+      store.index = 0;
+      setQuizStore(store);
+      visible = filteredQuestions(store);
+    }
     const filters = [['all','সব'],['basic','Basic'],['inter','Intermediate'],['adm','Admission'],['trap','Trap'],['mistakes','Mistakes'],['bookmarked','Bookmarked']];
     const result = `<div class="native-course-quiz-summary"><span>${answerCount(store)}/${mcqs.length} answered</span><span>${correctCount(store)} correct</span><span>${mcqs.length ? Math.round(correctCount(store) / Math.max(1, answerCount(store)) * 100) : 0}% accuracy</span></div>`;
     const header = `<div class="native-course-quiz-head"><div><b>Native Question Bank MCQ Engine</b><div class="muted">Four-option card, instant feedback, bookmark, note ও result</div></div><div class="native-course-quiz-tools"><button class="primary" type="button" onclick="SourceCourse.startFlash()">⚡ Temporary Flash Test</button></div></div>`;
@@ -179,6 +186,7 @@
     if (!qSection) return;
     const heading = qSection.querySelector('.sec-head')?.outerHTML || '';
     const legacyGuard = `<div class="source-course-native-legacy-quiz-guard" aria-hidden="true"><div id="qCard"><div id="qMeta"></div><div id="qText"></div><div id="qOpts"></div><div id="qExplain"></div><button id="qPrev"></button><button id="qNext"></button><button id="quizReset"></button><span id="scCorrect"></span><span id="scWrong"></span><span id="scLeft"></span><span id="pbarFill"></span><div id="qGrid"></div></div></div>`;
+    state.quizFilterTouched = false;
     qSection.innerHTML = `${heading}${legacyGuard}<div id="nativeCourseQuizMount"></div>`;
     renderNativeQuiz(mcqs);
   };
@@ -231,7 +239,7 @@
       if (mode === 'flash') return;
       const store = quizStore(); store.revealed[qid] = true; setQuizStore(store); renderNativeQuiz();
     },
-    filter(value) { const store = quizStore(); store.filter = value; store.index = 0; setQuizStore(store); renderNativeQuiz(); },
+    filter(value) { state.quizFilterTouched = true; const store = quizStore(); store.filter = value; store.index = 0; setQuizStore(store); renderNativeQuiz(); },
     prev() { const store = quizStore(); store.index = Math.max(0, store.index - 1); setQuizStore(store); renderNativeQuiz(); },
     next() { const store = quizStore(); const visible = filteredQuestions(store); if (store.index >= visible.length - 1) { renderResult(); return; } store.index += 1; setQuizStore(store); renderNativeQuiz(); },
     startFlash() { const all = questions().slice().sort(() => Math.random() - 0.5); state.flash = { questions: all.slice(0, Math.min(20, all.length)), index: 0, answers: {} }; renderNativeQuiz(); },

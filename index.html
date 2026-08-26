@@ -3514,9 +3514,9 @@ function renderResultView(r, isFresh){
     <div class="result-section-title">প্রশ্ন রিভিউ <small>${filtered.length}/${sn.length}</small></div><div class="result-filter-bar">${filters}</div><section class="result-review-list">${filtered.length?filtered.map(reviewCard).join(''):`<div class="result-empty">${ResultFilter==='wrong'?'🎉 এই পরীক্ষায় কোনো ভুল নেই!':ResultFilter==='correct'?'এই ফিল্টারে কোনো সঠিক প্রশ্ন নেই।':ResultFilter==='skipped'?'এই পরীক্ষায় কোনো উত্তরহীন প্রশ্ন নেই।':'এই পরীক্ষায় কোনো প্রশ্নের তথ্য নেই।'}</div>`}</section>
     <section class="result-next"><b>🎯 এখন কী করবেন?</b><p>${wrong?'ভুল প্রশ্নগুলো আগে Mistake Book-এ সংরক্ষণ করে আবার অনুশীলন করো।':'তোমার ভুল নেই—এখন আরও challenging একটি Mock Test দিয়ে প্রস্তুতি যাচাই করো।'}</p><div class="result-next-actions"><button class="btn" onclick="startResultWeakPractice('${r.id}')">🎯 দুর্বল টপিক অনুশীলন</button><button class="btn secondary" onclick="retryStoredResult('${r.id}','mock','wrong')">🔁 ভুলগুলো আবার দাও</button></div></section>
     <section class="result-priority"><div class="result-priority-head"><div><div class="result-priority-kicker">Your next 3 steps</div><h3>Priority Revision</h3></div><span class="pill">Admission Focus</span></div><p class="result-priority-intro">এই ফলাফলের ভিত্তিতে পরের revision শুরু করার সবচেয়ে কার্যকর তিনটি পথ বেছে নাও।</p><div class="result-priority-list"><button class="result-priority-card" onclick="startResultFlashReview('${r.id}')"><span class="result-priority-number">1</span><span><strong>Review Wrong Answers</strong><small>${wrong}টি ভুল প্রশ্ন থেকে Flash Review</small></span><span class="result-priority-arrow">›</span></button><button class="result-priority-card" onclick="startResultWeakPractice('${r.id}')"><span class="result-priority-number">2</span><span><strong>Practice Weak Areas</strong><small>${weakTopics.length?weakTopics.length+'টি priority topic':'দুর্বল topic শনাক্ত হলে এখানে আসবে'}</small></span><span class="result-priority-arrow">›</span></button><button class="result-priority-card" onclick="startResultQuickFlash('${r.id}')"><span class="result-priority-number">3</span><span><strong>Start a Quick Flash Test</strong><small>${Math.min(10,total)}টি প্রশ্ন · ৫ মিনিট</small></span><span class="result-priority-arrow">›</span></button></div><button class="btn result-priority-cta" onclick="startResultQuickFlash('${r.id}')">Start Recommended Revision →</button><div class="result-priority-tip"><b>✦</b><span>আজকের সবচেয়ে ভালো কাজ: ভুল প্রশ্নগুলো আবার সমাধান করা।</span></div></section>
-    <button class="btn result-back" onclick="navigate('${isFresh?'dashboard':'history'}')">${isFresh?'ড্যাশবোর্ডে ফিরে যাও':'Exam History-তে ফিরে যাও'}</button>
+    <button class="btn result-back" onclick="navigate('${isFresh?'exam':'history'}')">${isFresh?'Exam Center-এ ফিরে যাও':'Exam History-তে ফিরে যাও'}</button>
   </div>`;
-  renderShell(html,{title:'Exam Result',back:isFresh?"navigate('dashboard')":"navigate('history')"});
+  renderShell(html,{title:'Exam Result',back:isFresh?"navigate('exam')":"navigate('history')"});
 }
 
 /* ================= HISTORY ================= */
@@ -4600,16 +4600,16 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
   function phaseBackPath(path){
     if (path.startsWith('question-bank/topic/')) return `question-bank/subject/${path.split('/')[2] ? (CACHE.topics.find(t=>t.id===path.split('/')[2])||{}).subjectId || '' : ''}`;
     if (path.startsWith('question-bank/subject/')) return 'question-bank';
-    if (path.startsWith('question-bank') || path==='add-question' || path==='import-questions' || path.startsWith('edit-question') || path.startsWith('question/')) return 'dashboard';
+    if (path.startsWith('question-bank') || path==='add-question' || path==='import-questions' || path.startsWith('edit-question') || path.startsWith('question/')) return 'question-bank';
     if (path==='exam/setup') return 'exam';
-    if (path==='exam/result') return 'history';
+    if (path==='exam/result') return 'exam';
     if (path.startsWith('history/')) return 'history';
     if (path==='exam' || path==='history' || path==='progress' || path==='settings' || path==='mistakes' || path==='vocabulary' || path==='ai-chat') return 'dashboard';
     return '';
   }
   topbarHtml = function(opts){
     opts = opts || {};
-    if (!opts.back && opts.topbar !== false && !opts.hideNav && Router.path !== 'dashboard') {
+    if (opts.topbar !== false && !opts.hideNav && Router.path !== 'dashboard') {
       const back = phaseBackPath(Router.path);
       if (back) opts = Object.assign({}, opts, {back:`navigate('${back}')`});
     }
@@ -4987,7 +4987,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v65-durable-route-error-guard-20260826',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v66-visible-mcq-result-back-20260826',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5481,6 +5481,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./progress-tool.js?v=progress-v4-back-route"></script>
 <script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
 <script src="./smart-revision-tool.js?v=smart-revision-v2-safe-session"></script>
-<script src="./source-course-tool.js?v=native-sandhi-course-v9-durable-error-guard"></script>
+<script src="./source-course-tool.js?v=native-sandhi-course-v10-visible-mcq-result-back"></script>
 </body>
 </html>
