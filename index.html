@@ -4986,7 +4986,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v61-vocabulary-category-images-20260826',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v62-mcq-course-navigation-20260826',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5467,7 +5467,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 </script>
 <script src="./one-time-mock-seed.js?v=20260824-native"></script>
 <script src="./one-time-mock-tool.js?v=20260824-native"></script>
-<script src="./vocabulary-master-tool.js?v=vm-native-v25-category-image-tools"></script>
+<script src="./vocabulary-master-tool.js?v=vm-native-v26-dedicated-mcq"></script>
 <script src="./vocabulary-pronunciation.js?v=pronunciation-native-v3-natural-voice"></script>
 <script src="./memorizing-match-tool.js?v=memorizing-match-v8-stable-cards"></script>
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>
@@ -5480,6 +5480,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./progress-tool.js?v=progress-v4-back-route"></script>
 <script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
 <script src="./smart-revision-tool.js?v=smart-revision-v2-safe-session"></script>
-<script src="./source-course-tool.js?v=native-sandhi-course-v5"></script>
+<script src="./source-course-tool.js?v=native-sandhi-course-v6-back-guard"></script>
 </body>
 </html>
