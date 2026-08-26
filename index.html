@@ -39,6 +39,7 @@
    A data-backed route replaces it only after IndexedDB has fully loaded. */
 html{background:#faf9f6;}
 html,body,#app{background-color:#faf9f6;}
+body.app-booting,body.app-booting #app{background:#faf9f6!important;color:#1a1d1b!important;}
 #app>.app-loading{min-height:100dvh;display:grid;place-content:center;justify-items:center;gap:9px;padding:calc(24px + env(safe-area-inset-top,0px)) 24px 24px;color:#1a1d1b;background:#faf9f6;text-align:center;opacity:1;}
 #app>.app-loading .app-loading-mark{display:grid;place-items:center;width:48px;height:48px;border-radius:15px;background:#0f6b4f;color:#fff;font-size:25px;box-shadow:0 10px 24px rgba(15,107,79,.18);}
 #app>.app-loading b{font-size:15px;letter-spacing:-.01em;}
@@ -521,7 +522,7 @@ textarea{min-height:96px}
 }
 </style>
 </head>
-<body>
+<body class="app-booting">
 <div id="app"><main class="app-loading" role="status"><div class="app-loading-mark">✦</div><b>Preparing your study space…</b><span>Loading your saved data safely.</span></main></div>
 <div id="navRoot" aria-label="Primary navigation"></div>
 <div id="toast" class="toast"></div>
@@ -882,13 +883,19 @@ function baseTab(path){
   return 'dashboard';
 }
 
+function renderStartupLoading(){
+  const app=document.getElementById('app');
+  if(!app) return;
+  app.classList.add('no-nav');
+  if(!app.firstElementChild || !app.firstElementChild.classList.contains('app-loading')) app.innerHTML='<main class="app-loading" role="status"><div class="app-loading-mark">✦</div><b>Preparing your study space…</b><span>Loading your saved data safely.</span></main>';
+  const navRoot=document.getElementById('navRoot');
+  if(navRoot) navRoot.innerHTML='';
+  return app.firstElementChild;
+}
 function renderShell(innerHtml, opts){
   opts=opts||{};
   const app=document.getElementById('app');
-  if(window.__admissionFinalModulesReady===false){
-    app.innerHTML='<main class="app-loading" role="status"><div class="app-loading-mark">✦</div><b>Preparing your study space…</b><span>Loading your saved data safely.</span></main>';
-    return;
-  }
+  if(window.__admissionFinalModulesReady===false) return renderStartupLoading();
   const activeTab=baseTab(Router.path);
   const showNav = !opts.hideNav;
   app.classList.toggle('no-nav', !!opts.hideNav);
@@ -932,9 +939,7 @@ function confirmModal(title, body, onYes, yesLabel, danger){
 
 /* ================= RENDER DISPATCH ================= */
 function render(){
-  if(window.__admissionBootStatus==='loading'){
-    return renderShell('<div class="empty" style="padding:56px 20px;text-align:center"><div style="font-size:32px;margin-bottom:10px">✦</div><b>Preparing your saved study space…</b><div class="muted" style="margin-top:6px">Your questions and progress are loading safely.</div></div>',{topbar:false,hideNav:true});
-  }
+  if(window.__admissionBootStatus==='loading') return renderStartupLoading();
   if(window.__admissionBootStatus==='failed') return;
   const p=Router.path;
   if(p==='routine-parser' && window.Routine90Parser?.render) return window.Routine90Parser.render();
@@ -3812,6 +3817,7 @@ async function boot(){
     await openDB();
   }catch(err){
     window.__admissionBootStatus='failed';
+    document.body.classList.remove('app-booting');
     showStorageRecovery(err);
     console.error('[Admission Hub] Safe database open failed; existing data was left untouched.',err);
     return;
@@ -3827,6 +3833,7 @@ async function boot(){
   }
   window.__admissionBootStatus='ready';
   window.__admissionFinalModulesReady=true;
+  document.body.classList.remove('app-booting');
   applyTheme();
   Router.path=location.hash.slice(1)||'dashboard';
   // Replace the launch shell once with real counts before any resume modal is considered.
