@@ -137,12 +137,12 @@
 
     const commandTools = [
       ['📚', 'Bank', 'প্রশ্নভাণ্ডার', 'question-bank'],
+      ['📘', 'Courses', 'exact source courses', 'source-courses'],
       ['📋', 'Mock', 'মক টেস্ট', 'exam/setup'],
       ['⚡', 'Quick', 'দ্রুত অনুশীলন', 'exam/setup'],
       ['📊', 'Progress', 'প্রস্তুতির অগ্রগতি', 'progress-overview'],
       ['🧠', 'Mistakes', 'ভুল প্রশ্নের ব্যাংক', 'mistakes-bank'],
       ['🎯', 'Goals', 'দৈনিক লক্ষ্য', 'progress/plan'],
-      ['🧠', 'Interactive Quiz', 'source-locked courses', 'interactive-courses'],
       ['🔁', 'Revision', 'স্মার্ট রিভিশন', 'smart-revision'],
       ['🕐', 'History', 'পরীক্ষার ইতিহাস', 'history'],
       ['🔍', 'Search', 'প্রশ্ন খুঁজুন', 'question-bank'],
