@@ -1,12 +1,15 @@
 (() => {
   'use strict';
 
-  const COURSE_ID = 'sandhi-exact-native-v1';
-  const SOURCE_PATH = './courses/sandhi/index.html';
-  const SOURCE_HASH = 'bf1ecb9767937231a3dcf36250e62eda8645f996f06a3806edf51ed06e6bd0ff';
-  const STORAGE_PREFIX = `admissionHubNativeCourseV1:${COURSE_ID}`;
+  const COURSE_DEFS = {
+    sandhi: { id: 'sandhi-exact-native-v1', path: './courses/sandhi/index.html', hash: 'bf1ecb9767937231a3dcf36250e62eda8645f996f06a3806edf51ed06e6bd0ff', label: 'সন্ধি', title: 'সন্ধি — University Admission Master Guide', subtitle: 'Visual University Admission Master Guide · Bangla 2nd Paper' },
+    somas: { id: 'somas-exact-native-v1', path: './courses/somas/index.html', hash: '7311c4def169f85ac48b35bac2e64fed6adb26b43d1dda6ae9a44e1078fe433b', label: 'সমাস', title: 'সমাস — University Admission Master Guide', subtitle: 'Visual University Admission Master Guide · Bangla 2nd Paper' }
+  };
+  const courseKey = () => { const p = coursePath(); return p.startsWith('source-courses/') ? p.split('/')[1] : 'sandhi'; };
+  const courseDef = () => COURSE_DEFS[courseKey()] || COURSE_DEFS.sandhi;
+  const storagePrefix = () => `admissionHubNativeCourseV1:${courseDef().id}`;
   const SOURCE_STYLE_ID = 'source-course-native-style';
-  const state = { payload: null, loading: null, routeMounted: false, flash: null, previousTheme: null, previousBodyTheme: null, quizFilterTouched: false };
+  const state = { payload: null, loading: null, loadingKey: null, routeMounted: false, mountedCourseKey: null, flash: null, previousTheme: null, previousBodyTheme: null, quizFilterTouched: false };
   let routeCleanupInstalled = false;
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -24,8 +27,8 @@
     const app = document.getElementById('app');
     if (app) app.innerHTML = html;
   };
-  const read = suffix => { try { return JSON.parse(localStorage.getItem(`${STORAGE_PREFIX}:${suffix}`) || 'null'); } catch (_) { return null; } };
-  const write = (suffix, value) => { try { localStorage.setItem(`${STORAGE_PREFIX}:${suffix}`, JSON.stringify(value)); } catch (_) {} };
+  const read = suffix => { try { return JSON.parse(localStorage.getItem(`${storagePrefix()}:${suffix}`) || 'null'); } catch (_) { return null; } };
+  const write = (suffix, value) => { try { localStorage.setItem(`${storagePrefix()}:${suffix}`, JSON.stringify(value)); } catch (_) {} };
   const quizStore = () => {
     const value = read('quiz');
     return value && typeof value === 'object' ? { index: Number(value.index) || 0, filter: value.filter || 'all', answers: value.answers || {}, revealed: value.revealed || {}, bookmarks: Array.isArray(value.bookmarks) ? value.bookmarks : [], notes: value.notes || {} } : { index: 0, filter: 'all', answers: {}, revealed: {}, bookmarks: [], notes: {} };
@@ -39,7 +42,7 @@
     if (store.filter === 'bookmarked') return all.filter(q => store.bookmarks.includes(q.id));
     return all;
   };
-  const qId = (q, index) => q.id || `sandhi-source-q-${String(q.number || index + 1).padStart(2, '0')}`;
+  const qId = (q, index) => q.id || `${courseKey()}-source-q-${String(q.number || index + 1).padStart(2, '0')}`;
   const normalizeQuestions = questions => questions.map((q, index) => ({ ...q, id: qId(q, index), number: Number(q.number || index + 1), question: q.q || q.question || '', options: Array.isArray(q.o) ? q.o : (q.options || []), answer: Number(q.a ?? q.answer ?? 0), family: q.t || q.topic || 'Source MCQ', difficulty: q.d || 'basic', explanation: q.e || q.explanation || '' }));
   const questions = () => { const qs = normalizeQuestions(sourceQuestions()); if (state.payload) state.payload.mcq = qs; return qs; };
 
@@ -58,6 +61,7 @@
     state.previousTheme = null;
     state.previousBodyTheme = null;
     state.routeMounted = false;
+    state.mountedCourseKey = null;
     state.flash = null;
     state.quizFilterTouched = false;
     delete window.__sourceCourseMCQ;
@@ -73,15 +77,20 @@
 
   const library = () => {
     removeNativeState();
-    shell(`<main class="source-course-page"><header class="source-course-hero"><div><span>ADMISSION HUB · SOURCE COURSE</span><h1>বাংলা Courses</h1><p>তোমার supplied Course এখন Admission Hub-এর native tool হিসেবে চলছে।</p></div><b>SC</b></header><section class="source-course-card"><div class="source-course-icon">সন্ধি</div><div><span>SOURCE-LOCKED · NATIVE COURSE</span><h2>সন্ধি — University Admission Master Guide</h2><p>Visual University Admission Master Guide · Bangla 2nd Paper</p><small>Original lessons and design preserved · Native Question Bank MCQ · Temporary Flash Test</small></div><button class="btn" onclick="navigate('source-courses/sandhi')">Open Course →</button></section></main>`, {title:'বাংলা Courses', back:"navigate('dashboard')"});
+    const cards = Object.entries(COURSE_DEFS).map(([key, course]) => `<section class="source-course-card"><div class="source-course-icon">${esc(course.label)}</div><div><span>SOURCE-LOCKED · NATIVE COURSE</span><h2>${esc(course.title)}</h2><p>${esc(course.subtitle)}</p><small>Original source content preserved · Native Question Bank MCQ · Temporary Flash Test</small></div><button class="btn" onclick="navigate('source-courses/${key}')">Open Course →</button></section>`).join('');
+    shell(`<main class="source-course-page"><button class="source-course-library-back" data-source-course-back type="button" onclick="navigate('dashboard')" aria-label="Dashboard-এ ফিরে যান">←</button><header class="source-course-hero"><div><span>ADMISSION HUB · SOURCE COURSE</span><h1>বাংলা Courses</h1><p>তোমার supplied Course এখন Admission Hub-এর native tool হিসেবে চলছে।</p></div><b>SC</b></header>${cards}</main>`, {title:'বাংলা Courses'});
     const page = document.querySelector('#app .page');
-    if (page) page.insertAdjacentHTML('beforeend', `<style>.source-course-page{max-width:980px;margin:0 auto;padding:18px 14px 92px;color:#173128}.source-course-hero{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:25px 20px;border-radius:24px;background:linear-gradient(135deg,#eef1ff,#faf7ff);border:1px solid #ddd9ff}.source-course-hero span,.source-course-card span{font-size:10px;font-weight:900;letter-spacing:.12em;color:#5846c7}.source-course-hero h1{margin:7px 0 5px;color:#20205c;font-size:32px}.source-course-hero p{margin:0;color:#657080;font-size:13px}.source-course-hero>b{display:grid;place-items:center;width:68px;height:68px;border-radius:20px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:20px}.source-course-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;margin-top:16px;padding:18px;border:1px solid #e0e4f0;border-radius:20px;background:#fff;box-shadow:0 10px 25px rgba(46,38,120,.07)}.source-course-icon{display:grid;place-items:center;width:58px;height:58px;border-radius:17px;background:#eeeaff;color:#5544c4;font-size:13px;font-weight:900}.source-course-card h2{margin:5px 0 4px;font-size:19px;color:#20283d}.source-course-card p{margin:0;color:#647085;font-size:12px}.source-course-card small{display:block;margin-top:9px;color:#7b8492;font-size:10px}@media(max-width:640px){.source-course-card{grid-template-columns:auto minmax(0,1fr)}.source-course-card .btn{grid-column:1/-1;width:100%}.source-course-hero h1{font-size:27px}}</style>`);
+    if (page) page.insertAdjacentHTML('beforeend', `<style>.source-course-page{max-width:980px;margin:0 auto;padding:18px 14px 92px;color:#173128}.source-course-library-back{display:grid;place-items:center;width:40px;height:40px;margin:0 0 10px;border:1px solid #e0e4f0;border-radius:11px;background:#fff;color:#173128;font-size:22px;cursor:pointer;box-shadow:0 4px 12px rgba(46,38,120,.07)}.source-course-hero{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:25px 20px;border-radius:24px;background:linear-gradient(135deg,#eef1ff,#faf7ff);border:1px solid #ddd9ff}.source-course-hero span,.source-course-card span{font-size:10px;font-weight:900;letter-spacing:.12em;color:#5846c7}.source-course-hero h1{margin:7px 0 5px;color:#20205c;font-size:32px}.source-course-hero p{margin:0;color:#657080;font-size:13px}.source-course-hero>b{display:grid;place-items:center;width:68px;height:68px;border-radius:20px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:20px}.source-course-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;margin-top:16px;padding:18px;border:1px solid #e0e4f0;border-radius:20px;background:#fff;box-shadow:0 10px 25px rgba(46,38,120,.07)}.source-course-icon{display:grid;place-items:center;width:58px;height:58px;border-radius:17px;background:#eeeaff;color:#5544c4;font-size:13px;font-weight:900}.source-course-card h2{margin:5px 0 4px;font-size:19px;color:#20283d}.source-course-card p{margin:0;color:#647085;font-size:12px}.source-course-card small{display:block;margin-top:9px;color:#7b8492;font-size:10px}@media(max-width:640px){.source-course-card{grid-template-columns:auto minmax(0,1fr)}.source-course-card .btn{grid-column:1/-1;width:100%}.source-course-hero h1{font-size:27px}}</style>`);
+    return;
   };
 
   const loadSource = () => {
-    if (state.payload) return Promise.resolve(state.payload);
-    if (state.loading) return state.loading;
-    state.loading = fetch(`${SOURCE_PATH}?nativeCourse=v2`, { cache: 'force-cache' }).then(response => {
+    const key = courseKey();
+    if (state.payload?.courseKey === key) return Promise.resolve(state.payload);
+    if (state.loading && state.loadingKey === key) return state.loading;
+    state.payload = null;
+    const def = COURSE_DEFS[key] || COURSE_DEFS.sandhi;
+    const request = fetch(`${def.path}?nativeCourse=v2`, { cache: 'force-cache' }).then(response => {
       if (!response.ok) throw new Error(`source ${response.status}`);
       return response.text();
     }).then(text => {
@@ -94,10 +103,18 @@
         .replace('function onScroll(){', 'function onScroll(){ if (!document.querySelector(".source-native-host")) return;')
         .replace('document.getElementById("scrollbar").style.width =', 'var sourceScrollbar = document.getElementById("scrollbar"); if (sourceScrollbar) sourceScrollbar.style.width =')
         .replace('window.addEventListener("scroll", onScroll, {passive:true});', 'window.__sourceCourseScrollHandler = onScroll; window.addEventListener("scroll", onScroll, {passive:true});');
-      state.payload = { title: doc.title, styles, scripts: transformed, bodyHtml, sourceHash: SOURCE_HASH, mcq: [] };
-      return state.payload;
-    }).finally(() => { state.loading = null; });
-    return state.loading;
+      const payload = { title: doc.title, styles, scripts: transformed, bodyHtml, sourceHash: def.hash, mcq: [], courseKey: key, courseLabel: def.label };
+      if (courseKey() === key) state.payload = payload;
+      return payload;
+    });
+    state.loading = request;
+    state.loadingKey = key;
+    request.then(() => {
+      if (state.loading === request) { state.loading = null; state.loadingKey = null; }
+    }, () => {
+      if (state.loading === request) { state.loading = null; state.loadingKey = null; }
+    });
+    return request;
   };
 
   const executeSource = payload => {
@@ -120,6 +137,7 @@
     payload.mcq = normalizeQuestions(window.__sourceCourseMCQ || []);
     replaceQuizSection(payload.mcq);
     state.routeMounted = true;
+    state.mountedCourseKey = courseKey();
   };
 
   const setQuizStore = value => write('quiz', value);
@@ -140,7 +158,7 @@
     const explanation = revealed ? `<div class="q-explanation-v2 ${selected === undefined ? 'revealed' : correct ? 'correct' : 'wrong'}"><strong>${selected === undefined ? 'Answer revealed' : correct ? '✓ Correct' : '✕ Wrong'}</strong><p>Correct answer: ${esc(q.options[q.answer] || '')}</p>${q.explanation ? `<p>${esc(q.explanation)}</p>` : ''}</div>` : '';
     const isBookmarked = store.bookmarks.includes(q.id);
     const note = store.notes[q.id] || '';
-    return `<article class="q-card-v2 card" data-qid="${esc(q.id)}"><div class="q-card-header"><div class="q-card-meta"><span class="q-card-num">Q ${String(q.number).padStart(2, '0')}</span><span class="q-breadcrumb">সন্ধি • ${esc(q.family)}</span></div><span class="q-status ${statusClass}">${status}</span></div><div class="q-text-v2">${esc(q.question)}</div><div class="q-options-v2">${opts}</div>${explanation}<footer class="q-card-footer"><span>Accuracy <strong>${answerCount(store) ? Math.round(correctCount(store) / answerCount(store) * 100) : 0}%</strong></span><span>Mistakes <strong>${questions().filter(x => store.answers[x.id] !== undefined && Number(store.answers[x.id]) !== x.answer).length}</strong></span>${mode === 'course' ? `<button class="q-footer-btn ${isBookmarked ? 'active' : ''}" type="button" aria-pressed="${isBookmarked}" onclick="SourceCourse.bookmark('${esc(q.id)}','course')">⭐ ${isBookmarked ? 'Bookmarked' : 'Bookmark'}</button>${!revealed ? `<button class="q-footer-btn" type="button" onclick="SourceCourse.reveal('${esc(q.id)}','course')">Show Answer</button>` : ''}<button class="q-footer-btn" type="button" onclick="SourceCourse.note('${esc(q.id)}','course')">✎ Note</button>` : ''}</footer>${note ? `<div class="q-note">✎ ${esc(note)}</div>` : ''}<small style="display:block;margin-top:10px;color:var(--sub);font-size:11px">Source: supplied Sandhi Course · Question ${String(q.number).padStart(2, '0')}</small></article>`;
+    return `<article class="q-card-v2 card" data-qid="${esc(q.id)}"><div class="q-card-header"><div class="q-card-meta"><span class="q-card-num">Q ${String(q.number).padStart(2, '0')}</span><span class="q-breadcrumb">${esc(courseDef().label)} • ${esc(q.family)}</span></div><span class="q-status ${statusClass}">${status}</span></div><div class="q-text-v2">${esc(q.question)}</div><div class="q-options-v2">${opts}</div>${explanation}<footer class="q-card-footer"><span>Accuracy <strong>${answerCount(store) ? Math.round(correctCount(store) / answerCount(store) * 100) : 0}%</strong></span><span>Mistakes <strong>${questions().filter(x => store.answers[x.id] !== undefined && Number(store.answers[x.id]) !== x.answer).length}</strong></span>${mode === 'course' ? `<button class="q-footer-btn ${isBookmarked ? 'active' : ''}" type="button" aria-pressed="${isBookmarked}" onclick="SourceCourse.bookmark('${esc(q.id)}','course')">⭐ ${isBookmarked ? 'Bookmarked' : 'Bookmark'}</button>${!revealed ? `<button class="q-footer-btn" type="button" onclick="SourceCourse.reveal('${esc(q.id)}','course')">Show Answer</button>` : ''}<button class="q-footer-btn" type="button" onclick="SourceCourse.note('${esc(q.id)}','course')">✎ Note</button>` : ''}</footer>${note ? `<div class="q-note">✎ ${esc(note)}</div>` : ''}<small style="display:block;margin-top:10px;color:var(--sub);font-size:11px">Source: supplied ${esc(courseDef().label)} Course · Question ${String(q.number).padStart(2, '0')}</small></article>`;
   };
 
   const nativeQuiz = mcqs => {
@@ -193,14 +211,19 @@
 
   const mount = payload => {
     removeNativeState();
-    shell('<div class="source-native-host" aria-label="সন্ধি Course"></div>', { topbar: false, hideNav: true, title: '' });
+    shell(`<div class="source-native-host" aria-label="${esc(courseDef().label)} Course"></div>`, { topbar: false, hideNav: true, title: '' });
     executeSource(payload);
   };
 
   const open = () => {
-    if (state.routeMounted && document.querySelector('.source-native-host')) return true;
+    const key = courseKey();
+    if (state.routeMounted && state.mountedCourseKey === key && document.querySelector('.source-native-host')) return true;
     shell('<div class="source-native-loading" style="min-height:100dvh;display:grid;place-items:center;padding:20px;text-align:center">Opening source course…</div>', { topbar: false, hideNav: true, title: '' });
-    loadSource().then(mount).catch(error => {
+    loadSource().then(payload => {
+      if (courseKey() !== key || coursePath() !== `source-courses/${key}`) return;
+      mount(payload);
+    }).catch(error => {
+      if (courseKey() !== key || coursePath() !== `source-courses/${key}`) return;
       console.error('Source course failed', error);
       shell('<div style="padding:40px 20px;text-align:center">Course source could not load. Please try again.</div>', { topbar: false, hideNav: true, title: '' });
     });
@@ -210,7 +233,7 @@
   const render = () => {
     const p = coursePath();
     if (p === 'source-courses') { library(); return true; }
-    if (p === 'source-courses/sandhi') { return open(); }
+    if (p.startsWith('source-courses/') && COURSE_DEFS[courseKey()]) { return open(); }
     removeNativeState();
     return false;
   };
@@ -252,13 +275,13 @@
   function renderResult() {
     const store = quizStore(); const qs = questions(); const answered = answerCount(store); const correct = correctCount(store); const wrong = qs.filter(q => store.answers[q.id] !== undefined && Number(store.answers[q.id]) !== q.answer).length; const skipped = qs.length - answered; const accuracy = answered ? Math.round(correct / answered * 100) : 0;
     const mountPoint = document.getElementById('nativeCourseQuizMount'); if (!mountPoint) return;
-    mountPoint.innerHTML = `<section class="card"><div class="kicker">NATIVE QUESTION BANK RESULT</div><h3>সন্ধি MCQ Result</h3><div class="stats"><div class="stat"><div class="n">${accuracy}%</div><div class="l">Accuracy</div></div><div class="stat"><div class="n">${correct}</div><div class="l">Correct</div></div><div class="stat"><div class="n">${wrong}</div><div class="l">Wrong</div></div><div class="stat"><div class="n">${skipped}</div><div class="l">Skipped</div></div></div><div class="native-course-flash-actions"><button class="btn" type="button" onclick="SourceCourse.reset()">Retry MCQ</button><button class="btn secondary" type="button" onclick="document.getElementById('quiz')?.scrollIntoView({behavior:'smooth'})">Back to Quiz</button></div></section>`;
+    mountPoint.innerHTML = `<section class="card"><div class="kicker">NATIVE QUESTION BANK RESULT</div><h3>${esc(courseDef().label)} MCQ Result</h3><div class="stats"><div class="stat"><div class="n">${accuracy}%</div><div class="l">Accuracy</div></div><div class="stat"><div class="n">${correct}</div><div class="l">Correct</div></div><div class="stat"><div class="n">${wrong}</div><div class="l">Wrong</div></div><div class="stat"><div class="n">${skipped}</div><div class="l">Skipped</div></div></div><div class="native-course-flash-actions"><button class="btn" type="button" onclick="SourceCourse.reset()">Retry MCQ</button><button class="btn secondary" type="button" onclick="document.getElementById('quiz')?.scrollIntoView({behavior:'smooth'})">Back to Quiz</button></div></section>`;
   }
 
   function renderFlashResult() {
     const f = state.flash; if (!f) return;
     const correct = f.questions.filter(q => f.answers[q.id] !== undefined && Number(f.answers[q.id]) === q.answer).length; const answered = Object.keys(f.answers).length; const accuracy = answered ? Math.round(correct / answered * 100) : 0; const mountPoint = document.getElementById('nativeCourseQuizMount'); if (!mountPoint) return;
-    mountPoint.innerHTML = `<section class="card"><div class="kicker">TEMPORARY FLASH RESULT</div><h3>Flash Test শেষ</h3><div class="stats"><div class="stat"><div class="n">${accuracy}%</div><div class="l">Accuracy</div></div><div class="stat"><div class="n">${correct}</div><div class="l">Correct</div></div><div class="stat"><div class="n">${f.questions.length - correct}</div><div class="l">Wrong/Skipped</div></div></div><p class="muted">এই result save করা হয়নি এবং Course progress বা Question Bank-এ যোগ হয়নি।</p><div class="native-course-flash-actions"><button class="btn" type="button" onclick="SourceCourse.startFlash()">New Temporary Flash Test</button><button class="btn secondary" type="button" onclick="SourceCourse.exitFlash()">Back to Course MCQ</button></div></section>`;
+    mountPoint.innerHTML = `<section class="card"><div class="kicker">TEMPORARY FLASH RESULT</div><h3>${esc(courseDef().label)} Flash Test শেষ</h3><div class="stats"><div class="stat"><div class="n">${accuracy}%</div><div class="l">Accuracy</div></div><div class="stat"><div class="n">${correct}</div><div class="l">Correct</div></div><div class="stat"><div class="n">${f.questions.length - correct}</div><div class="l">Wrong/Skipped</div></div></div><p class="muted">এই result save করা হয়নি এবং Course progress বা Question Bank-এ যোগ হয়নি।</p><div class="native-course-flash-actions"><button class="btn" type="button" onclick="SourceCourse.startFlash()">New Temporary Flash Test</button><button class="btn secondary" type="button" onclick="SourceCourse.exitFlash()">Back to Course MCQ</button></div></section>`;
   }
 
   window.addEventListener('hashchange', () => {
