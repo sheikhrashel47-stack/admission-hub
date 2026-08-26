@@ -82,6 +82,7 @@
 
   const executeSource = payload => {
     state.previousTheme = document.documentElement.getAttribute('data-theme');
+    document.documentElement.setAttribute('data-theme', 'light');
     addSourceStyle(payload.styles);
     document.body.classList.add('source-course-native-body');
     document.getElementById('app')?.classList.add('source-course-native-app');
