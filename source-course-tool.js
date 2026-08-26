@@ -229,5 +229,8 @@
     mountPoint.innerHTML = `<section class="card"><div class="kicker">TEMPORARY FLASH RESULT</div><h3>Flash Test শেষ</h3><div class="stats"><div class="stat"><div class="n">${accuracy}%</div><div class="l">Accuracy</div></div><div class="stat"><div class="n">${correct}</div><div class="l">Correct</div></div><div class="stat"><div class="n">${f.questions.length - correct}</div><div class="l">Wrong/Skipped</div></div></div><p class="muted">এই result save করা হয়নি এবং Course progress বা Question Bank-এ যোগ হয়নি।</p><div class="native-course-flash-actions"><button class="btn" type="button" onclick="SourceCourse.startFlash()">New Temporary Flash Test</button><button class="btn secondary" type="button" onclick="SourceCourse.exitFlash()">Back to Course MCQ</button></div></section>`;
   }
 
+  window.addEventListener('hashchange', () => {
+    if (!isCoursePath(coursePath())) removeNativeState();
+  }, { passive: true });
   window.renderSourceCourseTool = render;
 })();
