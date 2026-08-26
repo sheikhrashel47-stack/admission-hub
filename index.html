@@ -5306,14 +5306,24 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 (() => {
   const removedRoute = (path) => {
     const p = String(path || '').replace(/^#\/?/, '').split('?')[0];
-    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || (p.startsWith('memorizing') && !p.startsWith('memorizing-match')) || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history';
+    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || (p.startsWith('memorizing') && !p.startsWith('memorizing-match')) || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history' || p === 'courses' || p.startsWith('courses/');
   };
   const purgeRemovedData = async () => {
-    ['admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','daily-gk-live-v1','admission_phase345_v1','memory-system-v2','xp','rewardEngineV2','rewardEngineV1','admission-phase2-dictionary-v1','admission-phase2-dictionary-v2','admission_memorizing_v1','admission_dict_v1','admission-hub-web-chat-v5'].forEach((key) => { try { localStorage.removeItem(key); } catch (_) {} });
+    ['admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','daily-gk-live-v1','admission_phase345_v1','memory-system-v2','xp','rewardEngineV2','rewardEngineV1','admission-phase2-dictionary-v1','admission-phase2-dictionary-v2','admission_memorizing_v1','admission_dict_v1','admission-hub-web-chat-v5','admissionHubCourseProgressV1','admissionHubCourseResultsV1','admissionHubCoursesV1','admission_hub_courses_v1'].forEach((key) => { try { localStorage.removeItem(key); sessionStorage.removeItem(key); } catch (_) {} });
     try {
       for (let i = localStorage.length - 1; i >= 0; i -= 1) {
         const key = localStorage.key(i);
         if (key && (key.startsWith('dictionary-api-v2:') || key.startsWith('admission-hub-google-web-v5:'))) localStorage.removeItem(key);
+      }
+    } catch (_) {}
+    try {
+      const cacheNames = await caches.keys();
+      for (const cacheName of cacheNames) {
+        const cache = await caches.open(cacheName);
+        const requests = await cache.keys();
+        for (const request of requests) {
+          if (/(?:course-tool|course-loader|bangla-courses|pdf-grammar|four-grammar|mass-grammar|noun-course|parts-of-speech|voice-course)/i.test(request.url)) await cache.delete(request);
+        }
       }
     } catch (_) {}
     try {
