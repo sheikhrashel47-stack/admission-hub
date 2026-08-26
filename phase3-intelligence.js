@@ -147,8 +147,7 @@
       ['🔍', 'Search', 'প্রশ্ন খুঁজুন', 'question-bank'],
       ['⚙️', 'Settings', 'অ্যাপ সেটিংস', 'settings'],
       ['📥', 'Inbox', 'নোটিফিকেশন', 'notifications'],
-      ['⋯', 'More', 'আরও ফিচার', 'settings'],
-      ['📘', 'Course', 'ভিজ্যুয়াল কোর্স', 'courses']
+      ['⋯', 'More', 'আরও ফিচার', 'settings']
     ];
 
     const commandPages = Array.from({length:Math.ceil(commandTools.length/6)},(_,pageIndex) => commandTools.slice(pageIndex*6,pageIndex*6+6).map(tool => tool ? (() => { const [icon,title,subtitle,route] = tool; return `

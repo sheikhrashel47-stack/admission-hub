@@ -4978,7 +4978,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v49-offline-first-20260826',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v50-course-clean-slate-20260826',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5083,7 +5083,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
 <script src="phase12-ui.js?v=nav-resume-router-v7"></script>
 <script src="phase23-ui.js?v=swipe-fix-0f10a28-safe-capture"></script>
 <script src="upgrade-features.js?v=4"></script>
-<script src="phase3-intelligence.js?v=command-tools-v11-parent-seamless"></script>
+<script src="phase3-intelligence.js?v=command-tools-v12-no-course"></script>
 <script src="phase1-upgrade.js?v=3-dynamic-command-pages-safe-capture"></script>
 <script src="web-search-fix.js?v=1"></script>
 <script src="study-tools-restore.js?v=3"></script>
@@ -5460,6 +5460,5 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./progress-tool.js?v=progress-v4-back-route"></script>
 <script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
 <script src="./smart-revision-tool.js?v=smart-revision-v2-safe-session"></script>
-<script src="./course-loader.js?v=course-loader-v2-bangla-18-courses"></script>
 </body>
 </html>
