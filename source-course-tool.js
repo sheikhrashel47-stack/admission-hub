@@ -7,10 +7,18 @@
   const STORAGE_PREFIX = `admissionHubNativeCourseV1:${COURSE_ID}`;
   const SOURCE_STYLE_ID = 'source-course-native-style';
   const state = { payload: null, loading: null, routeMounted: false, flash: null, previousTheme: null, previousBodyTheme: null };
+  let routeCleanupInstalled = false;
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const coursePath = () => String(location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
   const isCoursePath = path => path === 'source-courses' || path.startsWith('source-courses/');
+  const installRouteCleanup = () => {
+    if (routeCleanupInstalled) return;
+    routeCleanupInstalled = true;
+    window.addEventListener('hashchange', () => {
+      if (!isCoursePath(coursePath())) removeNativeState();
+    });
+  };
   const shell = (html, opts = {}) => {
     if (typeof window.renderShell === 'function') return window.renderShell(html, opts);
     const app = document.getElementById('app');
@@ -36,6 +44,10 @@
   const questions = () => { const qs = normalizeQuestions(sourceQuestions()); if (state.payload) state.payload.mcq = qs; return qs; };
 
   const removeNativeState = () => {
+    if (window.__sourceCourseScrollHandler) {
+      window.removeEventListener('scroll', window.__sourceCourseScrollHandler);
+      delete window.__sourceCourseScrollHandler;
+    }
     document.getElementById(SOURCE_STYLE_ID)?.remove();
     document.body.classList.remove('source-course-native-body');
     document.getElementById('app')?.classList.remove('source-course-native-app');
@@ -76,7 +88,10 @@
       const styles = Array.from(doc.querySelectorAll('style')).map(s => s.textContent || '').join('\n');
       const scripts = Array.from(doc.querySelectorAll('script')).map(s => s.textContent || '').join('\n');
       const bodyHtml = Array.from(doc.body.childNodes).filter(node => node.nodeName !== 'SCRIPT').map(node => node.outerHTML || node.textContent || '').join('');
-      const transformed = scripts.replace('var MCQ = [', 'var MCQ = window.__sourceCourseMCQ = [');
+      const transformed = scripts
+        .replace('var MCQ = [', 'var MCQ = window.__sourceCourseMCQ = [')
+        .replace('document.getElementById("scrollbar").style.width =', 'var sourceScrollbar = document.getElementById("scrollbar"); if (sourceScrollbar) sourceScrollbar.style.width =')
+        .replace('window.addEventListener("scroll", onScroll, {passive:true});', 'window.__sourceCourseScrollHandler = onScroll; window.addEventListener("scroll", onScroll, {passive:true});');
       state.payload = { title: doc.title, styles, scripts: transformed, bodyHtml, sourceHash: SOURCE_HASH, mcq: [] };
       return state.payload;
     }).finally(() => { state.loading = null; });
@@ -129,12 +144,14 @@
   const nativeQuiz = mcqs => {
     const store = quizStore();
     const visible = filteredQuestions(store);
-    if (!visible.length) return `<div class="native-course-quiz-wrap"><div class="card empty">এই filter-এ কোনো প্রশ্ন নেই।</div></div>`;
-    store.index = Math.min(Math.max(0, Number(store.index) || 0), visible.length - 1);
-    const q = visible[store.index];
     const filters = [['all','সব'],['basic','Basic'],['inter','Intermediate'],['adm','Admission'],['trap','Trap'],['mistakes','Mistakes'],['bookmarked','Bookmarked']];
     const result = `<div class="native-course-quiz-summary"><span>${answerCount(store)}/${mcqs.length} answered</span><span>${correctCount(store)} correct</span><span>${mcqs.length ? Math.round(correctCount(store) / Math.max(1, answerCount(store)) * 100) : 0}% accuracy</span></div>`;
-    return `<div class="native-course-quiz-wrap"><div class="native-course-quiz-head"><div><b>Native Question Bank MCQ Engine</b><div class="muted">Four-option card, instant feedback, bookmark, note ও result</div></div><div class="native-course-quiz-tools"><button class="primary" type="button" onclick="SourceCourse.startFlash()">⚡ Temporary Flash Test</button></div></div><div class="native-course-quiz-filters">${filters.map(([key,label]) => `<button class="${store.filter === key ? 'on' : ''}" type="button" onclick="SourceCourse.filter('${key}')">${label}</button>`).join('')}</div>${result}${qbankCard(q, store, store.index, visible.length)}<div class="native-course-quiz-nav"><button type="button" ${store.index === 0 ? 'disabled' : ''} onclick="SourceCourse.prev()">← Previous</button><span>Question ${store.index + 1} of ${visible.length}</span><button type="button" onclick="SourceCourse.next()">${store.index === visible.length - 1 ? 'See Result →' : 'Next →'}</button></div></div>`;
+    const header = `<div class="native-course-quiz-head"><div><b>Native Question Bank MCQ Engine</b><div class="muted">Four-option card, instant feedback, bookmark, note ও result</div></div><div class="native-course-quiz-tools"><button class="primary" type="button" onclick="SourceCourse.startFlash()">⚡ Temporary Flash Test</button></div></div>`;
+    const filterBar = `<div class="native-course-quiz-filters">${filters.map(([key,label]) => `<button class="${store.filter === key ? 'on' : ''}" type="button" onclick="SourceCourse.filter('${key}')">${label}</button>`).join('')}</div>`;
+    if (!visible.length) return `<div class="native-course-quiz-wrap">${header}${filterBar}${result}<div class="card empty">এই filter-এ কোনো প্রশ্ন নেই।<br><button type="button" style="margin-top:10px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:8px 12px;border-radius:10px;font-weight:800;cursor:pointer" onclick="SourceCourse.filter('all')">সব ৬০টি প্রশ্ন দেখুন</button></div></div>`;
+    store.index = Math.min(Math.max(0, Number(store.index) || 0), visible.length - 1);
+    const q = visible[store.index];
+    return `<div class="native-course-quiz-wrap">${header}${filterBar}${result}${qbankCard(q, store, store.index, visible.length)}<div class="native-course-quiz-nav"><button type="button" ${store.index === 0 ? 'disabled' : ''} onclick="SourceCourse.prev()">← Previous</button><span>Question ${store.index + 1} of ${visible.length}</span><button type="button" onclick="SourceCourse.next()">${store.index === visible.length - 1 ? 'See Result →' : 'Next →'}</button></div></div>`;
   };
 
   const flashCard = () => {
@@ -188,6 +205,8 @@
     removeNativeState();
     return false;
   };
+
+  installRouteCleanup();
 
   window.SourceCourse = {
     exit() { state.flash = null; navigate('source-courses'); },
