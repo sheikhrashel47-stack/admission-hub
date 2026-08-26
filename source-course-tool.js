@@ -90,6 +90,7 @@
       const bodyHtml = Array.from(doc.body.childNodes).filter(node => node.nodeName !== 'SCRIPT').map(node => node.outerHTML || node.textContent || '').join('');
       const transformed = scripts
         .replace('var MCQ = [', 'var MCQ = window.__sourceCourseMCQ = [')
+        .replace('function onScroll(){', 'function onScroll(){ if (!document.querySelector(".source-native-host")) return;')
         .replace('document.getElementById("scrollbar").style.width =', 'var sourceScrollbar = document.getElementById("scrollbar"); if (sourceScrollbar) sourceScrollbar.style.width =')
         .replace('window.addEventListener("scroll", onScroll, {passive:true});', 'window.__sourceCourseScrollHandler = onScroll; window.addEventListener("scroll", onScroll, {passive:true});');
       state.payload = { title: doc.title, styles, scripts: transformed, bodyHtml, sourceHash: SOURCE_HASH, mcq: [] };
