@@ -4986,7 +4986,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v54-course-removed-20260826',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v55-interactive-quiz-sandhi-20260826',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5275,6 +5275,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (p === 'progress/plan') return typeof window.Routine90?.render === 'function' ? window.Routine90.render() : (typeof window.render === 'function' ? window.render() : undefined);
     if (p === 'progress') return typeof window.renderProgress === 'function' ? window.renderProgress() : window.render?.();
     if (p === 'deleted-questions') return typeof window.renderDeletedQuestions === 'function' ? window.renderDeletedQuestions() : window.render?.();
+    if (p === 'interactive-courses' || p.startsWith('interactive-courses/')) return typeof window.renderInteractiveCourseTool === 'function' ? window.renderInteractiveCourseTool() : window.render?.();
     if (p === 'exam') return typeof window.renderExamCenter === 'function' ? window.renderExamCenter() : window.render?.();
     return typeof window.render === 'function' ? window.render() : undefined;
   };
@@ -5478,5 +5479,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./progress-tool.js?v=progress-v4-back-route"></script>
 <script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
 <script src="./smart-revision-tool.js?v=smart-revision-v2-safe-session"></script>
+<script src="./interactive-course-tool.js?v=sandhi-interactive-v3"></script>
 </body>
 </html>
