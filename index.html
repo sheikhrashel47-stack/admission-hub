@@ -4986,7 +4986,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v53-course-v2-lazy-20260826',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v54-course-removed-20260826',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5275,7 +5275,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
     if (p === 'progress/plan') return typeof window.Routine90?.render === 'function' ? window.Routine90.render() : (typeof window.render === 'function' ? window.render() : undefined);
     if (p === 'progress') return typeof window.renderProgress === 'function' ? window.renderProgress() : window.render?.();
     if (p === 'deleted-questions') return typeof window.renderDeletedQuestions === 'function' ? window.renderDeletedQuestions() : window.render?.();
-    if (p === 'pdf-courses' || p.startsWith('pdf-courses/')) return typeof window.renderCourseToolV2 === 'function' ? window.renderCourseToolV2() : window.render?.();
     if (p === 'exam') return typeof window.renderExamCenter === 'function' ? window.renderExamCenter() : window.render?.();
     return typeof window.render === 'function' ? window.render() : undefined;
   };
@@ -5307,7 +5306,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 (() => {
   const removedRoute = (path) => {
     const p = String(path || '').replace(/^#\/?/, '').split('?')[0];
-    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || (p.startsWith('memorizing') && !p.startsWith('memorizing-match')) || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history' || p === 'courses' || p.startsWith('courses/');
+    return p === 'daily-gk' || p === 'web-chat' || p === 'dictionary' || (p.startsWith('memorizing') && !p.startsWith('memorizing-match')) || p === 'study-hub' || p.startsWith('study-hub/') || p === 'ai' || p.startsWith('ai/') || p === 'profile' || p.startsWith('profile/') || p === 'vocabulary' || p.startsWith('vocabulary/') || p === 'rewards' || p === 'reward-shop' || p === 'quests' || p === 'daily-quests' || p === 'quest-board' || p === 'xp-history' || p === 'courses' || p.startsWith('courses/') || p === 'pdf-courses' || p.startsWith('pdf-courses/');
   };
   const purgeRemovedData = async () => {
     ['admission_hub_vocab_categories_v2','admission_hub_vocab_exam_history_v1','daily-gk-live-v1','admission_phase345_v1','memory-system-v2','xp','rewardEngineV2','rewardEngineV1','admission-phase2-dictionary-v1','admission-phase2-dictionary-v2','admission_memorizing_v1','admission_dict_v1','admission-hub-web-chat-v5','admissionHubCourseProgressV1','admissionHubCourseResultsV1','admissionHubCoursesV1','admission_hub_courses_v1'].forEach((key) => { try { localStorage.removeItem(key); sessionStorage.removeItem(key); } catch (_) {} });
@@ -5479,6 +5478,5 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./progress-tool.js?v=progress-v4-back-route"></script>
 <script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
 <script src="./smart-revision-tool.js?v=smart-revision-v2-safe-session"></script>
-<script src="./course-tool-v2.js?v=somas-source-locked-v3"></script>
 </body>
 </html>
