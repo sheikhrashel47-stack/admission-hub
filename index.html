@@ -747,18 +747,21 @@ function normalizeExamResult(r){
   const count=Number(r.questionCount||r.totalQuestions||(r.snapshot||[]).length||0);
   const time=Number(r.timeUsed||r.totalTime||0);
   const correct=Number(r.correct||0), wrong=Number(r.wrong||0), skipped=Number(r.skipped||0);
+  const marks=Number(r.configuration?.marksPerQ??r.marksPerQ??1)||1;
+  const positive=Number(r.positive??(correct*marks));
+  const storedScore=Number(r.score??(positive-Number(r.negativeMarks??r.negative??0)));
+  const negative=Number(r.negativeMarks??r.negative??Math.max(0,positive-storedScore));
   return {...r,
     questionCount:count, totalQuestions:count, timeUsed:time, totalTime:time,
     averageTimePerQuestion:Number(r.averageTimePerQuestion??r.avgTimePerQuestion??(time/Math.max(1,count))),
     avgTimePerQuestion:Number(r.avgTimePerQuestion??r.averageTimePerQuestion??(time/Math.max(1,count))),
-    negativeMarks:Number(r.negativeMarks??r.negative??0),
-    negative:Number(r.negative??r.negativeMarks??0),
+    negativeMarks:Math.max(0,negative), negative:Math.max(0,negative),
     accuracy:Number(r.accuracy??((correct+wrong)?correct/(correct+wrong)*100:0)),
     subjects:Array.isArray(r.subjects)?r.subjects:[], topics:Array.isArray(r.topics)?r.topics:[],
     snapshot:Array.isArray(r.snapshot)?r.snapshot:[],
     subjectBreakdown:r.subjectBreakdown||null, topicBreakdown:r.topicBreakdown||null,
     timeAnalysis:r.timeAnalysis||null,
-    positive:Number(r.positive??0), score:Number(r.score??0), attemptRate:Number(r.attemptRate??0),
+    positive, score:storedScore, attemptRate:Number(r.attemptRate??(count?(correct+wrong)/count*100:0)),
     testType:r.testType||((r.configuration&&r.configuration.testType)||((r.configuration&&r.configuration.mistakeRevision)?'mistake':(r.mode==='mock'?'mock':'flash')))
   };
 }
@@ -829,6 +832,24 @@ async function logActivity(kind, count){
   if(!ds){ds={id:key,date:key,questions:0,correct:0,wrong:0,exams:0,timeMs:0};}
   await dbPut('dailyStats', ds);
   CACHE.dailyStats=await dbGetAll('dailyStats');
+}
+async function recordCompletedExamDaily(result){
+  if(!result) return;
+  const key=todayKey(new Date(result.date||Date.now()));
+  const existing=CACHE.dailyStats.find(row=>String(row.id||row.date)===key)||{id:key,date:key,questions:0,correct:0,wrong:0,skipped:0,exams:0,timeMs:0};
+  const examIds=Array.isArray(existing.examIds)?existing.examIds.map(String):[];
+  if(examIds.includes(String(result.id))) return existing;
+  const next={...existing,id:key,date:key,questions:Number(existing.questions||0),correct:Number(existing.correct||0),wrong:Number(existing.wrong||0),skipped:Number(existing.skipped||0),exams:Number(existing.exams||0)+1,
+    examIds:[...examIds,String(result.id)].slice(-100),examQuestions:Number(existing.examQuestions||0)+Number(result.questionCount||0),examCorrect:Number(existing.examCorrect||0)+Number(result.correct||0),examWrong:Number(existing.examWrong||0)+Number(result.wrong||0),examSkipped:Number(existing.examSkipped||0)+Number(result.skipped||0),lastQuestionCount:Number(result.questionCount||0),lastCorrect:Number(result.correct||0),lastWrong:Number(result.wrong||0),lastSkipped:Number(result.skipped||0),
+    grossScore:round2(Number(existing.grossScore||0)+Number(result.positive||0)),
+    negativeScore:round2(Number(existing.negativeScore||0)+Number(result.negativeMarks??result.negative??0)),
+    netScore:round2(Number(existing.netScore||0)+Number(result.score||0)),
+    bestScore:Math.max(Number(existing.bestScore??-Infinity),Number(result.score||0)),
+    lastScore:Number(result.score||0),lastExamAt:Number(result.completedAt||result.date||Date.now()),updatedAt:Date.now()};
+  await dbPut('dailyStats',next);
+  CACHE.dailyStats=await dbGetAll('dailyStats');
+  window.dispatchEvent(new CustomEvent('admission:activity',{detail:{type:'TEST_COMPLETED',resultId:result.id,score:result.score,negative:result.negativeMarks||0,day:key}}));
+  return next;
 }
 
 /* ================= ROUTER ================= */
@@ -3238,6 +3259,7 @@ async function submitExam(autoSubmit){
     bookmarks:[...(e.bookmarks||[])], flags:[...(e.flags||[])], timing:Object.fromEntries(snapshot.map(s=>[s.questionId,s.timing||null]))
   };
   await dbPut('examResults', result);
+  await recordCompletedExamDaily(result);
 
   for(const s of snapshot){
     if(s.status==='wrong'){
@@ -3617,7 +3639,7 @@ async function beginExamFromPool(pool, mode){
   const mpDuration = mode==='mock'? 20*60 : null;
   const exam={id:uid(), mode, questionIds:questions.map(q=>q.id), questions, currentIndex:0, selectedAnswers:{},
     startTime:mpStart, duration: mpDuration, endTime: mode==='mock' ? (mpStart + mpDuration*1000) : null,
-    negative:0, status:'running', isSubmitting:false, configuration:{...st,mistakeRevision:true}, bookmarks:new Set(), flags:new Set(), timing:{}, questionStartedAt:Object.fromEntries(questions.map(q=>[q.id,mpStart])), flashResults:{}};
+    negative:Number(st.negative||0), status:'running', isSubmitting:false, configuration:{...st, negative:Number(st.negative||0), marksPerQ:Number(st.marksPerQ||1), mistakeRevision:true}, bookmarks:new Set(), flags:new Set(), timing:{}, questionStartedAt:Object.fromEntries(questions.map(q=>[q.id,mpStart])), flashResults:{}};
   await dbPut('exams', exam);
   CACHE.exams=await dbGetAll('exams');
   ActiveExam=exam;
@@ -4987,7 +5009,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v69-prottoy-course-20260826',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v70-result-scoring-analysis-progress-20260826',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5472,13 +5494,14 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./vocabulary-pronunciation.js?v=pronunciation-native-v3-natural-voice"></script>
 <script src="./memorizing-match-tool.js?v=memorizing-match-v8-stable-cards"></script>
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>
-<script src="./mock-result-experience.js?v=result-insights-240-data-matched"></script>
+<script src="./result-analysis-500.js?v=result-analysis-500-deep-matched-v2"></script>
+<script src="./mock-result-experience.js?v=result-insights-500-deep-matched-v2"></script>
 <script src="./result-interaction-polish.js?v=result-interaction-polish-v1"></script>
 <script src="./today-command-center-live.js?v=today-command-center-live-v5-card"></script>
 <script src="./admission-sync.js?v=private-sync-v1"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
 <script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v5-home-escape"></script>
-<script src="./progress-tool.js?v=progress-v4-back-route"></script>
+<script src="./progress-tool.js?v=progress-v6-live-score-ledger-reconcile"></script>
 <script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
 <script src="./smart-revision-tool.js?v=smart-revision-v2-safe-session"></script>
 <script src="./source-course-tool.js?v=native-sandhi-somas-prottoy-v13"></script>
