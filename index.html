@@ -4987,7 +4987,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v68-somas-route-guard-20260826',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v69-prottoy-course-20260826',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5481,6 +5481,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./progress-tool.js?v=progress-v4-back-route"></script>
 <script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
 <script src="./smart-revision-tool.js?v=smart-revision-v2-safe-session"></script>
-<script src="./source-course-tool.js?v=native-sandhi-somas-courses-v12"></script>
+<script src="./source-course-tool.js?v=native-sandhi-somas-prottoy-v13"></script>
 </body>
 </html>

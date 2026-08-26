@@ -3,7 +3,8 @@
 
   const COURSE_DEFS = {
     sandhi: { id: 'sandhi-exact-native-v1', path: './courses/sandhi/index.html', hash: 'bf1ecb9767937231a3dcf36250e62eda8645f996f06a3806edf51ed06e6bd0ff', label: 'সন্ধি', title: 'সন্ধি — University Admission Master Guide', subtitle: 'Visual University Admission Master Guide · Bangla 2nd Paper' },
-    somas: { id: 'somas-exact-native-v1', path: './courses/somas/index.html', hash: '7311c4def169f85ac48b35bac2e64fed6adb26b43d1dda6ae9a44e1078fe433b', label: 'সমাস', title: 'সমাস — University Admission Master Guide', subtitle: 'Visual University Admission Master Guide · Bangla 2nd Paper' }
+    somas: { id: 'somas-exact-native-v1', path: './courses/somas/index.html', hash: '7311c4def169f85ac48b35bac2e64fed6adb26b43d1dda6ae9a44e1078fe433b', label: 'সমাস', title: 'সমাস — University Admission Master Guide', subtitle: 'Visual University Admission Master Guide · Bangla 2nd Paper' },
+    prottoy: { id: 'prottoy-exact-native-v1', path: './courses/prottoy/index.html', hash: '81c4e4c76feb2d20cef21048ee1a81280a42c8bb84849e52dc5c0b2ccebbc671', label: 'প্রত্যয়', title: 'প্রত্যয় — Visual Admission Master Guide', subtitle: 'Visual University Admission Master Guide · Bangla 2nd Paper' }
   };
   const courseKey = () => { const p = coursePath(); return p.startsWith('source-courses/') ? p.split('/')[1] : 'sandhi'; };
   const courseDef = () => COURSE_DEFS[courseKey()] || COURSE_DEFS.sandhi;
@@ -42,8 +43,9 @@
     if (store.filter === 'bookmarked') return all.filter(q => store.bookmarks.includes(q.id));
     return all;
   };
-  const qId = (q, index) => q.id || `${courseKey()}-source-q-${String(q.number || index + 1).padStart(2, '0')}`;
-  const normalizeQuestions = questions => questions.map((q, index) => ({ ...q, id: qId(q, index), number: Number(q.number || index + 1), question: q.q || q.question || '', options: Array.isArray(q.o) ? q.o : (q.options || []), answer: Number(q.a ?? q.answer ?? 0), family: q.t || q.topic || 'Source MCQ', difficulty: q.d || 'basic', explanation: q.e || q.explanation || '' }));
+  const qId = (q, index) => q.id || `${courseKey()}-source-q-${String(q.number || q.n || index + 1).padStart(2, '0')}`;
+  const normalizeDifficulty = value => ({ BASIC: 'basic', INTERMEDIATE: 'inter', ADMISSION: 'adm', TRAP: 'trap' }[String(value || '').toUpperCase()] || String(value || 'basic').toLowerCase());
+  const normalizeQuestions = questions => questions.map((q, index) => ({ ...q, d: normalizeDifficulty(q.d), id: qId(q, index), number: Number(q.number || q.n || index + 1), question: q.q || q.question || '', options: Array.isArray(q.o) ? q.o : (q.options || []), answer: Number(q.a ?? q.answer ?? 0), family: q.t || q.topic || 'Source MCQ', difficulty: normalizeDifficulty(q.d), explanation: q.e || q.explanation || '' }));
   const questions = () => { const qs = normalizeQuestions(sourceQuestions()); if (state.payload) state.payload.mcq = qs; return qs; };
 
   const removeNativeState = () => {
@@ -102,7 +104,9 @@
         .replace('var MCQ = [', 'var MCQ = window.__sourceCourseMCQ = [')
         .replace('function onScroll(){', 'function onScroll(){ if (!document.querySelector(".source-native-host")) return;')
         .replace('document.getElementById("scrollbar").style.width =', 'var sourceScrollbar = document.getElementById("scrollbar"); if (sourceScrollbar) sourceScrollbar.style.width =')
-        .replace('window.addEventListener("scroll", onScroll, {passive:true});', 'window.__sourceCourseScrollHandler = onScroll; window.addEventListener("scroll", onScroll, {passive:true});');
+        .replace('window.addEventListener("scroll", onScroll, {passive:true});', 'window.__sourceCourseScrollHandler = onScroll; window.addEventListener("scroll", onScroll, {passive:true});')
+        .replace('document.addEventListener("DOMContentLoaded", function(){', 'if (document.readyState !== "loading") {')
+        .replace(/\n\}\);\s*$/, '\n}');
       const payload = { title: doc.title, styles, scripts: transformed, bodyHtml, sourceHash: def.hash, mcq: [], courseKey: key, courseLabel: def.label };
       if (courseKey() === key) state.payload = payload;
       return payload;
@@ -174,7 +178,7 @@
     const result = `<div class="native-course-quiz-summary"><span>${answerCount(store)}/${mcqs.length} answered</span><span>${correctCount(store)} correct</span><span>${mcqs.length ? Math.round(correctCount(store) / Math.max(1, answerCount(store)) * 100) : 0}% accuracy</span></div>`;
     const header = `<div class="native-course-quiz-head"><div><b>Native Question Bank MCQ Engine</b><div class="muted">Four-option card, instant feedback, bookmark, note ও result</div></div><div class="native-course-quiz-tools"><button class="primary" type="button" onclick="SourceCourse.startFlash()">⚡ Temporary Flash Test</button></div></div>`;
     const filterBar = `<div class="native-course-quiz-filters">${filters.map(([key,label]) => `<button class="${store.filter === key ? 'on' : ''}" type="button" onclick="SourceCourse.filter('${key}')">${label}</button>`).join('')}</div>`;
-    if (!visible.length) return `<div class="native-course-quiz-wrap">${header}${filterBar}${result}<div class="card empty">এই filter-এ কোনো প্রশ্ন নেই।<br><button type="button" style="margin-top:10px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:8px 12px;border-radius:10px;font-weight:800;cursor:pointer" onclick="SourceCourse.filter('all')">সব ৬০টি প্রশ্ন দেখুন</button></div></div>`;
+    if (!visible.length) return `<div class="native-course-quiz-wrap">${header}${filterBar}${result}<div class="card empty">এই filter-এ কোনো প্রশ্ন নেই।<br><button type="button" style="margin-top:10px;border:1px solid var(--line);background:var(--card);color:var(--text);padding:8px 12px;border-radius:10px;font-weight:800;cursor:pointer" onclick="SourceCourse.filter('all')">সব ${mcqs.length}টি প্রশ্ন দেখুন</button></div></div>`;
     store.index = Math.min(Math.max(0, Number(store.index) || 0), visible.length - 1);
     const q = visible[store.index];
     return `<div class="native-course-quiz-wrap">${header}${filterBar}${result}${qbankCard(q, store, store.index, visible.length)}<div class="native-course-quiz-nav"><button type="button" ${store.index === 0 ? 'disabled' : ''} onclick="SourceCourse.prev()">← Previous</button><span>Question ${store.index + 1} of ${visible.length}</span><button type="button" onclick="SourceCourse.next()">${store.index === visible.length - 1 ? 'See Result →' : 'Next →'}</button></div></div>`;
