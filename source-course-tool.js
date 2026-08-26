@@ -6,7 +6,7 @@
   const SOURCE_HASH = 'bf1ecb9767937231a3dcf36250e62eda8645f996f06a3806edf51ed06e6bd0ff';
   const STORAGE_PREFIX = `admissionHubNativeCourseV1:${COURSE_ID}`;
   const SOURCE_STYLE_ID = 'source-course-native-style';
-  const state = { payload: null, loading: null, routeMounted: false, flash: null, previousTheme: null };
+  const state = { payload: null, loading: null, routeMounted: false, flash: null, previousTheme: null, previousBodyTheme: null };
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
   const coursePath = () => String(location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
@@ -41,7 +41,10 @@
     document.getElementById('app')?.classList.remove('source-course-native-app');
     document.documentElement.style.removeProperty('--source-course-active');
     if (state.previousTheme !== null) document.documentElement.setAttribute('data-theme', state.previousTheme);
+    if (state.previousBodyTheme !== null) document.body.setAttribute('data-theme', state.previousBodyTheme);
+    else document.body.removeAttribute('data-theme');
     state.previousTheme = null;
+    state.previousBodyTheme = null;
     state.routeMounted = false;
     state.flash = null;
     delete window.__sourceCourseMCQ;
@@ -82,7 +85,9 @@
 
   const executeSource = payload => {
     state.previousTheme = document.documentElement.getAttribute('data-theme');
+    state.previousBodyTheme = document.body.getAttribute('data-theme');
     document.documentElement.setAttribute('data-theme', 'light');
+    document.body.setAttribute('data-theme', 'light');
     addSourceStyle(payload.styles);
     document.body.classList.add('source-course-native-body');
     document.getElementById('app')?.classList.add('source-course-native-app');
