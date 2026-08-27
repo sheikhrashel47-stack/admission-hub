@@ -152,7 +152,7 @@
     ];
 
     const commandPages = Array.from({length:Math.ceil(commandTools.length/6)},(_,pageIndex) => commandTools.slice(pageIndex*6,pageIndex*6+6).map(tool => tool ? (() => { const [icon,title,subtitle,route] = tool; return `
-      <button class="p3-command-card-v3" onclick="navigate('${route}')" type="button">
+      <button class="p3-command-card-v3" onclick="${route === 'source-courses' ? "location.hash='#source-courses'" : `navigate('${route}')` }" type="button">
         <span class="p3-command-icon-v3">${icon}</span>
         <span class="p3-command-title-v3">${title}</span>
         <span class="p3-command-subtitle-v3">${subtitle}</span>
