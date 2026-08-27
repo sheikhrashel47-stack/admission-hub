@@ -136,14 +136,14 @@
       const candidateRows = state.rows.filter(x => x && x.answer >= 0 && Array.isArray(x.options) && x.options.filter(Boolean).length === 4 && parserQuestionKey(x.question));
       if (!candidateRows.length) { state.importing = false; return toast?.('No valid questions to import'); }
       const existing = new Set((CACHE.questions || []).filter(q => q.subjectId === selection.subjectId && q.topicId === selection.topicId).map(q => parserQuestionKey(q.question)).filter(Boolean));
-      const seenInImport = new Set(); const rows = []; const duplicateRows = [];
+      const seenInImport = new Set(); const duplicateRows = [];
       candidateRows.forEach(row => {
         const key = parserQuestionKey(row.question);
         if (existing.has(key) || seenInImport.has(key)) duplicateRows.push(row);
-        else { seenInImport.add(key); rows.push(row); }
+        seenInImport.add(key);
       });
-      if (duplicateRows.length && !confirm(`${duplicateRows.length}টি exact duplicate প্রশ্ন পাওয়া গেছে।\n\nOK চাপলে শুধু নতুন প্রশ্নগুলো import হবে।\nCancel চাপলে import বন্ধ থাকবে।`)) { state.importing = false; return; }
-      if (!rows.length) { state.importing = false; return toast?.('সব প্রশ্ন duplicate; নতুন কিছু import করা হয়নি।'); }
+      // Duplicate detection is informational only. Keep every valid row and save it as a new record.
+      const rows = candidateRows;
       let added = 0; let nextNumber = nextQuestionNumberForTopic(selection.topicId);
       for (const row of rows) {
         await put('questions', {
@@ -155,8 +155,8 @@
         existing.add(parserQuestionKey(row.question)); added++;
       }
       await loadCache();
-      state.successAdded = added; state.successSkipped = duplicateRows.length;
-      state.successMessage = `${added} questions successfully added to ${subject.name} → ${parserTopicName(selection.rootTopicId)} → ${topic.name}${duplicateRows.length ? ` (${duplicateRows.length} exact duplicate skipped)` : ''}`;
+      state.successAdded = added; state.successSkipped = 0;
+      state.successMessage = `${added} questions successfully added to ${subject.name} → ${parserTopicName(selection.rootTopicId)} → ${topic.name}${duplicateRows.length ? ` (${duplicateRows.length} duplicate kept as new)` : ''}`;
       state.rows = []; state.rejected = []; state.text = '';
       render();
     } catch (error) {
