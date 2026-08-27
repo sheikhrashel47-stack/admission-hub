@@ -6,7 +6,7 @@ const mode = await readFile(new URL('./personal-clone-mode.js', import.meta.url)
 const manifest = await readFile(new URL('./manifest.json', import.meta.url), 'utf8');
 const sync = await readFile(new URL('./admission-sync.js', import.meta.url), 'utf8');
 
-assert.match(index, /personal-clone-mode\.js\?v=personal-study-v1/);
+assert.match(index, /personal-clone-mode\.js\?v=personal-study-v2/);
 assert.match(mode, /ADMISSION_HUB_PERSONAL_CLONE = true/);
 assert.match(mode, /BLOCKED_ROUTES/);
 assert.match(mode, /settings/);
