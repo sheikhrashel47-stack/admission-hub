@@ -13,7 +13,7 @@ assert.match(index, /read\('PLAN_DAYS'\)/, 'Plan days must be read from IndexedD
 assert.match(sync, /INITIAL_AUTHORITATIVE_STORES/, 'Initial reconciliation must define protected authoritative stores.');
 assert.match(sync, /if \(!isStandalone\(\)\)/, 'Initial reconciliation must not replace standalone PWA data.');
 assert.match(sync, /initialReconciliationVersion !== 3/, 'The new reconciliation version must be active.');
-assert.match(sw, /v77-cloud-sync-content-reconciliation-20260827/, 'Service-worker cache must be invalidated for the patch.');
+assert.match(sw, /v78-near-live-shared-sync-20260827/, 'Service-worker cache must be invalidated for the patch.');
 console.log('sync content regression checks passed');
 
 // This test only inspects source invariants. It never opens IndexedDB, calls

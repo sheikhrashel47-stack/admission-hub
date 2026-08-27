@@ -371,7 +371,8 @@
     window.addEventListener('online', () => queueSync('online'));
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') queueSync('resume'); });
     window.addEventListener('focus', () => queueSync('focus'));
-    window.setInterval(() => { if (document.visibilityState === 'visible') queueSync('visible refresh'); }, 20000);
+    // Keep both clients near-live while visible without introducing a server worker.
+    window.setInterval(() => { if (document.visibilityState === 'visible') queueSync('visible refresh'); }, 2500);
     const waitForBoot = () => {
       if (window.__admissionBootStatus === 'ready') { void syncNow('launch'); return; }
       window.setTimeout(waitForBoot, 450);
