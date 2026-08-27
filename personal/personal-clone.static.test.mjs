@@ -11,6 +11,7 @@ assert.match(mode, /ADMISSION_HUB_PERSONAL_CLONE = true/);
 assert.match(mode, /BLOCKED_ROUTES/);
 assert.match(mode, /settings/);
 assert.match(mode, /question-parser/);
+assert.match(mode, /\bparser\b/);
 assert.match(mode, /openConnectDialog/);
 assert.match(mode, /never deletes or rewrites user data/i);
 assert.match(index, /if \(!window\.ADMISSION_HUB_PERSONAL_CLONE\) purgeRemovedData\(\)/, 'Personal clone must skip destructive legacy cleanup.');

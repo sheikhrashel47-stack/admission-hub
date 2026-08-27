@@ -30,7 +30,7 @@
     root.querySelectorAll('button, a, [role="button"]').forEach(el => {
       if (el.closest('[data-personal-clone-hidden]')) return;
       const text = textOf(el).toLowerCase();
-      const isSettingsControl = /settings|app settings|question bank settings|private online backup|customi[sz]e/.test(text);
+      const isSettingsControl = /settings|app settings|question bank settings|private online backup|customi[sz]e|\bparser\b/.test(text);
       if (isSettingsControl) {
         el.setAttribute('data-personal-clone-hidden', 'true');
         el.style.display = 'none';
