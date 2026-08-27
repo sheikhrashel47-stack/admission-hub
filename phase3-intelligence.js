@@ -175,7 +175,7 @@
     const todayCorrect = Math.max(z.todayCorrect || 0, Number(todayDaily.correct||0));
     const todayWrong = Math.max(0, Number(todayDaily.wrong||0), z.todayAnswered - todayCorrect);
     const todayAttempts = Math.max(d.done, todayCorrect + todayWrong);
-    const todayAccuracy = todayAttempts ? pct(todayCorrect, todayAttempts) : (z.accuracy || 0);
+    const todayAccuracy = todayAttempts ? pct(todayCorrect, todayAttempts) : 0;
     const studyClock = fmtTimeClock(study);
     const goalComplete = d.done >= d.target;
     const chartSource = z.recent.length ? z.recent.slice(-7).map(item => Math.max(8, Math.min(96, Number(item.accuracy || item.score || 0)))) : [28,46,35,58,51,70,86];

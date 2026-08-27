@@ -887,6 +887,7 @@ window.addEventListener('hashchange',()=>{
 /* ================= APP SHELL ================= */
 const NAV_TABS=[
   {key:'dashboard', icon:'🏠', label:'Home'},
+  {key:'source-courses', icon:'📘', label:'Courses'},
   {key:'question-bank', icon:'📚', label:'Bank'},
   {key:'smart-formatter', icon:'🧩', label:'Parser'},
   {key:'exam', icon:'📝', label:'Exam'},
@@ -894,6 +895,7 @@ const NAV_TABS=[
 ];
 
 function baseTab(path){
+  if(path.startsWith('source-courses')) return 'source-courses';
   if(path.startsWith('ai-chat')) return 'history';
   if(path.startsWith('smart-formatter')) return 'smart-formatter';
   if(path.startsWith('exam')) return 'exam';
@@ -5009,7 +5011,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v75-english-voice-native-mcq-20260827',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v76-courses-nav-accuracy-20260827',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5504,6 +5506,6 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./progress-tool.js?v=progress-v6-live-score-ledger-reconcile"></script>
 <script src="./mistakes-bank-tool.js?v=mistakes-bank-v1"></script>
 <script src="./smart-revision-tool.js?v=smart-revision-v2-safe-session"></script>
-<script src="./source-course-tool.js?v=native-sandhi-somas-prottoy-master-english-v18"></script>
+<script src="./source-course-tool.js?v=native-sandhi-somas-prottoy-master-english-v19"></script>
 </body>
 </html>
