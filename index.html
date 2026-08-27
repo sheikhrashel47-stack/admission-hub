@@ -735,7 +735,7 @@ function dbClear(store){if(!DB){MEMORY_DB.get(store)?.clear();return Promise.res
 async function dbPutMany(store,arr){for(const o of arr) await dbPut(store,o); return true;}
 
 /* ---------------- in-memory cache (mirrors DB, refreshed on write) ---------------- */
-const CACHE={subjects:[],topics:[],questions:[],deletedQuestions:[],exams:[],examResults:[],mistakes:[],vocabulary:[],dailyStats:[],activityLogs:[],notes:[],settings:{}};
+const CACHE={subjects:[],topics:[],questions:[],deletedQuestions:[],exams:[],examResults:[],mistakes:[],vocabulary:[],vocabularyMaster:[],dailyStats:[],activityLogs:[],notes:[],settings:{},admissionPlans:[],planDays:[]};
 // Cache reads may overlap after a fast action. Only the newest completed read may update the UI cache.
 let CACHE_LOAD_VERSION=0;
 let CACHE_LOAD_PROMISE=Promise.resolve(true);
@@ -776,18 +776,19 @@ function loadCache(){
       try{const value=await dbGetAll(store);return Array.isArray(value)?value.filter(Boolean):fallback;}
       catch(error){console.warn(`[Admission Hub] Could not read ${store}; keeping the app usable.`,error);return fallback;}
     };
-    const [subjects,topics,questions,deletedQuestions,exams,examResults,mistakes,dailyStats,activityLogs,notes,settings]=await Promise.all([
+    const [subjects,topics,questions,deletedQuestions,exams,examResults,mistakes,vocabulary,vocabularyMaster,dailyStats,activityLogs,notes,settings,admissionPlans,planDays]=await Promise.all([
       read('subjects'), read('topics'), read('questions'), read('deletedQuestions'), read('exams'),
-      read('examResults'), read('mistakes'), read('dailyStats'), read('activityLogs'), read('notes'), read('settings')
+      read('examResults'), read('mistakes'), read('vocabulary'), read('vocabularyMaster'), read('dailyStats'),
+      read('activityLogs'), read('notes'), read('settings'), read('ADMISSION_PLANS'), read('PLAN_DAYS')
     ]);
     // A superseded caller waits for the newest complete read before allowing its renderer to continue.
     if(loadVersion!==CACHE_LOAD_VERSION) return CACHE_LOAD_PROMISE;
     CACHE.subjects=subjects; CACHE.topics=topics; CACHE.questions=questions; CACHE.deletedQuestions=deletedQuestions; CACHE.exams=exams;
     CACHE.examResults=examResults.map(normalizeExamResult).filter(Boolean); CACHE.mistakes=mistakes;
-    // Vocabulary Master was removed from the product, so its legacy store is never read or rendered during app loads.
-    CACHE.vocabulary=[];
+    CACHE.vocabulary=vocabulary; CACHE.vocabularyMaster=vocabularyMaster;
     CACHE.dailyStats=dailyStats; CACHE.activityLogs=activityLogs; CACHE.notes=notes;
     CACHE.settings=(settings[0]&&typeof settings[0]==='object')?settings[0]:defaultSettings();
+    CACHE.admissionPlans=admissionPlans; CACHE.planDays=planDays;
     return true;
   })();
   CACHE_LOAD_PROMISE=task;
@@ -5500,7 +5501,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./mock-result-experience.js?v=result-insights-200-single-card-v4"></script>
 <script src="./result-interaction-polish.js?v=result-interaction-polish-v1"></script>
 <script src="./today-command-center-live.js?v=today-command-center-live-v5-card"></script>
-<script src="./admission-sync.js?v=private-sync-v1"></script>
+<script src="./admission-sync.js?v=private-sync-v2"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
 <script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v5-home-escape"></script>
 <script src="./progress-tool.js?v=progress-v6-live-score-ledger-reconcile"></script>

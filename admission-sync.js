@@ -12,6 +12,7 @@
   const CONFLICTS_ID = 'cloudSyncConflicts';
   const SNAPSHOT_STORES = ['appMeta','subjects','topics','questions','deletedQuestions','exams','examResults','mistakes','vocabulary','vocabularyMaster','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
   const SYNCABLE_STORES = new Set(SNAPSHOT_STORES.filter(store => store !== 'appMeta'));
+  const INITIAL_AUTHORITATIVE_STORES = ['vocabulary', 'vocabularyMaster', 'exams', 'examResults', 'mistakes', 'dailyStats', 'activityLogs', 'notes', 'ADMISSION_PLANS', 'PLAN_DAYS'];
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
 
@@ -139,8 +140,14 @@
     const entries = [...(existing.entries || []), ...conflicts].slice(-100);
     await (nativeDbPut || window.dbPut)('appMeta', { id: CONFLICTS_ID, entries, updatedAt: now() });
   }
-  async function mergeRemoteSnapshot(payload) {
+  async function ensureLocalMergeBackup() {
+    if (await window.dbGet('appMeta', LOCAL_MERGE_BACKUP_ID)) return;
+    const localBefore = await buildSnapshot();
+    await nativeDbPut('appMeta', { id: LOCAL_MERGE_BACKUP_ID, createdAt: now(), snapshot: localBefore.payload, note: 'Local safety copy before first cloud reconciliation' });
+  }
+  async function mergeRemoteSnapshot(payload, options = {}) {
     const conflicts = [];
+    const replaceStores = new Set(options.replaceStores || []);
     let added = 0, updated = 0, deleted = 0;
     applyingRemote = true;
     try {
@@ -148,6 +155,18 @@
         const incomingRows = Array.isArray(payload.stores?.[store]) ? payload.stores[store] : [];
         const localRows = await window.dbGetAll(store);
         const local = new Map(localRows.filter(Boolean).map(row => [String(row.id), row]));
+        // During the first connection, the Add to Home Screen app is the
+        // authoritative source for the 90-day plan. The live site's existing
+        // rows are preserved in cloudSyncLocalMergeBackup before this runs.
+        if (replaceStores.has(store) && incomingRows.length) {
+          const incomingIds = new Set(incomingRows.filter(Boolean).map(row => String(row.id)));
+          for (const existing of localRows.filter(Boolean)) {
+            if (!incomingIds.has(String(existing.id))) {
+              await nativeDbDelRaw(store, existing.id);
+              local.delete(String(existing.id));
+            }
+          }
+        }
         for (const incoming of incomingRows) {
           if (!isRecord(incoming) || incoming.id === undefined || (store === 'appMeta' && !relevantAppMeta(incoming))) continue;
           const existing = local.get(String(incoming.id));
@@ -190,7 +209,22 @@
     try {
       let remote = await pullRemote(currentMeta);
       let activeMeta = { ...currentMeta, revision: Number(remote.row.revision || currentMeta.revision || 0) };
-      if (Number(remote.row.revision) > Number(currentMeta.revision || 0)) {
+      // Reconcile clients that connected before the complete content-loading
+      // fix was deployed. This is a one-time, scoped repair: selected content
+      // stores are replaced by the Add to Home Screen snapshot, and the
+      // pre-merge live data is saved under cloudSyncLocalMergeBackup.
+      const needsInitialReconciliation = currentMeta.initialReconciliationVersion !== 3;
+      if (needsInitialReconciliation) {
+        // Only the normal live website repairs its pre-existing default copy.
+        // The standalone Add to Home Screen app is the source of truth and is
+        // never replaced during this migration.
+        if (!isStandalone()) {
+          await ensureLocalMergeBackup();
+          await mergeRemoteSnapshot(remote.payload, { replaceStores: INITIAL_AUTHORITATIVE_STORES });
+          await window.loadCache();
+        }
+        activeMeta.initialReconciliationVersion = 3;
+      } else if (Number(remote.row.revision) > Number(currentMeta.revision || 0)) {
         await mergeRemoteSnapshot(remote.payload);
         await window.loadCache();
       }
@@ -236,7 +270,7 @@
     const rows = await rpc('admission_sync_bootstrap', { p_secret: secret, p_device_id: deviceId, p_ciphertext: snapshot.ciphertext, p_manifest: snapshot.manifest, p_content_hash: snapshot.manifest.contentHash });
     const row = Array.isArray(rows) ? rows[0] : rows;
     if (!row?.vault_id || Number(row.revision) !== 1) throw new Error('Online backup confirmation was incomplete.');
-    const currentMeta = { id: META_ID, vaultId: row.vault_id, secret, deviceId, revision: 1, schemaVersion: 1, enrolledAt: now(), lastSyncedAt: now(), lastError: '' };
+    const currentMeta = { id: META_ID, vaultId: row.vault_id, secret, deviceId, revision: 1, schemaVersion: 1, initialReconciliationVersion: 3, enrolledAt: now(), lastSyncedAt: now(), lastError: '' };
     await setMeta(currentMeta);
     return { meta: currentMeta, snapshot };
   }
@@ -247,10 +281,9 @@
     const deviceId = makeDeviceId();
     const transient = { ...identity, deviceId, revision: 0 };
     const remote = await pullRemote(transient);
-    const localBefore = await buildSnapshot();
-    await nativeDbPut('appMeta', { id: LOCAL_MERGE_BACKUP_ID, createdAt: now(), snapshot: localBefore.payload, note: 'Local safety copy before joining private cloud sync' });
-    const result = await mergeRemoteSnapshot(remote.payload);
-    const connected = { id: META_ID, ...identity, deviceId, revision: Number(remote.row.revision), schemaVersion: 1, enrolledAt: now(), lastSyncedAt: now(), lastError: '' };
+    await ensureLocalMergeBackup();
+    const result = await mergeRemoteSnapshot(remote.payload, { replaceStores: INITIAL_AUTHORITATIVE_STORES });
+    const connected = { id: META_ID, ...identity, deviceId, revision: Number(remote.row.revision), schemaVersion: 1, initialReconciliationVersion: 3, enrolledAt: now(), lastSyncedAt: now(), lastError: '' };
     await setMeta(connected);
     await window.loadCache();
     return { connected, result };
