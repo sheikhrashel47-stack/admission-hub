@@ -6,13 +6,68 @@
     somas: { id: 'somas-exact-native-v1', category: 'বাংলা', path: './courses/somas/index.html', hash: '7311c4def169f85ac48b35bac2e64fed6adb26b43d1dda6ae9a44e1078fe433b', label: 'সমাস', title: 'সমাস — University Admission Master Guide', subtitle: 'Visual University Admission Master Guide · Bangla 2nd Paper' },
     prottoy: { id: 'prottoy-exact-native-v1', category: 'বাংলা', path: './courses/prottoy/index.html', hash: '81c4e4c76feb2d20cef21048ee1a81280a42c8bb84849e52dc5c0b2ccebbc671', label: 'প্রত্যয়', title: 'প্রত্যয় — Visual Admission Master Guide', subtitle: 'Visual University Admission Master Guide · Bangla 2nd Paper' },
     'prottoy-master': { id: 'prottoy-master-exact-native-v1', category: 'বাংলা', path: './courses/prottoy-master/index.html', hash: 'e285153168db59a84db610408f9f641168ea7bfc76a3018baaf51ca70867e7f8', label: 'প্রত্যয় Master', title: 'প্রত্যয় • Visual Admission Master Guide — Interactive', subtitle: 'Bangla 2nd Paper · 200 MCQ · Interactive guide' },
-    'english-voice': { id: 'english-voice-exact-native-v1', category: 'English', path: './courses/english-voice/index.html', hash: '8c6172d75360f7358332e56adfe2844c363518d0269ad884e87ac6a818ade30a', label: 'English Voice', title: 'English Voice — Active & Passive | Admission Course', subtitle: 'English Grammar · Active & Passive · Source MCQ' }
+    'english-voice': { id: 'english-voice-exact-native-v1', category: 'English', path: './courses/english-voice/index.html', hash: '8c6172d75360f7358332e56adfe2844c363518d0269ad884e87ac6a818ade30a', label: 'English Voice', title: 'English Voice — Active & Passive | Admission Course', subtitle: 'English Grammar · Active & Passive · Source MCQ' },
+    'parts-of-speech-premium': { id: 'parts-of-speech-premium-exact-native-v1', category: 'English', path: './courses/parts-of-speech-premium/index.html', hash: '274cbe7a382f390f650c1ca15279a4fa89f27af256621d96187ceed61bf24864', label: 'Parts of Speech Premium', title: 'Parts of Speech — Premium Admission Course', subtitle: 'Identification · Position · Same-word role lab · Source MCQ', storageMode: 'scoped', bridge: 'window.__sourceCourseMCQ = courseData.questions;' },
+    'adverb-mastery': { id: 'adverb-mastery-exact-native-v1', category: 'English', path: './courses/adverb-mastery/index.html', hash: '546b97851ae90408ee00dda44ed8cbfe5a13a09fb3ba5b797376e89ce51ccf20', label: 'Adverb Mastery', title: 'Adverb Mastery — Admission English', subtitle: 'Adverb rules · position · traps · Source MCQ', storageMode: 'scoped', bridge: 'window.__sourceCourseMCQ = qs;' },
+    'adjective-lab': { id: 'adjective-lab-exact-native-v1', category: 'English', path: './courses/adjective-lab/index.html', hash: '0de3924075e5d97d82a517e089c54bde8398656288c596c768a0666bbbb1c54c', label: 'Adjective Lab', title: 'Adjective Lab — Admission English', subtitle: 'Adjective forms · position · comparison · Source MCQ', storageMode: 'scoped', bridge: 'window.__sourceCourseMCQ = qs.map(q => Array.isArray(q) ? ({ id:q[0], question:q[1], options:q[2], answer:q[3], explanation:q[4], family:q[5] }) : q);' },
+    'parts-of-speech-visual': { id: 'parts-of-speech-visual-exact-native-v1', category: 'English', path: './courses/parts-of-speech-visual/index.html', hash: '40a14f77d1ab2922f7ec55b48db7efbf6c7a3aec10a41ba2cecaefb41e6f4507', label: 'Parts of Speech Visual', title: 'Parts of Speech — Visual Premium Course', subtitle: 'Visual grammar lab · practice studio · Source MCQ', storageMode: 'scoped', bridge: 'window.__sourceCourseMCQ = courseData.questions;' },
+    'prepositions-master': { id: 'prepositions-master-exact-native-v1', category: 'English', path: './courses/prepositions-master/index.html', hash: 'fc11ab912029aa6b6d45f6e2efccaa1fa39c7cae61a30cb5e83bbe1b9acf3884', label: 'Prepositions Master', title: 'Prepositions Master — Admission English', subtitle: 'Preposition rules · idioms · 300-question bank', storageMode: 'scoped', bridge: 'window.__sourceCourseMCQ = courseData.questions;' },
+    'concord-lab': { id: 'concord-lab-exact-native-v1', category: 'English', path: './courses/concord-lab/index.html', hash: 'a192ea1cbe72b276ae6bdc35f4cf4f7d44bbb584d54e12052ed77ec2b4398eb3', label: 'Concord Lab', title: 'Concord Lab — Subject–Verb Agreement', subtitle: 'Subject–verb agreement · rules · traps · Source MCQ', storageMode: 'scoped', bridge: 'window.__sourceCourseMCQ = courseData.questions;' },
+    'figures-of-speech': { id: 'figures-of-speech-exact-native-v1', category: 'English', path: './courses/figures-of-speech/index.html', hash: '3f6110c22e3721cac0723380b00974d4ccd18e4aa05f91e71afa1a2ea3035e62', label: 'Figures of Speech', title: 'Figures of Speech — Master Admission & BCS Course', subtitle: 'Literary devices · examples · 300-question bank', storageMode: 'scoped', bridge: 'window.__sourceCourseMCQ = window.APP_DATA.questions;' },
+    'noun-master': { id: 'noun-master-exact-native-v1', category: 'English', path: './courses/noun-master/index.html', hash: '54f45369735eda0ef132803ffebe1c88c5ab7aad41528ad4565f7a4a02aa9871', label: 'Noun Master', title: 'Noun Master Course — Admission & BCS', subtitle: 'Noun taxonomy · rules · practice · Source MCQ', storageMode: 'scoped', bridge: 'window.__sourceCourseMCQ = window.courseData.questions;' },
+    'numbers-gender': { id: 'numbers-gender-exact-native-v1', category: 'English', path: './courses/numbers-gender/index.html', hash: '0d42397940a28cb973f8f641dccebd86c5cd9564b5aedf6a6b25e615724f0507', label: 'Numbers & Gender', title: 'Numbers & Gender — English MasterCourse', subtitle: 'Singular · plural · gender · Admission & BCS', storageMode: 'scoped', bridge: 'window.__sourceCourseMCQ = courseData.questions;' },
+    'right-form-verbs': { id: 'right-form-verbs-exact-native-v1', category: 'English', path: './courses/right-form-verbs/index.html', hash: '5adcc32046e48c168ca2f0139fb1484f1eaa425aa64c03ff53826700626adea2', label: 'Right Form of Verbs', title: 'Right Form of Verbs — Premium Interactive Course', subtitle: 'Verb forms · tense · practice · Source MCQ', storageMode: 'scoped', missingDependency: 'app.js', bridge: 'window.__sourceCourseMCQ = window.COURSE_DATA.questions;' }
   };
   const courseKey = () => { const p = coursePath(); return p.startsWith('source-courses/') ? p.split('/')[1] : 'sandhi'; };
   const courseDef = () => COURSE_DEFS[courseKey()] || COURSE_DEFS.sandhi;
   const storagePrefix = () => `admissionHubNativeCourseV1:${courseDef().id}`;
   const SOURCE_STYLE_ID = 'source-course-native-style';
-  const state = { payload: null, loading: null, loadingKey: null, routeMounted: false, mountedCourseKey: null, flash: null, previousTheme: null, previousBodyTheme: null, quizFilterTouched: false };
+  const state = { payload: null, loading: null, loadingKey: null, routeMounted: false, mountedCourseKey: null, flash: null, previousTheme: null, previousBodyTheme: null, quizFilterTouched: false, sourceListeners: [] };
+  const scopedStorage = (prefix, base) => {
+    const prefixed = key => `${prefix}${String(key)}`;
+    const keys = () => { const out = []; for (let i = 0; i < base.length; i += 1) { const key = base.key(i); if (key && key.startsWith(prefix)) out.push(key.slice(prefix.length)); } return out; };
+    const api = {
+      getItem(key) { return base.getItem(prefixed(key)); },
+      setItem(key, value) { base.setItem(prefixed(key), String(value)); },
+      removeItem(key) { base.removeItem(prefixed(key)); },
+      clear() { keys().forEach(key => base.removeItem(prefixed(key))); },
+      key(index) { return keys()[Number(index)] ?? null; },
+      get length() { return keys().length; }
+    };
+    return new Proxy(api, {
+      get(target, prop) { if (prop in target) return target[prop]; if (typeof prop === 'string') return target.getItem(prop); return undefined; },
+      set(target, prop, value) { if (typeof prop === 'string') { target.setItem(prop, value); return true; } return false; },
+      deleteProperty(target, prop) { if (typeof prop === 'string') target.removeItem(prop); return true; }
+    });
+  };
+  const sourceWindowProxy = (sourceStorage, sourceSessionStorage) => {
+    const listeners = state.sourceListeners;
+    const shadow = Object.create(null);
+    return new Proxy(window, {
+      get(target, prop) {
+        if (prop === 'localStorage') return sourceStorage;
+        if (prop === 'sessionStorage') return sourceSessionStorage;
+        if (prop === 'addEventListener') return (type, listener, options) => { listeners.push({ target, type, listener, options }); target.addEventListener(type, listener, options); };
+        if (prop === 'removeEventListener') return (type, listener, options) => { target.removeEventListener(type, listener, options); };
+        if (Object.prototype.hasOwnProperty.call(shadow, prop)) return shadow[prop];
+        const value = Reflect.get(target, prop, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+      set(target, prop, value) { shadow[prop] = value; return true; },
+      deleteProperty(target, prop) { if (Object.prototype.hasOwnProperty.call(shadow, prop)) delete shadow[prop]; return true; }
+    });
+  };
+  const sourceDocumentProxy = documentTarget => {
+    const listeners = state.sourceListeners;
+    return new Proxy(documentTarget, {
+      get(target, prop) {
+        if (prop === 'addEventListener') return (type, listener, options) => { listeners.push({ target, type, listener, options }); target.addEventListener(type, listener, options); };
+        if (prop === 'removeEventListener') return (type, listener, options) => { target.removeEventListener(type, listener, options); };
+        const value = Reflect.get(target, prop, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      }
+    });
+  };
   let routeCleanupInstalled = false;
 
   const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
@@ -55,6 +110,8 @@
       window.removeEventListener('scroll', window.__sourceCourseScrollHandler);
       delete window.__sourceCourseScrollHandler;
     }
+    state.sourceListeners.forEach(({ target = window, type, listener, options }) => { try { target.removeEventListener(type, listener, options); } catch (_) {} });
+    state.sourceListeners = [];
     document.getElementById(SOURCE_STYLE_ID)?.remove();
     document.body.classList.remove('source-course-native-body');
     document.getElementById('app')?.classList.remove('source-course-native-app');
@@ -84,7 +141,7 @@
   const library = () => {
     removeNativeState();
     const grouped = Object.entries(COURSE_DEFS).reduce((all, entry) => { const category = entry[1].category || 'বাংলা'; (all[category] ||= []).push(entry); return all; }, {});
-    const categorySections = Object.entries(grouped).map(([category, entries]) => `<section class="source-course-category"><div class="source-course-category-head"><span>COURSE CATEGORY</span><h2>${esc(category)} Courses</h2></div>${entries.map(([key, course]) => `<section class="source-course-card"><div class="source-course-icon">${esc(course.label)}</div><div><span>${esc(category.toUpperCase())} · SOURCE-LOCKED · NATIVE COURSE</span><h2>${esc(course.title)}</h2><p>${esc(course.subtitle)}</p><small>Original source content preserved · Native MCQ · Separate Course progress</small></div><button class="btn" onclick="navigate('source-courses/${key}')">Open Course →</button></section>`).join('')}</section>`).join('');
+    const categorySections = Object.entries(grouped).map(([category, entries]) => `<section class="source-course-category"><div class="source-course-category-head"><span>COURSE CATEGORY</span><h2>${esc(category)} Courses</h2></div>${entries.map(([key, course]) => { const status = course.missingDependency ? 'COMPANION FILE NEEDED' : 'SOURCE-LOCKED · NATIVE COURSE'; const note = course.missingDependency ? `Supplied source preserved · missing companion: ${course.missingDependency}` : 'Original source content preserved · Native MCQ · Separate Course progress'; return `<section class="source-course-card"><div class="source-course-icon">${esc(course.label)}</div><div><span>${esc(category.toUpperCase())} · ${esc(status)}</span><h2>${esc(course.title)}</h2><p>${esc(course.subtitle)}</p><small>${esc(note)}</small></div><button class="btn" onclick="navigate('source-courses/${key}')">Open Course →</button></section>`; }).join('')}</section>`).join('');
     shell(`<main class="source-course-page"><button class="source-course-library-back" data-source-course-back type="button" onclick="navigate('dashboard')" aria-label="Dashboard-এ ফিরে যান">←</button><header class="source-course-hero"><div><span>ADMISSION HUB · SOURCE COURSE LIBRARY</span><h1>Courses Library</h1><p>বাংলা ও English category-র supplied Courseগুলো native Admission Hub tool হিসেবে চলছে।</p></div><b>SC</b></header>${categorySections}</main>`, {title:'Courses Library'});
     const page = document.querySelector('#app .page');
     if (page) page.insertAdjacentHTML('beforeend', `<style>.source-course-page{max-width:980px;margin:0 auto;padding:18px 14px 92px;color:#173128}.source-course-library-back{display:grid;place-items:center;width:40px;height:40px;margin:0 0 10px;border:1px solid #e0e4f0;border-radius:11px;background:#fff;color:#173128;font-size:22px;cursor:pointer;box-shadow:0 4px 12px rgba(46,38,120,.07)}.source-course-hero{display:flex;justify-content:space-between;align-items:center;gap:15px;padding:25px 20px;border-radius:24px;background:linear-gradient(135deg,#eef1ff,#faf7ff);border:1px solid #ddd9ff}.source-course-hero span,.source-course-category-head>span,.source-course-card span{font-size:10px;font-weight:900;letter-spacing:.12em;color:#5846c7}.source-course-hero h1{margin:7px 0 5px;color:#20205c;font-size:32px}.source-course-hero p{margin:0;color:#657080;font-size:13px}.source-course-hero>b{display:grid;place-items:center;width:68px;height:68px;border-radius:20px;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-size:20px}.source-course-category{margin-top:24px}.source-course-category-head{padding:0 2px}.source-course-category-head h2{margin:5px 0 10px;color:#20205c;font-size:24px}.source-course-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:14px;margin-top:12px;padding:18px;border:1px solid #e0e4f0;border-radius:20px;background:#fff;box-shadow:0 10px 25px rgba(46,38,120,.07)}.source-course-icon{display:grid;place-items:center;width:58px;height:58px;border-radius:17px;background:#eeeaff;color:#5544c4;font-size:13px;font-weight:900}.source-course-card h2{margin:5px 0 4px;font-size:19px;color:#20283d}.source-course-card p{margin:0;color:#647085;font-size:12px}.source-course-card small{display:block;margin-top:9px;color:#7b8492;font-size:10px}@media(max-width:640px){.source-course-card{grid-template-columns:auto minmax(0,1fr)}.source-course-card .btn{grid-column:1/-1;width:100%}.source-course-hero h1{font-size:27px}}</style>`);
@@ -105,9 +162,8 @@
       const styles = Array.from(doc.querySelectorAll('style')).map(s => s.textContent || '').join('\n');
       const scripts = Array.from(doc.querySelectorAll('script')).map(s => s.textContent || '').filter(text => !/__CF\$cv_params|cdn-cgi\/challenge-platform/.test(text)).join('\n');
       const bodyHtml = Array.from(doc.body.childNodes).filter(node => node.nodeName !== 'SCRIPT').map(node => node.outerHTML || node.textContent || '').join('');
+      const def = COURSE_DEFS[key] || COURSE_DEFS.sandhi;
       const transformed = scripts
-        .replace("const LS = 'prottoy_v1';", "const LS = 'admissionHubNativeCourseV1:prottoy-master-exact-native-v1:source';")
-        .replace('const STORE_KEY = "english_voice_course_v2";', 'const STORE_KEY = "admissionHubNativeCourseV1:english-voice-exact-native-v1:source";')
         .replace('const questions = [', 'const questions = window.__sourceCourseMCQ = [')
         .replace('var MCQ = [', 'var MCQ = window.__sourceCourseMCQ = [')
         .replace('function onScroll(){', 'function onScroll(){ if (!document.querySelector(".source-native-host")) return;')
@@ -116,7 +172,11 @@
         .replace('window.addEventListener("scroll", onScroll, {passive:true});', 'window.__sourceCourseScrollHandler = onScroll; window.addEventListener("scroll", window.__sourceCourseScrollHandler, {passive:true});')
         .replace('document.addEventListener("DOMContentLoaded", function(){', 'if (document.readyState !== "loading") {')
         .replace('document.addEventListener("DOMContentLoaded", init);', 'if (document.readyState !== "loading") init(); else document.addEventListener("DOMContentLoaded", init);')
-        .replace(/\n\}\);\s*$/, '\n}') + (key === 'prottoy-master' ? '\nwindow.__sourceCourseMCQ = Array.isArray(window.G?.mcqs) ? window.G.mcqs : []; window.__sourceCourseActiveKey = "prottoy-master";' : '') + (key === 'english-voice' ? '\nif (typeof window.__sourceCourseScrollHandler === "function") window.addEventListener("scroll", window.__sourceCourseScrollHandler, {passive:true}); window.__sourceCourseActiveKey = "english-voice";' : '');
+        .replace(/document\.addEventListener\(\s*(['\"])DOMContentLoaded\1\s*,\s*(?:\(\s*\)\s*=>|function\s*\([^)]*\))\s*\{/g, 'if (document.readyState !== "loading") {')
+        .replace(/window\.addEventListener\(\s*(['\"])DOMContentLoaded\1\s*,\s*(?:\(\s*\)\s*=>|function\s*\([^)]*\))\s*\{/g, 'if (document.readyState !== "loading") {')
+        .replace(/document\.addEventListener\((['\"])DOMContentLoaded\1/g, 'document.addEventListener("admission:source-domcontentloaded"')
+        .replace(/window\.addEventListener\((['\"])load\1/g, 'window.addEventListener("admission:source-load"')
+        .replace(/\n\}\);\s*$/, '\n}') + (def.bridge ? `\n${def.bridge}` : '');
       const payload = { title: doc.title, styles, scripts: transformed, bodyHtml, sourceHash: def.hash, mcq: [], courseKey: key, courseLabel: def.label };
       if (courseKey() === key) state.payload = payload;
       return payload;
@@ -148,9 +208,22 @@
     const sourceBack = '<button class="source-course-inline-back" type="button" aria-label="কোর্স তালিকায় ফিরে যান" title="কোর্স তালিকায় ফিরে যান" onclick="SourceCourse.exit()">←</button>';
     const sourceHtml = payload.bodyHtml.includes('class="spacer"') ? payload.bodyHtml.replace(/(<div class="spacer">)/, '$1' + sourceBack) : sourceBack + payload.bodyHtml;
     host.innerHTML = sourceHtml;
+    const def = courseDef();
+    if (def.missingDependency) {
+      host.insertAdjacentHTML('afterbegin', `<section class="card" style="margin:16px auto;max-width:860px;border:1px solid #f0c36a;background:#fff9e8;color:#5b4315"><strong>এই supplied source-এর companion file পাওয়া যায়নি</strong><p style="margin:6px 0 0">${esc(def.missingDependency)} ছাড়া original source-এর data ও MCQ চালু করা সম্ভব নয়। কোনো invented question যোগ করা হয়নি। companion file যোগ করলে এই Course nativeভাবে সম্পূর্ণ করা যাবে।</p></section>`);
+      state.routeMounted = true;
+      state.mountedCourseKey = courseKey();
+      return;
+    }
     if (!host.querySelector('#quiz')) host.insertAdjacentHTML('beforeend', '<section id="quiz" class="card source-course-native-quiz-section"><div class="sec-head"><h2>Native Question Bank MCQ</h2><p>Source-এর original questions · instant feedback · temporary flash test</p></div></section>');
-    if (payload.scripts) new Function('window', 'document', payload.scripts)(window, document);
-    payload.mcq = normalizeQuestions(window.__sourceCourseMCQ || []);
+    const sourceStorage = scopedStorage(`${storagePrefix()}:source:`, window.localStorage);
+    const sourceSessionStorage = scopedStorage(`${storagePrefix()}:session:`, window.sessionStorage);
+    const sourceWindow = sourceWindowProxy(sourceStorage, sourceSessionStorage);
+    const sourceDocument = sourceDocumentProxy(document);
+    if (payload.scripts) new Function('window', 'document', 'localStorage', 'sessionStorage', payload.scripts)(sourceWindow, sourceDocument, sourceStorage, sourceSessionStorage);
+    document.dispatchEvent(new Event('admission:source-domcontentloaded'));
+    window.dispatchEvent(new Event('admission:source-load'));
+    payload.mcq = normalizeQuestions(sourceWindow.__sourceCourseMCQ || []);
     replaceQuizSection(payload.mcq);
     state.routeMounted = true;
     state.mountedCourseKey = courseKey();
