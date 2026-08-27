@@ -134,10 +134,30 @@
   document.head.appendChild(style);
 
   function closeModal(node) { node?.remove(); }
+  const analysisCacheKey = (payload) => `admission-hub-ai-analysis:${payload?.result?.id || 'unknown'}:${payload?.result?.score}:${payload?.result?.accuracy}:${payload?.previousResults?.length || 0}`;
+  const readCachedAnalysis = (key) => { try { return localStorage.getItem(key) || ''; } catch (_) { return ''; } };
+  const writeCachedAnalysis = (key, text) => { try { localStorage.setItem(key, text); } catch (_) {} };
+  async function waitForRun(endpoint, runId, onProgress) {
+    const url = `${endpoint.replace(/\/$/, '')}/${encodeURIComponent(runId)}`;
+    const deadline = Date.now() + 120000;
+    while (Date.now() < deadline) {
+      const response = await fetch(url, { headers: { Accept: 'application/json' } });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const status = String(data.status || '').toLowerCase();
+      if (status === 'completed') return String(data.analysis || data.result || data.text || 'Analysis response পাওয়া যায়নি।');
+      if (['failed', 'cancelled'].includes(status)) throw new Error('AI run সম্পন্ন হয়নি');
+      onProgress?.(status || 'running');
+      await new Promise(resolve => setTimeout(resolve, 2500));
+    }
+    throw new Error('Analysis timeout');
+  }
   function openModal(result) {
     const payload = buildPayload(result);
     const m = payload.result;
     const endpoint = String(window.ADMISSION_HUB_AI_ENDPOINT || '').trim();
+    const cacheKey = analysisCacheKey(payload);
+    const cachedAnalysis = readCachedAnalysis(cacheKey);
     const overlay = document.createElement('div');
     overlay.className = 'result-ai-overlay';
     overlay.innerHTML = `<section class="result-ai-modal" role="dialog" aria-modal="true" aria-label="AI Result Analysis"><div class="result-ai-modal-head"><div><span>ON-DEMAND AI ANALYSIS</span><h2>তোমার ফলাফল বিশ্লেষণ</h2></div><button class="result-ai-close" type="button" aria-label="বন্ধ করুন">×</button></div><div class="result-ai-status"><b>${endpoint ? 'AI connection ready' : 'প্রথম ধাপ প্রস্তুত'}</b><br>${endpoint ? 'Analysis button চাপলে secure endpoint-এ শুধু verified result summary যাবে।' : 'App তোমার result-এর verified summary তৈরি করেছে। এখন secure backend বসলে এখান থেকেই AI analysis নেওয়া যাবে।'}</div><div class="result-ai-metric-grid"><div class="result-ai-metric"><b>${m.score.toFixed(2)}</b><span>নেট স্কোর</span></div><div class="result-ai-metric"><b>${m.accuracy}%</b><span>নির্ভুলতা</span></div><div class="result-ai-metric"><b>${m.correct}/${m.total}</b><span>সঠিক</span></div><div class="result-ai-metric"><b>${m.wrong}</b><span>ভুল</span></div></div><div class="result-ai-actions"><button type="button" data-ai-generate>${endpoint ? 'AI Analysis তৈরি করুন' : 'Secure setup pending'}</button><button type="button" class="secondary" data-ai-payload>Data summary দেখুন</button></div><pre class="result-ai-payload" data-ai-payload-box></pre><div class="result-ai-live-result" data-ai-live-result></div><p class="result-ai-note">API key কখনো frontend-এ থাকবে না। দিনে সর্বোচ্চ ৩টি request এবং একই result-এর cached response রাখা হবে।</p></section>`;
@@ -150,9 +170,11 @@
       box.textContent = JSON.stringify(payload, null, 2);
       box.classList.toggle('open');
     });
+    const live = overlay.querySelector('[data-ai-live-result]');
+    if (cachedAnalysis) { live.textContent = cachedAnalysis; live.classList.add('open'); }
     overlay.querySelector('[data-ai-generate]').addEventListener('click', async (event) => {
-      const live = overlay.querySelector('[data-ai-live-result]');
       const button = event.currentTarget;
+      if (cachedAnalysis) { live.textContent = cachedAnalysis; live.classList.add('open'); return; }
       if (!endpoint) {
         live.textContent = 'AI Analysis চালু করার আগে secure backend endpoint সেট করতে হবে। এই ধাপে কোনো API key app-এ রাখা হয়নি।';
         live.classList.add('open');
@@ -162,10 +184,12 @@
       button.textContent = 'Analysis তৈরি হচ্ছে…';
       try {
         const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
-        live.textContent = String(data.analysis || data.result || data.text || 'Analysis response পাওয়া যায়নি।');
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        const text = data.analysis || data.result || data.text || (data.runId ? await waitForRun(endpoint, data.runId, (status) => { button.textContent = status === 'queued' ? 'Queue-তে আছে…' : 'Analysis তৈরি হচ্ছে…'; }) : 'Analysis response পাওয়া যায়নি।');
+        live.textContent = String(text);
         live.classList.add('open');
+        writeCachedAnalysis(cacheKey, String(text));
       } catch (error) {
         live.textContent = `AI Analysis পাওয়া যায়নি। Local result ঠিক আছে। পরে আবার চেষ্টা করো। (${error.message})`;
         live.classList.add('open');
