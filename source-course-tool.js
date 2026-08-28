@@ -163,7 +163,7 @@
     if (state.loading && state.loadingKey === key) return state.loading;
     state.payload = null;
     const def = COURSE_DEFS[key] || COURSE_DEFS.sandhi;
-    const request = fetch(`${def.path}?nativeCourse=v2`, { cache: 'force-cache' }).then(response => {
+    const request = fetch(`${def.path}?nativeCourse=v3`, { cache: 'reload' }).then(response => {
       if (!response.ok) throw new Error(`source ${response.status}`);
       return response.text();
     }).then(text => {
@@ -214,12 +214,12 @@
     page.classList.add('source-course-native-page');
     const host = page.querySelector('.source-native-host');
     if (!host) throw new Error('Course host missing');
-    const sourceBack = '<button class="source-course-inline-back" type="button" aria-label="কোর্স তালিকায় ফিরে যান" title="কোর্স তালিকায় ফিরে যান" onclick="SourceCourse.exit()">←</button>';
+    const sourceBack = '<button class="source-course-inline-back" type="button" aria-label="কোর্স তালিকায় ফিরে যান" title="কোর্স তালিকায় ফিরে যান" onclick="SourceCourse.exit()">←</button>';
     const sourceHtml = payload.bodyHtml.includes('class="spacer"') ? payload.bodyHtml.replace(/(<div class="spacer">)/, '$1' + sourceBack) : sourceBack + payload.bodyHtml;
     host.innerHTML = sourceHtml;
     const def = courseDef();
     if (def.missingDependency) {
-      host.insertAdjacentHTML('afterbegin', `<section class="card" style="margin:16px auto;max-width:860px;border:1px solid #f0c36a;background:#fff9e8;color:#5b4315"><strong>এই supplied source-এর companion file পাওয়া যায়নি</strong><p style="margin:6px 0 0">${esc(def.missingDependency)} ছাড়া original source-এর data ও MCQ চালু করা সম্ভব নয়। কোনো invented question যোগ করা হয়নি। companion file যোগ করলে এই Course nativeভাবে সম্পূর্ণ করা যাবে।</p></section>`);
+      host.insertAdjacentHTML('afterbegin', `<section class="card" style="margin:16px auto;max-width:860px;border:1px solid #f0c36a;background:#fff9e8;color:#5b4315"><strong>এই supplied source-এর companion file পাওয়া যায়নি</strong><p style="margin:6px 0 0">${esc(def.missingDependency)} ছাড়া original source-এর data ও MCQ চালু করা সম্ভব নয়। কোনো invented question যোগ করা হয়নি। companion file যোগ করলে এই Course nativeভাবে সম্পূর্ণ করা যাবে।</p></section>`);
       state.routeMounted = true;
       state.mountedCourseKey = courseKey();
       return;
@@ -323,7 +323,7 @@
     }).catch(error => {
       if (courseKey() !== key || coursePath() !== `source-courses/${key}`) return;
       console.error('Source course failed', error);
-      shell('<div style="padding:40px 20px;text-align:center">Course source could not load. Please try again.</div>', { topbar: false, hideNav: true, title: '' });
+      shell(`<div style="min-height:100dvh;display:grid;place-items:center;padding:24px;text-align:center"><div style="max-width:420px"><p style="font-size:15px;line-height:1.75;margin:0 0 16px">কোর্সটি লোড করা যায়নি। ইন্টারনেট সংযোগ দেখে আবার চেষ্টা করো।</p><button class="btn" onclick="SourceCourse.retry()">আবার চেষ্টা করুন</button> <button class="btn secondary" onclick="navigate('source-courses')">কোর্স লিস্ট</button></div></div>`, { topbar: false, hideNav: true, title: '' });
     });
     return true;
   };
@@ -342,6 +342,7 @@
 
   window.SourceCourse = {
     exit() { state.flash = null; navigate('source-courses'); },
+    retry() { state.payload = null; state.loading = null; state.loadingKey = null; state.routeMounted = false; state.mountedCourseKey = null; removeNativeState(); render(); },
     answer(qid, option, mode = 'course') {
       if (mode === 'flash') {
         if (!state.flash || state.flash.answers[qid] !== undefined) return;
@@ -381,7 +382,7 @@
   function renderFlashResult() {
     const f = state.flash; if (!f) return;
     const correct = f.questions.filter(q => f.answers[q.id] !== undefined && Number(f.answers[q.id]) === q.answer).length; const answered = Object.keys(f.answers).length; const accuracy = answered ? Math.round(correct / answered * 100) : 0; const mountPoint = document.getElementById('nativeCourseQuizMount'); if (!mountPoint) return;
-    mountPoint.innerHTML = `<section class="card"><div class="kicker">TEMPORARY FLASH RESULT</div><h3>${esc(courseDef().label)} Flash Test শেষ</h3><div class="stats"><div class="stat"><div class="n">${accuracy}%</div><div class="l">Accuracy</div></div><div class="stat"><div class="n">${correct}</div><div class="l">Correct</div></div><div class="stat"><div class="n">${f.questions.length - correct}</div><div class="l">Wrong/Skipped</div></div></div><p class="muted">এই result save করা হয়নি এবং Course progress বা Question Bank-এ যোগ হয়নি।</p><div class="native-course-flash-actions"><button class="btn" type="button" onclick="SourceCourse.startFlash()">New Temporary Flash Test</button><button class="btn secondary" type="button" onclick="SourceCourse.exitFlash()">Back to Course MCQ</button></div></section>`;
+    mountPoint.innerHTML = `<section class="card"><div class="kicker">TEMPORARY FLASH RESULT</div><h3>${esc(courseDef().label)} Flash Test শেষ</h3><div class="stats"><div class="stat"><div class="n">${accuracy}%</div><div class="l">Accuracy</div></div><div class="stat"><div class="n">${correct}</div><div class="l">Correct</div></div><div class="stat"><div class="n">${f.questions.length - correct}</div><div class="l">Wrong/Skipped</div></div></div><p class="muted">এই result save করা হয়নি এবং Course progress বা Question Bank-এ যোগ হয়নি।</p><div class="native-course-flash-actions"><button class="btn" type="button" onclick="SourceCourse.startFlash()">New Temporary Flash Test</button><button class="btn secondary" type="button" onclick="SourceCourse.exitFlash()">Back to Course MCQ</button></div></section>`;
   }
 
   window.addEventListener('hashchange', () => {
