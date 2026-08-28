@@ -616,7 +616,7 @@
     /* VERSIONING: old saved analyses can be re-rendered without regenerating AI text. */
     const AI_SCHEMA_VERSION = "1.1";
     const ANALYSIS_VERSION = "2026.08-premium";
-    const RENDERER_VERSION = "1.6.0";
+    const RENDERER_VERSION = "1.6.1";
 
     /* LIVE DATA ADAPTER: populated only by the parent result page. */
     function buildAnalysisPayload(adapter) {
@@ -817,7 +817,7 @@
       if (data.analysis || data.result || data.text) return String(data.analysis || data.result || data.text);
       if (data.runId) {
         try { sessionStorage.setItem("ah-pending-run", JSON.stringify({ endpoint, runId: String(data.runId) })); } catch (_) {}
-        report({ phase: "runCreated", runId: data.runId });
+        report({ phase: "runCreated", runId: data.runId, remaining: data.remainingToday });
         return pollLiveRun(endpoint, data.runId, report);
       }
       throw new Error("AI response পাওয়া যায়নি।");
@@ -915,7 +915,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
     const stages = ["তথ্য প্রস্তুত", "মানুষ-যাচাই", "AI রান শুরু", "AI কাজ করছে", "রিপোর্ট পড়া", "সাজানো ও সংরক্ষণ"];
     const stageMessages = [
       ["তোমার result প্রস্তুত ✓", "Verified প্রশ্ন-উত্তর AI-এর কাছে যাওয়ার পথে"],
-      ["মানুষ-যাচাই চলছে…", "Cloudflare নিশ্চিত করছে পেছনে সত্যিই তুমি আছো"],
+      ["মানুষ-যাচাই চলছে…", "Cloudflare নিশ্চিত করছে পেছনে সত্যিই তুমি আছো — সাধারণত নিজে নিজেই হয়, আলাদা উইন্ডো নাও খুলতে পারে"],
       ["AI-কে কাজে পাঠানো হচ্ছে…", "Secure proxy দিয়ে নিরাপদ সংযোগ — কোনো key ব্রাউজারে যায় না"],
       ["AI এখন কাজ করছে…", "প্রতিটি প্রশ্ন যাচাই করে রিপোর্ট লিখছে — ২–৪ মিনিট লাগতে পারে"],
       ["রিপোর্ট চলে এসেছে!", "AI-এর লেখা পড়ে তোমার জন্য সাজাচ্ছি"],
@@ -1106,7 +1106,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
           <div class="hero-copy"><span class="eyebrow">AI intelligence workspace</span><h1 id="page-title">তোমার result-এ<br><em>লুকিয়ে থাকা pattern</em>গুলো।</h1><p class="hero-summary">${esc(aiUnavailable ? 'তোমার verified result load হয়েছে। Live AI analysis এখনো পাওয়া যায়নি।' : state.analysis.summary)}</p><div class="meta-row"><span class="pill"><b>●</b>${esc(exam.type)}</span><span class="pill">${esc(exam.date)}</span><span class="pill">${exam.totalQuestions} প্রশ্ন · ${exam.timeSpentSeconds / 60} মিনিট</span></div><div class="hero-system-line"><span><i></i>${aiUnavailable ? 'AI ANALYSIS WAITING' : 'ANALYSIS ENGINE ONLINE'}</span><span>LIVE PAYLOAD · ${esc(exam.id.toUpperCase())}</span><span>SCHEMA ${AI_SCHEMA_VERSION}</span></div></div>
           <div class="score-stage"><div class="score-ring" style="background:conic-gradient(var(--mint-2) 0 ${Math.round(state.metrics.percentage)}%,rgba(255,255,255,.12) ${Math.round(state.metrics.percentage)}% 100%)"><div class="score-value"><strong>${num(state.metrics.score, 1)}</strong><span>out of ${exam.totalMarks}</span></div></div><span class="ring-caption">${num(state.metrics.percentage)}% score</span><div class="score-hud"><span>ACCURACY <b>${num(state.metrics.accuracy)}%</b></span><span>ATTEMPTED <b>${state.metrics.attempted}/${exam.totalQuestions}</b></span></div></div>
         </section>
-        <div class="report-commandbar" aria-label="রিপোর্টের দ্রুত সারাংশ"><div class="report-commandbar-card primary"><small>Report pulse</small><strong>${num(state.metrics.percentage)}% নির্ভুলতা</strong><span>${exam.correct}টি সঠিক · ${exam.wrong}টি ভুল · ${exam.skipped}টি বাদ</span></div><div class="report-commandbar-card"><small>Net score</small><strong>${num(state.metrics.score, 1)}</strong><span>সর্বোচ্চ ${num(exam.totalMarks, 1)}</span></div><div class="report-commandbar-card warn"><small>Attention</small><strong>${wrongQuestions.length}টি ভুল</strong><span>Wrong Answer Lab-এ review করো</span></div><div class="report-commandbar-card danger"><small>AI access</small><strong>১০ / দিন</strong><span>নতুন analysis limit</span></div></div>${focusQuestions.length ? `<section class="section focus-rec" style="margin-top:17px"><article class="card focus-rec-card"><div class="focus-rec-head"><h3>এগুলো এখনই একটু শিখে নে ভাই 🙏</h3><span>AI recommendation · পরীক্ষার জন্য গুরুত্বপূর্ণ অথচ ভুল হওয়া প্রশ্ন</span></div><div class="focus-rec-list">${focusQuestions.map((item) => { const question = state.payload.questions.find((q) => String(q.id) === String(item.questionId)); return question ? `<div class="focus-rec-item"><b>প্রশ্ন ${esc(question.number || question.id)} · ${esc(question.topic)}</b><p>${esc(question.prompt)}</p><small>💡 ${esc(item.why || "পরীক্ষার জন্য গুরুত্বপূর্ণ — এখনই গুছিয়ে ফেলো")}</small></div>` : ""; }).join("")}</div><div class="focus-rec-actions"><button class="button mint" data-action="memory-tricks" type="button">🧠 মনে রাখার টেকনিক দেখো</button><button class="button mint" data-action="focus-flash-test" type="button">⚡ এই প্রশ্নগুলোতে ফ্লাশ টেস্ট দাও</button></div></article></section>` : ""}<div class="demo-strip"><div><strong>${aiUnavailable ? 'VERIFIED RESULT · AI WAITING' : 'LIVE RESULT REPORT'}</strong><div class="muted-note">${aiUnavailable ? `Live AI analysis পাওয়া যায়নি: ${esc(state.aiError)}` : 'Verified local result + secure Bengali AI insight · এই device-এ locally saved'}</div></div><div class="demo-control">${aiUnavailable ? `<button class="button mint" data-action="ai-retry" type="button">🤖 নতুন করে আবার চেষ্টা করো</button>${(() => { let pending = null; try { pending = JSON.parse(sessionStorage.getItem("ah-pending-run") || "null"); } catch (_) {} return pending?.runId ? ` <button class="button mint" data-action="ai-resume" type="button">🔁 একই AI run আবার চেক করো</button>` : ""; })()}` : '<span class="muted-note">AI layer online</span>'}</div></div>
+        <div class="report-commandbar" aria-label="রিপোর্টের দ্রুত সারাংশ"><div class="report-commandbar-card primary"><small>Report pulse</small><strong>${num(state.metrics.percentage)}% নির্ভুলতা</strong><span>${exam.correct}টি সঠিক · ${exam.wrong}টি ভুল · ${exam.skipped}টি বাদ</span></div><div class="report-commandbar-card"><small>Net score</small><strong>${num(state.metrics.score, 1)}</strong><span>সর্বোচ্চ ${num(exam.totalMarks, 1)}</span></div><div class="report-commandbar-card warn"><small>Attention</small><strong>${wrongQuestions.length}টি ভুল</strong><span>Wrong Answer Lab-এ review করো</span></div><div class="report-commandbar-card danger"><small>AI access</small><strong>১০ / দিন</strong><span>নতুন analysis limit</span></div></div>${focusQuestions.length ? `<section class="section focus-rec" style="margin-top:17px"><article class="card focus-rec-card"><div class="focus-rec-head"><h3>এগুলো এখনই একটু শিখে নে ভাই 🙏</h3><span>AI recommendation · পরীক্ষার জন্য গুরুত্বপূর্ণ অথচ ভুল হওয়া প্রশ্ন</span></div><div class="focus-rec-list">${focusQuestions.map((item) => { const question = state.payload.questions.find((q) => String(q.id) === String(item.questionId)); return question ? `<div class="focus-rec-item"><b>প্রশ্ন ${esc(question.number || question.id)} · ${esc(question.topic)}</b><p>${esc(question.prompt)}</p><small>💡 ${esc(item.why || "পরীক্ষার জন্য গুরুত্বপূর্ণ — এখনই গুছিয়ে ফেলো")}</small></div>` : ""; }).join("")}</div><div class="focus-rec-actions"><button class="button mint" data-action="memory-tricks" type="button">🧠 মনে রাখার টেকনিক দেখো</button><button class="button mint" data-action="focus-flash-test" type="button">⚡ এই প্রশ্নগুলোতে ফ্লাশ টেস্ট দাও</button></div></article></section>` : ""}${aiUnavailable ? `<section style="margin:2px 0 12px;padding:14px 16px;border-radius:16px;background:rgba(255,90,70,.12);border:1px solid rgba(255,120,110,.45)"><b style="color:#ffb4ad">⚠️ এবার AI রিপোর্ট আসেনি</b><div style="margin-top:5px;font-size:12.5px;line-height:1.7;overflow-wrap:anywhere">কারণ: ${esc(state.aiError)}</div><div style="margin-top:9px;display:flex;gap:8px;flex-wrap:wrap"><button class="button mint" data-action="ai-retry" type="button">🤖 নতুন AI analysis</button>${(() => { let p = null; try { p = JSON.parse(sessionStorage.getItem("ah-pending-run") || "null"); } catch (_) {} return p?.runId ? ` <button class="button mint" data-action="ai-resume" type="button">🔁 একই AI run আবার চেক করো</button>` : ""; })()}</div><div style="margin-top:7px;font-size:11px;color:rgba(239,255,247,.65)">নিচের সব স্কোর-চার্ট-তুলনা তোমার নিজের result থেকে হিসাব করা — এটা AI নয়।</div></section>` : ""}<div class="demo-strip"><div><strong>${aiUnavailable ? 'VERIFIED RESULT · AI WAITING' : 'LIVE RESULT REPORT'}</strong><div class="muted-note">${aiUnavailable ? `Live AI analysis পাওয়া যায়নি: ${esc(state.aiError)}` : 'Verified local result + secure Bengali AI insight · এই device-এ locally saved'}</div></div>${state.reportMeta?.fromCache ? `<div class="demo-control"><span class="muted-note">📦 আগের জমানো AI রিপোর্ট${state.reportMeta.at ? ` · ${new Date(state.reportMeta.at).toLocaleDateString("bn-BD")}` : ""} — AI চলেনি</span><button class="button mint" data-action="ai-fresh" type="button">🔄 নতুন AI analysis নাও</button></div>` : ""}<div class="demo-control">${aiUnavailable ? `<button class="button mint" data-action="ai-retry" type="button">🤖 নতুন করে আবার চেষ্টা করো</button>${(() => { let pending = null; try { pending = JSON.parse(sessionStorage.getItem("ah-pending-run") || "null"); } catch (_) {} return pending?.runId ? ` <button class="button mint" data-action="ai-resume" type="button">🔁 একই AI run আবার চেক করো</button>` : ""; })()}` : '<span class="muted-note">AI layer online</span>'}</div></div>
         <nav class="workspace-nav" aria-label="Workspace sections"><a class="active" href="#overview">শুরু</a><a href="#journey">Score trend</a><a href="#atlas">3D map</a><a href="#strengths">শক্তি</a><a href="#weaknesses">Priority</a><a href="#topics">Topics</a><a href="#mistakes">ভুলের ধরন</a><a href="#lab">Wrong lab</a><a href="#revision">Plan</a></nav>
 
         <section class="section" id="overview" aria-labelledby="overview-title"><div class="section-head"><div><span class="section-kicker"><i>01</i> Performance overview</span><h2 id="overview-title">Score-এর পেছনের গল্প</h2></div><p>Frontend-calculated numbers, AI-interpreted patterns. Verified result-ই এখানে source of truth.</p></div><div class="grid grid-4"><div class="card metric-card"><small>Score</small><strong>${num(state.metrics.score, 1)}</strong><span class="delta">↑ last mock থেকে +${num(state.payload.previousExams.length ? state.metrics.score - calculateMetrics(state.payload.previousExams.at(-1)).score : 0, 1)}</span></div><div class="card metric-card"><small>Accuracy</small><strong>${num(state.metrics.accuracy)}%</strong><span class="delta">attempted ${state.metrics.attempted}/${exam.totalQuestions}</span></div><div class="card metric-card warn"><small>Wrong answers</small><strong>${exam.wrong}</strong><span class="delta">-${num(exam.wrong * exam.negativeMarking, 1)} negative mark</span></div><div class="card metric-card"><small>Avg time / question</small><strong>${exam.totalQuestions ? num(exam.timeSpentSeconds / exam.totalQuestions, 1) + "s" : "—"}</strong><span class="delta">${state.metrics.timeSpentMinutes}m total</span></div></div><div class="soft-strip" style="margin-top:17px"><strong>Coach signal · </strong>${esc(aiUnavailable ? 'Live AI analysis না আসা পর্যন্ত কোনো narrative signal দেখানো হচ্ছে না।' : (state.analysis.trends[0] || 'AI signal পাওয়া যায়নি।'))}<p>${esc(aiUnavailable ? 'Verified score ও প্রশ্নের data ঠিক আছে; retry করলে AI insight আসবে।' : (state.analysis.trends[1] || ''))}</p></div><article class="card ledger-card"><div class="ledger-header"><strong>Verified result ledger</strong><span>CALCULATED · READ ONLY</span></div><div class="ledger-scroll"><table class="ledger-table"><thead><tr><th>Exam</th><th>Date</th><th>Score</th><th>Accuracy</th><th>Correct</th><th>Time</th></tr></thead><tbody>${renderLedgerRows()}</tbody></table></div></article></section>
@@ -1165,6 +1165,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
         if (action === "focus-flash-test") { const ids = focusQuestionIds(); if (!ids.length) { toast("Recommended প্রশ্ন পাওয়া যায়নি।"); return; } if (window.parent !== window) window.parent.postMessage({ type: "admission-hub-ai-flash-test", questionIds: ids }, "*"); else toast("Flash test শুরু হচ্ছে…"); }
         if (action === "explain-selected") explainQuestions([...state.selectedQuestions]);
         if (action === "ai-retry") runAnalysis("live");
+        if (action === "ai-fresh") runAnalysis("live");
         if (action === "ai-resume") resumePendingRun();
         if (action === "atlas-toggle") { state.atlasSettings.auto = !state.atlasSettings.auto; updateAtlasControls(); }
         if (action === "atlas-reset") { state.atlasSettings = { ...state.atlasSettings, auto: true, rotY: -.42, rotX: .34, focus: "" }; updateAtlasControls(); }
@@ -1244,7 +1245,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
     async function runAnalysis(scenarioKey) {
       state.scenario = 'live';
       state.autoExplainRan = false;
-      state.adapter.scenario = 'live'; state.selectedQuestions.clear(); state.openQuestions.clear(); state.atlasSettings = { ...state.atlasSettings, auto: true, rotY: -.42, rotX: .34, focus: "" }; state.aiError = '';
+      state.adapter.scenario = 'live'; state.selectedQuestions.clear(); state.openQuestions.clear(); state.atlasSettings = { ...state.atlasSettings, auto: true, rotY: -.42, rotX: .34, focus: "" }; state.aiError = ''; state.reportMeta = { fromCache: false };
       const payload = buildAnalysisPayload(state.adapter);
       state.payload = payload; state.metrics = calculateMetrics(payload.currentExam);
       setupThinking();
@@ -1254,7 +1255,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
         const raw = await state.ai.analyze(progress => {
           if (progress.phase === "token") setStage(2);
           else if (progress.phase === "posting") setStage(2, "Secure proxy-তে পাঠানো হচ্ছে…");
-          else if (progress.phase === "runCreated") setStage(3);
+          else if (progress.phase === "runCreated") setStage(3, Number.isFinite(Number(progress.remaining)) ? `AI কাজ করছে… · আজকের বাকি ${progress.remaining}টি নতুন analysis` : undefined);
           else if (progress.phase === "polling") setStage(3, `${progress.attempt} বার চেক করা হলো · ${fmtWaitDuration(Date.now() - waitState.startAt)} ধরে AI লিখছে`);
         });
         setStage(4);
@@ -1278,7 +1279,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
       let target = resume || null;
       if (!target) { try { target = JSON.parse(sessionStorage.getItem("ah-pending-run") || "null"); } catch (_) { target = null; } }
       if (!target?.runId || !state.payload) { toast("আবার চেক করার মতো কোনো AI run পাওয়া যায়নি।"); return; }
-      state.aiError = ''; state.lastResume = null; state.autoExplainRan = false;
+      state.aiError = ''; state.lastResume = null; state.autoExplainRan = false; state.reportMeta = { fromCache: false };
       state.selectedQuestions.clear(); state.openQuestions.clear();
       setupThinking();
       setStage(3, "আগের run-টাই আবার চেক করা হচ্ছে…");
@@ -1327,10 +1328,13 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
         }
         if (cached?.analysisData && cached.source === 'live-ai') {
           state.payload = rendererPayload; state.metrics = calculateMetrics(rendererPayload.currentExam); state.analysis = validateAndNormalize(cached.analysisData); state.aiError = '';
+          state.reportMeta = { fromCache: true, at: cached.createdAt || '' };
           thinkingScreen.hidden = true; renderWorkspace();
           state.autoExplainRan = false; autoExplainAllWrong();
         } else {
-          await runAnalysis('live');
+          state.payload = rendererPayload; state.metrics = calculateMetrics(rendererPayload.currentExam);
+          let pendingBoot = null; try { pendingBoot = JSON.parse(sessionStorage.getItem("ah-pending-run") || "null"); } catch (_) {}
+          if (pendingBoot?.runId) await resumePendingRun(pendingBoot); else await runAnalysis('live');
         }
       } catch (error) {
         renderFatalError(error?.message || 'অপ্রত্যাশিত সমস্যা হয়েছে; পরে আবার চেষ্টা করো।');
