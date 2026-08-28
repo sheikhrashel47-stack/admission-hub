@@ -522,6 +522,42 @@ textarea{min-height:96px}
   #app{padding-bottom:calc(86px + var(--safe-b))}
 }
 </style>
+<script>
+/* Crash visibility: কোনো ভুল আর নীরবে হারাবে না — স্ক্রিনেই দেখাবে। */
+(() => {
+  'use strict';
+  if (window.__ahCrashWatch) return;
+  window.__ahCrashWatch = true;
+  let pill = null;
+  const show = (kind, message) => {
+    try {
+      message = String(message == null ? '' : message).slice(0, 400);
+      const full = kind + ': ' + message;
+      try { sessionStorage.setItem('ah-last-crash', full); } catch (_) {}
+      const mount = () => {
+        try {
+          if (!document.body) return;
+          if (!pill) {
+            pill = document.createElement('div');
+            pill.id = 'ahCrashPill';
+            pill.style.cssText = 'position:fixed;left:10px;right:10px;bottom:76px;z-index:99999;background:#b3261e;color:#fff;border-radius:14px;padding:10px 12px;font:600 12px/1.5 -apple-system,BlinkMacSystemFont,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.35);cursor:pointer;overflow-wrap:anywhere';
+            pill.title = 'ট্যাপ করলে এরর কপি হবে';
+            pill.onclick = () => { try { if (navigator.clipboard) navigator.clipboard.writeText(pill.dataset.full || '').catch(function(){}); } catch (_) {} };
+            document.body.appendChild(pill);
+          }
+          pill.dataset.full = full;
+          pill.textContent = '⚠️ ' + full.slice(0, 150);
+          clearTimeout(pill._t);
+          pill._t = setTimeout(() => { try { if (pill) { pill.remove(); pill = null; } } catch (_) {} }, 14000);
+        } catch (_) {}
+      };
+      if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount, { once: true });
+    } catch (_) {}
+  };
+  window.addEventListener('error', (e) => { if (e && (e.message || e.error)) show('Error', e.message || (e.error && e.error.message) || ''); });
+  window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; if (r) show('Crash', (r && r.message) || String(r)); });
+})();
+</script>
 </head>
 <body class="app-booting">
 <div id="app"><main class="app-loading" role="status"><div class="app-loading-mark">✦</div><b>Preparing your study space…</b><span>Loading your saved data safely.</span></main></div>
@@ -5310,7 +5346,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
 <script src="notes-tool.js?v=dashboard-notes-v9-compact-pages"></script>
-<script src="deleted-questions.js?v=trash1"></script>
+<script src="deleted-questions.js?v=trash2-safe"></script>
 <script src="manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816"></script>
 <script src="nav-resume-fix.js?v=1"></script>
 <script src="mistake-note-icon.js?v=15"></script>
