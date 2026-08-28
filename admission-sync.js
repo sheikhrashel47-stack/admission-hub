@@ -320,7 +320,41 @@
     const currentMeta = await meta();
     const conflicts = (await window.dbGet('appMeta', CONFLICTS_ID))?.entries?.length || 0;
     const connected = Boolean(currentMeta?.vaultId);
-    node.innerHTML = `<div class="h2">Private online backup</div><div class="card"><div class="muted" style="margin-bottom:10px;">${statusText(currentMeta)}</div>${connected ? '<button class="btn secondary" onclick="AdmissionCloudSync.syncNow(\'manual\')">Sync now</button><button class="btn ghost" style="margin-left:8px" onclick="AdmissionCloudSync.showRecoveryCode()">Recovery code</button>' : (isStandalone() ? '<button class="btn secondary" onclick="AdmissionCloudSync.openMigrationDialog()">Start one-time backup</button>' : '<button class="btn secondary" onclick="AdmissionCloudSync.openConnectDialog()">Connect recovery code</button>')}${conflicts ? `<div class="muted" style="margin-top:10px;">${conflicts} protected record conflict kept locally; nothing was silently overwritten.</div>` : ''}</div>`;
+    const markup = `<div class="h2">Private online backup</div><div class="card"><div class="muted" style="margin-bottom:10px;">${statusText(currentMeta)}</div>${connected ? '<button class="btn secondary" onclick="AdmissionCloudSync.syncNow(\'manual\')">Sync now</button><button class="btn ghost" style="margin-left:8px" onclick="AdmissionCloudSync.showRecoveryCode()">Recovery code</button>' : (isStandalone() ? '<button class="btn secondary" onclick="AdmissionCloudSync.openMigrationDialog()">Start one-time backup</button>' : '<button class="btn secondary" onclick="AdmissionCloudSync.openConnectDialog()">Connect recovery code</button>')}${conflicts ? `<div class="muted" style="margin-top:10px;">${conflicts} protected record conflict kept locally; nothing was silently overwritten.</div>` : ''}</div>`;
+    if (node.innerHTML !== markup) node.innerHTML = markup;
+  }
+
+  function isSettingsRoute() {
+    const hash = typeof location !== 'undefined' ? location.hash : '';
+    return String(window.Router?.path || hash || '').replace(/^#\/?/, '').split('?')[0] === 'settings';
+  }
+  let settingsPanelTimer = 0;
+  function mountSettingsPanel() {
+    if (!isSettingsRoute()) return;
+    const app = document.getElementById('app');
+    if (!app) return;
+    let node = document.getElementById('cloudSyncPanel');
+    if (!node) {
+      node = document.createElement('section');
+      node.id = 'cloudSyncPanel';
+      const dangerHeading = [...app.querySelectorAll('.h2')].find(item => item.textContent.trim().toLowerCase() === 'danger zone');
+      if (dangerHeading) dangerHeading.before(node);
+      else app.appendChild(node);
+    }
+    void renderSyncPanel();
+  }
+  function scheduleSettingsPanel() {
+    if (settingsPanelTimer) return;
+    settingsPanelTimer = window.setTimeout(() => {
+      settingsPanelTimer = 0;
+      mountSettingsPanel();
+    }, 0);
+  }
+  function observeSettingsMount() {
+    const app = document.getElementById('app');
+    if (!app || app.__cloudSyncSettingsObserved || !window.MutationObserver) return;
+    app.__cloudSyncSettingsObserved = true;
+    new MutationObserver(scheduleSettingsPanel).observe(app, { childList: true, subtree: true });
   }
   async function showRecoveryCode() {
     const currentMeta = await meta();
@@ -368,11 +402,14 @@
   function start() {
     hookWrites();
     hookSettings();
-    window.addEventListener('online', () => queueSync('online'));
-    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') queueSync('resume'); });
-    window.addEventListener('focus', () => queueSync('focus'));
+    observeSettingsMount();
+    scheduleSettingsPanel();
+    window.addEventListener('hashchange', scheduleSettingsPanel, { passive: true });
+    window.addEventListener('online', () => { queueSync('online'); scheduleSettingsPanel(); });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { queueSync('resume'); scheduleSettingsPanel(); } });
+    window.addEventListener('focus', () => { queueSync('focus'); scheduleSettingsPanel(); });
     // Keep both clients near-live while visible without introducing a server worker.
-    window.setInterval(() => { if (document.visibilityState === 'visible') queueSync('visible refresh'); }, 2500);
+    window.setInterval(() => { if (document.visibilityState === 'visible') { queueSync('visible refresh'); scheduleSettingsPanel(); } }, 2500);
     const waitForBoot = () => {
       if (window.__admissionBootStatus === 'ready') { void syncNow('launch'); return; }
       window.setTimeout(waitForBoot, 450);
