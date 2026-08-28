@@ -90,13 +90,23 @@
     .sort((a, b) => dateOf(b) - dateOf(a))
     .slice(0, 8)
     .reverse()
-    .map((item) => ({
-      id: resultId(item),
-      date: new Date(dateOf(item)).toISOString(),
-      score: metricsOf(item).score,
-      accuracy: metricsOf(item).accuracy,
-      total: metricsOf(item).total
-    }));
+    .map((item) => {
+      const metrics = metricsOf(item);
+      return {
+        id: resultId(item),
+        label: item?.title || item?.name || 'আগের পরীক্ষা',
+        date: new Date(dateOf(item)).toISOString(),
+        score: metrics.score,
+        accuracy: metrics.accuracy,
+        total: metrics.total,
+        correct: metrics.correct,
+        wrong: metrics.wrong,
+        skipped: metrics.skipped,
+        negative: metrics.negative,
+        marks: metrics.marks,
+        timeUsed: metrics.timeUsed
+      };
+    });
   function buildPayload(result) {
     const metrics = metricsOf(result);
     return {
@@ -119,10 +129,11 @@
           id: String(row?.questionId || `result-question-${index + 1}`), number: index + 1,
           subject: labelFor('subject', live.subjectId || row?.subjectId, row), topic: labelFor('topic', live.topicId || row?.topicId, row),
           prompt: live.question || live.text || row?.question || `প্রশ্ন ${index + 1}`,
-          selected: optionText(row?.selected ?? row?.selectedIndex ?? row?.answer),
+                    selected: optionText(row?.selected ?? row?.selectedIndex ?? row?.answer),
+          selectedIndex: Number.isInteger(Number(row?.selectedIndex)) ? Number(row.selectedIndex) : (Number.isInteger(Number(row?.answer)) ? Number(row.answer) : -1),
           correct: optionText(row?.answerIndex ?? row?.correctIndex ?? live.answerIndex ?? live.correctIndex ?? row?.correctAnswer),
-          options, status: row?.status || 'skipped', category: row?.status === 'wrong' ? 'ভুল উত্তর review' : 'Correct',
-          difficulty: live.difficulty || row?.difficulty || 'মাঝারি', time: Number(row?.timing?.ms || 0) / 1000
+          correctIndex: Number.isInteger(Number(row?.answerIndex)) ? Number(row.answerIndex) : (Number.isInteger(Number(row?.correctIndex)) ? Number(row.correctIndex) : (Number.isInteger(Number(live.answerIndex)) ? Number(live.answerIndex) : Number(live.correctIndex))),
+          options, status: row?.status || 'skipped', category: row?.status === 'wrong' ? 'ভুল উত্তর review' : 'Correct', difficulty: live.difficulty || row?.difficulty || 'মাঝারি', time: Number(row?.timing?.ms || 0) / 1000
         };
       }),
       constraints: {

@@ -199,6 +199,16 @@
       .topic-row strong { font-size: 12px; }
     }
   </style>
+<style>
+    .result-review-card{background:linear-gradient(145deg,rgba(15,30,40,.96),rgba(10,22,31,.96));border:1px solid rgba(148,190,181,.18);border-left:5px solid #e66e63;border-radius:20px;padding:17px;box-shadow:0 12px 30px rgba(0,0,0,.18)}
+    .result-review-card.result-review-collapsed{padding-bottom:13px}.result-review-card.result-review-collapsed .result-question-body{display:none}.result-review-card.result-review-expanded .result-question-body{display:block}
+    .result-review-head{display:flex;align-items:center;justify-content:space-between;gap:10px}.result-review-head-main{display:flex;align-items:center;gap:9px;min-width:0}.result-q-number{font-weight:900;color:#72f0bd;font-size:12px}.result-time{font-size:11px;color:#8fa9a3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.result-status{font-size:10px;padding:5px 8px;border-radius:8px;white-space:nowrap}.result-status.wrong{background:rgba(230,110,99,.14);color:#ff968b}
+    .result-tags{display:flex;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:wrap;margin:12px 0 10px}.result-tags>span{font-size:10px;color:#a8c5bd;background:rgba(114,240,189,.09);padding:5px 8px;border-radius:8px}.result-question-select{margin-left:auto;font-size:10px;color:#9eb9b1;display:flex;align-items:center;gap:4px}.question-check{accent-color:#72f0bd}
+    .result-question-toggle{display:flex;flex-direction:column;align-items:flex-start;width:100%;border:0;background:transparent;color:#ecfff7;padding:0;text-align:left;cursor:pointer}.result-question{font-size:17px;line-height:1.65;font-weight:750;overflow-wrap:anywhere}.result-toggle-hint{margin-top:7px;color:#72f0bd;font-size:10px;font-weight:800;letter-spacing:.04em}
+    .result-options{display:flex;flex-direction:column;gap:7px;margin-top:14px}.result-option{display:flex;align-items:flex-start;gap:9px;padding:11px 10px;border:1px solid rgba(148,190,181,.18);border-radius:11px;font-size:13px;line-height:1.5;color:#d8ebe5;background:rgba(255,255,255,.035)}.result-option-letter{font-weight:900;color:#96b9ae;min-width:20px}.result-option-text{flex:1;overflow-wrap:anywhere}.result-option-note{font-size:9px;font-weight:900;color:#72f0bd;white-space:nowrap}.result-option-note.wrong-note{color:#ff968b}.result-option.is-correct{background:rgba(67,205,147,.11);border-color:rgba(114,240,189,.55)}.result-option.is-wrong{background:rgba(230,110,99,.11);border-color:rgba(255,150,139,.55)}
+    .result-answer-line{font-size:12px;line-height:1.7;margin-top:11px;padding:10px;border-radius:10px;background:rgba(114,240,189,.08);color:#a8c5bd}.result-answer-line b{color:#ecfff7}.result-explanation{margin-top:10px;padding:12px;border-radius:13px;background:linear-gradient(135deg,rgba(247,190,105,.12),rgba(20,38,45,.72));border:1px solid rgba(247,190,105,.28);color:#e7eee5;font-size:12px;line-height:1.65}.result-explanation b{display:block;margin-bottom:7px;color:#ffd38e}.explanation-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.explanation-grid>div{padding:9px;border-radius:10px;background:rgba(0,0,0,.16)}.explanation-grid strong{display:block;color:#72f0bd;font-size:10px;margin-bottom:3px}.explanation-grid span{display:block;color:#c9ddd6}.result-actions{display:flex;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:wrap;margin-top:11px}.result-action{border:1px solid rgba(148,190,181,.22);background:rgba(255,255,255,.05);color:#d8ebe5;border-radius:10px;padding:8px 9px;font-size:10px;font-weight:800;cursor:pointer}.result-action.primary{background:#0d8d68;border-color:#32c996;color:#fff}.result-explanation-loading{border-color:rgba(114,240,189,.34)}
+    @media(max-width:560px){.result-question{font-size:16px}.explanation-grid{grid-template-columns:1fr}.result-question-select{width:100%;margin-left:0}}
+  </style>
 </head>
 <body>
   <div class="app-shell">
@@ -629,13 +639,16 @@
       return topics.map(([name, subject, accuracy, priority]) => ({ name, subject, accuracy: Math.max(20, Math.min(98, Math.round(accuracy + modifier))), priority }));
     }
     function calculateMetrics(exam) {
-      const attempted = exam.correct + exam.wrong;
-      const score = exam.correct * 2 - exam.wrong * exam.negativeMarking;
+      const attempted = Number(exam.correct || 0) + Number(exam.wrong || 0);
+      const marks = Number(exam.marksPerQ || exam.marks || 1);
+      const computedScore = Number(exam.correct || 0) * marks - Number(exam.wrong || 0) * Number(exam.negativeMarking || 0);
+      const score = Number.isFinite(Number(exam.score)) ? Number(exam.score) : computedScore;
+      const totalMarks = Number(exam.totalMarks || exam.totalQuestions || 0);
       return {
-        score: Math.max(0, score), percentage: Math.max(0, score / exam.totalMarks * 100),
-        accuracy: attempted ? exam.correct / attempted * 100 : 0,
-        attempted, timeSpentMinutes: Math.round(exam.timeSpentSeconds / 60),
-        timeEfficiency: exam.timeSpentSeconds / exam.durationSeconds * 100
+        score, percentage: totalMarks ? score / totalMarks * 100 : 0,
+        accuracy: attempted ? Number(exam.correct || 0) / attempted * 100 : 0,
+        attempted, timeSpentMinutes: Math.round(Number(exam.timeSpentSeconds || 0) / 60),
+        timeEfficiency: Number(exam.durationSeconds || 0) ? Number(exam.timeSpentSeconds || 0) / Number(exam.durationSeconds) * 100 : 0
       };
     }
     const DemoDataAdapter = {
@@ -709,6 +722,7 @@
         totalMarks: Number(result.maxScore || result.total || 0),
         marksPerQ: Number(result.marks || 1),
         negativeMarking: Number(result.wrong) ? Number(result.negative || 0) / Number(result.wrong) : 0,
+        score: Number(result.score || 0),
         correct: Number(result.correct || 0),
         wrong: Number(result.wrong || 0),
         skipped: Number(result.skipped || 0),
@@ -721,9 +735,11 @@
         date: item.date ? new Date(item.date).toLocaleDateString('bn-BD') : 'আগের পরীক্ষা ' + (index + 1),
         correct: Number(item.correct || 0),
         wrong: Number(item.wrong || 0),
-        skipped: Math.max(0, Number(item.total || 0) - Number(item.correct || 0) - Number(item.wrong || 0)),
+        skipped: Number(item.skipped ?? Math.max(0, Number(item.total || 0) - Number(item.correct || 0) - Number(item.wrong || 0))),
         totalQuestions: Number(item.total || 0),
-        negativeMarking: Number(item.wrong) ? Math.max(0, Number(item.correct || 0) * 0 - (Number(item.score || 0) - Number(item.correct || 0))) / Number(item.wrong) : currentExam.negativeMarking,
+        marksPerQ: Number(item.marks || 1),
+        negativeMarking: Number(item.wrong) ? Number(item.negative || 0) / Number(item.wrong) : currentExam.negativeMarking,
+        score: Number(item.score || 0),
         timeSpentSeconds: Number(item.timeUsed || 0),
         durationSeconds: Math.max(Number(item.timeUsed || 0), Number(item.total || 0) * 60, 3600)
       }));
@@ -891,12 +907,18 @@
       const key = `${question.id}::${question.selected}::1`;
       const explanation = state.explanationCache[key];
       const open = state.openQuestions.has(question.id) || Boolean(explanation) || state.busyQuestions.has(question.id);
-      return `<article class="question-card ${open ? "open" : ""} ${state.busyQuestions.has(question.id) ? "is-explaining" : ""}" data-question-id="${esc(question.id)}"><div class="question-head"><input class="question-check" type="checkbox" aria-label="Select ${esc(question.id)}" data-question-check="${esc(question.id)}" ${state.selectedQuestions.has(question.id) ? "checked" : ""}><button class="question-toggle" data-action="toggle-question" data-id="${esc(question.id)}" aria-expanded="${open}" style="border:0;background:none;padding:0;text-align:left"><span class="question-id">${esc(question.id)}</span><span class="question-text">${esc(question.prompt)}</span></button><div class="question-meta"><span class="tag wrong">Wrong</span><span class="tag">${esc(question.topic)}</span><span class="tag">${esc(question.difficulty)}</span></div></div><div class="question-body"><div class="answer-grid"><div>তোমার উত্তর<strong>${esc(question.selected)}</strong></div><div>সঠিক উত্তর<strong>${esc(question.correct)}</strong></div></div>${state.busyQuestions.has(question.id) ? `<div class="muted-note">Focused explanation তৈরি হচ্ছে…</div>` : explanation ? `<div class="question-explanation"><dl><div><dt>কেন সঠিক</dt><dd>${esc(explanation.whyCorrect)}</dd></div><div><dt>কেন ভুল হয়েছিল</dt><dd>${esc(explanation.whyWrong)}</dd></div><div><dt>সহজ করে</dt><dd>${esc(explanation.easy)}</dd></div><div><dt>মনে রাখার কৌশল</dt><dd>${esc(explanation.memory)}</dd></div><div><dt>Exam trap</dt><dd>${esc(explanation.trap)}</dd></div><div><dt>ছোট practice</dt><dd>${esc(explanation.practice)}</dd></div></dl><button class="explain-button" data-action="regenerate" data-id="${esc(question.id)}" style="margin-top:12px">↻ Regenerate explanation</button></div>` : `<button class="explain-button" data-action="explain" data-id="${esc(question.id)}">✨ Explain with AI</button>`}</div></article>`;
+      const options = Array.isArray(question.options) ? question.options : [];
+      const selectedIndex = Number.isInteger(Number(question.selectedIndex)) ? Number(question.selectedIndex) : options.findIndex(option => String(option) === String(question.selected));
+      const correctIndex = Number.isInteger(Number(question.correctIndex)) ? Number(question.correctIndex) : options.findIndex(option => String(option) === String(question.correct));
+      const optionRows = options.map((option, index) => { const isCorrect = index === correctIndex; const isWrong = index === selectedIndex && !isCorrect; return `<div class="result-option ${isCorrect ? 'is-correct' : ''} ${isWrong ? 'is-wrong' : ''}"><span class="result-option-letter">${String.fromCharCode(65 + index)}.</span><span class="result-option-text">${esc(option)}</span>${isCorrect ? '<span class="result-option-note">✓ সঠিক</span>' : isWrong ? '<span class="result-option-note wrong-note">✕ তোমার উত্তর</span>' : ''}</div>`; }).join('');
+      const statusText = '🔴 ভুল উত্তর';
+      const explanationBlock = state.busyQuestions.has(question.id) ? `<div class="result-explanation result-explanation-loading"><b>AI explanation তৈরি হচ্ছে…</b><div>এই প্রশ্নের ভুলের কারণ, সহজ নিয়ম ও মনে রাখার technique সাজানো হচ্ছে।</div></div>` : explanation ? `<div class="result-explanation"><b>💡 AI ব্যাখ্যা</b><div class="explanation-grid"><div><strong>কেন সঠিক</strong><span>${esc(explanation.whyCorrect)}</span></div><div><strong>কেন ভুল হয়েছিল</strong><span>${esc(explanation.whyWrong)}</span></div><div><strong>সহজ করে</strong><span>${esc(explanation.easy)}</span></div><div><strong>মনে রাখার কৌশল</strong><span>${esc(explanation.memory)}</span></div><div><strong>Exam trap</strong><span>${esc(explanation.trap)}</span></div><div><strong>ছোট practice</strong><span>${esc(explanation.practice)}</span></div></div><button class="explain-button" data-action="regenerate" data-id="${esc(question.id)}">↻ আবার explanation তৈরি করুন</button></div>` : `<button class="result-action primary explain-button" data-action="explain" data-id="${esc(question.id)}">✨ ব্যাখ্যা ও technique দেখুন</button>`;
+      return `<article class="result-review-card wrong ${open ? 'result-review-expanded' : 'result-review-collapsed'} ${state.busyQuestions.has(question.id) ? 'is-explaining' : ''}" data-question-id="${esc(question.id)}"><div class="result-review-head"><div class="result-review-head-main"><span class="result-q-number">${esc(question.id)}</span><span class="result-time">${esc(question.topic || 'Topic নেই')}</span></div><strong class="result-status wrong">${statusText}</strong></div><div class="result-tags"><span>${esc(question.subject || 'Subject নেই')}</span><span>${esc(question.topic || 'Topic নেই')}</span><span>${esc(question.difficulty || 'মাঝারি')}</span><label class="result-question-select"><input class="question-check" type="checkbox" aria-label="Select ${esc(question.id)}" data-question-check="${esc(question.id)}" ${state.selectedQuestions.has(question.id) ? 'checked' : ''}> <span>Practice list</span></label></div><button class="result-question-toggle" data-action="toggle-question" data-id="${esc(question.id)}" aria-expanded="${open}"><span class="result-question">${esc(question.prompt)}</span><span class="result-toggle-hint">${open ? 'সংক্ষেপ করুন ↑' : 'কার্ড খুলুন ↓'}</span></button><div class="result-question-body"><div class="result-options">${optionRows}</div><div class="result-answer-line"><b>তোমার উত্তর:</b> ${esc(question.selected || 'উত্তর দেওয়া হয়নি')} · <b>সঠিক উত্তর:</b> ${esc(question.correct || 'তথ্য নেই')}</div>${explanationBlock}<div class="result-actions"><button class="result-action" data-action="toggle-question" data-id="${esc(question.id)}">${open ? 'কার্ড গুটান' : 'বিস্তারিত দেখুন'}</button></div></div></article>`;
     }
     function renderVocabulary() { return vocabulary.map((item, index) => `<div class="vocab-tile"><div class="vocab-art" aria-label="Visual concept for ${esc(item.word)}"><span>${["E", "L", "M", "N", "R"][index]}</span></div><div class="vocab-info"><strong>${esc(item.word)}</strong><span>${esc(item.meaning)} · ${item.vocabId}</span></div></div>`).join(""); }
     function timeEfficiencySvg() {
-      const points = state.payload.subjects.map((subject, index) => ({ x: 70 + index * 118, y: 175 - (subject.correct / subject.questions) * 112, name: subject.short, time: Math.round(subject.time / 60) }));
-      return `<svg class="chart-svg" viewBox="0 0 430 220" role="img" aria-label="Time spent versus subject accuracy"><line class="chart-grid-line" x1="48" y1="28" x2="410" y2="28"/><line class="chart-grid-line" x1="48" y1="84" x2="410" y2="84"/><line class="chart-grid-line" x1="48" y1="140" x2="410" y2="140"/><line class="chart-grid-line" x1="48" y1="196" x2="410" y2="196"/><text x="3" y="32">100%</text><text x="15" y="144">50%</text><text x="23" y="200">0%</text><path d="M48 196 H410" stroke="#dce9e0"/>${points.map(point => `<line x1="${point.x}" y1="196" x2="${point.x}" y2="${point.y}" stroke="#c9e8d6" stroke-width="2" stroke-dasharray="3 5"/><circle cx="${point.x}" cy="${point.y}" r="10" fill="#c8f5df"/><circle cx="${point.x}" cy="${point.y}" r="5" fill="#1d956b"/><text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#0c6b51" font-weight="800">${point.time}m</text><text x="${point.x}" y="215" text-anchor="middle">${esc(point.name)}</text>`).join("")}</svg>`;
+      const points = state.payload.subjects.map((subject, index) => { const total = Math.max(1, Number(subject.questions || 0)); const accuracy = Number(subject.correct || 0) / total; const rawTime = Number(subject.time); return { x: 70 + index * 118, y: 175 - accuracy * 112, name: subject.short, time: Number.isFinite(rawTime) && rawTime > 0 ? Math.round(rawTime / 60) : null }; });
+      return `<svg class="chart-svg" viewBox="0 0 430 220" role="img" aria-label="Time spent versus subject accuracy"><line class="chart-grid-line" x1="48" y1="28" x2="410" y2="28"/><line class="chart-grid-line" x1="48" y1="84" x2="410" y2="84"/><line class="chart-grid-line" x1="48" y1="140" x2="410" y2="140"/><line class="chart-grid-line" x1="48" y1="196" x2="410" y2="196"/><text x="3" y="32">100%</text><text x="15" y="144">50%</text><text x="23" y="200">0%</text><path d="M48 196 H410" stroke="#dce9e0"/>${points.map(point => `<line x1="${point.x}" y1="196" x2="${point.x}" y2="${point.y}" stroke="#c9e8d6" stroke-width="2" stroke-dasharray="3 5"/><circle cx="${point.x}" cy="${point.y}" r="10" fill="#c8f5df"/><circle cx="${point.x}" cy="${point.y}" r="5" fill="#1d956b"/><text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#0c6b51" font-weight="800">${point.time === null ? 'সময় তথ্য নেই' : `${point.time}m`}</text><text x="${point.x}" y="215" text-anchor="middle">${esc(point.name)}</text>`).join("")}</svg>`;
     }
     function atlasData() {
       const subjectNodes = state.payload.subjects.map((subject, index) => ({ id: `subject-${index}`, label: subject.short, group: "Subject", value: subject.correct / subject.questions * 100, x: (index - 1) * .92, z: index % 2 ? .28 : -.28, tone: ["108,242,186", "117,181,255", "255,179,95"][index] }));
