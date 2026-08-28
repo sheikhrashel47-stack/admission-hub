@@ -1133,6 +1133,8 @@ function renderDashboard(){
         <h1 style="font-size: 24px; margin: 4px 0;">${greeting}, Scholar 👋</h1>
       </div>
 
+      ${window.DailyStreakCard?.html() || ''}
+
       <!-- Today's Progress -->
       <div class="card premium-card fade-in stagger-1">
         <div class="row between">
@@ -5540,6 +5542,7 @@ window.ADMISSION_HUB_TURNSTILE_SITEKEY = '0x4AAAAAAEeUzke6MqE3DUgk';
 <script src="./result-ai-analysis.js?v=result-ai-live-tool-v10-real-request"></script>
     <script src="./mistake-notebook-tool.js?v=nb-v1" defer></script>
     <script src="./weekly-report-tool.js?v=wr-v2-real-payload" defer></script>
+    <script src="./daily-streak-card.js?v=streak-v1" defer></script>
 <script src="./result-interaction-polish.js?v=result-interaction-polish-v1"></script>
 <script src="./today-command-center-live.js?v=today-command-center-live-v5-card"></script>
 <script src="./admission-sync.js?v=private-sync-v3"></script>
