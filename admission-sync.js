@@ -409,7 +409,9 @@
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { queueSync('resume'); scheduleSettingsPanel(); } });
     window.addEventListener('focus', () => { queueSync('focus'); scheduleSettingsPanel(); });
     // Keep both clients near-live while visible without introducing a server worker.
-    window.setInterval(() => { if (document.visibilityState === 'visible') { queueSync('visible refresh'); scheduleSettingsPanel(); } }, 2500);
+    // Changes sync after a short debounce; the periodic check is only a safety refresh.
+    // Avoid repeatedly writing a large encrypted snapshot and locking the Supabase row.
+    window.setInterval(() => { if (document.visibilityState === 'visible') { queueSync('visible refresh'); scheduleSettingsPanel(); } }, 20000);
     const waitForBoot = () => {
       if (window.__admissionBootStatus === 'ready') { void syncNow('launch'); return; }
       window.setTimeout(waitForBoot, 450);
