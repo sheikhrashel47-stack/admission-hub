@@ -5027,11 +5027,11 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       // An older worker can keep serving the pre-fix navigation bundle in an
       // installed PWA. Remove that controller once, then install the current
       // worker with a fresh build URL.
-      if (registration && activeUrl.includes('v46-reward-engine-live-20260824')) {
+      if (registration && (activeUrl.includes('v46-reward-engine-live-20260824') || activeUrl.includes('v84-parser-duplicate-keep-20260827'))) {
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v84-parser-duplicate-keep-20260827',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v87-four-features-forceload-20260828',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5042,6 +5042,21 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
           if(worker.state==='installed') activateWaiting(registration);
         });
       });
+      // Foreground resume (iOS standalone) never navigates, so the SW update
+      // check would not run: ping it whenever the app becomes visible again.
+      document.addEventListener('visibilitychange',()=>{ if(!document.hidden){ registration.update().catch(()=>{}); } });
+      // One-time guarded refresh when a NEW worker takes control of this page:
+      // max once per 90s per session, never on first install (no controller yet).
+      if(navigator.serviceWorker.controller){
+        const flag='ah-sw-soft-reload-at';
+        const last=Number(sessionStorage.getItem(flag)||0);
+        if(Date.now()-last>90000){
+          navigator.serviceWorker.addEventListener('controllerchange',()=>{
+            try{ sessionStorage.setItem(flag,String(Date.now())); }catch(_){}
+            location.reload();
+          },{once:true});
+        }
+      }
     }catch(error){console.warn('PWA registration failed',error)}
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',registerPwaUpdates,{once:true}); else registerPwaUpdates();
@@ -5522,7 +5537,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 window.ADMISSION_HUB_AI_ENDPOINT = 'https://admission-hub-ai-proxy.rashelzayan213.workers.dev/analyze';
 window.ADMISSION_HUB_TURNSTILE_SITEKEY = '0x4AAAAAAEeUzke6MqE3DUgk';
 </script>
-<script src="./result-ai-analysis.js?v=result-ai-live-tool-v7-flashlink"></script>
+<script src="./result-ai-analysis.js?v=result-ai-live-tool-v8-waitquiz"></script>
     <script src="./mistake-notebook-tool.js?v=nb-v1" defer></script>
     <script src="./weekly-report-tool.js?v=wr-v1" defer></script>
 <script src="./result-interaction-polish.js?v=result-interaction-polish-v1"></script>
