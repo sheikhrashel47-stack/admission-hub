@@ -246,12 +246,14 @@
     <div class="thinking-orbit orbit-one"></div><div class="thinking-orbit orbit-two"></div>
     <div class="thinking-core"><div class="core-glow"></div><span>ah</span></div>
     <div class="thinking-copy"><span class="thinking-label">AI PERFORMANCE ANALYSIS</span><h2 id="thinkingMessage">তোমার আজকের performance পড়ছি…</h2><p id="thinkingSub">Verified exam data থেকে useful patterns খুঁজে নিচ্ছি</p></div>
+    <div class="thinking-elapsed" id="thinkingElapsed" hidden>⏱ <b id="thinkingElapsedVal">শুরু হচ্ছে…</b></div>
     <div class="stage-list" id="stageList" aria-label="Analysis stages"></div>
-    <button class="skip-thinking" id="skipThinking">Report খুলুন</button>
+    <div class="wait-quiz" id="waitQuiz" hidden></div>
+    <button class="skip-thinking" id="skipThinking">⏭ অপেক্ষা না করে রিপোর্ট দেখো</button>
   </div>
 
   <style>
-    .thinking-screen { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; overflow: hidden; color: #effff7; background: #071d1a; }
+    .thinking-screen { position: fixed; inset: 0; z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 14px; overflow-y: auto; color: #effff7; background: #071d1a; padding: 46px 18px 30px; }
     .thinking-screen[hidden] { display: none; }
     .thinking-screen::before { content: ""; position: absolute; inset: 0; background: radial-gradient(circle at 50% 38%, rgba(85, 221, 160, .17), transparent 22%), radial-gradient(circle at 50% 100%, rgba(24, 116, 88, .20), transparent 45%); }
     .thinking-core { width: 130px; aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; position: relative; z-index: 1; background: radial-gradient(circle at 35% 27%, #e3fff0 0 4%, #78e8b2 5% 13%, #278f6a 35%, #082923 70%); box-shadow: 0 0 32px rgba(115, 239, 185, .55), 0 0 110px rgba(42, 171, 126, .25), inset -20px -24px 26px rgba(1, 14, 12, .52); animation: breathe 3.2s ease-in-out infinite; }
@@ -265,20 +267,36 @@
     .orbit-two { width: 520px; height: 210px; top: calc(50% - 172px); left: calc(50% - 260px); transform: rotate(42deg); border-color: rgba(159, 240, 201, .09); }
     .orbit-two::after { bottom: 22px; right: 14%; background: var(--orange); box-shadow: 0 0 16px 3px var(--orange); }
     @keyframes breathe { 50% { transform: scale(1.06); box-shadow: 0 0 42px rgba(115, 239, 185, .68), 0 0 130px rgba(42,171,126,.3), inset -20px -24px 26px rgba(1,14,12,.52); } }
-    .thinking-copy { position: absolute; z-index: 1; top: calc(50% + 96px); text-align: center; padding: 0 22px; }
+    .thinking-copy { position: relative; z-index: 1; text-align: center; padding: 0 4px; }
     .thinking-label { color: var(--mint-2); font-size: 11px; font-weight: 800; letter-spacing: .18em; }
     .thinking-copy h2 { margin-top: 13px; font-size: clamp(23px, 3vw, 34px); letter-spacing: -.04em; }
     .thinking-copy p { margin-top: 8px; color: rgba(239,255,247,.56); font-size: 13px; }
-    .stage-list { position: absolute; left: 30px; bottom: 30px; display: flex; gap: 8px; z-index: 1; }
+    .stage-list { position: relative; z-index: 1; display: flex; gap: 8px 14px; flex-wrap: wrap; justify-content: center; }
     .stage-item { display: flex; align-items: center; gap: 6px; color: rgba(239,255,247,.42); font-size: 11px; }
     .stage-item::before { content: ""; width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }
     .stage-item.active { color: var(--mint-2); }
     .stage-item.active::before { background: currentColor; box-shadow: 0 0 11px currentColor; }
     .stage-item.done { color: rgba(239,255,247,.75); }
     .stage-item.done::before { content: "✓"; width: 15px; height: 15px; border: 0; font-size: 11px; text-align: center; }
-    .skip-thinking { position: absolute; z-index: 1; right: 30px; bottom: 25px; border: 1px solid rgba(200,245,223,.28); border-radius: 99px; padding: 9px 15px; color: rgba(239,255,247,.68); background: transparent; font-size: 12px; }
+    .skip-thinking { position: relative; z-index: 1; border: 1px solid rgba(200,245,223,.28); border-radius: 99px; padding: 9px 15px; color: rgba(239,255,247,.68); background: transparent; font-size: 12px; cursor: pointer; }
     .skip-thinking:hover { color: var(--mint); border-color: var(--mint-2); }
-    @media (max-width: 620px) { .thinking-core { width: 106px; } .orbit-one { width: 290px; left: calc(50% - 145px); } .orbit-two { width: 370px; left: calc(50% - 185px); } .thinking-copy { top: calc(50% + 79px); } .stage-list { left: 20px; right: 20px; bottom: 78px; justify-content: center; flex-wrap: wrap; } .stage-item { font-size: 10px; } .skip-thinking { right: 20px; left: 20px; bottom: 20px; } }
+    .thinking-elapsed { position: relative; z-index: 1; font-size: 12.5px; color: rgba(239,255,247,.72); background: rgba(255,255,255,.06); border: 1px solid rgba(143,230,189,.25); padding: 7px 14px; border-radius: 999px; }
+    .thinking-elapsed b { color: var(--mint-2); font-weight: 800; }
+    .wait-quiz { position: relative; z-index: 1; width: min(560px, 100%); background: rgba(255,255,255,.05); border: 1px solid rgba(143,230,189,.24); border-radius: 20px; padding: 16px 16px 14px; }
+    .wait-quiz-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .wait-quiz-head b { font-size: 13.5px; }
+    .wait-quiz-score { font-size: 11px; font-weight: 800; color: #06231b; background: var(--mint-2); border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+    .wait-quiz-meta { margin-top: 5px; font-size: 10.5px; color: rgba(239,255,247,.5); }
+    .wait-quiz-q { margin: 11px 0 0; font-size: 14.5px; line-height: 1.65; }
+    .wait-quiz-opts { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+    .wait-quiz-opt { text-align: left; border: 1px solid rgba(143,230,189,.28); background: rgba(7,29,26,.55); color: #effff7; border-radius: 12px; padding: 11px 12px; font-size: 13px; line-height: 1.5; cursor: pointer; overflow-wrap: anywhere; }
+    .wait-quiz-opt.right { border-color: #35d68f; background: rgba(53,214,143,.16); }
+    .wait-quiz-opt.wrong { border-color: #ff7d75; background: rgba(255,125,117,.14); }
+    .wait-quiz-opt:disabled { cursor: default; }
+    .wait-quiz-fb { margin-top: 10px; font-size: 12.5px; line-height: 1.65; color: rgba(239,255,247,.85); overflow-wrap: anywhere; }
+    .wait-quiz-next { margin-top: 11px; border: 0; border-radius: 12px; background: var(--mint-2); color: #06231b; font-weight: 800; font-size: 12.5px; padding: 10px 14px; cursor: pointer; }
+    .wait-quiz-hint { margin-top: 10px; font-size: 10.5px; color: rgba(239,255,247,.45); }
+    @media (max-width: 620px) { .thinking-core { width: 106px; } .orbit-one { width: 290px; left: calc(50% - 145px); } .orbit-two { width: 370px; left: calc(50% - 185px); } .thinking-screen { padding: 34px 14px 24px; } .stage-item { font-size: 10px; } }
   </style>
   <style>
     .demo-strip { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 12px 15px; margin-top: 22px; border: 1px dashed #a9c9b8; border-radius: 15px; color: #57766a; background: #eef9f1; font-size: 12px; }
@@ -598,7 +616,7 @@
     /* VERSIONING: old saved analyses can be re-rendered without regenerating AI text. */
     const AI_SCHEMA_VERSION = "1.1";
     const ANALYSIS_VERSION = "2026.08-premium";
-    const RENDERER_VERSION = "1.5.0";
+    const RENDERER_VERSION = "1.6.0";
 
     /* LIVE DATA ADAPTER: populated only by the parent result page. */
     function buildAnalysisPayload(adapter) {
@@ -754,36 +772,58 @@
         try { api.execute(widgetId); } catch (_) {}
       }));
     }
-    async function pollLiveRun(endpoint, runId) {
+    async function pollLiveRun(endpoint, runId, onProgress) {
       const base = String(endpoint || sessionStorage.getItem("admission-hub-ai-endpoint") || "").replace(/\/+$/, "");
       const url = `${base}/${encodeURIComponent(runId)}`;
-      const deadline = Date.now() + 150000;
+      const deadline = Date.now() + (Number(sessionStorage.getItem("ah-poll-deadline-ms")) || 240000);
+      let attempt = 0;
       while (Date.now() < deadline) {
-        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        attempt++;
+        if (typeof onProgress === "function") onProgress({ phase: "polling", attempt, runId });
+        const controller = typeof AbortController === "function" ? new AbortController() : null;
+        const abortTimer = controller ? setTimeout(() => controller.abort(), 15000) : null;
+        let response;
+        try {
+          response = await fetch(url, { headers: { Accept: "application/json" }, signal: controller ? controller.signal : undefined });
+        } catch (_) {
+          if (abortTimer) clearTimeout(abortTimer);
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          continue;
+        }
+        if (abortTimer) clearTimeout(abortTimer);
         const data = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
         const status = String(data.status || "").toLowerCase();
-        if (status === "completed") return String(data.analysis || data.result || data.text || "");
-        if (status === "failed" || status === "cancelled") throw new Error("AI run সম্পন্ন হয়নি; পরে আবার চেষ্টা করো।");
+        if (status === "completed") { try { sessionStorage.removeItem("ah-pending-run"); } catch (_) {} return String(data.analysis || data.result || data.text || ""); }
+        if (status === "failed" || status === "cancelled") { try { sessionStorage.removeItem("ah-pending-run"); } catch (_) {} throw new Error(data.error || "AI run সম্পন্ন হয়নি; পরে আবার চেষ্টা করো।"); }
         await new Promise(resolve => setTimeout(resolve, 2500));
       }
-      throw new Error("AI analysis অনেক সময় নিচ্ছে; পরে আবার চেষ্টা করো।");
+      const timeoutError = new Error("AI এখনো লেখা শেষ করেনি — এই run-টা পরে আবার চেক করা যাবে (নতুন করে টাকা/limit খরচ হবে না)।");
+      timeoutError.resume = { endpoint: base, runId };
+      throw timeoutError;
     }
     /* AI ADAPTERS: live secure backend only; no demo or fallback adapter exists. */
-    async function requestLiveAI(requestPayload) {
+    async function requestLiveAI(requestPayload, onProgress) {
       const endpoint = String(sessionStorage.getItem("admission-hub-ai-endpoint") || "").trim();
       const siteKey = String(sessionStorage.getItem("admission-hub-ai-sitekey") || "").trim();
       if (!endpoint) throw new Error("Secure AI endpoint পাওয়া যায়নি; Admission Hub app-এর result page থেকে tool-টি খোলো।");
+      const report = typeof onProgress === "function" ? onProgress : () => {};
+      report({ phase: "token" });
       const token = await getLiveTurnstileToken(siteKey);
+      report({ phase: "posting" });
       const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ ...requestPayload, turnstileToken: token }) });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
       if (data.analysis || data.result || data.text) return String(data.analysis || data.result || data.text);
-      if (data.runId) return pollLiveRun(endpoint, data.runId);
+      if (data.runId) {
+        try { sessionStorage.setItem("ah-pending-run", JSON.stringify({ endpoint, runId: String(data.runId) })); } catch (_) {}
+        report({ phase: "runCreated", runId: data.runId });
+        return pollLiveRun(endpoint, data.runId, report);
+      }
       throw new Error("AI response পাওয়া যায়নি।");
     }
     const LiveAIAdapter = {
-      async analyze() {
+      async analyze(onProgress) {
         const raw = LiveDataAdapter.raw || {};
         return requestLiveAI({
           schemaVersion: raw.schemaVersion || null,
@@ -792,7 +832,7 @@
           subjectPerformance: Array.isArray(raw.subjectPerformance) ? raw.subjectPerformance : [],
           topicPerformance: Array.isArray(raw.topicPerformance) ? raw.topicPerformance : [],
           requestType: "result_analysis"
-        });
+        }, onProgress);
       },
       async explainBatch(questionPayloads) {
         const questions = Array.isArray(questionPayloads) ? questionPayloads.filter(question => question && question.id) : [];
@@ -872,7 +912,77 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
       ["রিপোর্টকে সুন্দর করে সাজাচ্ছি…", "তোমার জন্য পরিষ্কার visual report তৈরি করছি"],
       ["শেষবার যাচাই করছি…", "Analysis এখন তোমার workspace-এ প্রস্তুত" ]
     ];
-    const stages = ["তথ্য প্রস্তুত", "ফলাফল পড়া", "তুলনা", "ভুলের pattern", "পরবর্তী লক্ষ্য", "রিপোর্ট সাজানো", "সংরক্ষণ"];
+    const stages = ["তথ্য প্রস্তুত", "মানুষ-যাচাই", "AI রান শুরু", "AI কাজ করছে", "রিপোর্ট পড়া", "সাজানো ও সংরক্ষণ"];
+    const stageMessages = [
+      ["তোমার result প্রস্তুত ✓", "Verified প্রশ্ন-উত্তর AI-এর কাছে যাওয়ার পথে"],
+      ["মানুষ-যাচাই চলছে…", "Cloudflare নিশ্চিত করছে পেছনে সত্যিই তুমি আছো"],
+      ["AI-কে কাজে পাঠানো হচ্ছে…", "Secure proxy দিয়ে নিরাপদ সংযোগ — কোনো key ব্রাউজারে যায় না"],
+      ["AI এখন কাজ করছে…", "প্রতিটি প্রশ্ন যাচাই করে রিপোর্ট লিখছে — ২–৪ মিনিট লাগতে পারে"],
+      ["রিপোর্ট চলে এসেছে!", "AI-এর লেখা পড়ে তোমার জন্য সাজাচ্ছি"],
+      ["শেষ ধাপ…", "রিপোর্ট এই device-এ সেভ হচ্ছে"]
+    ];
+    const waitState = { quiz: null, startAt: 0, timer: null };
+    function fmtWaitDuration(ms) { const sec = Math.max(0, Math.round(ms / 1000)); return sec < 60 ? `${sec} সেকেন্ড` : `${Math.floor(sec / 60)} মিনিট ${sec % 60} সেকেন্ড`; }
+    function setStage(index, subOverride) {
+      document.querySelectorAll(".stage-item").forEach((node, nodeIndex) => node.className = `stage-item ${nodeIndex < index ? "done" : nodeIndex === index ? "active" : ""}`);
+      const msg = stageMessages[Math.min(index, stageMessages.length - 1)];
+      document.getElementById("thinkingMessage").textContent = msg[0];
+      document.getElementById("thinkingSub").textContent = subOverride || msg[1];
+    }
+    function startWaitClock() {
+      waitState.startAt = Date.now();
+      const box = document.getElementById("thinkingElapsed");
+      if (box) box.hidden = false;
+      const tick = () => { const val = document.getElementById("thinkingElapsedVal"); if (val) val.textContent = fmtWaitDuration(Date.now() - waitState.startAt); };
+      tick();
+      clearInterval(waitState.timer);
+      waitState.timer = setInterval(tick, 1000);
+    }
+    function stopWaitClock() { clearInterval(waitState.timer); const box = document.getElementById("thinkingElapsed"); if (box) box.hidden = true; }
+    function waitCorrectIndex(item) { return Number.isInteger(Number(item.correctIndex)) ? Number(item.correctIndex) : (Array.isArray(item.options) ? item.options.findIndex(option => String(option) === String(item.correct)) : -1); }
+    function buildWaitQuiz() {
+      const box = document.getElementById("waitQuiz");
+      if (!box) return;
+      const pool = (state.payload?.questions || []).filter(q => q.status === "wrong" && Array.isArray(q.options) && q.options.length >= 2).slice();
+      for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+      waitState.quiz = pool.length ? { list: pool, index: 0, answered: 0, score: 0, picked: null } : null;
+      box.hidden = !waitState.quiz;
+      if (waitState.quiz) renderWaitQuiz();
+    }
+    function renderWaitQuiz() {
+      const box = document.getElementById("waitQuiz");
+      const q = waitState.quiz;
+      if (!box || !q) return;
+      const head = `<div class="wait-quiz-head"><b>🧠 অপেক্ষার মুহূর্তে মাথা ঝালাই</b><span class="wait-quiz-score">${q.score}/${q.answered}</span></div><div class="wait-quiz-meta">তোমার আজকের ভুলগুলোই — রিপোর্ট আসা পর্যন্ত ঘুরিয়ে দেখো (${Math.min(q.index + 1, q.list.length)}/${q.list.length})</div>`;
+      if (q.index >= q.list.length) {
+        box.innerHTML = `${head}<div class="wait-quiz-fb">🎉 শেষ! ভুলগুলো এবার একটু চেনা লাগছে তো? আসল রিপোর্টে এগুলোরই ব্যাখ্যা আসছে।</div><button class="wait-quiz-next" data-wait-quiz="restart">↻ আবার শুরু করো</button>`;
+        return;
+      }
+      const item = q.list[q.index];
+      const correctIndex = waitCorrectIndex(item);
+      const opts = item.options.map((option, i) => {
+        let cls = "wait-quiz-opt"; let extra = "";
+        if (q.picked != null) { if (i === correctIndex) cls += " right"; else if (i === q.picked) cls += " wrong"; extra = " disabled"; }
+        return `<button class="${cls}" data-wait-quiz="pick" data-index="${i}"${extra}>${String.fromCharCode(65 + i)}. ${esc(option)}</button>`;
+      }).join("");
+      const fb = q.picked != null ? `<div class="wait-quiz-fb">${q.picked === correctIndex ? "✅ ঠিক ধরেছো! রিপোর্ট আসা পর্যন্ত আরেকটা খেলো।" : `❌ সঠিক উত্তর: ${String.fromCharCode(65 + correctIndex)}) ${esc(item.correct ?? "")}`}</div><button class="wait-quiz-next" data-wait-quiz="next">${q.index + 1 < q.list.length ? "পরের প্রশ্ন →" : "শেষ করো 🎉"}</button>` : "";
+      box.innerHTML = `${head}<p class="wait-quiz-q">${esc(item.prompt)}</p><div class="wait-quiz-opts">${opts}</div>${fb}<div class="wait-quiz-hint">এই প্র্যাকটিস শুধু তোমার device-এ — AI run-এ কোনো প্রভাব নেই।</div>`;
+    }
+    document.getElementById("waitQuiz").addEventListener("click", event => {
+      const node = event.target.closest("[data-wait-quiz]");
+      const q = waitState.quiz;
+      if (!node || !q) return;
+      const act = node.dataset.waitQuiz;
+      if (act === "restart") { buildWaitQuiz(); return; }
+      if (act === "next") { q.index++; q.picked = null; renderWaitQuiz(); return; }
+      if (act !== "pick" || q.picked != null || q.index >= q.list.length) return;
+      const item = q.list[q.index];
+      const picked = Number(node.dataset.index);
+      q.picked = picked;
+      q.answered++;
+      if (picked === waitCorrectIndex(item)) q.score++;
+      renderWaitQuiz();
+    });
     function esc(value) { return String(value ?? "").replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char])); }
     function num(value, digits = 0) { return Number(value).toFixed(digits); }
     function listItems(items) { return items.map(item => `<li>${esc(typeof item === "string" ? item : item.insight || item.title || "")}</li>`).join(""); }
@@ -996,7 +1106,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
           <div class="hero-copy"><span class="eyebrow">AI intelligence workspace</span><h1 id="page-title">তোমার result-এ<br><em>লুকিয়ে থাকা pattern</em>গুলো।</h1><p class="hero-summary">${esc(aiUnavailable ? 'তোমার verified result load হয়েছে। Live AI analysis এখনো পাওয়া যায়নি।' : state.analysis.summary)}</p><div class="meta-row"><span class="pill"><b>●</b>${esc(exam.type)}</span><span class="pill">${esc(exam.date)}</span><span class="pill">${exam.totalQuestions} প্রশ্ন · ${exam.timeSpentSeconds / 60} মিনিট</span></div><div class="hero-system-line"><span><i></i>${aiUnavailable ? 'AI ANALYSIS WAITING' : 'ANALYSIS ENGINE ONLINE'}</span><span>LIVE PAYLOAD · ${esc(exam.id.toUpperCase())}</span><span>SCHEMA ${AI_SCHEMA_VERSION}</span></div></div>
           <div class="score-stage"><div class="score-ring" style="background:conic-gradient(var(--mint-2) 0 ${Math.round(state.metrics.percentage)}%,rgba(255,255,255,.12) ${Math.round(state.metrics.percentage)}% 100%)"><div class="score-value"><strong>${num(state.metrics.score, 1)}</strong><span>out of ${exam.totalMarks}</span></div></div><span class="ring-caption">${num(state.metrics.percentage)}% score</span><div class="score-hud"><span>ACCURACY <b>${num(state.metrics.accuracy)}%</b></span><span>ATTEMPTED <b>${state.metrics.attempted}/${exam.totalQuestions}</b></span></div></div>
         </section>
-        <div class="report-commandbar" aria-label="রিপোর্টের দ্রুত সারাংশ"><div class="report-commandbar-card primary"><small>Report pulse</small><strong>${num(state.metrics.percentage)}% নির্ভুলতা</strong><span>${exam.correct}টি সঠিক · ${exam.wrong}টি ভুল · ${exam.skipped}টি বাদ</span></div><div class="report-commandbar-card"><small>Net score</small><strong>${num(state.metrics.score, 1)}</strong><span>সর্বোচ্চ ${num(exam.totalMarks, 1)}</span></div><div class="report-commandbar-card warn"><small>Attention</small><strong>${wrongQuestions.length}টি ভুল</strong><span>Wrong Answer Lab-এ review করো</span></div><div class="report-commandbar-card danger"><small>AI access</small><strong>১০ / দিন</strong><span>নতুন analysis limit</span></div></div>${focusQuestions.length ? `<section class="section focus-rec" style="margin-top:17px"><article class="card focus-rec-card"><div class="focus-rec-head"><h3>এগুলো এখনই একটু শিখে নে ভাই 🙏</h3><span>AI recommendation · পরীক্ষার জন্য গুরুত্বপূর্ণ অথচ ভুল হওয়া প্রশ্ন</span></div><div class="focus-rec-list">${focusQuestions.map((item) => { const question = state.payload.questions.find((q) => String(q.id) === String(item.questionId)); return question ? `<div class="focus-rec-item"><b>প্রশ্ন ${esc(question.number || question.id)} · ${esc(question.topic)}</b><p>${esc(question.prompt)}</p><small>💡 ${esc(item.why || "পরীক্ষার জন্য গুরুত্বপূর্ণ — এখনই গুছিয়ে ফেলো")}</small></div>` : ""; }).join("")}</div><div class="focus-rec-actions"><button class="button mint" data-action="memory-tricks" type="button">🧠 মনে রাখার টেকনিক দেখো</button><button class="button mint" data-action="focus-flash-test" type="button">⚡ এই প্রশ্নগুলোতে ফ্লাশ টেস্ট দাও</button></div></article></section>` : ""}<div class="demo-strip"><div><strong>${aiUnavailable ? 'VERIFIED RESULT · AI WAITING' : 'LIVE RESULT REPORT'}</strong><div class="muted-note">${aiUnavailable ? `Live AI analysis পাওয়া যায়নি: ${esc(state.aiError)}` : 'Verified local result + secure Bengali AI insight · এই device-এ locally saved'}</div></div><div class="demo-control"><span class="muted-note">${aiUnavailable ? 'AI retry প্রয়োজন' : 'AI layer online'}</span></div></div>
+        <div class="report-commandbar" aria-label="রিপোর্টের দ্রুত সারাংশ"><div class="report-commandbar-card primary"><small>Report pulse</small><strong>${num(state.metrics.percentage)}% নির্ভুলতা</strong><span>${exam.correct}টি সঠিক · ${exam.wrong}টি ভুল · ${exam.skipped}টি বাদ</span></div><div class="report-commandbar-card"><small>Net score</small><strong>${num(state.metrics.score, 1)}</strong><span>সর্বোচ্চ ${num(exam.totalMarks, 1)}</span></div><div class="report-commandbar-card warn"><small>Attention</small><strong>${wrongQuestions.length}টি ভুল</strong><span>Wrong Answer Lab-এ review করো</span></div><div class="report-commandbar-card danger"><small>AI access</small><strong>১০ / দিন</strong><span>নতুন analysis limit</span></div></div>${focusQuestions.length ? `<section class="section focus-rec" style="margin-top:17px"><article class="card focus-rec-card"><div class="focus-rec-head"><h3>এগুলো এখনই একটু শিখে নে ভাই 🙏</h3><span>AI recommendation · পরীক্ষার জন্য গুরুত্বপূর্ণ অথচ ভুল হওয়া প্রশ্ন</span></div><div class="focus-rec-list">${focusQuestions.map((item) => { const question = state.payload.questions.find((q) => String(q.id) === String(item.questionId)); return question ? `<div class="focus-rec-item"><b>প্রশ্ন ${esc(question.number || question.id)} · ${esc(question.topic)}</b><p>${esc(question.prompt)}</p><small>💡 ${esc(item.why || "পরীক্ষার জন্য গুরুত্বপূর্ণ — এখনই গুছিয়ে ফেলো")}</small></div>` : ""; }).join("")}</div><div class="focus-rec-actions"><button class="button mint" data-action="memory-tricks" type="button">🧠 মনে রাখার টেকনিক দেখো</button><button class="button mint" data-action="focus-flash-test" type="button">⚡ এই প্রশ্নগুলোতে ফ্লাশ টেস্ট দাও</button></div></article></section>` : ""}<div class="demo-strip"><div><strong>${aiUnavailable ? 'VERIFIED RESULT · AI WAITING' : 'LIVE RESULT REPORT'}</strong><div class="muted-note">${aiUnavailable ? `Live AI analysis পাওয়া যায়নি: ${esc(state.aiError)}` : 'Verified local result + secure Bengali AI insight · এই device-এ locally saved'}</div></div><div class="demo-control">${aiUnavailable ? `<button class="button mint" data-action="ai-retry" type="button">🤖 নতুন করে আবার চেষ্টা করো</button>${(() => { let pending = null; try { pending = JSON.parse(sessionStorage.getItem("ah-pending-run") || "null"); } catch (_) {} return pending?.runId ? ` <button class="button mint" data-action="ai-resume" type="button">🔁 একই AI run আবার চেক করো</button>` : ""; })()}` : '<span class="muted-note">AI layer online</span>'}</div></div>
         <nav class="workspace-nav" aria-label="Workspace sections"><a class="active" href="#overview">শুরু</a><a href="#journey">Score trend</a><a href="#atlas">3D map</a><a href="#strengths">শক্তি</a><a href="#weaknesses">Priority</a><a href="#topics">Topics</a><a href="#mistakes">ভুলের ধরন</a><a href="#lab">Wrong lab</a><a href="#revision">Plan</a></nav>
 
         <section class="section" id="overview" aria-labelledby="overview-title"><div class="section-head"><div><span class="section-kicker"><i>01</i> Performance overview</span><h2 id="overview-title">Score-এর পেছনের গল্প</h2></div><p>Frontend-calculated numbers, AI-interpreted patterns. Verified result-ই এখানে source of truth.</p></div><div class="grid grid-4"><div class="card metric-card"><small>Score</small><strong>${num(state.metrics.score, 1)}</strong><span class="delta">↑ last mock থেকে +${num(state.payload.previousExams.length ? state.metrics.score - calculateMetrics(state.payload.previousExams.at(-1)).score : 0, 1)}</span></div><div class="card metric-card"><small>Accuracy</small><strong>${num(state.metrics.accuracy)}%</strong><span class="delta">attempted ${state.metrics.attempted}/${exam.totalQuestions}</span></div><div class="card metric-card warn"><small>Wrong answers</small><strong>${exam.wrong}</strong><span class="delta">-${num(exam.wrong * exam.negativeMarking, 1)} negative mark</span></div><div class="card metric-card"><small>Avg time / question</small><strong>${exam.totalQuestions ? num(exam.timeSpentSeconds / exam.totalQuestions, 1) + "s" : "—"}</strong><span class="delta">${state.metrics.timeSpentMinutes}m total</span></div></div><div class="soft-strip" style="margin-top:17px"><strong>Coach signal · </strong>${esc(aiUnavailable ? 'Live AI analysis না আসা পর্যন্ত কোনো narrative signal দেখানো হচ্ছে না।' : (state.analysis.trends[0] || 'AI signal পাওয়া যায়নি।'))}<p>${esc(aiUnavailable ? 'Verified score ও প্রশ্নের data ঠিক আছে; retry করলে AI insight আসবে।' : (state.analysis.trends[1] || ''))}</p></div><article class="card ledger-card"><div class="ledger-header"><strong>Verified result ledger</strong><span>CALCULATED · READ ONLY</span></div><div class="ledger-scroll"><table class="ledger-table"><thead><tr><th>Exam</th><th>Date</th><th>Score</th><th>Accuracy</th><th>Correct</th><th>Time</th></tr></thead><tbody>${renderLedgerRows()}</tbody></table></div></article></section>
@@ -1054,6 +1164,8 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
         if (action === "memory-tricks") openMemoryTricks();
         if (action === "focus-flash-test") { const ids = focusQuestionIds(); if (!ids.length) { toast("Recommended প্রশ্ন পাওয়া যায়নি।"); return; } if (window.parent !== window) window.parent.postMessage({ type: "admission-hub-ai-flash-test", questionIds: ids }, "*"); else toast("Flash test শুরু হচ্ছে…"); }
         if (action === "explain-selected") explainQuestions([...state.selectedQuestions]);
+        if (action === "ai-retry") runAnalysis("live");
+        if (action === "ai-resume") resumePendingRun();
         if (action === "atlas-toggle") { state.atlasSettings.auto = !state.atlasSettings.auto; updateAtlasControls(); }
         if (action === "atlas-reset") { state.atlasSettings = { ...state.atlasSettings, auto: true, rotY: -.42, rotX: .34, focus: "" }; updateAtlasControls(); }
         if (action === "atlas-focus") { state.atlasSettings.focus = state.atlasSettings.focus === actionNode.dataset.node ? "" : actionNode.dataset.node; state.atlasSettings.auto = false; updateAtlasControls(); }
@@ -1125,38 +1237,69 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
     function setupThinking() {
       thinkingScreen.hidden = false;
       stageList.innerHTML = stages.map((stage, index) => `<span class="stage-item ${index === 0 ? "active" : ""}" data-stage="${index}">${stage}</span>`).join("");
-      let index = 0;
-      clearInterval(state.thinkingTimer);
-      state.thinkingTimer = setInterval(() => {
-        index = Math.min(index + 1, stages.length - 1);
-        document.querySelectorAll(".stage-item").forEach((node, nodeIndex) => node.className = `stage-item ${nodeIndex < index ? "done" : nodeIndex === index ? "active" : ""}`);
-        document.getElementById("thinkingMessage").textContent = thinkingMessages[Math.min(index, thinkingMessages.length - 1)][0];
-        document.getElementById("thinkingSub").textContent = thinkingMessages[Math.min(index, thinkingMessages.length - 1)][1];
-      }, 560);
+      setStage(0);
+      startWaitClock();
+      buildWaitQuiz();
     }
     async function runAnalysis(scenarioKey) {
       state.scenario = 'live';
       state.autoExplainRan = false;
       state.adapter.scenario = 'live'; state.selectedQuestions.clear(); state.openQuestions.clear(); state.atlasSettings = { ...state.atlasSettings, auto: true, rotY: -.42, rotX: .34, focus: "" }; state.aiError = '';
-      setupThinking();
       const payload = buildAnalysisPayload(state.adapter);
       state.payload = payload; state.metrics = calculateMetrics(payload.currentExam);
-      const minimumExperience = new Promise(resolve => setTimeout(resolve, 1200));
+      setupThinking();
+      setStage(1);
+      state.lastResume = null;
       try {
-        const [raw] = await Promise.all([state.ai.analyze(payload), minimumExperience]);
+        const raw = await state.ai.analyze(progress => {
+          if (progress.phase === "token") setStage(2);
+          else if (progress.phase === "posting") setStage(2, "Secure proxy-তে পাঠানো হচ্ছে…");
+          else if (progress.phase === "runCreated") setStage(3);
+          else if (progress.phase === "polling") setStage(3, `${progress.attempt} বার চেক করা হলো · ${fmtWaitDuration(Date.now() - waitState.startAt)} ধরে AI লিখছে`);
+        });
+        setStage(4);
         const parsed = typeof raw === 'string' ? parseAnalysis(raw) : raw;
         if (!parsed) throw new Error('Live AI response valid JSON নয়');
+        setStage(5);
         state.analysis = validateAndNormalize(parsed);
         await AnalysisStore.save({ analysisId: `analysis-${payload.currentExam.id}`, examId: payload.currentExam.id, createdAt: new Date().toISOString(), schemaVersion: AI_SCHEMA_VERSION, analysisData: state.analysis, status: 'complete', source: 'live-ai', rendererVersion: RENDERER_VERSION });
+        try { sessionStorage.removeItem("ah-pending-run"); } catch (_) {}
       } catch (error) {
-        await minimumExperience;
         state.aiError = error?.message || 'Live AI analysis পাওয়া যায়নি';
+        if (error?.resume) state.lastResume = error.resume;
         state.analysis = emptyAnalysis();
       } finally {
-        clearInterval(state.thinkingTimer); thinkingScreen.hidden = true; renderWorkspace();
+        stopWaitClock(); clearInterval(state.thinkingTimer); thinkingScreen.hidden = true; renderWorkspace();
         autoExplainAllWrong();
       }
       document.getElementById("savedState").innerHTML = state.aiError ? `<span class="saved-dot" style="background:var(--orange)"></span><span>Verified result saved · AI pending</span>` : `<span class="saved-dot"></span><span>Live AI report saved locally</span>`;
+    }
+    async function resumePendingRun(resume) {
+      let target = resume || null;
+      if (!target) { try { target = JSON.parse(sessionStorage.getItem("ah-pending-run") || "null"); } catch (_) { target = null; } }
+      if (!target?.runId || !state.payload) { toast("আবার চেক করার মতো কোনো AI run পাওয়া যায়নি।"); return; }
+      state.aiError = ''; state.lastResume = null; state.autoExplainRan = false;
+      state.selectedQuestions.clear(); state.openQuestions.clear();
+      setupThinking();
+      setStage(3, "আগের run-টাই আবার চেক করা হচ্ছে…");
+      try {
+        const raw = await pollLiveRun(target.endpoint || String(sessionStorage.getItem("admission-hub-ai-endpoint") || ""), target.runId, progress => {
+          if (progress.phase === "polling") setStage(3, `${progress.attempt} বার চেক করা হলো · ${fmtWaitDuration(Date.now() - waitState.startAt)} ধরে AI লিখছে`);
+        });
+        setStage(4);
+        const parsed = typeof raw === "string" ? parseAnalysis(raw) : raw;
+        if (!parsed) throw new Error("AI run-এর ফল valid JSON নয়");
+        setStage(5);
+        state.analysis = validateAndNormalize(parsed);
+        await AnalysisStore.save({ analysisId: `analysis-${state.payload.currentExam.id}`, examId: state.payload.currentExam.id, createdAt: new Date().toISOString(), schemaVersion: AI_SCHEMA_VERSION, analysisData: state.analysis, status: 'complete', source: 'live-ai', rendererVersion: RENDERER_VERSION });
+      } catch (error) {
+        state.aiError = error?.message || 'AI run আবার পাওয়া যায়নি';
+        if (error?.resume) state.lastResume = error.resume;
+        state.analysis = emptyAnalysis();
+      } finally {
+        stopWaitClock(); clearInterval(state.thinkingTimer); thinkingScreen.hidden = true; renderWorkspace();
+        autoExplainAllWrong();
+      }
     }
 
     async function bootLiveAnalysis() {
