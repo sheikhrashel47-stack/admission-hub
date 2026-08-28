@@ -598,7 +598,7 @@
     /* VERSIONING: old saved analyses can be re-rendered without regenerating AI text. */
     const AI_SCHEMA_VERSION = "1.1";
     const ANALYSIS_VERSION = "2026.08-premium";
-    const RENDERER_VERSION = "1.4.0";
+    const RENDERER_VERSION = "1.5.0";
 
     /* LIVE DATA ADAPTER: populated only by the parent result page. */
     function buildAnalysisPayload(adapter) {
@@ -890,6 +890,28 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
     function renderSubjectRows() { return state.payload.subjects.map((subject, i) => { const total = Number(subject.questions || 0); const accuracy = total ? Number(subject.correct || 0) / total * 100 : 0; const tone = accuracy < 65 ? "red" : accuracy < 78 ? "orange" : ""; return `<div class="subject-row"><span>${esc(subject.short)}</span><div class="progress-track"><div class="progress-fill ${tone}" style="width:${accuracy}%"></div></div><span>${num(accuracy)}%</span></div>`; }).join(""); }
     function renderTopicRows() { return state.payload.topics.map(topic => `<div class="map-row ${esc(topic.priority)}"><strong class="map-label">${esc(topic.name)}</strong><div class="map-meter"><i style="width:${topic.accuracy}%"></i></div><em>${topic.accuracy}% · ${topic.priority === "high" ? "priority" : topic.priority === "medium" ? "watch" : "strong"}</em></div>`).join(""); }
     function renderMistakePatterns() { return state.payload.mistakeHistory.map(item => `<div class="pattern-item"><header><strong>${esc(item.label)}</strong><b>${item.count}</b></header><p>${esc(item.detail)}</p></div>`).join(""); }
+    let __speakingButton = null;
+    function stopSpeaking() {
+      try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch (_) {}
+      if (__speakingButton) { __speakingButton.textContent = __speakingButton.dataset.speakLabel || "🔊 শুনো"; __speakingButton = null; }
+    }
+    function speakExplanation(text, button) {
+      if (!window.speechSynthesis) { toast("তোমার ব্রাউজারে voice সাপোর্ট নেই।"); return; }
+      if (__speakingButton === button) { stopSpeaking(); return; }
+      stopSpeaking();
+      const synth = window.speechSynthesis;
+      const utter = new SpeechSynthesisUtterance(String(text).slice(0, 1200));
+      utter.lang = "bn-BD";
+      try { const voices = synth.getVoices() || []; const bn = voices.find((v) => /^bn/i.test(v.lang || "")); if (bn) utter.voice = bn; else if (!voices.length) utter.lang = "bn-BD"; } catch (_) {}
+      utter.rate = 0.95; utter.pitch = 1;
+      utter.onerror = () => { toast("বাংলা voice পাওয়া যায়নি; তোমার ফোনে Bengali TTS চালু আছে কি না দেখো।"); stopSpeaking(); };
+      utter.onend = () => stopSpeaking();
+      __speakingButton = button;
+      button.dataset.speakLabel = button.textContent;
+      button.textContent = "⏹ থামাও";
+      synth.cancel();
+      synth.speak(utter);
+    }
     function explanationParagraph(exp) {
       if (!exp) return "";
       if (typeof exp.explanation === "string" && exp.explanation.trim()) return exp.explanation.trim();
@@ -904,7 +926,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
       const correctIndex = Number.isInteger(Number(question.correctIndex)) ? Number(question.correctIndex) : options.findIndex(option => String(option) === String(question.correct));
       const optionRows = options.map((option, index) => { const isCorrect = index === correctIndex; const isWrong = index === selectedIndex && !isCorrect; return `<div class="result-option ${isCorrect ? 'is-correct' : ''} ${isWrong ? 'is-wrong' : ''}"><span class="result-option-letter">${String.fromCharCode(65 + index)}.</span><span class="result-option-text">${esc(option)}</span>${isCorrect ? '<span class="result-option-note">✓ সঠিক</span>' : isWrong ? '<span class="result-option-note wrong-note">✕ তোমার উত্তর</span>' : ''}</div>`; }).join('');
       const chips = `<div class="result-chips"><span>${esc(question.subject)}</span><span>${esc(question.topic)}</span><span>Difficulty: ${esc(question.difficulty)}</span>${question.time ? `<span>সময়: ${Math.round(question.time)}s</span>` : ''}</div>`;
-      const explanationBlock = state.busyQuestions.has(question.id) ? `<div class="result-explanation result-explanation-loading"><b>AI ব্যাখ্যা তৈরি হচ্ছে…</b><div>প্রয়োজনে Google-এ তথ্য মিলিয়ে নিয়ে সংক্ষিপ্ত ব্যাখ্যা সাজানো হচ্ছে।</div></div>` : explanation ? `<div class="result-explanation"><b>💡 AI ব্যাখ্যা</b><p class="result-explanation-text">${esc(explanationParagraph(explanation))}</p><button class="result-action" data-action="regenerate" data-id="${esc(question.id)}">↻ আবার explanation তৈরি করুন</button></div>` : state.explanationErrors[question.id] ? `<div class="result-explanation result-explanation-error"><b>Live AI explanation পাওয়া যায়নি।</b><div>${esc(state.explanationErrors[question.id])} তোমার উত্তর ও সঠিক উত্তর ঠিক আছে; পরে আবার চেষ্টা করা যাবে।</div></div>` : '';
+      const explanationBlock = state.busyQuestions.has(question.id) ? `<div class="result-explanation result-explanation-loading"><b>AI ব্যাখ্যা তৈরি হচ্ছে…</b><div>প্রয়োজনে Google-এ তথ্য মিলিয়ে নিয়ে সংক্ষিপ্ত ব্যাখ্যা সাজানো হচ্ছে।</div></div>` : explanation ? `<div class="result-explanation"><b>💡 AI ব্যাখ্যা</b><p class="result-explanation-text">${esc(explanationParagraph(explanation))}</p><div class="result-actions" style="margin-top:9px"><button class="result-action" data-action="speak" data-id="${esc(question.id)}">🔊 শুনো</button><button class="result-action" data-action="regenerate" data-id="${esc(question.id)}">↻ আবার explanation তৈরি করুন</button></div></div>` : state.explanationErrors[question.id] ? `<div class="result-explanation result-explanation-error"><b>Live AI explanation পাওয়া যায়নি।</b><div>${esc(state.explanationErrors[question.id])} তোমার উত্তর ও সঠিক উত্তর ঠিক আছে; পরে আবার চেষ্টা করা যাবে।</div></div>` : '';
       return `<article class="result-review-card wrong result-review-expanded ${state.busyQuestions.has(question.id) ? 'is-explaining' : ''}" data-question-id="${esc(question.id)}" tabindex="0" aria-expanded="true"><div class="result-review-head"><span class="result-q-number">প্রশ্ন ${esc(question.number || question.id)} · ${esc(question.topic)}</span><strong class="result-status wrong">🔴 ভুল উত্তর</strong></div><h3 class="result-question">${esc(question.prompt)}</h3>${chips}<div class="result-options">${optionRows}</div><div class="result-answer-line"><b>তোমার উত্তর:</b> ${esc(question.selected || 'উত্তর দেওয়া হয়নি')} · <b>সঠিক উত্তর:</b> ${esc(question.correct || 'তথ্য নেই')}</div>${explanationBlock}<div class="result-actions"><label class="result-question-select"><input class="question-check" type="checkbox" aria-label="Select ${esc(question.id)}" data-question-check="${esc(question.id)}" ${state.selectedQuestions.has(question.id) ? 'checked' : ''}> <span>AI batch-এ রাখো</span></label><button class="result-action primary explain-button" data-action="explain" data-id="${esc(question.id)}">✨ AI ব্যাখ্যা ও মনে রাখার কৌশল দেখুন</button></div></article>`;
     }
     function timeEfficiencySvg() {
@@ -1028,6 +1050,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
         if (action === "explain") explainQuestions([actionNode.dataset.id]);
         if (action === "regenerate") explainQuestions([actionNode.dataset.id], true);
         if (action === "explain-all") explainQuestions(state.payload.questions.filter(q => q.status === "wrong").map(q => q.id));
+        if (action === "speak") { const q = state.payload.questions.find((item) => String(item.id) === String(actionNode.dataset.id)); const exp = q ? state.explanationCache[`${q.id}::${q.selected}::2`] : null; const text = exp ? explanationParagraph(exp) : ""; if (!text) { toast("আগে AI ব্যাখ্যা নাও, তারপর শুনতে পারবে।"); return; } speakExplanation(text, actionNode); return; }
         if (action === "memory-tricks") openMemoryTricks();
         if (action === "focus-flash-test") { const ids = focusQuestionIds(); if (!ids.length) { toast("Recommended প্রশ্ন পাওয়া যায়নি।"); return; } if (window.parent !== window) window.parent.postMessage({ type: "admission-hub-ai-flash-test", questionIds: ids }, "*"); else toast("Flash test শুরু হচ্ছে…"); }
         if (action === "explain-selected") explainQuestions([...state.selectedQuestions]);
@@ -1177,7 +1200,7 @@ function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: 
     document.getElementById("saveButton").onclick = async () => { if (state.payload && state.analysis) { await AnalysisStore.save({ analysisId: `analysis-${state.payload.currentExam.id}`, examId: state.payload.currentExam.id, createdAt: new Date().toISOString(), schemaVersion: AI_SCHEMA_VERSION, analysisData: state.analysis, status: "complete", rendererVersion: RENDERER_VERSION }); toast("Analysis saved in this browser."); } };
     loadExplanationCache();
     const backButton = document.querySelector('.topbar .icon-button');
-    if (backButton) backButton.addEventListener('click', () => { if (window.parent !== window) window.parent.postMessage({ type: 'admission-hub-ai-close' }, '*'); else history.back(); });
+    if (backButton) backButton.addEventListener('click', () => { try { stopSpeaking(); } catch (_) {} if (window.parent !== window) window.parent.postMessage({ type: 'admission-hub-ai-close' }, '*'); else history.back(); });
     bootLiveAnalysis();
   </script>
 </body>
