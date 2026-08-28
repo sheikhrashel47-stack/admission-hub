@@ -529,6 +529,14 @@ textarea{min-height:96px}
   if (window.__ahCrashWatch) return;
   window.__ahCrashWatch = true;
   let pill = null;
+  const trace = (tag, detail) => {
+    try {
+      const list = JSON.parse(localStorage.getItem('ah-trace') || '[]');
+      list.push([Date.now(), tag, String(detail || '').slice(0, 100)]);
+      localStorage.setItem('ah-trace', JSON.stringify(list.slice(-12)));
+    } catch (_) {}
+  };
+  window.__ahTrace = trace;
   const show = (kind, message) => {
     try {
       message = String(message == null ? '' : message).slice(0, 400);
@@ -554,8 +562,20 @@ textarea{min-height:96px}
       if (document.body) mount(); else document.addEventListener('DOMContentLoaded', mount, { once: true });
     } catch (_) {}
   };
-  window.addEventListener('error', (e) => { if (e && (e.message || e.error)) show('Error', e.message || (e.error && e.error.message) || ''); });
-  window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; if (r) show('Crash', (r && r.message) || String(r)); });
+  window.addEventListener('error', (e) => { if (e && (e.message || e.error)) { show('Error', e.message || (e.error && e.error.message) || ''); trace('err', e.message || ''); } });
+  window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; if (r) { show('Crash', (r && r.message) || String(r)); trace('reject', (r && r.message) || String(r)); } });
+  window.addEventListener('hashchange', () => trace('route', location.hash));
+  const mountBadge = () => {
+    try {
+      if (!document.body || document.getElementById('ahBuildBadge')) return;
+      const badge = document.createElement('div');
+      badge.id = 'ahBuildBadge';
+      badge.style.cssText = 'position:fixed;right:12px;bottom:84px;z-index:99998;font:700 10px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;color:#37507a;background:rgba(255,255,255,.72);border:1px solid rgba(30,60,120,.14);border-radius:9px;padding:3px 8px;pointer-events:none;letter-spacing:.5px;box-shadow:0 2px 8px rgba(20,40,90,.10)';
+      badge.textContent = 'AH v93';
+      document.body.appendChild(badge);
+    } catch (_) {}
+  };
+  if (document.body) mountBadge(); else document.addEventListener('DOMContentLoaded', mountBadge, { once: true });
 })();
 </script>
 </head>
@@ -5346,7 +5366,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
 <script src="notes-tool.js?v=dashboard-notes-v9-compact-pages"></script>
-<script src="deleted-questions.js?v=trash2-safe"></script>
+<script src="deleted-questions.js?v=trash3-watchdog"></script>
 <script src="manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816"></script>
 <script src="nav-resume-fix.js?v=1"></script>
 <script src="mistake-note-icon.js?v=15"></script>

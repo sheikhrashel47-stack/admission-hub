@@ -56,8 +56,26 @@
   };
 
   let trashRenderSeq = 0;
+  let trashWatchdog = 0;
+  const clearWatchdog = () => { if (trashWatchdog) { clearTimeout(trashWatchdog); trashWatchdog = 0; } };
   window.renderDeletedQuestions = async () => {
     const seq = ++trashRenderSeq;
+    clearWatchdog();
+    trashWatchdog = setTimeout(() => {
+      if (trashRenderSeq !== seq) return;
+      if (typeof Router === 'undefined' || Router.path !== 'deleted-questions') return;
+      const app = document.getElementById('app');
+      if (!app || app.querySelector('.deleted-questions-page')) return;
+      const diag = [];
+      try { diag.push('storage=' + (typeof STORAGE_MODE !== 'undefined' ? STORAGE_MODE : '?')); } catch (_) {}
+      try { diag.push('db=' + (typeof DB !== 'undefined' && DB ? 'open' : 'null')); } catch (_) {}
+      const fb = window.__admissionStorageFallback;
+      if (fb && fb.active) diag.push('fallback=' + String(fb.error || 'active').slice(0, 120));
+      try { diag.push('trace=' + (JSON.parse(localStorage.getItem('ah-trace') || '[]').map(x => x[1]).join('>'))); } catch (_) {}
+      try {
+        renderShell(`<div class="deleted-questions-page"><div class="deleted-questions-empty"><div>⏳</div><h2>Trash খুলতে বেশি সময় নিচ্ছে</h2><p>ডেটা পড়া কোথাও আটকে আছে — অ্যাপ বন্ধ করে আবার খুলো। নিচের তথ্যটা স্ক্রিনশটে পাঠালে সমস্যা ধরা সহজ হবে।</p><p style="margin-top:8px;color:#b3261e;font-size:11px;overflow-wrap:anywhere">${qEsc(diag.join(' | ') || 'কোনো তথ্য নেই')}</p></div></div>`, { title: 'Deleted Questions', back: "navigate('dashboard')" });
+      } catch (_) {}
+    }, 3500);
     try {
     const rows = (await getDeleted()).slice().sort((a, b) => Number(b.deletedAt || 0) - Number(a.deletedAt || 0));
     const content = rows.length ? `
@@ -65,17 +83,21 @@
       <div class="deleted-questions-list">${rows.map(questionCard).join('')}</div>` : `
       <div class="deleted-questions-empty"><div>🗑️</div><h2>Trash খালি</h2><p>Question Bank থেকে মুছে ফেলা প্রশ্নগুলো এখানে আসবে। এখান থেকে ডিলিট করলে সেগুলো চিরতরে মুছে যাবে।</p></div>`;
     if (seq !== trashRenderSeq) return;
+    clearWatchdog();
     renderShell(`<div class="deleted-questions-page">
       <div class="deleted-questions-hero"><div class="explorer-kicker">QUESTION MANAGEMENT</div><h1>Deleted Questions</h1><p>মুছে ফেলা প্রশ্নগুলো আগে এখানে থাকবে। এখান থেকে Delete করলে আর ফেরত আনা যাবে না।</p></div>
       ${content}
     </div>`, { title: 'Deleted Questions', back: "navigate('dashboard')" });
     } catch (error) {
       console.error('[DeletedQuestions] render failed', error);
+      clearWatchdog();
       if (seq !== trashRenderSeq) return;
       const message = String((error && error.message) || error || 'অজানা সমস্যা');
       try {
         renderShell(`<div class="deleted-questions-page"><div class="deleted-questions-empty"><div>🗑️</div><h2>Trash এখনো খোলা যাচ্ছে না</h2><p>ডেটা পড়া যায়নি — অ্যাপ বন্ধ করে আবার খুলে চেষ্টা করো।</p><p style="margin-top:8px;color:#b3261e;font-size:11px;overflow-wrap:anywhere">${qEsc(message)}</p></div></div>`, { title: 'Deleted Questions', back: "navigate('dashboard')" });
-      } catch (_) {}
+      } catch (_) {
+        try { const app2 = document.getElementById('app'); if (app2) app2.innerHTML = '<main style="padding:46px 18px;text-align:center;font:600 15px/1.6 -apple-system,BlinkMacSystemFont,sans-serif;color:#7f1d1d">Trash খোলা যাচ্ছে না — অ্যাপ বন্ধ করে আবার খুলো<br><small style="color:#b3261e;font-size:11px;overflow-wrap:anywhere">' + qEsc(message) + '</small></main>'; } catch (_) {}
+      }
     }
   };
 
