@@ -1,9 +1,9 @@
-/* Daily Streak card â dashboard-only, live read from existing activity data. */
+/* Daily Streak card — dashboard-only, live read from existing activity data. */
 (() => {
   'use strict';
 
   const CARD_SELECTOR = '[data-daily-streak-card]';
-  const DAY_LABELS = ['à¦°à¦¬à¦¿', 'à¦¸à§à¦®', 'à¦®à¦à§à¦à¦²', 'à¦¬à§à¦§', 'à¦¬à§à¦¹', 'à¦¶à§à¦à§à¦°', 'à¦¶à¦¨à¦¿'];
+  const DAY_LABELS = ['রবি', 'সোম', 'মঙ্গল', 'বুধ', 'বৃহ', 'শুক্র', 'শনি'];
   const cache = () => typeof CACHE !== 'undefined' ? CACHE : (window.CACHE || {});
   const route = () => String((window.Router && Router.path) || location.hash.replace(/^#\/?/, '').split('?')[0] || 'dashboard');
   const keyOf = value => {
@@ -69,19 +69,19 @@
       const key = keyOf(date);
       return { key, label: DAY_LABELS[date.getDay()], active: days.has(key), today: key === today };
     });
-    const message = streak > 0 ? (streak >= 3 ? 'à¦¦à¦¾à¦°à§à¦£! à¦à¦ à¦§à¦¾à¦°à¦¾à¦¬à¦¾à¦¹à¦¿à¦à¦¤à¦¾ à¦§à¦°à§ à¦°à¦¾à¦à§à¦¨' : 'à¦à¦à¦à§à¦° session à¦à¦¾à¦²à¦¿à§à§ à¦¯à¦¾à¦¨') : (days.has(yesterday) ? 'à¦¶à§à¦· à¦¸à§à¦¯à§à¦! à¦à¦ practice à¦à¦°à§à¦¨' : 'à¦à¦à¦à§à¦° streak à¦¶à§à¦°à§ à¦à¦°à§à¦¨');
+    const message = streak > 0 ? (streak >= 3 ? 'দারুণ! এই ধারাবাহিকতা ধরে রাখুন' : 'আজকের session চালিয়ে যান') : (days.has(yesterday) ? 'শেষ সুযোগ! আজ practice করুন' : 'আজকের streak শুরু করুন');
     return { days, today, week, streak, best: bestStreak(days), questions, goal, percent: Math.min(100, Math.round(questions / goal * 100)), message };
   }
 
   const flame = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13.2 2.5c.4 3-1.2 4.2-2.4 5.7-1 1.2-1.3 2.4-.5 3.6.4.6 1 .9 1.8.9-.2-1.2.2-2.2 1.3-3.1 2.2 1.2 3.6 3.4 3.6 6 0 4-2.9 6.9-6.8 6.9S3.4 20 3.4 16.2c0-2.5 1.2-4.7 3.2-6.7-.2 1.9.5 3.1 1.4 3.8-.1-2.7 1.2-4.8 2.7-6.7 1.2-1.5 2.3-2.9 2.5-4.1Z" fill="currentColor"/></svg>';
 
   function cardHtml(data) {
-    const markers = data.week.map(day => `<div class="ah-streak-day ${day.active ? 'is-active' : ''} ${day.today ? 'is-today' : ''}" data-streak-day="${day.key}"><span>${day.label}</span><b>${day.active ? 'â' : ''}</b></div>`).join('');
+    const markers = data.week.map(day => `<div class="ah-streak-day ${day.active ? 'is-active' : ''} ${day.today ? 'is-today' : ''}" data-streak-day="${day.key}"><span>${day.label}</span><b>${day.active ? '✓' : ''}</b></div>`).join('');
     return `<section class="ah-streak-card" data-daily-streak-card aria-label="Daily streak">
       <div class="ah-streak-glow ah-streak-glow-one"></div><div class="ah-streak-glow ah-streak-glow-two"></div>
       <div class="ah-streak-content">
         <div class="ah-streak-kicker"><span class="ah-streak-flame">${flame}</span><span>DAILY STREAK</span><i>LIVE</i></div>
-        <div class="ah-streak-value"><strong data-streak-value>${data.streak}</strong><span>à¦¦à¦¿à¦¨</span></div>
+        <div class="ah-streak-value"><strong data-streak-value>${data.streak}</strong><span>দিন</span></div>
         <p class="ah-streak-message" data-streak-message>${data.message}</p>
         <div class="ah-streak-days" data-streak-days>${markers}</div>
       </div>
@@ -89,7 +89,7 @@
         <div class="ah-streak-orbit"></div><div class="ah-streak-orbit ah-streak-orbit-two"></div>
         <div class="ah-streak-mascot"><span class="ah-streak-ear left"></span><span class="ah-streak-ear right"></span><span class="ah-streak-body"></span><span class="ah-streak-eye left"></span><span class="ah-streak-eye right"></span><span class="ah-streak-beak"></span><span class="ah-streak-wing left"></span><span class="ah-streak-wing right"></span><span class="ah-streak-shadow"></span></div>
       </div>
-      <div class="ah-streak-foot"><span data-streak-status>${data.questions >= data.goal ? 'à¦à¦à¦à§à¦° à¦²à¦à§à¦·à§à¦¯ à¦ªà§à¦°à§à¦£ â' : `${data.questions}/${data.goal} MCQ à¦à¦`}</span><span data-streak-best>à¦¸à§à¦°à¦¾ ${data.best} à¦¦à¦¿à¦¨</span></div>
+      <div class="ah-streak-foot"><span data-streak-status>${data.questions >= data.goal ? 'আজকের লক্ষ্য পূর্ণ ✓' : `${data.questions}/${data.goal} MCQ আজ`}</span><span data-streak-best>সেরা ${data.best} দিন</span></div>
     </section>`;
   }
 
@@ -112,14 +112,14 @@
     const best = card.querySelector('[data-streak-best]');
     if (value) value.textContent = data.streak;
     if (message) message.textContent = data.message;
-    if (status) status.textContent = data.questions >= data.goal ? 'à¦à¦à¦à§à¦° à¦²à¦à§à¦·à§à¦¯ à¦ªà§à¦°à§à¦£ â' : `${data.questions}/${data.goal} MCQ à¦à¦`;
-    if (best) best.textContent = `à¦¸à§à¦°à¦¾ ${data.best} à¦¦à¦¿à¦¨`;
+    if (status) status.textContent = data.questions >= data.goal ? 'আজকের লক্ষ্য পূর্ণ ✓' : `${data.questions}/${data.goal} MCQ আজ`;
+    if (best) best.textContent = `সেরা ${data.best} দিন`;
     card.querySelectorAll('[data-streak-day]').forEach(node => {
       const day = data.week.find(item => item.key === node.dataset.streakDay);
       node.classList.toggle('is-active', Boolean(day?.active));
       node.classList.toggle('is-today', Boolean(day?.today));
       const mark = node.querySelector('b');
-      if (mark) mark.textContent = day?.active ? 'â' : '';
+      if (mark) mark.textContent = day?.active ? '✓' : '';
     });
   }
 
