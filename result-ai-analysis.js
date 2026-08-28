@@ -243,7 +243,7 @@
     } catch (_) {}
     const overlay = document.createElement('div');
     overlay.className = 'result-ai-fullscreen';
-    overlay.innerHTML = `<iframe title="Admission Hub AI Performance Analysis" src="./ai-performance-analysis-live.html?v=live-tool-v7-flashlink" loading="eager"></iframe>`;
+    overlay.innerHTML = `<iframe title="Admission Hub AI Performance Analysis" src="./ai-performance-analysis-live.html?v=live-tool-v8-waitquiz" loading="eager"></iframe>`;
     document.body.appendChild(overlay);
     const close = () => { overlay.remove(); try { sessionStorage.removeItem('admission-hub-ai-live-input'); sessionStorage.removeItem('admission-hub-ai-live-cached-analysis'); } catch (_) {} };
     window.addEventListener('message', (event) => { if (event.source === overlay.querySelector('iframe')?.contentWindow && event.data?.type === 'admission-hub-ai-close') close(); }, { once: true });
