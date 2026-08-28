@@ -98,4 +98,37 @@
   }
 
   window.DailyStreakCard = { html };
+
+  /* Auto-injector: phase3-সহ যে কোনো dashboard renderer-এর পরেও কার্ড উপরে থাকবে। */
+  let rafPending = false;
+  function scheduleEnsure() { if (rafPending) return; rafPending = true; requestAnimationFrame(() => { rafPending = false; try { ensureInjected(); } catch (_) {} }); }
+  function isDashboardRoute() {
+    try { if (window.Router && typeof window.Router.path === 'string') return window.Router.path === '' || window.Router.path === 'dashboard'; } catch (_) {}
+    const h = String(location.hash || '').replace(/^#\/?/, '').split('?')[0];
+    return h === '' || h === 'dashboard';
+  }
+  function ensureInjected() {
+    if (!isDashboardRoute()) {
+      const stray = document.getElementById('dailyStreakCard');
+      if (stray && !stray.closest('.fade-in')) stray.remove();
+      return;
+    }
+    const p3 = document.querySelector('#app [data-p3-command]');
+    if (!p3) return; /* phase3 নেই → মূল টেমপ্লেটের কার্ডই দৃশ্যমান */
+    const existing = document.getElementById('dailyStreakCard');
+    if (existing && existing.parentElement === p3 && p3.firstElementChild === existing) return;
+    if (existing) existing.remove();
+    p3.insertAdjacentHTML('afterbegin', html());
+  }
+  function startObserver() {
+    if (window.__dscObserver) return;
+    const app = document.getElementById('app');
+    if (!app) { setTimeout(startObserver, 500); return; }
+    window.__dscObserver = new MutationObserver(scheduleEnsure);
+    window.__dscObserver.observe(app, { childList: true, subtree: true });
+    window.addEventListener('hashchange', scheduleEnsure);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleEnsure(); });
+    scheduleEnsure();
+  }
+  setTimeout(startObserver, 1200);
 })();
