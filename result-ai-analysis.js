@@ -88,7 +88,6 @@
   const historyOf = (result) => (cache().examResults || [])
     .filter((item) => String(item?.id || '') !== resultId(result) && item?.status !== 'running' && item?.status !== 'incomplete' && item?.status !== 'abandoned')
     .sort((a, b) => dateOf(b) - dateOf(a))
-    .slice(0, 8)
     .reverse()
     .map((item) => {
       const metrics = metricsOf(item);
@@ -119,6 +118,7 @@
         ...metrics
       },
       previousResults: historyOf(result),
+      lifetime: (() => { const rows = (cache().examResults || []).filter((item) => item?.status !== 'running' && item?.status !== 'incomplete' && item?.status !== 'abandoned'); const n = rows.length; if (!n) return null; const sum = (fn) => rows.reduce((acc, row) => acc + number(fn(row)), 0); return { exams: n, totalQuestions: round(sum((item) => metricsOf(item).total)), avgScore: round(sum((item) => metricsOf(item).score) / n), avgAccuracy: round(sum((item) => metricsOf(item).accuracy) / n, 1), totalNegative: round(sum((item) => item?.negativeMarks ?? item?.negative ?? 0)) }; })(),
       subjectPerformance: breakdown(result, 'subject').sort((a, b) => b.total - a.total).slice(0, 12),
       topicPerformance: breakdown(result, 'topic').sort((a, b) => (b.wrong + b.skipped) - (a.wrong + a.skipped)).slice(0, 20),
       questions: snapshot(result).map((row, index) => {
@@ -138,7 +138,7 @@
       }),
       constraints: {
         dailyAiAnalysisLimit: 10,
-        explanationStyle: 'সহজ, সরাসরি, স্বাভাবিক, শিক্ষকের মতো বাংলা; কোনো guarantee নয়',
+        explanationStyle: 'সহজ, সরাসরি, স্বাভাবিক, শিক্ষকের মতো বাংলা; কোনো guarantee নয়',
         doNotInventNumbers: true,
         apiKeyInFrontend: false
       }
@@ -170,8 +170,8 @@
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const status = String(data.status || '').toLowerCase();
-      if (status === 'completed') return String(data.analysis || data.result || data.text || 'Analysis response পাওয়া যায়নি।');
-      if (['failed', 'cancelled'].includes(status)) throw new Error('AI run সম্পন্ন হয়নি');
+      if (status === 'completed') return String(data.analysis || data.result || data.text || 'Analysis response পাওয়া যায়নি।');
+      if (['failed', 'cancelled'].includes(status)) throw new Error('AI run সম্পন্ন হয়নি');
       onProgress?.(status || 'running');
       await new Promise(resolve => setTimeout(resolve, 2500));
     }
@@ -190,7 +190,7 @@
   const toneClass = (tone) => ['strong', 'watch', 'focus'].includes(String(tone)) ? String(tone) : 'watch';
   function renderStructuredAnalysis(host, text, payload) {
     const data = parseAnalysis(text);
-    if (!data) { host.innerHTML = `<div class="result-ai-fallback">${safe(text || 'Analysis response পাওয়া যায়নি।')}</div>`; host.classList.add('open'); return; }
+    if (!data) { host.innerHTML = `<div class="result-ai-fallback">${safe(text || 'Analysis response পাওয়া যায়নি।')}</div>`; host.classList.add('open'); return; }
     const result = payload?.result || {};
     const previous = Array.isArray(payload?.previousResults) ? payload.previousResults : [];
     const trend = [...previous, { ...result, date: result.completedAt || 'বর্তমান' }].slice(-8);
@@ -202,7 +202,7 @@
     const strengths = textList(data.strengths);
     const weaknesses = textList(data.weaknesses);
     const insights = Array.isArray(data.visualInsights) ? data.visualInsights.slice(0, 8) : [];
-    host.innerHTML = `<div class="result-ai-rich"><div class="result-ai-rich-hero"><div class="result-ai-rich-kicker">Personal performance briefing</div><h3>${safe(data.headline || 'তোমার ফলাফলের বিশ্লেষণ')}</h3><p style="margin-top:8px">${safe(data.summary || 'ফলাফলটি ধাপে ধাপে দেখে উন্নতির জায়গা চিহ্নিত করা হয়েছে।')}</p></div><div class="result-ai-rich-metrics"><div class="result-ai-rich-metric"><b>${number(result.score).toFixed(2)}</b><span>নেট স্কোর</span></div><div class="result-ai-rich-metric"><b>${number(result.accuracy).toFixed(1)}%</b><span>নির্ভুলতা</span></div><div class="result-ai-rich-metric"><b>${number(result.correct)}/${number(result.total)}</b><span>সঠিক</span></div><div class="result-ai-rich-metric"><b>${number(result.negative).toFixed(2)}</b><span>নেগেটিভ</span></div></div><div class="result-ai-rich-card"><div class="result-ai-rich-head"><h4>স্কোরের যাত্রা</h4><span class="result-ai-rich-badge">বর্তমান বনাম আগের পরীক্ষা</span></div><div class="result-ai-trend">${trendHtml}</div></div><div class="result-ai-rich-card"><div class="result-ai-rich-head"><h4>বিষয়ভিত্তিক শক্তি</h4><span class="result-ai-rich-badge">Verified local data</span></div>${bars(subjects)}</div><div class="result-ai-rich-card"><div class="result-ai-rich-head"><h4>Topic focus map</h4><span class="result-ai-rich-badge">Revision priority</span></div>${bars(topics)}</div>${insights.length ? `<div class="result-ai-rich-card"><h4>দ্রুত visual insights</h4><div class="result-ai-insights">${insights.map((item) => `<div class="result-ai-insight"><b>${safe(item.label || 'Insight')}</b>${safe(item.value || '')}</div>`).join('')}</div></div>` : ''}<div class="result-ai-rich-card"><h4>যা ভালো হয়েছে</h4>${strengths.length ? `<ul class="result-ai-list">${strengths.map((item) => `<li>${safe(item)}</li>`).join('')}</ul>` : '<p>Strength পাওয়া যায়নি।</p>'}</div><div class="result-ai-rich-card"><h4>যেখানে কাজ দরকার</h4>${weaknesses.length ? `<ul class="result-ai-list weak">${weaknesses.map((item) => `<li>${safe(item)}</li>`).join('')}</ul>` : '<p>Weakness পাওয়া যায়নি।</p>'}</div><div class="result-ai-rich-card"><h4>ভুলের ধরন ও target advice</h4><p>${safe(data.mistakePattern || 'ভুলের pattern এখনো পাওয়া যায়নি।')}</p><p style="margin-top:9px"><b>পরের লক্ষ্য:</b> ${safe(data.targetAdvice || 'ভুল কমিয়ে নির্ভুলতা বাড়ানোর দিকে মন দাও।')}</p></div><div class="result-ai-rich-card"><div class="result-ai-tabs"><button class="result-ai-tab active" type="button" data-ai-tab="day1">১ দিন</button><button class="result-ai-tab" type="button" data-ai-tab="day3">৩ দিন</button><button class="result-ai-tab" type="button" data-ai-tab="day7">৭ দিন</button></div><div class="result-ai-plan active" data-ai-plan="day1"><h4>আজকের plan</h4><p>${safe(data.plan1Day || 'আজ ভুলগুলোর কারণ দেখে ছোট practice session দাও।')}</p></div><div class="result-ai-plan" data-ai-plan="day3"><h4>৩ দিনের plan</h4><p>${safe(data.plan3Days || 'তিন দিনে দুর্বল topic revise করে timed practice দাও।')}</p></div><div class="result-ai-plan" data-ai-plan="day7"><h4>৭ দিনের plan</h4><p>${safe(data.plan7Days || 'সপ্তাহ শেষে পূর্ণাঙ্গ পরীক্ষা দিয়ে আবার তুলনা করো।')}</p></div></div><div class="result-ai-rich-card"><h4>বন্ধুর মতো শেষ কথা</h4><p>${safe(data.motivation || 'ধারাবাহিক practice করলে উন্নতি সম্ভব।')}</p></div></div>`;
+    host.innerHTML = `<div class="result-ai-rich"><div class="result-ai-rich-hero"><div class="result-ai-rich-kicker">Personal performance briefing</div><h3>${safe(data.headline || 'তোমার ফলাফলের বিশ্লেষণ')}</h3><p style="margin-top:8px">${safe(data.summary || 'ফলাফলটি ধাপে ধাপে দেখে উন্নতির জায়গা চিহ্নিত করা হয়েছে।')}</p></div><div class="result-ai-rich-metrics"><div class="result-ai-rich-metric"><b>${number(result.score).toFixed(2)}</b><span>নেট স্কোর</span></div><div class="result-ai-rich-metric"><b>${number(result.accuracy).toFixed(1)}%</b><span>নির্ভুলতা</span></div><div class="result-ai-rich-metric"><b>${number(result.correct)}/${number(result.total)}</b><span>সঠিক</span></div><div class="result-ai-rich-metric"><b>${number(result.negative).toFixed(2)}</b><span>নেগেটিভ</span></div></div><div class="result-ai-rich-card"><div class="result-ai-rich-head"><h4>স্কোরের যাত্রা</h4><span class="result-ai-rich-badge">বর্তমান বনাম আগের পরীক্ষা</span></div><div class="result-ai-trend">${trendHtml}</div></div><div class="result-ai-rich-card"><div class="result-ai-rich-head"><h4>বিষয়ভিত্তিক শক্তি</h4><span class="result-ai-rich-badge">Verified local data</span></div>${bars(subjects)}</div><div class="result-ai-rich-card"><div class="result-ai-rich-head"><h4>Topic focus map</h4><span class="result-ai-rich-badge">Revision priority</span></div>${bars(topics)}</div>${insights.length ? `<div class="result-ai-rich-card"><h4>দ্রুত visual insights</h4><div class="result-ai-insights">${insights.map((item) => `<div class="result-ai-insight"><b>${safe(item.label || 'Insight')}</b>${safe(item.value || '')}</div>`).join('')}</div></div>` : ''}<div class="result-ai-rich-card"><h4>যা ভালো হয়েছে</h4>${strengths.length ? `<ul class="result-ai-list">${strengths.map((item) => `<li>${safe(item)}</li>`).join('')}</ul>` : '<p>Strength পাওয়া যায়নি।</p>'}</div><div class="result-ai-rich-card"><h4>যেখানে কাজ দরকার</h4>${weaknesses.length ? `<ul class="result-ai-list weak">${weaknesses.map((item) => `<li>${safe(item)}</li>`).join('')}</ul>` : '<p>Weakness পাওয়া যায়নি।</p>'}</div><div class="result-ai-rich-card"><h4>ভুলের ধরন ও target advice</h4><p>${safe(data.mistakePattern || 'ভুলের pattern এখনো পাওয়া যায়নি।')}</p><p style="margin-top:9px"><b>পরের লক্ষ্য:</b> ${safe(data.targetAdvice || 'ভুল কমিয়ে নির্ভুলতা বাড়ানোর দিকে মন দাও।')}</p></div><div class="result-ai-rich-card"><div class="result-ai-tabs"><button class="result-ai-tab active" type="button" data-ai-tab="day1">১ দিন</button><button class="result-ai-tab" type="button" data-ai-tab="day3">৩ দিন</button><button class="result-ai-tab" type="button" data-ai-tab="day7">৭ দিন</button></div><div class="result-ai-plan active" data-ai-plan="day1"><h4>আজকের plan</h4><p>${safe(data.plan1Day || 'আজ ভুলগুলোর কারণ দেখে ছোট practice session দাও।')}</p></div><div class="result-ai-plan" data-ai-plan="day3"><h4>৩ দিনের plan</h4><p>${safe(data.plan3Days || 'তিন দিনে দুর্বল topic revise করে timed practice দাও।')}</p></div><div class="result-ai-plan" data-ai-plan="day7"><h4>৭ দিনের plan</h4><p>${safe(data.plan7Days || 'সপ্তাহ শেষে পূর্ণাঙ্গ পরীক্ষা দিয়ে আবার তুলনা করো।')}</p></div></div><div class="result-ai-rich-card"><h4>বন্ধুর মতো শেষ কথা</h4><p>${safe(data.motivation || 'ধারাবাহিক practice করলে উন্নতি সম্ভব।')}</p></div></div>`;
     host.classList.add('open');
     host.querySelectorAll('[data-ai-tab]').forEach((tab) => tab.addEventListener('click', () => {
       host.querySelectorAll('[data-ai-tab]').forEach((item) => item.classList.toggle('active', item === tab));
@@ -243,7 +243,7 @@
     } catch (_) {}
     const overlay = document.createElement('div');
     overlay.className = 'result-ai-fullscreen';
-    overlay.innerHTML = `<iframe title="Admission Hub AI Performance Analysis" src="./ai-performance-analysis-live.html?v=live-tool-v5-liveflowfix" loading="eager"></iframe>`;
+    overlay.innerHTML = `<iframe title="Admission Hub AI Performance Analysis" src="./ai-performance-analysis-live.html?v=live-tool-v6-explainplus" loading="eager"></iframe>`;
     document.body.appendChild(overlay);
     const close = () => { overlay.remove(); try { sessionStorage.removeItem('admission-hub-ai-live-input'); sessionStorage.removeItem('admission-hub-ai-live-cached-analysis'); } catch (_) {} };
     window.addEventListener('message', (event) => { if (event.source === overlay.querySelector('iframe')?.contentWindow && event.data?.type === 'admission-hub-ai-close') close(); }, { once: true });
@@ -258,7 +258,7 @@
     const cachedAnalysis = readCachedAnalysis(cacheKey);
     const overlay = document.createElement('div');
     overlay.className = 'result-ai-overlay';
-    overlay.innerHTML = `<section class="result-ai-modal" role="dialog" aria-modal="true" aria-label="AI Result Analysis"><div class="result-ai-modal-head"><div><span>ON-DEMAND AI ANALYSIS</span><h2>তোমার ফলাফল বিশ্লেষণ</h2></div><button class="result-ai-close" type="button" aria-label="বন্ধ করুন">×</button></div><div class="result-ai-status"><b>${endpoint ? 'AI connection ready' : 'প্রথম ধাপ প্রস্তুত'}</b><br>${endpoint ? 'Analysis button চাপলে secure endpoint-এ শুধু verified result summary যাবে।' : 'App তোমার result-এর verified summary তৈরি করেছে। এখন secure backend বসলে এখান থেকেই AI analysis নেওয়া যাবে।'}</div><div class="result-ai-metric-grid"><div class="result-ai-metric"><b>${m.score.toFixed(2)}</b><span>নেট স্কোর</span></div><div class="result-ai-metric"><b>${m.accuracy}%</b><span>নির্ভুলতা</span></div><div class="result-ai-metric"><b>${m.correct}/${m.total}</b><span>সঠিক</span></div><div class="result-ai-metric"><b>${m.wrong}</b><span>ভুল</span></div></div><div class="result-ai-turnstile" data-ai-turnstile></div><div class="result-ai-actions"><button type="button" data-ai-generate>${endpoint ? 'AI Analysis তৈরি করুন' : 'Secure setup pending'}</button><button type="button" class="secondary" data-ai-payload>Data summary দেখুন</button></div><pre class="result-ai-payload" data-ai-payload-box></pre><div class="result-ai-live-result" data-ai-live-result></div><p class="result-ai-note">API key কখনো frontend-এ থাকবে না। দিনে সর্বোচ্চ ১০টি নতুন request এবং একই result-এর cached response রাখা হবে।</p></section>`;
+    overlay.innerHTML = `<section class="result-ai-modal" role="dialog" aria-modal="true" aria-label="AI Result Analysis"><div class="result-ai-modal-head"><div><span>ON-DEMAND AI ANALYSIS</span><h2>তোমার ফলাফল বিশ্লেষণ</h2></div><button class="result-ai-close" type="button" aria-label="বন্ধ করুন">×</button></div><div class="result-ai-status"><b>${endpoint ? 'AI connection ready' : 'প্রথম ধাপ প্রস্তুত'}</b><br>${endpoint ? 'Analysis button চাপলে secure endpoint-এ শুধু verified result summary যাবে।' : 'App তোমার result-এর verified summary তৈরি করেছে। এখন secure backend বসলে এখান থেকেই AI analysis নেওয়া যাবে।'}</div><div class="result-ai-metric-grid"><div class="result-ai-metric"><b>${m.score.toFixed(2)}</b><span>নেট স্কোর</span></div><div class="result-ai-metric"><b>${m.accuracy}%</b><span>নির্ভুলতা</span></div><div class="result-ai-metric"><b>${m.correct}/${m.total}</b><span>সঠিক</span></div><div class="result-ai-metric"><b>${m.wrong}</b><span>ভুল</span></div></div><div class="result-ai-turnstile" data-ai-turnstile></div><div class="result-ai-actions"><button type="button" data-ai-generate>${endpoint ? 'AI Analysis তৈরি করুন' : 'Secure setup pending'}</button><button type="button" class="secondary" data-ai-payload>Data summary দেখুন</button></div><pre class="result-ai-payload" data-ai-payload-box></pre><div class="result-ai-live-result" data-ai-live-result></div><p class="result-ai-note">API key কখনো frontend-এ থাকবে না। দিনে সর্বোচ্চ ১০টি নতুন request এবং একই result-এর cached response রাখা হবে।</p></section>`;
     document.body.appendChild(overlay);
     const close = () => closeModal(overlay);
     overlay.querySelector('.result-ai-close').addEventListener('click', close);
@@ -289,11 +289,11 @@
             action: 'result_analysis',
             callback: (token) => { turnstileToken = String(token || ''); generateButton.disabled = !turnstileToken; },
             'expired-callback': () => { turnstileToken = ''; generateButton.disabled = true; },
-            'error-callback': () => { turnstileToken = ''; generateButton.disabled = true; turnstileBox.textContent = 'Human verification পাওয়া যায়নি। আবার চেষ্টা করো।'; }
+            'error-callback': () => { turnstileToken = ''; generateButton.disabled = true; turnstileBox.textContent = 'Human verification পাওয়া যায়নি। আবার চেষ্টা করো।'; }
           });
           generateButton.disabled = true;
         }).catch(() => {
-          turnstileBox.textContent = 'Human verification লোড হয়নি। পরে আবার চেষ্টা করো।';
+          turnstileBox.textContent = 'Human verification লোড হয়নি। পরে আবার চেষ্টা করো।';
           generateButton.disabled = true;
         });
       }
@@ -302,7 +302,7 @@
       const button = event.currentTarget;
       if (cachedAnalysis) { live.textContent = cachedAnalysis; live.classList.add('open'); return; }
       if (!endpoint) {
-        live.textContent = 'AI Analysis চালু করার আগে secure backend endpoint সেট করতে হবে। এই ধাপে কোনো API key app-এ রাখা হয়নি।';
+        live.textContent = 'AI Analysis চালু করার আগে secure backend endpoint সেট করতে হবে। এই ধাপে কোনো API key app-এ রাখা হয়নি।';
         live.classList.add('open');
         return;
       }
@@ -316,12 +316,12 @@
       try {
         const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, turnstileToken }) });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) { if (response.status === 429) throw new Error('আজকের ১০টি নতুন analysis-এর সীমা পূর্ণ হয়েছে। Cached report থাকলে সেটি দেখা যাবে।'); throw new Error(data.error || `HTTP ${response.status}`); }
-        const text = data.analysis || data.result || data.text || (data.runId ? await waitForRun(endpoint, data.runId, (status) => { button.textContent = status === 'queued' ? 'Queue-তে আছে…' : 'Analysis তৈরি হচ্ছে…'; }) : 'Analysis response পাওয়া যায়নি।');
+        if (!response.ok) { if (response.status === 429) throw new Error('আজকের ১০টি নতুন analysis-এর সীমা পূর্ণ হয়েছে। Cached report থাকলে সেটি দেখা যাবে।'); throw new Error(data.error || `HTTP ${response.status}`); }
+        const text = data.analysis || data.result || data.text || (data.runId ? await waitForRun(endpoint, data.runId, (status) => { button.textContent = status === 'queued' ? 'Queue-তে আছে…' : 'Analysis তৈরি হচ্ছে…'; }) : 'Analysis response পাওয়া যায়নি।');
         renderStructuredAnalysis(live, String(text), payload);
         writeCachedAnalysis(cacheKey, String(text));
       } catch (error) {
-        live.textContent = `AI Analysis পাওয়া যায়নি। Local result ঠিক আছে। পরে আবার চেষ্টা করো। (${error.message})`;
+        live.textContent = `AI Analysis পাওয়া যায়নি। Local result ঠিক আছে। পরে আবার চেষ্টা করো। (${error.message})`;
         live.classList.add('open');
       } finally {
         turnstileToken = '';
