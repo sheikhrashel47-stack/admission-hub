@@ -206,7 +206,7 @@
     .result-tags{display:flex;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:wrap;margin:12px 0 10px}.result-tags>span{font-size:10px;color:#a8c5bd;background:rgba(114,240,189,.09);padding:5px 8px;border-radius:8px}.result-question-select{margin-left:auto;font-size:10px;color:#9eb9b1;display:flex;align-items:center;gap:4px}.question-check{accent-color:#72f0bd}
     .result-question-toggle{display:flex;flex-direction:column;align-items:flex-start;width:100%;border:0;background:transparent;color:#ecfff7;padding:0;text-align:left;cursor:pointer}.result-question{font-size:17px;line-height:1.65;font-weight:750;overflow-wrap:anywhere}.result-toggle-hint{margin-top:7px;color:#72f0bd;font-size:10px;font-weight:800;letter-spacing:.04em}
     .result-options{display:flex;flex-direction:column;gap:7px;margin-top:14px}.result-option{display:flex;align-items:flex-start;gap:9px;padding:11px 10px;border:1px solid rgba(148,190,181,.18);border-radius:11px;font-size:13px;line-height:1.5;color:#d8ebe5;background:rgba(255,255,255,.035)}.result-option-letter{font-weight:900;color:#96b9ae;min-width:20px}.result-option-text{flex:1;overflow-wrap:anywhere}.result-option-note{font-size:9px;font-weight:900;color:#72f0bd;white-space:nowrap}.result-option-note.wrong-note{color:#ff968b}.result-option.is-correct{background:rgba(67,205,147,.11);border-color:rgba(114,240,189,.55)}.result-option.is-wrong{background:rgba(230,110,99,.11);border-color:rgba(255,150,139,.55)}
-    .result-answer-line{font-size:12px;line-height:1.7;margin-top:11px;padding:10px;border-radius:10px;background:rgba(114,240,189,.08);color:#a8c5bd}.result-answer-line b{color:#ecfff7}.result-explanation{margin-top:10px;padding:12px;border-radius:13px;background:linear-gradient(135deg,rgba(247,190,105,.12),rgba(20,38,45,.72));border:1px solid rgba(247,190,105,.28);color:#e7eee5;font-size:12px;line-height:1.65}.result-explanation b{display:block;margin-bottom:7px;color:#ffd38e}.explanation-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.explanation-grid>div{padding:9px;border-radius:10px;background:rgba(0,0,0,.16)}.explanation-grid strong{display:block;color:#72f0bd;font-size:10px;margin-bottom:3px}.explanation-grid span{display:block;color:#c9ddd6}.result-actions{display:flex;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:wrap;margin-top:11px}.result-action{border:1px solid rgba(148,190,181,.22);background:rgba(255,255,255,.05);color:#d8ebe5;border-radius:10px;padding:8px 9px;font-size:10px;font-weight:800;cursor:pointer}.result-action.primary{background:#0d8d68;border-color:#32c996;color:#fff}.result-explanation-loading{border-color:rgba(114,240,189,.34)}
+    .result-answer-line{font-size:12px;line-height:1.7;margin-top:11px;padding:10px;border-radius:10px;background:rgba(114,240,189,.08);color:#a8c5bd}.result-answer-line b{color:#ecfff7}.result-explanation{margin-top:10px;padding:12px;border-radius:13px;background:linear-gradient(135deg,rgba(247,190,105,.12),rgba(20,38,45,.72));border:1px solid rgba(247,190,105,.28);color:#e7eee5;font-size:12px;line-height:1.65}.result-explanation b{display:block;margin-bottom:7px;color:#ffd38e}.explanation-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.explanation-grid>div{padding:9px;border-radius:10px;background:rgba(0,0,0,.16)}.explanation-grid strong{display:block;color:#72f0bd;font-size:10px;margin-bottom:3px}.explanation-grid span{display:block;color:#c9ddd6}.result-actions{display:flex;align-items:center;justify-content:flex-start;gap:7px;flex-wrap:wrap;margin-top:11px}.result-action{border:1px solid rgba(148,190,181,.22);background:rgba(255,255,255,.05);color:#d8ebe5;border-radius:10px;padding:8px 9px;font-size:10px;font-weight:800;cursor:pointer}.result-action.primary{background:#0d8d68;border-color:#32c996;color:#fff}.result-explanation-loading{border-color:rgba(114,240,189,.34)}.result-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.result-chips span{font-size:10px;color:#a8c5bd;background:rgba(255,255,255,.05);border:1px solid rgba(148,190,181,.16);padding:5px 8px;border-radius:8px;overflow-wrap:anywhere}.result-explanation-error{border-color:rgba(255,150,139,.4);background:linear-gradient(135deg,rgba(230,110,99,.14),rgba(20,38,45,.72))}.result-explanation-error b{color:#ffa895}
     @media(max-width:560px){.result-question{font-size:16px}.explanation-grid{grid-template-columns:1fr}.result-question-select{width:100%;margin-left:0}}
   </style>
 <style id="premium-v2-overrides">
@@ -598,7 +598,7 @@
     /* VERSIONING: old saved analyses can be re-rendered without regenerating AI text. */
     const AI_SCHEMA_VERSION = "1.1";
     const ANALYSIS_VERSION = "2026.08-premium";
-    const RENDERER_VERSION = "1.1.0";
+    const RENDERER_VERSION = "1.2.0";
 
     /* LIVE DATA ADAPTER: populated only by the parent result page. */
     function buildAnalysisPayload(adapter) {
@@ -613,58 +613,224 @@
       return { score, percentage: totalMarks ? score / totalMarks * 100 : 0, accuracy: attempted ? Number(exam?.correct || 0) / attempted * 100 : 0, attempted, timeSpentMinutes: Math.round(Number(exam?.timeSpentSeconds || 0) / 60), timeEfficiency: Number(exam?.durationSeconds || 0) ? Number(exam.timeSpentSeconds || 0) / Number(exam.durationSeconds) * 100 : 0 };
     }
 
-    /* AI ADAPTERS: live secure backend only; no demo adapter exists. */
-    async function requestLiveAI(requestPayload) {
-      const endpoint = String(sessionStorage.getItem('admission-hub-ai-endpoint') || '').trim();
-      const siteKey = String(sessionStorage.getItem('admission-hub-ai-sitekey') || '').trim();
-      if (!endpoint) throw new Error('Secure AI endpoint is not configured');
-      const token = await getLiveTurnstileToken(siteKey);
-      const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ ...requestPayload, turnstileToken: token }) });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'HTTP ' + response.status);
-      if (data.analysis || data.result || data.text) return String(data.analysis || data.result || data.text);
-      if (data.runId) return pollLiveRun(endpoint, data.runId);
-      throw new Error('AI response পাওয়া যায়নি');
+    /* CORE HELPERS: live-only, backed exclusively by the parent result payload. */
+    function parseAnalysis(text) {
+      const raw = String(text || "").trim();
+      try { const parsed = JSON.parse(raw); return parsed && typeof parsed === "object" ? parsed : null; } catch (_) {}
+      const start = raw.indexOf("{"), end = raw.lastIndexOf("}");
+      if (start >= 0 && end > start) { try { const parsed = JSON.parse(raw.slice(start, end + 1)); return parsed && typeof parsed === "object" ? parsed : null; } catch (_) {} }
+      return null;
     }
+    function payloadFromRaw(raw) {
+      const source = raw && typeof raw === "object" ? raw : {};
+      const result = source.result && typeof source.result === "object" ? source.result : {};
+      const bnDate = (value) => { try { return new Date(value).toLocaleDateString("bn-BD", { day: "numeric", month: "short" }); } catch (_) { return String(value || "").slice(0, 10); } };
+      const questions = (Array.isArray(source.questions) ? source.questions : []).map((question, index) => ({
+        id: String(question?.id || `q-${index + 1}`),
+        number: Number(question?.number) || index + 1,
+        subject: String(question?.subject || "অজানা"),
+        topic: String(question?.topic || "অজানা"),
+        prompt: String(question?.prompt || `প্রশ্ন ${index + 1}`),
+        options: Array.isArray(question?.options) ? question.options.map(option => String(option)) : [],
+        selected: question?.selected == null ? "" : String(question.selected),
+        selectedIndex: Number.isInteger(Number(question?.selectedIndex)) ? Number(question.selectedIndex) : -1,
+        correct: question?.correct == null ? "" : String(question.correct),
+        correctIndex: Number.isInteger(Number(question?.correctIndex)) ? Number(question.correctIndex) : -1,
+        status: ["correct", "wrong", "skipped"].includes(String(question?.status)) ? String(question.status) : "skipped",
+        difficulty: String(question?.difficulty || "মাঝারি"),
+        time: Number(question?.time) || 0
+      }));
+      const subjects = (Array.isArray(source.subjectPerformance) ? source.subjectPerformance : []).map((subject) => {
+        const name = String(subject?.name || "বিষয়");
+        const total = Math.max(0, Number(subject?.total) || 0);
+        const correct = Math.max(0, Number(subject?.correct) || 0);
+        const accuracy = total ? correct / total * 100 : 0;
+        const time = questions.filter(question => question.subject === name).reduce((sum, question) => sum + question.time, 0);
+        return { name, short: name.length > 14 ? name.slice(0, 13) + "…" : name, questions: total, correct, accuracy: Math.round(accuracy * 10) / 10, time, priority: accuracy < 50 ? "high" : accuracy < 75 ? "medium" : "low" };
+      });
+      const topics = (Array.isArray(source.topicPerformance) ? source.topicPerformance : []).map((topic) => {
+        const name = String(topic?.name || "টপিক");
+        const accuracy = Number(topic?.accuracy) || 0;
+        return { name, accuracy: Math.round(accuracy * 10) / 10, priority: accuracy < 50 ? "high" : accuracy < 75 ? "medium" : "low" };
+      });
+      const wrongByTopic = new Map();
+      questions.filter(question => question.status === "wrong").forEach(question => {
+        const row = wrongByTopic.get(question.topic) || { label: question.topic, count: 0, subject: question.subject };
+        row.count += 1; wrongByTopic.set(question.topic, row);
+      });
+      const skippedCount = questions.filter(question => question.status === "skipped").length;
+      const mistakeHistory = [...wrongByTopic.values()].sort((a, b) => b.count - a.count).slice(0, 4).map(row => ({ label: row.label, count: row.count, detail: `${row.subject} · এই topic-এ ${row.count}টি ভুল হয়েছে।` }));
+      if (skippedCount) mistakeHistory.push({ label: "বাদ পড়া প্রশ্ন", count: skippedCount, detail: `${skippedCount}টি প্রশ্নে উত্তর দেওয়া হয়নি; সময় বা confidence-এর দিকে নজর দাও।` });
+      const previousExams = (Array.isArray(source.previousResults) ? source.previousResults : []).map((exam, index) => {
+        const total = Math.max(0, Number(exam?.total) || 0);
+        const marks = Number(exam?.marks) || 1;
+        const wrong = Math.max(0, Number(exam?.wrong) || 0);
+        return {
+          id: String(exam?.id || `prev-${index + 1}`),
+          label: String(exam?.label || "আগের পরীক্ষা"),
+          date: bnDate(exam?.date),
+          totalQuestions: total,
+          correct: Math.max(0, Number(exam?.correct) || 0),
+          wrong,
+          skipped: Math.max(0, Number(exam?.skipped) || 0),
+          marksPerQ: marks,
+          negativeMarking: wrong > 0 ? (Math.max(0, Number(exam?.negative) || 0)) / wrong : 0,
+          score: Number(exam?.score) || 0,
+          totalMarks: Math.max(1, Number(exam?.maxScore) || total * marks),
+          timeSpentSeconds: Math.max(0, Number(exam?.timeUsed) || 0),
+          durationSeconds: 0
+        };
+      });
+      const marks = Number(result.marks) || 1;
+      const total = Math.max(0, Number(result.total) || 0);
+      const wrong = Math.max(0, Number(result.wrong) || 0);
+      const currentExam = {
+        id: String(result.id || "result"),
+        type: String(result.examType || "প্র্যাকটিস পরীক্ষা"),
+        date: bnDate(result.completedAt),
+        totalQuestions: total,
+        correct: Math.max(0, Number(result.correct) || 0),
+        wrong,
+        skipped: Math.max(0, Number(result.skipped) || 0),
+        marksPerQ: marks,
+        negativeMarking: wrong > 0 ? (Math.max(0, Number(result.negative) || 0)) / wrong : 0,
+        score: Number(result.score) || 0,
+        totalMarks: Math.max(1, Number(result.maxScore) || total * marks),
+        timeSpentSeconds: Math.max(0, Number(result.timeUsed) || 0),
+        durationSeconds: 0
+      };
+      return { currentExam, previousExams, questions, mistakeHistory, subjects, topics };
+    }
+    const LiveDataAdapter = {
+      raw: null,
+      payload: null,
+      scenario: "live",
+      sync() { this.payload = payloadFromRaw(this.raw); return this.payload; },
+      getCurrentExam() { return (this.payload || this.sync()).currentExam; },
+      getPreviousExamHistory() { return (this.payload || this.sync()).previousExams; },
+      getQuestionResults() { return (this.payload || this.sync()).questions; },
+      getMistakeHistory() { return (this.payload || this.sync()).mistakeHistory; },
+      getSubjectPerformance() { return (this.payload || this.sync()).subjects; },
+      getTopicPerformance() { return (this.payload || this.sync()).topics; }
+    };
+    function buildLiveRendererPayload(raw) { return payloadFromRaw(raw); }
+    let turnstileApiPromise = null;
+    function ensureTurnstileApi() {
+      if (window.turnstile) return Promise.resolve(window.turnstile);
+      if (turnstileApiPromise) return turnstileApiPromise;
+      turnstileApiPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        script.onload = () => window.turnstile ? resolve(window.turnstile) : reject(new Error("Human verification লোড হয়নি"));
+        script.onerror = () => { turnstileApiPromise = null; reject(new Error("Human verification script লোড হয়নি")); };
+        document.head.appendChild(script);
+      });
+      return turnstileApiPromise;
+    }
+    function getLiveTurnstileToken(siteKey) {
+      const key = String(siteKey || sessionStorage.getItem("admission-hub-ai-sitekey") || "").trim();
+      if (!key) return Promise.reject(new Error("Human verification site key পাওয়া যায়নি।"));
+      return ensureTurnstileApi().then(api => new Promise((resolve, reject) => {
+        const host = document.createElement("div");
+        host.setAttribute("aria-hidden", "true");
+        host.style.cssText = "position:fixed;right:0;bottom:0;width:1px;height:1px;overflow:hidden;opacity:.01";
+        document.body.appendChild(host);
+        let settled = false;
+        let widgetId = null;
+        const finish = (fn, value) => { if (settled) return; settled = true; clearTimeout(timeout); try { api.remove(widgetId); } catch (_) {} try { host.remove(); } catch (_) {} fn(value); };
+        const timeout = setTimeout(() => finish(reject, new Error("Human verification সময়মতো সম্পন্ন হয়নি। আবার চেষ্টা করো।")), 45000);
+        try {
+          widgetId = api.render(host, {
+            sitekey: key,
+            action: "result_analysis",
+            size: "invisible",
+            appearance: "interaction-only",
+            callback: (token) => finish(resolve, String(token || "")),
+            "error-callback": () => finish(reject, new Error("Human verification ব্যর্থ হয়েছে। আবার চেষ্টা করো।")),
+            "expired-callback": () => finish(reject, new Error("Human verification মেয়াদ শেষ। আবার চেষ্টা করো।"))
+          });
+        } catch (error) { finish(reject, error instanceof Error ? error : new Error("Human verification শুরু করা যায়নি।")); return; }
+        try { api.execute(widgetId); } catch (_) {}
+      }));
+    }
+    async function pollLiveRun(endpoint, runId) {
+      const base = String(endpoint || sessionStorage.getItem("admission-hub-ai-endpoint") || "").replace(/\/+$/, "");
+      const url = `${base}/${encodeURIComponent(runId)}`;
+      const deadline = Date.now() + 150000;
+      while (Date.now() < deadline) {
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        const status = String(data.status || "").toLowerCase();
+        if (status === "completed") return String(data.analysis || data.result || data.text || "");
+        if (status === "failed" || status === "cancelled") throw new Error("AI run সম্পন্ন হয়নি; পরে আবার চেষ্টা করো।");
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      }
+      throw new Error("AI analysis অনেক সময় নিচ্ছে; পরে আবার চেষ্টা করো।");
+    }
+    /* AI ADAPTERS: live secure backend only; no demo or fallback adapter exists. */
     async function requestLiveAI(requestPayload) {
-      const endpoint = String(sessionStorage.getItem('admission-hub-ai-endpoint') || '').trim();
-      const siteKey = String(sessionStorage.getItem('admission-hub-ai-sitekey') || '').trim();
-      if (!endpoint) throw new Error('Secure AI endpoint is not configured');
+      const endpoint = String(sessionStorage.getItem("admission-hub-ai-endpoint") || "").trim();
+      const siteKey = String(sessionStorage.getItem("admission-hub-ai-sitekey") || "").trim();
+      if (!endpoint) throw new Error("Secure AI endpoint পাওয়া যায়নি; Admission Hub app-এর result page থেকে tool-টি খোলো।");
       const token = await getLiveTurnstileToken(siteKey);
-      const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ ...requestPayload, turnstileToken: token }) });
+      const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ ...requestPayload, turnstileToken: token }) });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(data.error || 'HTTP ' + response.status);
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
       if (data.analysis || data.result || data.text) return String(data.analysis || data.result || data.text);
       if (data.runId) return pollLiveRun(endpoint, data.runId);
-      throw new Error('AI response পাওয়া যায়নি');
+      throw new Error("AI response পাওয়া যায়নি।");
     }
     const LiveAIAdapter = {
-      async analyze() { return requestLiveAI({ ...LiveDataAdapter.raw, requestType: 'result_analysis' }); },
+      async analyze() {
+        const raw = LiveDataAdapter.raw || {};
+        return requestLiveAI({
+          schemaVersion: raw.schemaVersion || null,
+          result: raw.result,
+          previousResults: Array.isArray(raw.previousResults) ? raw.previousResults : [],
+          subjectPerformance: Array.isArray(raw.subjectPerformance) ? raw.subjectPerformance : [],
+          topicPerformance: Array.isArray(raw.topicPerformance) ? raw.topicPerformance : [],
+          requestType: "result_analysis"
+        });
+      },
       async explainBatch(questionPayloads) {
-        const questions = Array.isArray(questionPayloads) ? questionPayloads : [];
+        const questions = Array.isArray(questionPayloads) ? questionPayloads.filter(question => question && question.id) : [];
         if (!questions.length) return [];
         const raw = LiveDataAdapter.raw || {};
-        const text = await requestLiveAI({ result: raw.result, previousResults: raw.previousResults, subjectPerformance: raw.subjectPerformance, topicPerformance: raw.topicPerformance, requestType: 'question_explanation_batch', explanationQuestions: questions.slice(0, 6) });
-        const parsed = parseAnalysis(text);
-        const rows = Array.isArray(parsed?.explanations) ? parsed.explanations : (parsed?.questionId ? [parsed] : []);
-        if (!rows.length) throw new Error('AI explanation-এর structured response পাওয়া যায়নি');
-        return rows.map((row, index) => ({ ...row, questionId: row.questionId || questions[index]?.id }));
+        const context = {
+          result: raw.result,
+          previousResults: Array.isArray(raw.previousResults) ? raw.previousResults : [],
+          subjectPerformance: Array.isArray(raw.subjectPerformance) ? raw.subjectPerformance : [],
+          topicPerformance: Array.isArray(raw.topicPerformance) ? raw.topicPerformance : []
+        };
+        const wanted = new Set(questions.map(question => String(question.id)));
+        const results = [];
+        for (let index = 0; index < questions.length; index += 6) {
+          const chunk = questions.slice(index, index + 6);
+          const text = await requestLiveAI({ ...context, requestType: "question_explanation_batch", explanationQuestions: chunk });
+          const parsed = parseAnalysis(text);
+          const rows = Array.isArray(parsed?.explanations) ? parsed.explanations : (parsed && parsed.questionId ? [parsed] : []);
+          rows.forEach(row => { if (row && wanted.has(String(row.questionId))) results.push(row); });
+        }
+        if (!results.length) throw new Error("AI explanation-এর structured response পাওয়া যায়নি।");
+        return results;
       }
     };
 
 
-    function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: '', summary: '', strengths: [], weaknesses: [], trends: [], topicInsights: [], mistakePatterns: [], recommendations: [], actionPlan: [], wrongAnswerInsights: [], comparison: '', mistakePattern: '', targetAdvice: '', plan1Day: '', plan3Days: '', plan7Days: '', motivation: '', visualInsights: [] }; }
+function emptyAnalysis() { return { schemaVersion: AI_SCHEMA_VERSION, headline: '', summary: '', strengths: [], weaknesses: [], trends: [], topicInsights: [], mistakePatterns: [], recommendations: [], actionPlan: [], wrongAnswerInsights: [], comparison: '', mistakePattern: '', targetAdvice: '', plan1Day: '', plan3Days: '', plan7Days: '', motivation: '', visualInsights: [] }; }
     function renderMissingResult() {
       clearInterval(state.thinkingTimer); thinkingScreen.hidden = true;
-      workspace.innerHTML = '<section class="live-empty-screen"><article class="live-empty-card"><small>REAL RESULT REQUIRED</small><h1>এই report খোলার জন্য বাস্তব result দরকার</h1><p>Admission Hub-এর result page থেকে ✦ Analysis button চাপলে verified result data এখানে আসবে। Direct demo বা fake report আর দেখানো হবে না।</p></article></section>';
+      workspace.innerHTML = '<section class="live-empty-screen"><article class="live-empty-card"><small>REAL RESULT REQUIRED</small><h1>এই পেইজটি শুধু Admission Hub-এর বাস্তব result থেকে খোলা যাবে।</h1><p>Result page-এর ✦ Analysis button থেকে verified result নিয়ে আসো। এই tool-এ কোনো demo বা fake report কখনো দেখানো হয় না।</p></article></section>';
+    }
+    function renderFatalError(message) {
+      clearInterval(state.thinkingTimer); thinkingScreen.hidden = true;
+      workspace.innerHTML = `<section class="live-empty-screen"><article class="live-empty-card"><small>UNEXPECTED ERROR</small><h1>রিপোর্ট এখন খোলা যাচ্ছে না</h1><p>${esc(message)}</p></article></section>`;
     }
     function validateAndNormalize(raw) {
       const source = raw && typeof raw === 'object' ? raw : {};
-      const plan = Array.isArray(source.actionPlan) ? source.actionPlan : [
-        { day: 'আজ', title: 'আজকের plan', detail: source.plan1Day || 'ভুলের কারণ দেখে ছোট practice session দাও।', tone: 'focus' },
-        { day: '৩ দিন', title: 'তিন দিনের revision', detail: source.plan3Days || 'দুর্বল topic revise করে timed practice দাও।', tone: 'practice' },
-        { day: '৭ দিন', title: 'সপ্তাহের check', detail: source.plan7Days || 'সপ্তাহ শেষে পূর্ণাঙ্গ পরীক্ষা দিয়ে তুলনা করো।', tone: 'test' }
-      ];
+      const plan = Array.isArray(source.actionPlan) ? source.actionPlan.filter(item => item && typeof item === "object") : [];
       return {
         schemaVersion: AI_SCHEMA_VERSION, headline: typeof source.headline === 'string' ? source.headline : '', summary: typeof source.summary === 'string' ? source.summary : '',
         strengths: Array.isArray(source.strengths) ? source.strengths : [], weaknesses: Array.isArray(source.weaknesses) ? source.weaknesses : [],
@@ -692,27 +858,20 @@
     };
 
     const ComponentRegistry = { overview: "PerformanceOverview", journey: "ScoreJourney", strengths: "Strengths", weaknesses: "PriorityWeaknesses", topics: "TopicIntelligence", mistakes: "MistakePatterns", insight: "AIInsight", lab: "WrongAnswerLab", revision: "RevisionPlan", coach: "CoachNote" };
-    const state = { adapter: null, ai: null, payload: null, metrics: null, analysis: null, aiError: '', scenario: "live", selectedQuestions: new Set(), openQuestions: new Set(), busyQuestions: new Set(), explanationCache: {}, thinkingTimer: null, atlasFrame: null, atlasSettings: { auto: true, rotY: -.42, rotX: .34, focus: "" } };
+    const state = { adapter: null, ai: null, payload: null, metrics: null, analysis: null, aiError: '', scenario: "live", selectedQuestions: new Set(), openQuestions: new Set(), busyQuestions: new Set(), explanationCache: {}, explanationErrors: {}, thinkingTimer: null, atlasFrame: null, atlasSettings: { auto: true, rotY: -.42, rotX: .34, focus: "" } };
     const workspace = document.getElementById("workspace");
     const thinkingScreen = document.getElementById("thinkingScreen");
     const stageList = document.getElementById("stageList");
     const thinkingMessages = [
-      ["তোমার আজকের result পড়ছি…", "Verified exam data থেকে প্রয়োজনীয় signal আলাদা করছি"],
-      ["ভুলের pattern খুঁজছি…", "কোন জায়গায় score আটকে আছে তা দেখছি"],
+      ["তোমার আজকের result পড়ছি…", "Verified exam data থেকে প্রয়োজনীয় signal আলাদা করছি"],
+      ["ভুলের pattern খুঁজছি…", "কোন জায়গায় score আটকে আছে তা দেখছি"],
       ["আগের পরীক্ষার সঙ্গে মিলাচ্ছি…", "তোমার score journey ও accuracy movement তুলনা করছি"],
-      ["শক্তির জায়গাগুলো চিহ্নিত করছি…", "যেখানে confidence রাখা যায়, সেগুলো আলাদা করছি"],
-      ["পরের লক্ষ্য সাজাচ্ছি…", "কম সময়ে বেশি impact-এর revision plan বানাচ্ছি"],
+      ["শক্তির জায়গাগুলো চিহ্নিত করছি…", "যেখানে confidence রাখা যায়, সেগুলো আলাদা করছি"],
+      ["পরের লক্ষ্য সাজাচ্ছি…", "কম সময়ে বেশি impact-এর revision plan বানাচ্ছি"],
       ["রিপোর্টকে সুন্দর করে সাজাচ্ছি…", "তোমার জন্য পরিষ্কার visual report তৈরি করছি"],
       ["শেষবার যাচাই করছি…", "Analysis এখন তোমার workspace-এ প্রস্তুত" ]
     ];
-    const stages = ["তথ্য প্রস্তুত", "ফলাফল পড়া", "তুলনা", "ভুলের pattern", "পরবর্তী লক্ষ্য", "রিপোর্ট সাজানো", "সংরক্ষণ"];
-    const vocabulary = [
-      { vocabId: "E-001", word: "Eloquent", meaning: "প্রাঞ্জল", concept: "A bright speech ribbon flowing from an open book" },
-      { vocabId: "E-002", word: "Elusive", meaning: "দুর্লভ / ধরাছোঁয়ার বাইরে", concept: "A small moon slipping through a glass maze" },
-      { vocabId: "E-003", word: "Empathy", meaning: "সহমর্মিতা", concept: "Two warm hearts sharing one umbrella" },
-      { vocabId: "E-004", word: "Endure", meaning: "সহ্য করা", concept: "A tiny tree holding steady in a golden storm" },
-      { vocabId: "E-005", word: "Emerge", meaning: "উদ্ভাসিত হওয়া", concept: "A seedling rising from a dark geometric shell" }
-    ];
+    const stages = ["তথ্য প্রস্তুত", "ফলাফল পড়া", "তুলনা", "ভুলের pattern", "পরবর্তী লক্ষ্য", "রিপোর্ট সাজানো", "সংরক্ষণ"];
     function esc(value) { return String(value ?? "").replace(/[&<>'"]/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char])); }
     function num(value, digits = 0) { return Number(value).toFixed(digits); }
     function listItems(items) { return items.map(item => `<li>${esc(typeof item === "string" ? item : item.insight || item.title || "")}</li>`).join(""); }
@@ -738,14 +897,13 @@
       const selectedIndex = Number.isInteger(Number(question.selectedIndex)) ? Number(question.selectedIndex) : options.findIndex(option => String(option) === String(question.selected));
       const correctIndex = Number.isInteger(Number(question.correctIndex)) ? Number(question.correctIndex) : options.findIndex(option => String(option) === String(question.correct));
       const optionRows = options.map((option, index) => { const isCorrect = index === correctIndex; const isWrong = index === selectedIndex && !isCorrect; return `<div class="result-option ${isCorrect ? 'is-correct' : ''} ${isWrong ? 'is-wrong' : ''}"><span class="result-option-letter">${String.fromCharCode(65 + index)}.</span><span class="result-option-text">${esc(option)}</span>${isCorrect ? '<span class="result-option-note">✓ সঠিক</span>' : isWrong ? '<span class="result-option-note wrong-note">✕ তোমার উত্তর</span>' : ''}</div>`; }).join('');
-      const statusText = '🔴 ভুল উত্তর';
-      const explanationBlock = state.busyQuestions.has(question.id) ? `<div class="result-explanation result-explanation-loading"><b>AI explanation তৈরি হচ্ছে…</b><div>এই প্রশ্নের ভুলের কারণ, সহজ নিয়ম ও মনে রাখার technique সাজানো হচ্ছে।</div></div>` : explanation ? `<div class="result-explanation"><b>💡 AI ব্যাখ্যা</b><div class="explanation-grid"><div><strong>কেন সঠিক</strong><span>${esc(explanation.whyCorrect)}</span></div><div><strong>কেন ভুল হয়েছিল</strong><span>${esc(explanation.whyWrong)}</span></div><div><strong>সহজ করে</strong><span>${esc(explanation.easy)}</span></div><div><strong>মনে রাখার কৌশল</strong><span>${esc(explanation.memory)}</span></div><div><strong>Exam trap</strong><span>${esc(explanation.trap)}</span></div><div><strong>ছোট practice</strong><span>${esc(explanation.practice)}</span></div></div><button class="explain-button" data-action="regenerate" data-id="${esc(question.id)}">↻ আবার explanation তৈরি করুন</button></div>` : `<button class="result-action primary explain-button" data-action="explain" data-id="${esc(question.id)}">✨ ব্যাখ্যা ও technique দেখুন</button>`;
-      return `<article class="result-review-card wrong result-review-expanded ${state.busyQuestions.has(question.id) ? 'is-explaining' : ''}" data-question-id="${esc(question.id)}" tabindex="0" aria-expanded="true"><div class="result-review-head"><span class="result-q-number">প্রশ্ন ${esc(question.number || question.id)}</span><strong class="result-status wrong">${statusText}</strong></div><h3 class="result-question">${esc(question.prompt)}</h3><div class="result-options">${optionRows}</div><div class="result-answer-line"><b>তোমার উত্তর:</b> ${esc(question.selected || 'উত্তর দেওয়া হয়নি')} · <b>সঠিক উত্তর:</b> ${esc(question.correct || 'তথ্য নেই')}</div>${explanationBlock}<div class="result-actions"><label class="result-question-select"><input class="question-check" type="checkbox" aria-label="Select ${esc(question.id)}" data-question-check="${esc(question.id)}" ${state.selectedQuestions.has(question.id) ? 'checked' : ''}> <span>AI batch-এ রাখো</span></label><button class="result-action primary explain-button" data-action="explain" data-id="${esc(question.id)}">✨ AI ব্যাখ্যা</button></div></article>`;
+      const chips = `<div class="result-chips"><span>${esc(question.subject)}</span><span>${esc(question.topic)}</span><span>Difficulty: ${esc(question.difficulty)}</span>${question.time ? `<span>সময়: ${Math.round(question.time)}s</span>` : ''}</div>`;
+      const explanationBlock = state.busyQuestions.has(question.id) ? `<div class="result-explanation result-explanation-loading"><b>AI explanation তৈরি হচ্ছে…</b><div>এই প্রশ্নের ভুলের কারণ, সহজ নিয়ম ও মনে রাখার technique সাজানো হচ্ছে।</div></div>` : explanation ? `<div class="result-explanation"><b>💡 AI ব্যাখ্যা</b><div class="explanation-grid"><div><strong>কেন সঠিক</strong><span>${esc(explanation.whyCorrect)}</span></div><div><strong>কেন ভুল হয়েছিল</strong><span>${esc(explanation.whyWrong)}</span></div><div><strong>সহজ করে</strong><span>${esc(explanation.easy)}</span></div><div><strong>মনে রাখার কৌশল</strong><span>${esc(explanation.memory)}</span></div><div><strong>Exam trap</strong><span>${esc(explanation.trap)}</span></div><div><strong>ছোট practice</strong><span>${esc(explanation.practice)}</span></div></div><button class="result-action" data-action="regenerate" data-id="${esc(question.id)}">↻ আবার explanation তৈরি করুন</button></div>` : state.explanationErrors[question.id] ? `<div class="result-explanation result-explanation-error"><b>Live AI explanation পাওয়া যায়নি।</b><div>${esc(state.explanationErrors[question.id])} তোমার উত্তর ও সঠিক উত্তর ঠিক আছে; পরে আবার চেষ্টা করা যাবে।</div></div>` : '';
+      return `<article class="result-review-card wrong result-review-expanded ${state.busyQuestions.has(question.id) ? 'is-explaining' : ''}" data-question-id="${esc(question.id)}" tabindex="0" aria-expanded="true"><div class="result-review-head"><span class="result-q-number">প্রশ্ন ${esc(question.number || question.id)} · ${esc(question.topic)}</span><strong class="result-status wrong">🔴 ভুল উত্তর</strong></div><h3 class="result-question">${esc(question.prompt)}</h3>${chips}<div class="result-options">${optionRows}</div><div class="result-answer-line"><b>তোমার উত্তর:</b> ${esc(question.selected || 'উত্তর দেওয়া হয়নি')} · <b>সঠিক উত্তর:</b> ${esc(question.correct || 'তথ্য নেই')}</div>${explanationBlock}<div class="result-actions"><label class="result-question-select"><input class="question-check" type="checkbox" aria-label="Select ${esc(question.id)}" data-question-check="${esc(question.id)}" ${state.selectedQuestions.has(question.id) ? 'checked' : ''}> <span>AI batch-এ রাখো</span></label><button class="result-action primary explain-button" data-action="explain" data-id="${esc(question.id)}">✨ AI ব্যাখ্যা ও মনে রাখার কৌশল দেখুন</button></div></article>`;
     }
-    function renderVocabulary() { return vocabulary.map((item, index) => `<div class="vocab-tile"><div class="vocab-art" aria-label="Visual concept for ${esc(item.word)}"><span>${["E", "L", "M", "N", "R"][index]}</span></div><div class="vocab-info"><strong>${esc(item.word)}</strong><span>${esc(item.meaning)} · ${item.vocabId}</span></div></div>`).join(""); }
     function timeEfficiencySvg() {
       const points = state.payload.subjects.map((subject, index) => { const total = Math.max(1, Number(subject.questions || 0)); const accuracy = Number(subject.questions || 0) ? Number(subject.correct || 0) / total : 0; const rawTime = Number(subject.time); return { x: 70 + index * 118, y: 175 - accuracy * 112, name: subject.short, time: Number.isFinite(rawTime) && rawTime > 0 ? Math.round(rawTime / 60) : null }; });
-      return `<svg class="chart-svg" viewBox="0 0 430 220" role="img" aria-label="Time spent versus subject accuracy"><line class="chart-grid-line" x1="48" y1="28" x2="410" y2="28"/><line class="chart-grid-line" x1="48" y1="84" x2="410" y2="84"/><line class="chart-grid-line" x1="48" y1="140" x2="410" y2="140"/><line class="chart-grid-line" x1="48" y1="196" x2="410" y2="196"/><text x="3" y="32">100%</text><text x="15" y="144">50%</text><text x="23" y="200">0%</text><path d="M48 196 H410" stroke="#dce9e0"/>${points.map(point => `<line x1="${point.x}" y1="196" x2="${point.x}" y2="${point.y}" stroke="#c9e8d6" stroke-width="2" stroke-dasharray="3 5"/><circle cx="${point.x}" cy="${point.y}" r="10" fill="#c8f5df"/><circle cx="${point.x}" cy="${point.y}" r="5" fill="#1d956b"/><text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#0c6b51" font-weight="800">${point.time === null ? 'সময় তথ্য নেই' : `${point.time}m`}</text><text x="${point.x}" y="215" text-anchor="middle">${esc(point.name)}</text>`).join("")}</svg>`;
+      return `<svg class="chart-svg" viewBox="0 0 430 220" role="img" aria-label="Time spent versus subject accuracy"><line class="chart-grid-line" x1="48" y1="28" x2="410" y2="28"/><line class="chart-grid-line" x1="48" y1="84" x2="410" y2="84"/><line class="chart-grid-line" x1="48" y1="140" x2="410" y2="140"/><line class="chart-grid-line" x1="48" y1="196" x2="410" y2="196"/><text x="3" y="32">100%</text><text x="15" y="144">50%</text><text x="23" y="200">0%</text><path d="M48 196 H410" stroke="#dce9e0"/>${points.map(point => `<line x1="${point.x}" y1="196" x2="${point.x}" y2="${point.y}" stroke="#c9e8d6" stroke-width="2" stroke-dasharray="3 5"/><circle cx="${point.x}" cy="${point.y}" r="10" fill="#c8f5df"/><circle cx="${point.x}" cy="${point.y}" r="5" fill="#1d956b"/><text x="${point.x}" y="${point.y - 16}" text-anchor="middle" fill="#0c6b51" font-weight="800">${point.time === null ? 'সময় তথ্য নেই' : `${point.time}m`}</text><text x="${point.x}" y="215" text-anchor="middle">${esc(point.name)}</text>`).join("")}</svg>`;
     }
     function atlasData() {
       const subjectNodes = state.payload.subjects.map((subject, index) => ({ id: `subject-${index}`, label: subject.short, group: "Subject", value: Number(subject.questions || 0) ? Number(subject.correct || 0) / Number(subject.questions) * 100 : 0, x: (index - 1) * .92, z: index % 2 ? .28 : -.28, tone: ["108,242,186", "117,181,255", "255,179,95"][index] }));
@@ -798,37 +956,41 @@
       const accuracy = accuracyHistory();
       const wrongQuestions = state.payload.questions.filter(question => question.status === "wrong");
       const totalMistakes = state.payload.mistakeHistory.reduce((sum, item) => sum + item.count, 0);
+      const legendItems = state.payload.mistakeHistory.filter(item => item.count > 0).slice(0, 4);
+      const legendTotal = legendItems.reduce((sum, item) => sum + item.count, 0) || 1;
+      const legendColors = ["var(--orange)", "var(--red)", "var(--violet)", "var(--blue)"];
+      const mistakeLegend = legendItems.length ? legendItems.map((item, index) => `<div><i class="legend-pip" style="background:${legendColors[index % 4]}"></i>${esc(item.label)} · ${Math.round(item.count / legendTotal * 100)}%</div>`).join("") : '<div class="muted-note">এই result-এ mistake category data নেই।</div>';
       const aiUnavailable = Boolean(state.aiError);
       const averageSubject = state.payload.subjects.length ? state.payload.subjects.reduce((sum, item) => sum + (Number(item.questions) ? Number(item.correct || 0) / Number(item.questions) * 100 : 0), 0) / state.payload.subjects.length : 0;
       workspace.innerHTML = `
         <section class="hero" aria-labelledby="page-title">
-          <div class="hero-copy"><span class="eyebrow">AI intelligence workspace</span><h1 id="page-title">তোমার result-এ<br><em>লুকিয়ে থাকা pattern</em>গুলো।</h1><p class="hero-summary">${esc(aiUnavailable ? 'তোমার verified result load হয়েছে। Live AI analysis এখনো পাওয়া যায়নি।' : state.analysis.summary)}</p><div class="meta-row"><span class="pill"><b>●</b>${esc(exam.type)}</span><span class="pill">${esc(exam.date)}</span><span class="pill">${exam.totalQuestions} প্রশ্ন · ${exam.timeSpentSeconds / 60} মিনিট</span></div><div class="hero-system-line"><span><i></i>${aiUnavailable ? 'AI ANALYSIS WAITING' : 'ANALYSIS ENGINE ONLINE'}</span><span>LIVE PAYLOAD · ${esc(exam.id.toUpperCase())}</span><span>SCHEMA ${AI_SCHEMA_VERSION}</span></div></div>
+          <div class="hero-copy"><span class="eyebrow">AI intelligence workspace</span><h1 id="page-title">তোমার result-এ<br><em>লুকিয়ে থাকা pattern</em>গুলো।</h1><p class="hero-summary">${esc(aiUnavailable ? 'তোমার verified result load হয়েছে। Live AI analysis এখনো পাওয়া যায়নি।' : state.analysis.summary)}</p><div class="meta-row"><span class="pill"><b>●</b>${esc(exam.type)}</span><span class="pill">${esc(exam.date)}</span><span class="pill">${exam.totalQuestions} প্রশ্ন · ${exam.timeSpentSeconds / 60} মিনিট</span></div><div class="hero-system-line"><span><i></i>${aiUnavailable ? 'AI ANALYSIS WAITING' : 'ANALYSIS ENGINE ONLINE'}</span><span>LIVE PAYLOAD · ${esc(exam.id.toUpperCase())}</span><span>SCHEMA ${AI_SCHEMA_VERSION}</span></div></div>
           <div class="score-stage"><div class="score-ring" style="background:conic-gradient(var(--mint-2) 0 ${Math.round(state.metrics.percentage)}%,rgba(255,255,255,.12) ${Math.round(state.metrics.percentage)}% 100%)"><div class="score-value"><strong>${num(state.metrics.score, 1)}</strong><span>out of ${exam.totalMarks}</span></div></div><span class="ring-caption">${num(state.metrics.percentage)}% score</span><div class="score-hud"><span>ACCURACY <b>${num(state.metrics.accuracy)}%</b></span><span>ATTEMPTED <b>${state.metrics.attempted}/${exam.totalQuestions}</b></span></div></div>
         </section>
-        <div class="report-commandbar" aria-label="রিপোর্টের দ্রুত সারাংশ"><div class="report-commandbar-card primary"><small>Report pulse</small><strong>${num(state.metrics.percentage)}% নির্ভুলতা</strong><span>${exam.correct}টি সঠিক · ${exam.wrong}টি ভুল · ${exam.skipped}টি বাদ</span></div><div class="report-commandbar-card"><small>Net score</small><strong>${num(state.metrics.score, 1)}</strong><span>সর্বোচ্চ ${num(exam.totalMarks, 1)}</span></div><div class="report-commandbar-card warn"><small>Attention</small><strong>${wrongQuestions.length}টি ভুল</strong><span>Wrong Answer Lab-এ review করো</span></div><div class="report-commandbar-card danger"><small>AI access</small><strong>১০ / দিন</strong><span>নতুন analysis limit</span></div></div><div class="demo-strip"><div><strong>${aiUnavailable ? 'VERIFIED RESULT · AI WAITING' : 'LIVE RESULT REPORT'}</strong><div class="muted-note">${aiUnavailable ? `Live AI analysis পাওয়া যায়নি: ${esc(state.aiError)}` : 'Verified local result + secure Bengali AI insight · এই device-এ locally saved'}</div></div><div class="demo-control"><span class="muted-note">${aiUnavailable ? 'AI retry প্রয়োজন' : 'AI layer online'}</span></div></div>
+        <div class="report-commandbar" aria-label="রিপোর্টের দ্রুত সারাংশ"><div class="report-commandbar-card primary"><small>Report pulse</small><strong>${num(state.metrics.percentage)}% নির্ভুলতা</strong><span>${exam.correct}টি সঠিক · ${exam.wrong}টি ভুল · ${exam.skipped}টি বাদ</span></div><div class="report-commandbar-card"><small>Net score</small><strong>${num(state.metrics.score, 1)}</strong><span>সর্বোচ্চ ${num(exam.totalMarks, 1)}</span></div><div class="report-commandbar-card warn"><small>Attention</small><strong>${wrongQuestions.length}টি ভুল</strong><span>Wrong Answer Lab-এ review করো</span></div><div class="report-commandbar-card danger"><small>AI access</small><strong>১০ / দিন</strong><span>নতুন analysis limit</span></div></div><div class="demo-strip"><div><strong>${aiUnavailable ? 'VERIFIED RESULT · AI WAITING' : 'LIVE RESULT REPORT'}</strong><div class="muted-note">${aiUnavailable ? `Live AI analysis পাওয়া যায়নি: ${esc(state.aiError)}` : 'Verified local result + secure Bengali AI insight · এই device-এ locally saved'}</div></div><div class="demo-control"><span class="muted-note">${aiUnavailable ? 'AI retry প্রয়োজন' : 'AI layer online'}</span></div></div>
         <nav class="workspace-nav" aria-label="Workspace sections"><a class="active" href="#overview">শুরু</a><a href="#journey">Score trend</a><a href="#atlas">3D map</a><a href="#strengths">শক্তি</a><a href="#weaknesses">Priority</a><a href="#topics">Topics</a><a href="#mistakes">ভুলের ধরন</a><a href="#lab">Wrong lab</a><a href="#revision">Plan</a></nav>
 
-        <section class="section" id="overview" aria-labelledby="overview-title"><div class="section-head"><div><span class="section-kicker"><i>01</i> Performance overview</span><h2 id="overview-title">Score-এর পেছনের গল্প</h2></div><p>Frontend-calculated numbers, AI-interpreted patterns. Verified result-ই এখানে source of truth.</p></div><div class="grid grid-4"><div class="card metric-card"><small>Score</small><strong>${num(state.metrics.score, 1)}</strong><span class="delta">↑ last mock থেকে +${num(state.payload.previousExams.length ? state.metrics.score - calculateMetrics(state.payload.previousExams.at(-1)).score : 0, 1)}</span></div><div class="card metric-card"><small>Accuracy</small><strong>${num(state.metrics.accuracy)}%</strong><span class="delta">attempted ${state.metrics.attempted}/${exam.totalQuestions}</span></div><div class="card metric-card warn"><small>Wrong answers</small><strong>${exam.wrong}</strong><span class="delta">-${num(exam.wrong * exam.negativeMarking, 1)} negative mark</span></div><div class="card metric-card"><small>Time efficiency</small><strong>${num(state.metrics.timeEfficiency)}%</strong><span class="delta">${state.metrics.timeSpentMinutes}m of ${exam.durationSeconds / 60}m used</span></div></div><div class="soft-strip" style="margin-top:17px"><strong>Coach signal · </strong>${esc(aiUnavailable ? 'Live AI analysis না আসা পর্যন্ত কোনো narrative signal দেখানো হচ্ছে না।' : (state.analysis.trends[0] || 'AI signal পাওয়া যায়নি।'))}<p>${esc(aiUnavailable ? 'Verified score ও প্রশ্নের data ঠিক আছে; retry করলে AI insight আসবে।' : (state.analysis.trends[1] || ''))}</p></div><article class="card ledger-card"><div class="ledger-header"><strong>Verified result ledger</strong><span>CALCULATED · READ ONLY</span></div><div class="ledger-scroll"><table class="ledger-table"><thead><tr><th>Exam</th><th>Date</th><th>Score</th><th>Accuracy</th><th>Correct</th><th>Time</th></tr></thead><tbody>${renderLedgerRows()}</tbody></table></div></article></section>
+        <section class="section" id="overview" aria-labelledby="overview-title"><div class="section-head"><div><span class="section-kicker"><i>01</i> Performance overview</span><h2 id="overview-title">Score-এর পেছনের গল্প</h2></div><p>Frontend-calculated numbers, AI-interpreted patterns. Verified result-ই এখানে source of truth.</p></div><div class="grid grid-4"><div class="card metric-card"><small>Score</small><strong>${num(state.metrics.score, 1)}</strong><span class="delta">↑ last mock থেকে +${num(state.payload.previousExams.length ? state.metrics.score - calculateMetrics(state.payload.previousExams.at(-1)).score : 0, 1)}</span></div><div class="card metric-card"><small>Accuracy</small><strong>${num(state.metrics.accuracy)}%</strong><span class="delta">attempted ${state.metrics.attempted}/${exam.totalQuestions}</span></div><div class="card metric-card warn"><small>Wrong answers</small><strong>${exam.wrong}</strong><span class="delta">-${num(exam.wrong * exam.negativeMarking, 1)} negative mark</span></div><div class="card metric-card"><small>Avg time / question</small><strong>${exam.totalQuestions ? num(exam.timeSpentSeconds / exam.totalQuestions, 1) + "s" : "—"}</strong><span class="delta">${state.metrics.timeSpentMinutes}m total</span></div></div><div class="soft-strip" style="margin-top:17px"><strong>Coach signal · </strong>${esc(aiUnavailable ? 'Live AI analysis না আসা পর্যন্ত কোনো narrative signal দেখানো হচ্ছে না।' : (state.analysis.trends[0] || 'AI signal পাওয়া যায়নি।'))}<p>${esc(aiUnavailable ? 'Verified score ও প্রশ্নের data ঠিক আছে; retry করলে AI insight আসবে।' : (state.analysis.trends[1] || ''))}</p></div><article class="card ledger-card"><div class="ledger-header"><strong>Verified result ledger</strong><span>CALCULATED · READ ONLY</span></div><div class="ledger-scroll"><table class="ledger-table"><thead><tr><th>Exam</th><th>Date</th><th>Score</th><th>Accuracy</th><th>Correct</th><th>Time</th></tr></thead><tbody>${renderLedgerRows()}</tbody></table></div></article></section>
 
-        <section class="section" id="journey" aria-labelledby="journey-title"><div class="section-head"><div><span class="section-kicker"><i>02</i> Score journey</span><h2 id="journey-title">উন্নতি কি সত্যিই হচ্ছে?</h2></div><p>শেষ চারটি মডেল টেস্টের movement একসঙ্গে দেখলে ছোট trend-ও চোখে পড়ে।</p></div><div class="grid grid-2"><div class="card chart-card"><div class="card-title"><div><h3>Score movement</h3><p>Percentage across recent mocks</p></div><div class="chart-legend"><span><i class="legend-dot" style="background:var(--green)"></i>score</span></div></div>${trendSvg(history.map(item => item.value), history.map(item => item.label))}</div><div class="card chart-card"><div class="card-title"><div><h3>Accuracy trend</h3><p>Precision on attempted questions</p></div><div class="chart-legend"><span><i class="legend-dot" style="background:var(--orange)"></i>accuracy</span></div></div>${trendSvg(accuracy.map(item => item.value), accuracy.map(item => item.label))}</div></div></section>
+        <section class="section" id="journey" aria-labelledby="journey-title"><div class="section-head"><div><span class="section-kicker"><i>02</i> Score journey</span><h2 id="journey-title">উন্নতি কি সত্যিই হচ্ছে?</h2></div><p>শেষ চারটি মডেল টেস্টের movement একসঙ্গে দেখলে ছোট trend-ও চোখে পড়ে।</p></div><div class="grid grid-2"><div class="card chart-card"><div class="card-title"><div><h3>Score movement</h3><p>Percentage across recent mocks</p></div><div class="chart-legend"><span><i class="legend-dot" style="background:var(--green)"></i>score</span></div></div>${trendSvg(history.map(item => item.value), history.map(item => item.label))}</div><div class="card chart-card"><div class="card-title"><div><h3>Accuracy trend</h3><p>Precision on attempted questions</p></div><div class="chart-legend"><span><i class="legend-dot" style="background:var(--orange)"></i>accuracy</span></div></div>${trendSvg(accuracy.map(item => item.value), accuracy.map(item => item.label))}</div></div></section>
 
-        <section class="section" id="atlas" aria-labelledby="atlas-title"><div class="section-head"><div><span class="section-kicker"><i>02A</i> 3D performance atlas</span><h2 id="atlas-title">তোমার performance field</h2></div><p>Canvas-based 3D projection: subject bars, topic nodes, accuracy height এবং live focus readout.</p></div><div class="atlas-layout"><article class="card atlas-card"><div class="atlas-toolbar"><div><span class="atlas-live"><i></i>LIVE VECTOR FIELD</span><p>Drag / hover nodes · orbit responds to your pointer</p></div><div class="atlas-actions"><button class="atlas-action" data-action="atlas-toggle">Pause orbit</button><button class="atlas-action" data-action="atlas-reset">Reset view</button></div></div><div class="atlas-stage"><span class="atlas-corner top">X / SUBJECT · Y / ACCURACY · Z / TOPIC</span><span class="atlas-corner bottom">RENDERER ${RENDERER_VERSION} · 60 FPS TARGET</span><canvas id="atlasCanvas" aria-label="Interactive three dimensional performance chart. Subject accuracy is represented by height and topic accuracy by floating nodes."></canvas><div class="atlas-tooltip" id="atlasTooltip" hidden></div><div class="atlas-legend"><span><i style="background:var(--mint-2)"></i>subject accuracy</span><span><i style="background:var(--orange)"></i>topic signal</span></div></div></article><aside class="card atlas-inspector"><div class="card-title"><div><h3>Signal inspector</h3><p>Click a node to isolate its layer</p></div></div><div class="inspector-stats"><div class="inspector-stat"><small>Signal nodes</small><strong>09</strong></div><div class="inspector-stat"><small>Focus score</small><strong>${num(state.metrics.percentage)}%</strong></div></div><span class="inspector-label">PERFORMANCE NODES</span><div class="node-list">${renderAtlasNodes()}</div><div class="atlas-readout"><small>AI READOUT</small><p>${esc(aiUnavailable ? 'AI readout অপেক্ষমাণ; এই 3D view-তে শুধু verified local metrics দেখানো হচ্ছে।' : (state.analysis.trends[2] || 'AI readout পাওয়া যায়নি।'))}</p></div></aside></div></section>
+        <section class="section" id="atlas" aria-labelledby="atlas-title"><div class="section-head"><div><span class="section-kicker"><i>02A</i> 3D performance atlas</span><h2 id="atlas-title">তোমার performance field</h2></div><p>Canvas-based 3D projection: subject bars, topic nodes, accuracy height এবং live focus readout.</p></div><div class="atlas-layout"><article class="card atlas-card"><div class="atlas-toolbar"><div><span class="atlas-live"><i></i>LIVE VECTOR FIELD</span><p>Drag / hover nodes · orbit responds to your pointer</p></div><div class="atlas-actions"><button class="atlas-action" data-action="atlas-toggle">Pause orbit</button><button class="atlas-action" data-action="atlas-reset">Reset view</button></div></div><div class="atlas-stage"><span class="atlas-corner top">X / SUBJECT · Y / ACCURACY · Z / TOPIC</span><span class="atlas-corner bottom">RENDERER ${RENDERER_VERSION} · 60 FPS TARGET</span><canvas id="atlasCanvas" aria-label="Interactive three dimensional performance chart. Subject accuracy is represented by height and topic accuracy by floating nodes."></canvas><div class="atlas-tooltip" id="atlasTooltip" hidden></div><div class="atlas-legend"><span><i style="background:var(--mint-2)"></i>subject accuracy</span><span><i style="background:var(--orange)"></i>topic signal</span></div></div></article><aside class="card atlas-inspector"><div class="card-title"><div><h3>Signal inspector</h3><p>Click a node to isolate its layer</p></div></div><div class="inspector-stats"><div class="inspector-stat"><small>Signal nodes</small><strong>09</strong></div><div class="inspector-stat"><small>Focus score</small><strong>${num(state.metrics.percentage)}%</strong></div></div><span class="inspector-label">PERFORMANCE NODES</span><div class="node-list">${renderAtlasNodes()}</div><div class="atlas-readout"><small>AI READOUT</small><p>${esc(aiUnavailable ? 'AI readout অপেক্ষমাণ; এই 3D view-তে শুধু verified local metrics দেখানো হচ্ছে।' : (state.analysis.trends[2] || 'AI readout পাওয়া যায়নি।'))}</p></div></aside></div></section>
 
-        <section class="section" id="strengths" aria-labelledby="strengths-title"><div class="section-head"><div><span class="section-kicker"><i>03</i> Strengths</span><h2 id="strengths-title">যেখানে তোমার edge আছে</h2></div><p>এই zones-এ confidence রাখো, কিন্তু maintenance practice বন্ধ কোরো না।</p></div><div class="grid grid-3">${state.analysis.strengths.length ? state.analysis.strengths.map((item, index) => `<article class="card numbered-card" data-index="0${index + 1}"><span class="signal">Reliable signal</span><h3 style="margin-top:14px">${esc(item)}</h3><p>${index === 0 ? "Recent answers-এ এই pattern consistently দেখা গেছে।" : index === 1 ? "এখানে তোমার response সাধারণত দ্রুত এবং নির্ভুল।" : "এটি তোমার current exam strategy-র একটি ভালো দিক।"}</p></article>`).join("") : '<div class="empty-state">Live AI response ছাড়া strength narrative দেখানো হচ্ছে না।</div>'}</div></section>
+        <section class="section" id="strengths" aria-labelledby="strengths-title"><div class="section-head"><div><span class="section-kicker"><i>03</i> Strengths</span><h2 id="strengths-title">যেখানে তোমার edge আছে</h2></div><p>এই zones-এ confidence রাখো, কিন্তু maintenance practice বন্ধ কোরো না।</p></div><div class="grid grid-3">${state.analysis.strengths.length ? state.analysis.strengths.map((item, index) => `<article class="card numbered-card" data-index="0${index + 1}"><span class="signal">Reliable signal</span><h3 style="margin-top:14px">${esc(item)}</h3><p>Live AI analysis থেকে চিহ্নিত শক্তির জায়গা; ধারাবাহিক practice চালিয়ে যাও।</p></article>`).join("") : '<div class="empty-state">Live AI response ছাড়া strength narrative দেখানো হচ্ছে না।</div>'}</div></section>
 
-        <section class="section" id="weaknesses" aria-labelledby="weaknesses-title"><div class="section-head"><div><span class="section-kicker"><i>04</i> Priority weaknesses</span><h2 id="weaknesses-title">কম effort-এ বেশি impact</h2></div><p>সব ভুল এক রকম নয়। প্রথমে সেই friction-গুলো ঠিক করো যেগুলো score-এ repeat করে।</p></div><div class="grid grid-3">${state.analysis.weaknesses.length ? state.analysis.weaknesses.map((item, index) => `<article class="card numbered-card weakness-card" data-index="0${index + 1}"><span class="signal">Priority ${index + 1}</span><h3 style="margin-top:14px">${esc(item)}</h3><p>${index === 0 ? "প্রশ্নের option দুটো একই রকম মনে হলে rule contrast করো।" : index === 1 ? "Recall sheet-এ short facts রেখে spaced review করো।" : "Timed set-এ skip-and-return rule ব্যবহার করো।"}</p></article>`).join("") : '<div class="empty-state">Live AI response ছাড়া weakness narrative দেখানো হচ্ছে না।</div>'}</div></section>
+        <section class="section" id="weaknesses" aria-labelledby="weaknesses-title"><div class="section-head"><div><span class="section-kicker"><i>04</i> Priority weaknesses</span><h2 id="weaknesses-title">কম effort-এ বেশি impact</h2></div><p>সব ভুল এক রকম নয়। প্রথমে সেই friction-গুলো ঠিক করো যেগুলো score-এ repeat করে।</p></div><div class="grid grid-3">${state.analysis.weaknesses.length ? state.analysis.weaknesses.map((item, index) => `<article class="card numbered-card weakness-card" data-index="0${index + 1}"><span class="signal">Priority ${index + 1}</span><h3 style="margin-top:14px">${esc(item)}</h3><p>AI-নির্দেশিত priority অনুযায়ী ছোট ছোট practice দাও।</p></article>`).join("") : '<div class="empty-state">Live AI response ছাড়া weakness narrative দেখানো হচ্ছে না।</div>'}</div></section>
 
-        <section class="section" id="topics" aria-labelledby="topics-title"><div class="section-head"><div><span class="section-kicker"><i>05</i> Topic intelligence</span><h2 id="topics-title">কোন chapter-এ সময় দেবে?</h2></div><p>Accuracy, priority আর subject balance একসঙ্গে দেখো। Chart values frontend থেকেই calculated.</p></div><div class="grid grid-2"><article class="card map-card"><div class="card-title"><div><h3>Weakness map</h3><p>Higher bar = stronger command</p></div><span class="priority high">high priority</span></div><div class="axis"><span>0%</span><span>attention zone</span><span>100%</span></div><div class="map-rows">${renderTopicRows()}</div></article><article class="card chart-card"><div class="card-title"><div><h3>Subject balance</h3><p>Average accuracy ${num(averageSubject)}%</p></div></div><div class="subject-orbit"><div class="orbit" style="background:conic-gradient(var(--green) 0 ${Math.round(averageSubject)}%,#e8f2ec ${Math.round(averageSubject)}% 100%)"><div class="orbit-center"><strong>${num(averageSubject)}%</strong><span>all subjects</span></div></div><div class="subject-list">${renderSubjectRows()}</div></div></article></div></section>
+        <section class="section" id="topics" aria-labelledby="topics-title"><div class="section-head"><div><span class="section-kicker"><i>05</i> Topic intelligence</span><h2 id="topics-title">কোন chapter-এ সময় দেবে?</h2></div><p>Accuracy, priority আর subject balance একসঙ্গে দেখো। Chart values frontend থেকেই calculated.</p></div><div class="grid grid-2"><article class="card map-card"><div class="card-title"><div><h3>Weakness map</h3><p>Higher bar = stronger command</p></div><span class="priority high">high priority</span></div><div class="axis"><span>0%</span><span>attention zone</span><span>100%</span></div><div class="map-rows">${renderTopicRows()}</div></article><article class="card chart-card"><div class="card-title"><div><h3>Subject balance</h3><p>Average accuracy ${num(averageSubject)}%</p></div></div><div class="subject-orbit"><div class="orbit" style="background:conic-gradient(var(--green) 0 ${Math.round(averageSubject)}%,#e8f2ec ${Math.round(averageSubject)}% 100%)"><div class="orbit-center"><strong>${num(averageSubject)}%</strong><span>all subjects</span></div></div><div class="subject-list">${renderSubjectRows()}</div></div></article></div></section>
 
-        <section class="section" id="mistakes" aria-labelledby="mistakes-title"><div class="section-head"><div><span class="section-kicker"><i>06</i> Mistake patterns</span><h2 id="mistakes-title">ভুলকে category-তে ভাঙো</h2></div><p>একই ফলাফলের ভেতরে আলাদা আলাদা cause থাকে। Cause জানলেই revision ছোট হয়।</p></div><div class="grid grid-2"><article class="card chart-card"><div class="card-title"><div><h3>Mistake distribution</h3><p>Pattern history across recent attempts</p></div></div><div class="donut-wrap"><div class="donut"><div class="donut-center"><strong>${totalMistakes}</strong><span>signals</span></div></div><div class="donut-legend"><div><i class="legend-pip" style="background:var(--orange)"></i>Rule confusion · 38%</div><div><i class="legend-pip" style="background:var(--red)"></i>Recall gap · 28%</div><div><i class="legend-pip" style="background:var(--violet)"></i>Careless reading · 19%</div><div><i class="legend-pip" style="background:var(--blue)"></i>Time pressure · 15%</div></div></div></article><article class="card chart-card"><div class="card-title"><div><h3>Time efficiency</h3><p>Minutes spent versus accuracy</p></div></div>${timeEfficiencySvg()}</article></div><div class="card pattern-stack" style="padding:17px;margin-top:17px">${renderMistakePatterns()}</div></section>
+        <section class="section" id="mistakes" aria-labelledby="mistakes-title"><div class="section-head"><div><span class="section-kicker"><i>06</i> Mistake patterns</span><h2 id="mistakes-title">ভুলকে category-তে ভাঙো</h2></div><p>একই ফলাফলের ভেতরে আলাদা আলাদা cause থাকে। Cause জানলেই revision ছোট হয়।</p></div><div class="grid grid-2"><article class="card chart-card"><div class="card-title"><div><h3>Mistake distribution</h3><p>Pattern history across recent attempts</p></div></div><div class="donut-wrap"><div class="donut"><div class="donut-center"><strong>${totalMistakes}</strong><span>signals</span></div></div><div class="donut-legend">${mistakeLegend}</div></div></article><article class="card chart-card"><div class="card-title"><div><h3>Time efficiency</h3><p>Minutes spent versus accuracy</p></div></div>${timeEfficiencySvg()}</article></div><div class="card pattern-stack" style="padding:17px;margin-top:17px">${renderMistakePatterns()}</div></section>
 
-        <section class="section" id="insight" aria-labelledby="insight-title"><article class="ai-insight"><span class="section-kicker"><i>07</i> AI insight · Secure proxy</span><h3 id="insight-title">${esc(aiUnavailable ? 'Live AI analysis এখনো পাওয়া যায়নি' : (state.analysis.summary || state.analysis.headline || 'AI insight'))}</h3><p>${esc(aiUnavailable ? `কারণ: ${state.aiError} — verified result data অক্ষুণ্ণ আছে।` : state.analysis.recommendations.join(' '))}</p></article></section>
+        <section class="section" id="insight" aria-labelledby="insight-title"><article class="ai-insight"><span class="section-kicker"><i>07</i> AI insight · Secure proxy</span><h3 id="insight-title">${esc(aiUnavailable ? 'Live AI analysis এখনো পাওয়া যায়নি' : (state.analysis.summary || state.analysis.headline || 'AI insight'))}</h3><p>${esc(aiUnavailable ? `Live AI analysis পাওয়া যায়নি। তোমার verified result ঠিক আছে। পরে আবার চেষ্টা করো। (কারণ: ${state.aiError})` : state.analysis.recommendations.join(' '))}</p></article></section>
 
-        <section class="section" id="lab" aria-labelledby="lab-title"><div class="section-head"><div><span class="section-kicker"><i>08</i> Wrong answer lab</span><h2 id="lab-title">ভুল প্রশ্নগুলোকে teacher বানাও</h2></div><p>প্রতিটি explanation প্রশ্নের payload-এ সীমাবদ্ধ। Cache থাকলে আবার AI call হবে না।</p></div><article class="card wrong-lab"><div class="lab-toolbar"><div><strong>${wrongQuestions.length ? `${wrongQuestions.length}টি প্রশ্ন review-ready` : "কোনো ভুল প্রশ্ন নেই"}</strong><span>${wrongQuestions.length ? "প্রশ্নগুলো expanded আছে; চাইলে AI ব্যাখ্যা নাও" : "এই result-এ ভুল উত্তর পাওয়া যায়নি"}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button mint" data-action="explain-all" ${wrongQuestions.length ? "" : "disabled"}>✨ Explain all wrong</button><button class="button secondary" data-action="explain-selected" ${state.selectedQuestions.size ? "" : "disabled"}>Explain selected (${state.selectedQuestions.size})</button></div></div><div class="question-stack">${wrongQuestions.length ? wrongQuestions.map(renderWrongQuestion).join("") : `<div class="empty-state">এই result-এ কোনো ভুল প্রশ্ন নেই।</div>`}</div></article></section>
+        <section class="section" id="lab" aria-labelledby="lab-title"><div class="section-head"><div><span class="section-kicker"><i>08</i> Wrong answer lab</span><h2 id="lab-title">ভুল প্রশ্নগুলোকে teacher বানাও</h2></div><p>প্রতিটি explanation প্রশ্নের payload-এ সীমাবদ্ধ। Cache থাকলে আবার AI call হবে না।</p></div><article class="card wrong-lab"><div class="lab-toolbar"><div><strong>${wrongQuestions.length ? `${wrongQuestions.length}টি প্রশ্ন review-ready` : "কোনো ভুল প্রশ্ন নেই"}</strong><span>${wrongQuestions.length ? "প্রশ্নগুলো expanded আছে; চাইলে AI ব্যাখ্যা নাও" : "এই result-এ ভুল উত্তর পাওয়া যায়নি"}</span></div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="button mint" data-action="explain-all" ${wrongQuestions.length ? "" : "disabled"}>✨ Explain all wrong</button><button class="button secondary" data-action="explain-selected" ${state.selectedQuestions.size ? "" : "disabled"}>Explain selected (${state.selectedQuestions.size})</button></div></div><div class="question-stack">${wrongQuestions.length ? wrongQuestions.map(renderWrongQuestion).join("") : `<div class="empty-state">এই result-এ কোনো ভুল প্রশ্ন নেই।</div>`}</div></article></section>
 
-        <section class="section" id="revision" aria-labelledby="revision-title"><div class="section-head"><div><span class="section-kicker"><i>09</i> Revision plan</span><h2 id="revision-title">পরের ৩ দিনের clarity</h2></div><p>AI suggestion; duration, order এবং progress tracking UI layer-এর নিয়ন্ত্রণে।</p></div><article class="card revision"><div class="timeline">${state.analysis.actionPlan.map((item, index) => `<div class="timeline-item"><div class="timeline-dot">${index + 1}</div><div class="timeline-day">${esc(item.day)}</div><div class="timeline-copy"><strong>${esc(item.title)}</strong><p>${esc(item.detail)}</p></div></div>`).join("")}</div></article></section>
+        <section class="section" id="revision" aria-labelledby="revision-title"><div class="section-head"><div><span class="section-kicker"><i>09</i> Revision plan</span><h2 id="revision-title">পরের ৩ দিনের clarity</h2></div><p>AI suggestion; duration, order এবং progress tracking UI layer-এর নিয়ন্ত্রণে।</p></div><article class="card revision">${state.analysis.actionPlan.length ? `<div class="timeline">${state.analysis.actionPlan.map((item, index) => `<div class="timeline-item"><div class="timeline-dot">${index + 1}</div><div class="timeline-day">${esc(item.day)}</div><div class="timeline-copy"><strong>${esc(item.title)}</strong><p>${esc(item.detail)}</p></div></div>`).join("")}</div>` : '<div class="empty-state">Live AI response ছাড়া revision plan দেখানো হচ্ছে না; AI analysis সফল হলে এটি আসবে।</div>'}</article></section>
 
-        <section class="section" id="coach" aria-labelledby="coach-title"><article class="coach-note"><span class="section-kicker"><i>10</i> Final coach note</span><blockquote id="coach-title">“${esc(aiUnavailable ? 'Live AI response আসার আগে কোনো coach note বানানো হচ্ছে না।' : (state.analysis.motivation || 'AI coach note পাওয়া যায়নি।'))}”</blockquote><cite>— ${aiUnavailable ? 'AI অপেক্ষমাণ · verified result preserved' : 'AI Coach · based on verified attempt data'}</cite></article></section>
+        <section class="section" id="coach" aria-labelledby="coach-title"><article class="coach-note"><span class="section-kicker"><i>10</i> Final coach note</span><blockquote id="coach-title">“${esc(aiUnavailable ? 'Live AI response আসার আগে কোনো coach note বানানো হচ্ছে না।' : (state.analysis.motivation || 'AI coach note পাওয়া যায়নি।'))}”</blockquote><cite>— ${aiUnavailable ? 'AI অপেক্ষমাণ · verified result preserved' : 'AI Coach · based on verified attempt data'}</cite></article></section>
 
         <footer style="padding:50px 0 20px;color:var(--muted);font-size:11px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap"><span>Admission Hub · Personal Result Intelligence Report</span><span>schema ${AI_SCHEMA_VERSION} · analysis ${ANALYSIS_VERSION} · renderer ${RENDERER_VERSION}</span></footer>`;
       bindWorkspaceEvents();
@@ -868,26 +1030,26 @@
     }
     function loadExplanationCache() { try { state.explanationCache = JSON.parse(localStorage.getItem("ah-explanation-cache") || "{}"); } catch (_) { state.explanationCache = {}; } }
     async function explainQuestions(ids, regenerate = false) {
-      const questions = state.payload.questions.filter(q => ids.includes(q.id) && q.status === "wrong");
-      if (!questions.length) { toast("এই scenario-তে explain করার মতো selected wrong answer নেই।"); return; }
-      questions.forEach(question => { state.openQuestions.add(question.id); if (regenerate) delete state.explanationCache[`${question.id}::${question.selected}::1`]; state.busyQuestions.add(question.id); });
+      const wanted = (Array.isArray(ids) ? ids : []).map(String);
+      const questions = state.payload.questions.filter(question => wanted.includes(String(question.id)) && question.status === "wrong");
+      if (!questions.length) { toast("Explain করার মতো wrong question নির্বাচিত হয়নি।"); return; }
+      if (questions.length > 1 && !confirm(`${questions.length}টি প্রশ্নের জন্য AI explanation নেওয়া হবে। Cache না থাকলে একাধিক নতুন secure request যাবে এবং দিনের AI limit থেকে কাটবে। চালিয়ে যাবে?`)) { toast("AI explanation বাতিল করা হয়েছে।"); return; }
+      questions.forEach(question => { state.busyQuestions.add(question.id); if (regenerate) delete state.explanationCache[`${question.id}::${question.selected}::1`]; delete state.explanationErrors[question.id]; });
       renderWorkspace();
       try {
         const uncached = questions.filter(question => !state.explanationCache[`${question.id}::${question.selected}::1`]);
         if (uncached.length) {
           const results = await state.ai.explainBatch(uncached);
-          results.forEach((result, index) => { const question = uncached[index]; state.explanationCache[`${question.id}::${question.selected}::1`] = result; });
+          results.forEach(result => { const question = uncached.find(item => String(item.id) === String(result.questionId)); if (question) state.explanationCache[`${question.id}::${question.selected}::1`] = result; });
           try { localStorage.setItem("ah-explanation-cache", JSON.stringify(state.explanationCache)); } catch (_) {}
-          toast(`${results.length}টি focused explanation তৈরি হয়েছে এবং cache করা হয়েছে।`);
-        } else toast("Cached explanation দেখানো হলো, নতুন AI call হয়নি।");
-      } catch (_) { toast("AI explanation এখন unavailable; পরে আবার চেষ্টা করো।"); }
+          const missing = uncached.length - results.length;
+          toast(missing > 0 ? `${results.length}টি explanation তৈরি হয়েছে; ${missing}টি পাওয়া যায়নি।` : `${results.length}টি explanation তৈরি এবং cache হয়েছে।`);
+        } else toast("Cached explanation দেখানো হলো; নতুন AI request যায়নি।");
+      } catch (error) {
+        questions.forEach(question => { state.explanationErrors[question.id] = error?.message || "AI explanation পাওয়া যায়নি।"; });
+        toast("Live AI explanation পাওয়া যায়নি; পরে আবার চেষ্টা করো।");
+      }
       questions.forEach(question => state.busyQuestions.delete(question.id));
-      renderWorkspace();
-    }
-    async function generateVocabularyPlan(button) {
-      button.disabled = true; button.textContent = "Planning visuals…";
-      try { state.vocabPlans = await state.ai.generateVocabularyVisualPlan(vocabulary); state.vocabReady = true; toast("5টি stable vocabId → imageId mapping তৈরি হয়েছে।"); }
-      catch (_) { toast("Visual planner unavailable; পরে আবার চেষ্টা করো।"); }
       renderWorkspace();
     }
     function setupThinking() {
@@ -912,12 +1074,12 @@
       try {
         const [raw] = await Promise.all([state.ai.analyze(payload), minimumExperience]);
         const parsed = typeof raw === 'string' ? parseAnalysis(raw) : raw;
-        if (!parsed) throw new Error('Live AI response valid JSON নয়');
+        if (!parsed) throw new Error('Live AI response valid JSON নয়');
         state.analysis = validateAndNormalize(parsed);
         await AnalysisStore.save({ analysisId: `analysis-${payload.currentExam.id}`, examId: payload.currentExam.id, createdAt: new Date().toISOString(), schemaVersion: AI_SCHEMA_VERSION, analysisData: state.analysis, status: 'complete', source: 'live-ai', rendererVersion: RENDERER_VERSION });
       } catch (error) {
         await minimumExperience;
-        state.aiError = error?.message || 'Live AI analysis পাওয়া যায়নি';
+        state.aiError = error?.message || 'Live AI analysis পাওয়া যায়নি';
         state.analysis = emptyAnalysis();
       } finally {
         clearInterval(state.thinkingTimer); thinkingScreen.hidden = true; renderWorkspace();
@@ -929,18 +1091,36 @@
       const rawText = sessionStorage.getItem('admission-hub-ai-live-input');
       let raw = null;
       try { raw = rawText ? JSON.parse(rawText) : null; } catch (_) { raw = null; }
-      if (!raw?.result) { renderMissingResult(); return; }
-      LiveDataAdapter.raw = raw;
-      try { sessionStorage.setItem('admission-hub-ai-endpoint', String(raw.endpoint || window.ADMISSION_HUB_AI_ENDPOINT || '')); sessionStorage.setItem('admission-hub-ai-sitekey', String(raw.turnstileSiteKey || window.ADMISSION_HUB_TURNSTILE_SITEKEY || '')); } catch (_) {} state.adapter = LiveDataAdapter; state.ai = LiveAIAdapter;
-      state.scenario = 'live';
-      const rendererPayload = buildLiveRendererPayload(raw);
-      const analysisId = 'analysis-' + rendererPayload.currentExam.id;
-      const cached = await AnalysisStore.get(analysisId);
-      if (cached?.analysisData && cached.source === 'live-ai') {
-        state.payload = rendererPayload; state.metrics = calculateMetrics(rendererPayload.currentExam); state.analysis = validateAndNormalize(cached.analysisData); state.aiError = ''; thinkingScreen.hidden = true; renderWorkspace(); return;
+      if (!raw?.result || typeof raw.result !== 'object') { renderMissingResult(); return; }
+      try {
+        LiveDataAdapter.raw = raw;
+        const endpoint = String(raw.endpoint || '').trim();
+        const siteKey = String(raw.turnstileSiteKey || '').trim();
+        try { sessionStorage.setItem('admission-hub-ai-endpoint', endpoint); sessionStorage.setItem('admission-hub-ai-sitekey', siteKey); } catch (_) {}
+        state.adapter = LiveDataAdapter; state.ai = LiveAIAdapter;
+        state.scenario = 'live';
+        const rendererPayload = buildLiveRendererPayload(raw);
+        const analysisId = 'analysis-' + rendererPayload.currentExam.id;
+        let cached = await AnalysisStore.get(analysisId);
+        if (!cached?.analysisData || cached.source !== 'live-ai') {
+          const parentCachedText = sessionStorage.getItem('admission-hub-ai-live-cached-analysis');
+          const parentCached = parseAnalysis(parentCachedText);
+          if (parentCached) {
+            cached = { analysisId, examId: rendererPayload.currentExam.id, createdAt: new Date().toISOString(), schemaVersion: AI_SCHEMA_VERSION, analysisData: validateAndNormalize(parentCached), status: 'complete', source: 'live-ai', rendererVersion: RENDERER_VERSION };
+            await AnalysisStore.save(cached);
+          }
+        }
+        if (cached?.analysisData && cached.source === 'live-ai') {
+          state.payload = rendererPayload; state.metrics = calculateMetrics(rendererPayload.currentExam); state.analysis = validateAndNormalize(cached.analysisData); state.aiError = '';
+          thinkingScreen.hidden = true; renderWorkspace();
+        } else {
+          await runAnalysis('live');
+        }
+      } catch (error) {
+        renderFatalError(error?.message || 'অপ্রত্যাশিত সমস্যা হয়েছে; পরে আবার চেষ্টা করো।');
+        return;
       }
-      await runAnalysis('live');
-      sessionStorage.removeItem('admission-hub-ai-live-input');
+      try { sessionStorage.removeItem('admission-hub-ai-live-input'); } catch (_) {}
     }
 
     document.getElementById("skipThinking").onclick = () => { if (state.analysis && state.payload) { clearInterval(state.thinkingTimer); thinkingScreen.hidden = true; renderWorkspace(); } else toast("রিপোর্ট প্রস্তুত হচ্ছে…"); };
