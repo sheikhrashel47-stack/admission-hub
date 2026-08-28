@@ -137,7 +137,7 @@
         };
       }),
       constraints: {
-        dailyAiAnalysisLimit: 10,
+        dailyAiAnalysisLimit: 3,
         explanationStyle: 'সহজ, সরাসরি, স্বাভাবিক, শিক্ষকের মতো বাংলা; কোনো guarantee নয়',
         doNotInventNumbers: true,
         apiKeyInFrontend: false
@@ -258,7 +258,7 @@
     const cachedAnalysis = readCachedAnalysis(cacheKey);
     const overlay = document.createElement('div');
     overlay.className = 'result-ai-overlay';
-    overlay.innerHTML = `<section class="result-ai-modal" role="dialog" aria-modal="true" aria-label="AI Result Analysis"><div class="result-ai-modal-head"><div><span>ON-DEMAND AI ANALYSIS</span><h2>তোমার ফলাফল বিশ্লেষণ</h2></div><button class="result-ai-close" type="button" aria-label="বন্ধ করুন">×</button></div><div class="result-ai-status"><b>${endpoint ? 'AI connection ready' : 'প্রথম ধাপ প্রস্তুত'}</b><br>${endpoint ? 'Analysis button চাপলে secure endpoint-এ শুধু verified result summary যাবে।' : 'App তোমার result-এর verified summary তৈরি করেছে। এখন secure backend বসলে এখান থেকেই AI analysis নেওয়া যাবে।'}</div><div class="result-ai-metric-grid"><div class="result-ai-metric"><b>${m.score.toFixed(2)}</b><span>নেট স্কোর</span></div><div class="result-ai-metric"><b>${m.accuracy}%</b><span>নির্ভুলতা</span></div><div class="result-ai-metric"><b>${m.correct}/${m.total}</b><span>সঠিক</span></div><div class="result-ai-metric"><b>${m.wrong}</b><span>ভুল</span></div></div><div class="result-ai-turnstile" data-ai-turnstile></div><div class="result-ai-actions"><button type="button" data-ai-generate>${endpoint ? 'AI Analysis তৈরি করুন' : 'Secure setup pending'}</button><button type="button" class="secondary" data-ai-payload>Data summary দেখুন</button></div><pre class="result-ai-payload" data-ai-payload-box></pre><div class="result-ai-live-result" data-ai-live-result></div><p class="result-ai-note">API key কখনো frontend-এ থাকবে না। দিনে সর্বোচ্চ ১০টি নতুন request এবং একই result-এর cached response রাখা হবে।</p></section>`;
+    overlay.innerHTML = `<section class="result-ai-modal" role="dialog" aria-modal="true" aria-label="AI Result Analysis"><div class="result-ai-modal-head"><div><span>ON-DEMAND AI ANALYSIS</span><h2>তোমার ফলাফল বিশ্লেষণ</h2></div><button class="result-ai-close" type="button" aria-label="বন্ধ করুন">×</button></div><div class="result-ai-status"><b>${endpoint ? 'AI connection ready' : 'প্রথম ধাপ প্রস্তুত'}</b><br>${endpoint ? 'Analysis button চাপলে secure endpoint-এ শুধু verified result summary যাবে।' : 'App তোমার result-এর verified summary তৈরি করেছে। এখন secure backend বসলে এখান থেকেই AI analysis নেওয়া যাবে।'}</div><div class="result-ai-metric-grid"><div class="result-ai-metric"><b>${m.score.toFixed(2)}</b><span>নেট স্কোর</span></div><div class="result-ai-metric"><b>${m.accuracy}%</b><span>নির্ভুলতা</span></div><div class="result-ai-metric"><b>${m.correct}/${m.total}</b><span>সঠিক</span></div><div class="result-ai-metric"><b>${m.wrong}</b><span>ভুল</span></div></div><div class="result-ai-turnstile" data-ai-turnstile></div><div class="result-ai-actions"><button type="button" data-ai-generate>${endpoint ? 'AI Analysis তৈরি করুন' : 'Secure setup pending'}</button><button type="button" class="secondary" data-ai-payload>Data summary দেখুন</button></div><pre class="result-ai-payload" data-ai-payload-box></pre><div class="result-ai-live-result" data-ai-live-result></div><p class="result-ai-note">API key কখনো frontend-এ থাকবে না। দিনে সর্বোচ্চ ৩টি নতুন request এবং একই result-এর cached response রাখা হবে।</p></section>`;
     document.body.appendChild(overlay);
     const close = () => closeModal(overlay);
     overlay.querySelector('.result-ai-close').addEventListener('click', close);
@@ -274,16 +274,19 @@
     const turnstileSiteKey = String(window.ADMISSION_HUB_TURNSTILE_SITEKEY || '').trim();
     let turnstileToken = '';
     let turnstileWidgetId = null;
+    let turnstileUnavailable = !turnstileSiteKey;
     if (cachedAnalysis) renderStructuredAnalysis(live, cachedAnalysis, payload);
     if (endpoint && !cachedAnalysis) {
       if (!turnstileSiteKey) {
-        turnstileBox.textContent = 'Human verification setup pending.';
-        generateButton.disabled = true;
+        turnstileUnavailable = true;
+        turnstileBox.textContent = 'Human verification unavailable; secure AI request চালু রাখা হলো।';
+        generateButton.disabled = false;
       } else {
         turnstileBox.textContent = 'Human verification চালু হচ্ছে…';
         ensureTurnstile().then((api) => {
           if (!overlay.isConnected) return;
           turnstileBox.textContent = '';
+          turnstileUnavailable = false;
           turnstileWidgetId = api.render(turnstileBox, {
             sitekey: turnstileSiteKey,
             action: 'result_analysis',
@@ -293,8 +296,9 @@
           });
           generateButton.disabled = true;
         }).catch(() => {
-          turnstileBox.textContent = 'Human verification লোড হয়নি। পরে আবার চেষ্টা করো।';
-          generateButton.disabled = true;
+          turnstileUnavailable = true;
+          turnstileBox.textContent = 'Human verification লোড হয়নি; secure AI request চালু রাখা হলো।';
+          generateButton.disabled = false;
         });
       }
     }
@@ -306,8 +310,8 @@
         live.classList.add('open');
         return;
       }
-      if (!turnstileToken) {
-        live.textContent = 'Analysis চালানোর আগে human verification সম্পন্ন করো।';
+      if (!turnstileUnavailable && !turnstileToken) {
+        live.textContent = 'Human verification এখনো শেষ হয়নি। একটু অপেক্ষা করে আবার চেষ্টা করো।';
         live.classList.add('open');
         return;
       }
@@ -326,7 +330,7 @@
       } finally {
         turnstileToken = '';
         if (window.turnstile && turnstileWidgetId !== null) window.turnstile.reset(turnstileWidgetId);
-        button.disabled = !cachedAnalysis;
+        button.disabled = false;
         button.textContent = 'AI Analysis তৈরি করুন';
       }
     });
@@ -353,7 +357,7 @@
         if (!story || story.querySelector('.result-ai-entry')) return;
         const entry = document.createElement('div');
         entry.className = 'result-ai-entry';
-        entry.innerHTML = '<div class="result-ai-entry-copy"><strong>আরও বিস্তারিত AI Analysis</strong><span>বর্তমান ফল, আগের trend ও topic performance দেখে বন্ধুর মতো পরামর্শ · দিনে ১০টি নতুন analysis</span></div><button class="result-ai-button" type="button">✦ Analysis</button>';
+        entry.innerHTML = '<div class="result-ai-entry-copy"><strong>আরও বিস্তারিত AI Analysis</strong><span>বর্তমান ফল, আগের trend ও topic performance দেখে বন্ধুর মতো পরামর্শ · দিনে ৩টি নতুন analysis</span></div><button class="result-ai-button" type="button">✦ Analysis</button>';
         entry.querySelector('button').addEventListener('click', () => launchLiveAnalysisTool(result));
         story.appendChild(entry);
       }, 0);

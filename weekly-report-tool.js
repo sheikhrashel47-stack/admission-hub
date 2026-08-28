@@ -140,12 +140,20 @@
     const stats = weeklyStats();
     const cached = loadCached(stats.weekKey);
     if (cached) { const card = document.getElementById('weeklyReportCard'); if (card) card.outerHTML = weeklyInner(cached.data, stats, true); return; }
+    if (!stats.thisWeek.exams) {
+      setBusy(false, 'এই সপ্তাহে এখনো কোনো সম্পন্ন পরীক্ষা নেই। অন্তত একটি পরীক্ষা শেষ করলে AI রিপোর্ট তৈরি হবে।');
+      return;
+    }
     const endpoint = String(window.ADMISSION_HUB_AI_ENDPOINT || '').trim();
     const siteKey = String(window.ADMISSION_HUB_TURNSTILE_SITEKEY || '').trim();
     if (!endpoint) { setBusy(false, 'Secure AI endpoint পাওয়া যায়নি।'); return; }
     setBusy(true);
     try {
-      const token = await getTurnstileToken(siteKey);
+      let token = '';
+      try { token = siteKey ? await getTurnstileToken(siteKey) : ''; } catch (_) {
+        // Keep the real request flowing; the proxy enforces its own daily quota.
+        token = '';
+      }
       const res = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ schemaVersion: 'admission-hub-result-analysis-v1', result: { id: 'weekly', title: 'Weekly report', examType: 'সাপ্তাহিক সংকলন', completedAt: new Date().toISOString() }, previousResults: [], subjectPerformance: [], topicPerformance: [], requestType: 'weekly_report', weekly: stats, turnstileToken: token }) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
