@@ -9,7 +9,8 @@
     catch (_) { return ''; }
   };
   const getDeleted = async () => {
-    const rows = typeof dbGetAll === 'function' ? await dbGetAll('deletedQuestions') : [];
+    let rows = [];
+    try { rows = typeof dbGetAll === 'function' ? await dbGetAll('deletedQuestions') : []; } catch (error) { console.warn('[DeletedQuestions] read failed', error); rows = []; }
     CACHE.deletedQuestions = Array.isArray(rows) ? rows : [];
     return CACHE.deletedQuestions;
   };
@@ -19,7 +20,7 @@
     return [subject, topic].filter(Boolean).join(' · ') || 'Question Bank';
   };
   const questionCard = (question) => `<article class="deleted-question-card">
-    <div class="deleted-question-meta"><span>মুছে ফেলা হয়েছে</span><time>${qEsc(dateLabel(question.deletedAt))}</time></div>
+    <div class="deleted-question-meta"><span>মুছে ফেলা হয়েছে</span><time>${qEsc(dateLabel(question.deletedAt))}</time></div>
     <div class="deleted-question-location">${qEsc(locationLabel(question))}</div>
     <h3>${qEsc(question.question || 'Untitled question')}</h3>
     <div class="deleted-question-actions">
@@ -37,7 +38,7 @@
       window.renderDeletedQuestions();
     };
     if (typeof confirmModal === 'function') {
-      confirmModal('চিরতরে ডিলিট', 'এই প্রশ্নটি Trash থেকেও স্থায়ীভাবে মুছে যাবে। পরে আর ফেরত আনা যাবে না।', permanentlyRemove, 'চিরতরে ডিলিট', true);
+      confirmModal('চিরতরে ডিলিট', 'এই প্রশ্নটি Trash থেকেও স্থায়ীভাবে মুছে যাবে। পরে আর ফেরত আনা যাবে না।', permanentlyRemove, 'চিরতরে ডিলিট', true);
       return;
     }
     if (window.confirm('এই প্রশ্নটি চিরতরে মুছে ফেলবেন? পরে আর ফেরত আনা যাবে না।')) await permanentlyRemove();
@@ -50,20 +51,32 @@
     if (!ok) return;
     for (const question of CACHE.deletedQuestions || []) await dbDelPermanent('deletedQuestions', question.id);
     CACHE.deletedQuestions = [];
-    toast('Trash খালি করা হয়েছে');
+    toast('Trash খালি করা হয়েছে');
     window.renderDeletedQuestions();
   };
 
+  let trashRenderSeq = 0;
   window.renderDeletedQuestions = async () => {
+    const seq = ++trashRenderSeq;
+    try {
     const rows = (await getDeleted()).slice().sort((a, b) => Number(b.deletedAt || 0) - Number(a.deletedAt || 0));
     const content = rows.length ? `
       <div class="deleted-questions-toolbar"><span>${rows.length}টি প্রশ্ন এখানে আছে</span><button class="btn danger ghost" type="button" onclick="emptyDeletedQuestions()">সবগুলো চিরতরে ডিলিট</button></div>
       <div class="deleted-questions-list">${rows.map(questionCard).join('')}</div>` : `
       <div class="deleted-questions-empty"><div>🗑️</div><h2>Trash খালি</h2><p>Question Bank থেকে মুছে ফেলা প্রশ্নগুলো এখানে আসবে। এখান থেকে ডিলিট করলে সেগুলো চিরতরে মুছে যাবে।</p></div>`;
+    if (seq !== trashRenderSeq) return;
     renderShell(`<div class="deleted-questions-page">
       <div class="deleted-questions-hero"><div class="explorer-kicker">QUESTION MANAGEMENT</div><h1>Deleted Questions</h1><p>মুছে ফেলা প্রশ্নগুলো আগে এখানে থাকবে। এখান থেকে Delete করলে আর ফেরত আনা যাবে না।</p></div>
       ${content}
     </div>`, { title: 'Deleted Questions', back: "navigate('dashboard')" });
+    } catch (error) {
+      console.error('[DeletedQuestions] render failed', error);
+      if (seq !== trashRenderSeq) return;
+      const message = String((error && error.message) || error || 'অজানা সমস্যা');
+      try {
+        renderShell(`<div class="deleted-questions-page"><div class="deleted-questions-empty"><div>🗑️</div><h2>Trash এখনো খোলা যাচ্ছে না</h2><p>ডেটা পড়া যায়নি — অ্যাপ বন্ধ করে আবার খুলে চেষ্টা করো।</p><p style="margin-top:8px;color:#b3261e;font-size:11px;overflow-wrap:anywhere">${qEsc(message)}</p></div></div>`, { title: 'Deleted Questions', back: "navigate('dashboard')" });
+      } catch (_) {}
+    }
   };
 
   const style = document.createElement('style');
