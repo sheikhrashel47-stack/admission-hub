@@ -571,7 +571,7 @@ textarea{min-height:96px}
       const badge = document.createElement('div');
       badge.id = 'ahBuildBadge';
       badge.style.cssText = 'position:fixed;right:12px;bottom:84px;z-index:99998;font:700 10px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;color:#37507a;background:rgba(255,255,255,.72);border:1px solid rgba(30,60,120,.14);border-radius:9px;padding:3px 8px;pointer-events:none;letter-spacing:.5px;box-shadow:0 2px 8px rgba(20,40,90,.10)';
-      badge.textContent = 'AH v93';
+      badge.textContent = 'AH v94';
       document.body.appendChild(badge);
     } catch (_) {}
   };
@@ -1053,7 +1053,16 @@ function render(){
   if(p==='ai-chat') return renderAIChat();
   if(p==='progress') return renderProgress();
   if(p==='settings') return renderSettings();
+  if(p==='deleted-questions'||p==='web-chat'||p==='dictionary'||p==='question-bank/settings') return renderLazyToolFallback(p);
   renderDashboard();
+}
+function renderLazyToolFallback(path){
+  const diag=[];
+  try{diag.push('path='+path);}catch(_){}
+  try{diag.push('storage='+(typeof STORAGE_MODE!=='undefined'?STORAGE_MODE:'?')+',db='+(typeof DB!=='undefined'&&DB?'open':'null'));}catch(_){}
+  try{const fb=window.__admissionStorageFallback;if(fb&&fb.active)diag.push('fallback='+String(fb.error||'active').slice(0,90));}catch(_){}
+  try{diag.push('trace='+(JSON.parse(localStorage.getItem('ah-trace')||'[]').map(x=>x[1]).join('>')).slice(-90));}catch(_){}
+  renderShell(`<div style="text-align:center;padding:56px 20px;color:#64748b"><div style="font-size:44px">📡</div><h2 style="color:#172033;margin:10px 0 7px;font-size:20px">এই অংশটা এখনো লোড হয়নি</h2><p style="max-width:420px;margin:0 auto;line-height:1.7;font-size:13px">ইন্টারনেট সংযোগ দুর্বল বা অফলাইনে পেজের এই অংশ আসেনি। Retry চাপলে আবার চেষ্টা হবে — তোমার ডেটা নিরাপদ।</p><p style="margin-top:10px;color:#b3261e;font-size:11px;overflow-wrap:anywhere">${esc(diag.join(' | '))}</p><div style="display:flex;gap:10px;justify-content:center;margin-top:16px"><button class="btn" onclick="location.reload()">🔄 Retry</button><button class="btn ghost" onclick="navigate('dashboard')">🏠 Home</button></div></div>`,{title:'Loading problem'});
 }
 
 /* ================= DASHBOARD ================= */
