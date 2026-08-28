@@ -243,7 +243,7 @@
     } catch (_) {}
     const overlay = document.createElement('div');
     overlay.className = 'result-ai-fullscreen';
-    overlay.innerHTML = `<iframe title="Admission Hub AI Performance Analysis" src="./ai-performance-analysis-live.html?v=live-tool-v6-explainplus" loading="eager"></iframe>`;
+    overlay.innerHTML = `<iframe title="Admission Hub AI Performance Analysis" src="./ai-performance-analysis-live.html?v=live-tool-v7-flashlink" loading="eager"></iframe>`;
     document.body.appendChild(overlay);
     const close = () => { overlay.remove(); try { sessionStorage.removeItem('admission-hub-ai-live-input'); sessionStorage.removeItem('admission-hub-ai-live-cached-analysis'); } catch (_) {} };
     window.addEventListener('message', (event) => { if (event.source === overlay.querySelector('iframe')?.contentWindow && event.data?.type === 'admission-hub-ai-close') close(); }, { once: true });
@@ -331,6 +331,17 @@
       }
     });
   }
+
+  window.addEventListener('message', (event) => {
+    const data = event && event.data;
+    if (!data || data.type !== 'admission-hub-ai-flash-test' || !Array.isArray(data.questionIds)) return;
+    try {
+      document.querySelectorAll('.result-ai-fullscreen').forEach((node) => node.remove());
+      sessionStorage.removeItem('admission-hub-ai-live-input');
+      sessionStorage.removeItem('admission-hub-ai-live-cached-analysis');
+    } catch (_) {}
+    if (typeof window.startAiFlashTest === 'function') window.startAiFlashTest(data.questionIds);
+  });
 
   function install() {
     const base = window.renderResultView;
