@@ -604,6 +604,14 @@
     function buildAnalysisPayload(adapter) {
       return { currentExam: adapter.getCurrentExam(), previousExams: adapter.getPreviousExamHistory(), questions: adapter.getQuestionResults(), mistakeHistory: adapter.getMistakeHistory(), subjects: adapter.getSubjectPerformance(), topics: adapter.getTopicPerformance() };
     }
+    function calculateMetrics(exam) {
+      const attempted = Number(exam?.correct || 0) + Number(exam?.wrong || 0);
+      const marks = Number(exam?.marksPerQ || exam?.marks || 1);
+      const computedScore = Number(exam?.correct || 0) * marks - Number(exam?.wrong || 0) * Number(exam?.negativeMarking || 0);
+      const score = Number.isFinite(Number(exam?.score)) ? Number(exam.score) : computedScore;
+      const totalMarks = Number(exam?.totalMarks || exam?.totalQuestions || 0);
+      return { score, percentage: totalMarks ? score / totalMarks * 100 : 0, accuracy: attempted ? Number(exam?.correct || 0) / attempted * 100 : 0, attempted, timeSpentMinutes: Math.round(Number(exam?.timeSpentSeconds || 0) / 60), timeEfficiency: Number(exam?.durationSeconds || 0) ? Number(exam.timeSpentSeconds || 0) / Number(exam.durationSeconds) * 100 : 0 };
+    }
 
     /* AI ADAPTERS: live secure backend only; no demo adapter exists. */
     async function requestLiveAI(requestPayload) {
