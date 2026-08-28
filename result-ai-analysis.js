@@ -137,7 +137,7 @@
         };
       }),
       constraints: {
-        dailyAiAnalysisLimit: 3,
+        dailyAiAnalysisLimit: 10,
         explanationStyle: 'সহজ, সরাসরি, স্বাভাবিক, শিক্ষকের মতো বাংলা; কোনো guarantee নয়',
         doNotInventNumbers: true,
         apiKeyInFrontend: false
@@ -159,7 +159,7 @@
   document.head.appendChild(style);
 
   function closeModal(node) { node?.remove(); }
-  const analysisCacheKey = (payload) => `admission-hub-ai-analysis:${payload?.result?.id || 'unknown'}:${payload?.result?.score}:${payload?.result?.accuracy}:${payload?.previousResults?.length || 0}`;
+  const analysisCacheKey = (payload) => { const result = payload?.result || {}; const history = (payload?.previousResults || []).map(item => `${item.id}:${item.score}:${item.accuracy}`).join('|'); return `admission-hub-ai-analysis:v2:${result.id || 'unknown'}:${result.score}:${result.accuracy}:${result.correct}:${result.wrong}:${result.skipped}:${history}`; };
   const readCachedAnalysis = (key) => { try { return localStorage.getItem(key) || ''; } catch (_) { return ''; } };
   const writeCachedAnalysis = (key, text) => { try { localStorage.setItem(key, text); } catch (_) {} };
   async function waitForRun(endpoint, runId, onProgress) {
@@ -243,7 +243,7 @@
     } catch (_) {}
     const overlay = document.createElement('div');
     overlay.className = 'result-ai-fullscreen';
-    overlay.innerHTML = `<iframe title="Admission Hub AI Performance Analysis" src="./ai-performance-analysis-live.html?v=live-tool-v1" loading="eager"></iframe>`;
+    overlay.innerHTML = `<iframe title="Admission Hub AI Performance Analysis" src="./ai-performance-analysis-live.html?v=live-tool-v3-real-ai" loading="eager"></iframe>`;
     document.body.appendChild(overlay);
     const close = () => { overlay.remove(); try { sessionStorage.removeItem('admission-hub-ai-live-input'); sessionStorage.removeItem('admission-hub-ai-live-cached-analysis'); } catch (_) {} };
     window.addEventListener('message', (event) => { if (event.source === overlay.querySelector('iframe')?.contentWindow && event.data?.type === 'admission-hub-ai-close') close(); }, { once: true });
@@ -258,7 +258,7 @@
     const cachedAnalysis = readCachedAnalysis(cacheKey);
     const overlay = document.createElement('div');
     overlay.className = 'result-ai-overlay';
-    overlay.innerHTML = `<section class="result-ai-modal" role="dialog" aria-modal="true" aria-label="AI Result Analysis"><div class="result-ai-modal-head"><div><span>ON-DEMAND AI ANALYSIS</span><h2>তোমার ফলাফল বিশ্লেষণ</h2></div><button class="result-ai-close" type="button" aria-label="বন্ধ করুন">×</button></div><div class="result-ai-status"><b>${endpoint ? 'AI connection ready' : 'প্রথম ধাপ প্রস্তুত'}</b><br>${endpoint ? 'Analysis button চাপলে secure endpoint-এ শুধু verified result summary যাবে।' : 'App তোমার result-এর verified summary তৈরি করেছে। এখন secure backend বসলে এখান থেকেই AI analysis নেওয়া যাবে।'}</div><div class="result-ai-metric-grid"><div class="result-ai-metric"><b>${m.score.toFixed(2)}</b><span>নেট স্কোর</span></div><div class="result-ai-metric"><b>${m.accuracy}%</b><span>নির্ভুলতা</span></div><div class="result-ai-metric"><b>${m.correct}/${m.total}</b><span>সঠিক</span></div><div class="result-ai-metric"><b>${m.wrong}</b><span>ভুল</span></div></div><div class="result-ai-turnstile" data-ai-turnstile></div><div class="result-ai-actions"><button type="button" data-ai-generate>${endpoint ? 'AI Analysis তৈরি করুন' : 'Secure setup pending'}</button><button type="button" class="secondary" data-ai-payload>Data summary দেখুন</button></div><pre class="result-ai-payload" data-ai-payload-box></pre><div class="result-ai-live-result" data-ai-live-result></div><p class="result-ai-note">API key কখনো frontend-এ থাকবে না। দিনে সর্বোচ্চ ৩টি request এবং একই result-এর cached response রাখা হবে।</p></section>`;
+    overlay.innerHTML = `<section class="result-ai-modal" role="dialog" aria-modal="true" aria-label="AI Result Analysis"><div class="result-ai-modal-head"><div><span>ON-DEMAND AI ANALYSIS</span><h2>তোমার ফলাফল বিশ্লেষণ</h2></div><button class="result-ai-close" type="button" aria-label="বন্ধ করুন">×</button></div><div class="result-ai-status"><b>${endpoint ? 'AI connection ready' : 'প্রথম ধাপ প্রস্তুত'}</b><br>${endpoint ? 'Analysis button চাপলে secure endpoint-এ শুধু verified result summary যাবে।' : 'App তোমার result-এর verified summary তৈরি করেছে। এখন secure backend বসলে এখান থেকেই AI analysis নেওয়া যাবে।'}</div><div class="result-ai-metric-grid"><div class="result-ai-metric"><b>${m.score.toFixed(2)}</b><span>নেট স্কোর</span></div><div class="result-ai-metric"><b>${m.accuracy}%</b><span>নির্ভুলতা</span></div><div class="result-ai-metric"><b>${m.correct}/${m.total}</b><span>সঠিক</span></div><div class="result-ai-metric"><b>${m.wrong}</b><span>ভুল</span></div></div><div class="result-ai-turnstile" data-ai-turnstile></div><div class="result-ai-actions"><button type="button" data-ai-generate>${endpoint ? 'AI Analysis তৈরি করুন' : 'Secure setup pending'}</button><button type="button" class="secondary" data-ai-payload>Data summary দেখুন</button></div><pre class="result-ai-payload" data-ai-payload-box></pre><div class="result-ai-live-result" data-ai-live-result></div><p class="result-ai-note">API key কখনো frontend-এ থাকবে না। দিনে সর্বোচ্চ ১০টি নতুন request এবং একই result-এর cached response রাখা হবে।</p></section>`;
     document.body.appendChild(overlay);
     const close = () => closeModal(overlay);
     overlay.querySelector('.result-ai-close').addEventListener('click', close);
@@ -316,7 +316,7 @@
       try {
         const response = await fetch(endpoint, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, turnstileToken }) });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+        if (!response.ok) { if (response.status === 429) throw new Error('আজকের ১০টি নতুন analysis-এর সীমা পূর্ণ হয়েছে। Cached report থাকলে সেটি দেখা যাবে।'); throw new Error(data.error || `HTTP ${response.status}`); }
         const text = data.analysis || data.result || data.text || (data.runId ? await waitForRun(endpoint, data.runId, (status) => { button.textContent = status === 'queued' ? 'Queue-তে আছে…' : 'Analysis তৈরি হচ্ছে…'; }) : 'Analysis response পাওয়া যায়নি।');
         renderStructuredAnalysis(live, String(text), payload);
         writeCachedAnalysis(cacheKey, String(text));
@@ -342,7 +342,7 @@
         if (!story || story.querySelector('.result-ai-entry')) return;
         const entry = document.createElement('div');
         entry.className = 'result-ai-entry';
-        entry.innerHTML = '<div class="result-ai-entry-copy"><strong>আরও বিস্তারিত AI Analysis</strong><span>বর্তমান ফল, আগের trend ও topic performance দেখে বন্ধুর মতো পরামর্শ</span></div><button class="result-ai-button" type="button">✦ Analysis</button>';
+        entry.innerHTML = '<div class="result-ai-entry-copy"><strong>আরও বিস্তারিত AI Analysis</strong><span>বর্তমান ফল, আগের trend ও topic performance দেখে বন্ধুর মতো পরামর্শ · দিনে ১০টি নতুন analysis</span></div><button class="result-ai-button" type="button">✦ Analysis</button>';
         entry.querySelector('button').addEventListener('click', () => launchLiveAnalysisTool(result));
         story.appendChild(entry);
       }, 0);
