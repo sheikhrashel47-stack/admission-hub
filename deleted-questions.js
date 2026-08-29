@@ -129,6 +129,7 @@
   const clearWatchdog = () => { if (trashWatchdog) { clearTimeout(trashWatchdog); trashWatchdog = 0; } };
   window.renderDeletedQuestions = async () => {
     const seq = ++trashRenderSeq;
+    try { toast('🗑️ Trash খুলছে…'); } catch (_) {}
     clearWatchdog();
     trashWatchdog = setTimeout(() => {
       if (trashRenderSeq !== seq) return;
