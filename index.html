@@ -571,9 +571,15 @@ textarea{min-height:96px}
       const badge = document.createElement('div');
       badge.id = 'ahBuildBadge';
       badge.style.cssText = 'position:fixed;right:12px;bottom:84px;z-index:99998;font:700 10px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;color:#37507a;background:rgba(255,255,255,.72);border:1px solid rgba(30,60,120,.14);border-radius:9px;padding:6px 10px;pointer-events:auto;cursor:pointer;letter-spacing:.5px;box-shadow:0 2px 8px rgba(20,40,90,.10)';
-      badge.textContent = 'AH v95';
+      badge.textContent = 'AH v96';
+      const __updBadge=()=>{ try{ const b=document.getElementById('ahBuildBadge'); if(!b) return; const a2=document.getElementById('app'); b.textContent='AH v96 · '+String(a2?a2.innerHTML.length:0); }catch(_){} };
+      window.__ahUpdBadge=__updBadge;
+      try{ new MutationObserver(()=>setTimeout(__updBadge,0)).observe(document.getElementById('app')||document.body,{childList:true,subtree:true}); }catch(_){}
+      window.addEventListener('hashchange',()=>setTimeout(__updBadge,0));
+
       badge.addEventListener('click', () => { try { openDiag(); } catch (_) {} });
       document.body.appendChild(badge);
+      __updBadge();
     } catch (_) {}
   };
   const dEsc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -1042,6 +1048,7 @@ function renderShell(innerHtml, opts){
   `;
   const navRoot=document.getElementById('navRoot');
   if(navRoot) navRoot.innerHTML=showNav ? bottomNavHtml(activeTab) : '';
+  try{ if(window.__ahLastShellPath!==(Router.path||'')){ window.__ahLastShellPath=Router.path||''; window.scrollTo(0,0); if(document.scrollingElement) document.scrollingElement.scrollTop=0; document.body.scrollTop=0; const __pe=app.querySelector('.page'); if(__pe) __pe.scrollTop=0; } }catch(_){}
   document.dispatchEvent(new CustomEvent('admission:route-rendered',{detail:{path:Router.path||'dashboard'}}));
 }
 function topbarHtml(opts){
@@ -5432,7 +5439,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
 <script src="notes-tool.js?v=dashboard-notes-v9-compact-pages"></script>
-<script src="deleted-questions.js?v=trash3-watchdog"></script>
+<script src="deleted-questions.js?v=trash4-toast"></script>
 <script src="manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816"></script>
 <script src="nav-resume-fix.js?v=1"></script>
 <script src="mistake-note-icon.js?v=15"></script>
