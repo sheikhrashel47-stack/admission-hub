@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v97-trash-safe-pwa-20260829';
+const BUILD_ID = 'v98-clean-ui-20260829';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -35,7 +35,7 @@ const APP_SHELL = [
   './exam-dropdowns.js?v=1',
   './mobile-ux-fix.js?v=1',
   './notes-tool.js?v=dashboard-notes-v9-compact-pages',
-  './deleted-questions.js?v=trash4-toast',
+  './deleted-questions.js?v=trash5-clean',
   './manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816',
   './nav-resume-fix.js?v=1',
   './mistake-note-icon.js?v=15',
