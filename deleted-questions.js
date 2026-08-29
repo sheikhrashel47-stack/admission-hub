@@ -28,7 +28,7 @@
   const questionCard = (question) => {
     const id = String(question?.id == null ? '' : question.id);
     return `<article class="deleted-question-card">
-      <div class="deleted-question-meta"><span>মুছে ফেলা হয়েছে</span><time>${qEsc(dateLabel(question?.deletedAt))}</time></div>
+      <div class="deleted-question-meta"><span>মুছে ফেলা হয়েছে</span><time>${qEsc(dateLabel(question?.deletedAt))}</time></div>
       <div class="deleted-question-location">${qEsc(locationLabel(question))}</div>
       <h3>${qEsc(question?.question || 'Untitled question')}</h3>
       <div class="deleted-question-actions">
@@ -71,8 +71,8 @@
     console.error('[Admission Hub] Could not open Deleted Questions.', error);
     try {
       renderShell(`<div class="deleted-questions-page">
-        <div class="deleted-questions-hero"><div class="explorer-kicker">QUESTION MANAGEMENT</div><h1>Deleted Questions</h1><p>Trash খোলার সময় সাময়িক সমস্যা হয়েছে। আপনার মূল question bank নিরাপদ আছে।</p></div>
-        <div class="deleted-questions-empty"><div>⚠️</div><h2>Trash এখন খোলা যাচ্ছে না</h2><p>আবার চেষ্টা করুন। কোনো question এই error-এর কারণে মুছে যায়নি।</p><button class="btn secondary" type="button" data-retry-deleted>আবার চেষ্টা করুন</button></div>
+        <div class="deleted-questions-hero"><div class="explorer-kicker">QUESTION MANAGEMENT</div><h1>Deleted Questions</h1><p>Trash খোলার সময় সাময়িক সমস্যা হয়েছে। আপনার মূল question bank নিরাপদ আছে।</p></div>
+        <div class="deleted-questions-empty"><div>⚠️</div><h2>Trash এখন খোলা যাচ্ছে না</h2><p>আবার চেষ্টা করুন। কোনো question এই error-এর কারণে মুছে যায়নি।</p><button class="btn secondary" type="button" data-retry-deleted>আবার চেষ্টা করুন</button></div>
       </div>`, { title: 'Deleted Questions', back: "navigate('dashboard')" });
       bindActions();
     } catch (fallbackError) {
@@ -100,7 +100,7 @@
       }
     };
     if (typeof confirmModal === 'function') {
-      confirmModal('চিরতরে ডিলিট', 'এই প্রশ্নটি Trash থেকেও স্থায়ীভাবে মুছে যাবে। পরে আর ফেরত আনা যাবে না।', permanentlyRemove, 'চিরতরে ডিলিট', true);
+      confirmModal('চিরতরে ডিলিট', 'এই প্রশ্নটি Trash থেকেও স্থায়ীভাবে মুছে যাবে। পরে আর ফেরত আনা যাবে না।', permanentlyRemove, 'চিরতরে ডিলিট', true);
       return;
     }
     if (window.confirm('এই প্রশ্নটি চিরতরে মুছে ফেলবেন? পরে আর ফেরত আনা যাবে না।')) await permanentlyRemove();
@@ -114,12 +114,12 @@
     try {
       for (const question of rows) await dbDelPermanent('deletedQuestions', question?.id);
       CACHE.deletedQuestions = [];
-      toast('Trash খালি করা হয়েছে');
+      toast('Trash খালি করা হয়েছে');
       visibleCount = PAGE_SIZE;
       await window.renderDeletedQuestions();
     } catch (error) {
       console.error('[Admission Hub] Empty Trash failed.', error);
-      toast('Trash পুরোপুরি খালি করা যায়নি। আবার চেষ্টা করুন।');
+      toast('Trash পুরোপুরি খালি করা যায়নি। আবার চেষ্টা করুন।');
       await window.renderDeletedQuestions();
     }
   };
@@ -129,7 +129,6 @@
   const clearWatchdog = () => { if (trashWatchdog) { clearTimeout(trashWatchdog); trashWatchdog = 0; } };
   window.renderDeletedQuestions = async () => {
     const seq = ++trashRenderSeq;
-    try { toast('🗑️ Trash খুলছে…'); } catch (_) {}
     clearWatchdog();
     trashWatchdog = setTimeout(() => {
       if (trashRenderSeq !== seq) return;

@@ -523,7 +523,7 @@ textarea{min-height:96px}
 }
 </style>
 <script>
-/* Crash visibility: কোনো ভুল আর নীরবে হারাবে না — স্ক্রিনেই দেখাবে। */
+/* Crash safety net: real errors surface on-screen (invisible unless something breaks). */
 (() => {
   'use strict';
   if (window.__ahCrashWatch) return;
@@ -565,80 +565,6 @@ textarea{min-height:96px}
   window.addEventListener('error', (e) => { if (e && (e.message || e.error)) { show('Error', e.message || (e.error && e.error.message) || ''); trace('err', e.message || ''); } });
   window.addEventListener('unhandledrejection', (e) => { const r = e && e.reason; if (r) { show('Crash', (r && r.message) || String(r)); trace('reject', (r && r.message) || String(r)); } });
   window.addEventListener('hashchange', () => trace('route', location.hash));
-  const mountBadge = () => {
-    try {
-      if (!document.body || document.getElementById('ahBuildBadge')) return;
-      const badge = document.createElement('div');
-      badge.id = 'ahBuildBadge';
-      badge.style.cssText = 'position:fixed;right:12px;bottom:84px;z-index:99998;font:700 10px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;color:#37507a;background:rgba(255,255,255,.72);border:1px solid rgba(30,60,120,.14);border-radius:9px;padding:6px 10px;pointer-events:auto;cursor:pointer;letter-spacing:.5px;box-shadow:0 2px 8px rgba(20,40,90,.10)';
-      badge.textContent = 'AH v96';
-      const __updBadge=()=>{ try{ const b=document.getElementById('ahBuildBadge'); if(!b) return; const a2=document.getElementById('app'); b.textContent='AH v96 · '+String(a2?a2.innerHTML.length:0); }catch(_){} };
-      window.__ahUpdBadge=__updBadge;
-      try{ new MutationObserver(()=>setTimeout(__updBadge,0)).observe(document.getElementById('app')||document.body,{childList:true,subtree:true}); }catch(_){}
-      window.addEventListener('hashchange',()=>setTimeout(__updBadge,0));
-
-      badge.addEventListener('click', () => { try { openDiag(); } catch (_) {} });
-      document.body.appendChild(badge);
-      __updBadge();
-    } catch (_) {}
-  };
-  const dEsc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const openDiag = () => {
-    try {
-      let old = document.getElementById('ahDiagPanel');
-      if (old) { old.remove(); return; }
-      const app = document.getElementById('app');
-      const navRoot = document.getElementById('navRoot');
-      const pageEl = app && app.querySelector('.page');
-      const trashEl = app && app.querySelector('.deleted-questions-page');
-      const fb = window.__admissionStorageFallback;
-      let traceTxt = 'খালি';
-      try { const t = JSON.parse(localStorage.getItem('ah-trace') || '[]'); traceTxt = t.length ? t.slice().reverse().map((x) => new Date(x[0]).toLocaleTimeString() + ' ' + x[1] + ': ' + x[2]).join('\n') : 'খালি'; } catch (_) {}
-      let crash = 'নেই';
-      try { crash = sessionStorage.getItem('ah-last-crash') || 'নেই'; } catch (_) {}
-      const row = (k, v, danger) => '<div style="display:flex;gap:8px;padding:5px 0;border-bottom:1px solid #eef2f7;font-size:12.5px;line-height:1.5"><b style="min-width:96px;color:#64748b">' + k + '</b><span style="flex:1;' + (danger ? 'color:#b3261e;overflow-wrap:anywhere' : 'overflow-wrap:anywhere') + '">' + dEsc(v) + '</span></div>';
-      const el = document.createElement('div');
-      el.id = 'ahDiagPanel';
-      el.style.cssText = 'position:fixed;inset:0;z-index:100001;background:#fff;overflow-y:auto;padding:16px 14px 90px;font:500 13px/1.55 -apple-system,BlinkMacSystemFont,sans-serif;color:#172033;-webkit-overflow-scrolling:touch';
-      el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:16px">🔧 অ্যাপ ডায়াগনোসিস</b><button id="ahDiagClose" style="border:0;background:#f1f5f9;border-radius:10px;padding:8px 14px;font:700 13px -apple-system;cursor:pointer">✖ বন্ধ</button></div>'
-        + '<p style="margin:0 0 10px;color:#64748b;font-size:11.5px">এই স্ক্রিনের ছবি তুলে পাঠাও — সমস্যার জায়গা এখানেই লেখা থাকে।</p>'
-        + '<div>' + row('Index build', 'v95') + '</div>'
-        + '<div id="ahDiagSw">' + row('Service Worker', 'জিজ্ঞেস করা হচ্ছে…') + '</div>'
-        + row('boot status', String(window.__admissionBootStatus))
-        + row('modules ready', String(window.__admissionFinalModulesReady))
-        + row('route (Router)', String((window.Router && window.Router.path) || '') + ' | hash=' + String(location.hash || '(empty)'))
-        + row('app innerHTML', app ? (String(app.innerHTML.length) + ' chars, .page=' + (pageEl ? 'yes' : 'no') + ', trash-page=' + (trashEl ? 'yes' : 'no')) : '#app নেই!')
-        + row('nav innerHTML', navRoot ? String(navRoot.innerHTML.length) + ' chars' : '#navRoot নেই!')
-        + row('renderDeletedQuestions', typeof window.renderDeletedQuestions)
-        + row('render fn', typeof window.render)
-        + row('storage', String((typeof STORAGE_MODE !== 'undefined' && STORAGE_MODE) || '?') + ' | DB=' + ((typeof DB !== 'undefined' && DB) ? 'open' : 'null'))
-        + row('storage fallback', fb && fb.active ? String(fb.error || 'active') : 'নেই (ভালো)', !!(fb && fb.active))
-        + row('last crash', crash, crash !== 'নেই')
-        + '<div style="margin-top:10px"><b style="font-size:12.5px;color:#64748b">route/error trace (নতুন আগে):</b><pre id="ahDiagTrace" style="margin:6px 0 0;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;font:600 11px/1.6 ui-monospace,Menlo,monospace;white-space:pre-wrap;overflow-wrap:anywhere;color:#334155">' + dEsc(traceTxt) + '</pre></div>'
-        + '<div style="display:flex;gap:10px;margin-top:14px"><button id="ahDiagCopy" style="flex:1;border:0;background:#0f6b4f;color:#fff;border-radius:12px;padding:12px;font:700 14px -apple-system;cursor:pointer">📋 সব কপি করো</button></div>';
-      document.body.appendChild(el);
-      el.querySelector('#ahDiagClose').addEventListener('click', () => el.remove());
-      el.querySelector('#ahDiagCopy').addEventListener('click', () => {
-        try {
-          const text = el.innerText;
-          if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => {}, () => {});
-        } catch (_) {}
-      });
-      const swEl = el.querySelector('#ahDiagSw');
-      try {
-        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-          const ch = new MessageChannel();
-          ch.port1.onmessage = (e) => {
-            try { const d = e.data || {}; swEl.innerHTML = row('Service Worker', 'build=' + (d.buildId || '?') + ' | cache=' + (d.cacheName || '?')); } catch (_) {}
-          };
-          navigator.serviceWorker.controller.postMessage({ type: 'VERSION_CHECK' }, [ch.port2]);
-          setTimeout(() => { try { if (swEl.textContent.indexOf('জিজ্ঞেস') >= 0) swEl.innerHTML = row('Service Worker', 'উত্তর নেই (পুরনো SW?)', true); } catch (_) {} }, 1500);
-        } else swEl.innerHTML = row('Service Worker', 'controller নেই', true);
-      } catch (_) { try { swEl.innerHTML = row('Service Worker', 'চেক করা গেল না', true); } catch (_) {} }
-    } catch (_) {}
-  };
-  window.__ahOpenDiag = openDiag;
-  if (document.body) mountBadge(); else document.addEventListener('DOMContentLoaded', mountBadge, { once: true });
 })();
 </script>
 </head>
@@ -5158,12 +5084,12 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       // An older worker can keep serving the pre-fix navigation bundle in an
       // installed PWA. Remove that controller once, then install the current
       // worker with a fresh build URL.
-      const expectedSwVersion = 'v97-trash-safe-pwa-20260829';
+      const expectedSwVersion = 'v98-clean-ui-20260829';
       if (registration && activeUrl && !activeUrl.includes(expectedSwVersion)) {
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v97-trash-safe-pwa-20260829',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v98-clean-ui-20260829',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5440,7 +5366,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="exam-dropdowns.js?v=1"></script>
 <script src="mobile-ux-fix.js?v=1"></script>
 <script src="notes-tool.js?v=dashboard-notes-v9-compact-pages"></script>
-<script src="deleted-questions.js?v=trash4-toast"></script>
+<script src="deleted-questions.js?v=trash5-clean"></script>
 <script src="manual-gemini-helper.js?v=gemini-v11-4-manual-note-0816"></script>
 <script src="nav-resume-fix.js?v=1"></script>
 <script src="mistake-note-icon.js?v=15"></script>
