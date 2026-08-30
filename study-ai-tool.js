@@ -83,8 +83,13 @@
       const answer = typeof q?.answer === 'string' && q.answer ? q.answer : (Number.isFinite(ai) && opts[ai] != null ? String(opts[ai]) : '');
       return { q: String((q && (q.question ?? q.q)) || '').slice(0, 400), o: opts.map(x => String(x).slice(0, 120)).slice(0, 6), a: answer.slice(0, 120), e: String((q && q.explain) || '').slice(0, 300), s: subName(q && q.subjectId).slice(0, 70), t: topName(q && q.topicId).slice(0, 70) };
     }).filter(x => x.q && x.o.length >= 2);
-    return { questions: qs, stats: { count: qs.length, ...bankStats() } };
+    const ex = (Array.isArray(c.examResults) ? c.examResults : []).slice(0, 25).map(e => { try { const t = Number(e && (e.totalQuestions ?? (Array.isArray(e.questions) ? e.questions.length : 0))) || 0; const cc = Number(e && (e.correctCount ?? e.correct)) || 0; return { d: dateStr(e && ((e.completedAt ?? e.at) || Date.now())), s: cc + '/' + t, m: e && e.mode ? String(e.mode).slice(0, 8) : '' }; } catch (_) { return null; } }).filter(Boolean);
+    const mis = Array.isArray(c.mistakes) ? c.mistakes.length : 0, voc = Array.isArray(c.vocabulary) ? c.vocabulary.length : 0;
+    const lastAt = ex.length ? (c.examResults[0] && (c.examResults[0].completedAt || c.examResults[0].at)) || null : null;
+    return { questions: qs, stats: { count: qs.length, ...bankStats() }, history: ex, activity: { exams: (c.examResults || []).length, mistakes: mis, vocab: voc, lastExamAt: lastAt, syncedAt: Date.now() } };
   };
+  // ডেটা-সিগনেচার: প্রশ্ন/পরীক্ষা বদলালেই নতুন-মান → অটো-রি-সিঙ্কের ভিত্তি
+  const dataSig = () => { const c = cache(); const ex = c.examResults || []; const last = ex[0] && (ex[0].completedAt || ex[0].at) || 0; return (c.questions || []).length + ':' + ex.length + ':' + last; };
   const syncBank = async () => {
     // অ্যাপ খুলে IndexedDB-তে প্রশ্ন আসা পর্যন্ত অপেক্ষা (সর্বোচ্চ ~১২ সেকেন্ড)
     for (let i = 0; i < 30 && !(cache().questions || []).length; i++) await new Promise(r => setTimeout(r, 400));
@@ -112,11 +117,13 @@
     try {
       const info = await fetch(WORKER + '/api/bank', { headers: APP_HEADER }).then(r => r.json()).catch(() => ({}));
       state.bankInfo = info;
-      if (info && info.saved) { if (!localStorage.getItem(LS_BANK)) localStorage.setItem(LS_BANK, String(info.savedAt || Date.now())); return; }
+      // worker-এ ডেটা থাকলেও তুলনা করি: লোকাল ডেটা বদলেছে কি না — বদলেছে তবেই টাটকা আপলোড
+      if (info && info.saved && !manual && localStorage.getItem('ahBankSig') === dataSig()) { if (!localStorage.getItem(LS_BANK)) localStorage.setItem(LS_BANK, String(info.savedAt || Date.now())); return; }
       const n = await syncBank();
       state.bankInfo = { saved: true, count: n, savedAt: Date.now() };
       localStorage.setItem(LS_SHARED, '1');
-      if (window.toast) window.toast('📚 তোমার প্রশ্নব্যাংক এজেন্টের কাছে সেভ হয়েছে ✓');
+      localStorage.setItem('ahBankSig', dataSig());
+      if (window.toast && manual) window.toast('📤 সব ডেটা AI-দের কাছে টাটকা হয়ে গেছে ✓');
     } catch (e) {
       localStorage.setItem('studyAiSyncErr', String(e?.message || e).slice(0, 90));
       if (manual && window.toast) window.toast('⚠️ ডেটা যায়নি: ' + String(e?.message || e).slice(0, 60));
@@ -167,15 +174,16 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       let out = '[লাইভ-মেমোরি — অ্যাপের এখনকার অবস্থা]\nপ্রশ্নব্যাংক: ' + bn(qs.length) + 'টি প্রশ্ন' + (subs.length ? ' · বিষয়: ' + subs.join(', ') : '');
       const wrongs = (c.mistakes || []).slice(-6).map(m => { const q = qs.find(x => x && x.id === (m.questionId || (m.q || {}).id)); return q ? String(q.question || '').slice(0, 70) : ''; }).filter(Boolean);
       if (wrongs.length) out += '\nসাম্প্রতিক ভুল: ' + wrongs.join(' | ');
-      const last = (c.examResults || []).slice(-1)[0];
-      if (last) out += '\nশেষ পরীক্ষা: ' + bn(last.correctCount ?? last.score ?? 0) + '/' + bn(last.totalQuestions || 0) + ' সঠিক';
+      const exs = (c.examResults || []).slice(0, 3).map(e2 => { try { const t = Number(e2 && (e2.totalQuestions ?? 0)) || 0; return bn(e2 && (e2.correctCount ?? 0)) + '/' + bn(t); } catch (_) { return ''; } }).filter(Boolean);
+      if (exs.length) out += '\nসাম্প্রতিক পরীক্ষা: ' + exs.join(', ');
+      if ((c.vocabulary || []).length) out += '\nশব্দ-সংগ্রহ: ' + bn(c.vocabulary.length) + 'টি';
       const lines = [];
-      listChats().filter(ch => ch.id !== curId()).slice(0, 3).forEach(ch => {
-        const ms = msgsOf(ch.id).filter(m => m.text).slice(-3);
+      listChats().filter(ch => ch.id !== curId()).slice(0, 5).forEach(ch => {
+        const ms = msgsOf(ch.id).filter(m => m.text).slice(-4);
         if (ms.length) lines.push('— ' + String(ch.title || 'চ্যাট').slice(0, 30) + ': ' + ms.map(m => (m.who === 'me' ? 'ইউজার' : 'AI') + ': ' + String(m.text).slice(0, 110)).join(' § '));
       });
       if (lines.length) out += '\nআগের চ্যাটের স্মৃতি:\n' + lines.join('\n').slice(0, 1200);
-      return out.slice(0, 2000);
+      return out.slice(0, 2800);
     } catch (_) { return ''; }
   };
   const fastAvailable = () => keyList(cfg().provider).length > 0;
@@ -234,7 +242,21 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
           return { text: text || 'উত্তর পাইনি — আবার লেখো?', sources: gemSources(d) };
         }
       }
-      throw new Error(/high demand/i.test(lastMsg) ? 'Gemini-র সার্ভার এখন ভিড়াল 😵 — একটু পরে আবার পাঠাও, বা কম্পোজারের ব্যাজ চেপে অন্য ইঞ্জিনে বদলাও' : (lastStatus === 429 ? 'Gemini-র ফ্রি-কোটা শেষ — ১ মিনিট পরে আবার, বা 🌐 এজেন্টে বদলাও' : (lastMsg || 'Gemini এখন উত্তর দিচ্ছে না — একটু পরে আবার')));
+      // সব Gemini-পথ শুকনো → OpenRouter আছে? তাহলে স্পষ্ট-ঘোষণাসহ ফলব্যাক (চুপচাপ নয়)
+      const orKey = keyList('openrouter')[0];
+      if (orKey) {
+        const orChain = ['openrouter/auto', 'deepseek/deepseek-chat', 'meta-llama/llama-3.3-70b-instruct:free'];
+        const omsgs = [{ role: 'system', content: sysPrompt() + (brain ? '\n\n' + brain : '') }, ...msgsOf(curId()).filter(m => m.text).slice(-8).map(m => ({ role: m.who === 'ai' ? 'assistant' : 'user', content: m.text }))].slice(0, 9);
+        let orLast = '';
+        for (const om of orChain) {
+          const ores = await fetch('https://openrouter.ai/api/v1/chat/completions', Object.assign({ method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + orKey, 'HTTP-Referer': 'https://sheikhrashel47-stack.github.io/admission-hub/', 'X-Title': 'Admihub' }, {}), body: JSON.stringify({ model: om, models: orChain, messages: omsgs, temperature: 0.5, max_tokens: 1024 }) }, ctl ? { signal: ctl.signal } : {}));
+          const od = await ores.json().catch(() => ({}));
+          if (!ores.ok) { orLast = od?.error?.message || 'HTTP ' + ores.status; if (ctl && ctl.signal && ctl.signal.aborted) throw new Error('aborted'); continue; }
+          const otext = String(od.choices?.[0]?.message?.content || '').trim();
+          if (otext) { if (window.toast) window.toast('⚡ Gemini ব্যস্ত ছিল — OpenRouter দিয়ে উত্তর দিলাম'); return { text: otext, sources: ['⚡ Gemini-ভিড় → OpenRouter ফলব্যাক'] }; }
+        }
+      }
+      throw new Error(/high demand/i.test(lastMsg) ? 'Gemini-র সার্ভার এখন ভিড়াল 😵 — একটু পরে আবার পাঠাও, বা ইঞ্জিন বদলাও' : (lastStatus === 429 ? 'Gemini-র ফ্রি-কোটা শেষ — ১ মিনিট পরে আবার' : (lastMsg || 'Gemini এখন উত্তর দিচ্ছে না — একটু পরে আবার')));
     }
     const pv = c.provider;
     const base = pv === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : pv === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' : 'https://router.huggingface.co/v1/chat/completions';
@@ -444,6 +466,10 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         <label class="flabel">মডেল (ঐচ্ছিক)</label><input type="text" placeholder="${c.provider === 'groq' ? 'llama-3.3-70b-versatile' : c.provider === 'openrouter' ? 'openrouter/auto' : c.provider === 'hf' ? 'meta-llama/Llama-3.1-8B-Instruct' : 'gemini-3.6-flash'}" value="${esc(c.model || '')}" onchange="StudyAiTool.setModel(this.value)">
         <div class="row" style="gap:8px;margin:10px 0 4px"><button class="btn secondary sm" onclick="StudyAiTool.testKey()">🔑 key-টেস্ট করো</button></div>
         ${state.keyTest ? `<div class="${state.keyTest.ok === true ? 'sai-memok' : state.keyTest.ok === false ? 'sai-ghostbtn' : 'muted'}" style="display:block;font-size:12px;margin-top:6px">${esc(state.keyTest.msg)}</div>` : ''}
+        <label class="flabel" style="margin-top:18px">📤 আমার ডেটা → AI</label>
+        <div class="sai-setrow"><b>সব ডেটা টাটকা রাখো</b><span class="muted" style="font-size:11.5px">প্রশ্নব্যাংক · পরীক্ষার ইতিহাস · প্রগ্রেস · অ্যাক্টিভিটি — ব্রাউজার-এজেন্টের ডাটাবেসে যায়, আর Gemini/OpenRouter প্রতি মেসেজে তাজা মেমোরি পায়। নতুন প্রশ্ন/পরীক্ষা হলে <b>নিজে নিজেই</b> আপডেট যাবে (~৯০ সেকেন্ডে)।</span>${state.bankInfo && state.bankInfo.saved ? `<span class="muted" style="font-size:11px">শেষ সিঙ্ক: ${dateStr(state.bankInfo.savedAt || Date.now())} · ${bn(state.bankInfo.count || 0)}টি প্রশ্ন</span>` : ''}<div class="row"><button class="btn sm" onclick="StudyAiTool.forceSync()">${state.syncing ? 'পাঠানো হচ্ছে…' : '📤 এখনই সব ডেটা আপডেট করো'}</button></div></div>
+        <label class="flabel">🧬 ডুপ্লিকেট-যাচাই (Hugging Face)</label>
+        <div class="sai-setrow"><b>কাছাকাছি প্রশ্ন খুঁজো</b><span class="muted" style="font-size:11.5px">নতুন-যোগ ২৫টি প্রশ্নকে পুরো ব্যাংকের সাথে অর্থ-সাদৃশ্যে (embedding) মেলায় — কুইজ-কাটার ডুপ্লিকেট ধরা পড়বে।</span><div class="row"><button class="btn secondary sm" onclick="StudyAiTool.dupCheck()">${state.dupReport && state.dupReport.busy ? 'যাচাই হচ্ছে…' : '🧬 যাচাই করো'}</button></div>${state.dupReport && !state.dupReport.busy ? `<span class="muted" style="display:block;font-size:12px;margin-top:8px">${esc(state.dupReport.msg)}</span>${(state.dupReport.pairs || []).slice(0, 6).map(pp => `<span class="muted" style="display:block;font-size:11.5px;margin-top:6px;background:#f6fbf8;border-radius:9px;padding:7px 9px">🔁 ${bn(Math.round(pp.sc * 100))}% — ${esc(String(pp.a).slice(0, 60))} <small>↔</small> ${esc(String(pp.b).slice(0, 60))}</span>`).join('')}` : ''}</div>
         <label class="flabel" style="margin-top:16px">থিম</label>
         <div class="filter-row" style="margin:6px 0 12px">${[['aurora', '🌿 Emerald'], ['violet', '💜 Violet'], ['dark', '🌙 Dark']].map(([v, l]) => `<button class="chip ${c.theme === v ? 'active' : ''}" onclick="StudyAiTool.setTheme('${v}')">${l}</button>`).join('')}</div>
         <div class="sai-setrow"><b>এজেন্টকে আমার ডেটা পাঠাবে</b><div class="toggle ${c.sendData ? 'on' : ''}" onclick="StudyAiTool.toggleData()"><div class="dot"></div></div></div>
@@ -543,7 +569,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   const render = () => {
     ensureChat(); fixIds(curId());
     state.page = null; state.viewer = null; state.msgsFull = false;
-    if (!state.autoSyncTried) { state.autoSyncTried = true; setTimeout(() => ensureSync(false), 900); }
+    if (!state.autoSyncTried) { state.autoSyncTried = true; setTimeout(() => ensureSync(false), 900); startWatch(); }
     renderShell(`<div id="saiBody"></div><div id="saiSheetRoot"></div>`, {
       title: engTitle(),
       hideNav: true,
@@ -845,6 +871,49 @@ body{overflow-x:hidden}
   const viewerNav = d => { if (!state.viewer) return; state.viewer.i = (state.viewer.i + d + state.viewer.list.length) % state.viewer.list.length; paint(); };
   const viewerClose = () => { state.viewer = null; paint(); };
 
+  // 📤 জোর-সিঙ্ক: সেটিংস-বাটন — প্রশ্নব্যাংক+ইতিহাস+অ্যাক্টিভিটি এখনই টাটকা পাঠায়
+  const forceSync = async () => {
+    try { state.syncing = true; paint(); await syncBank(); localStorage.setItem('ahBankSig', dataSig()); state.bankInfo = { saved: true, count: (cache().questions || []).length, savedAt: Date.now() }; if (window.toast) window.toast('📤 সব ডেটা আপডেট হয়ে গেছে — এজেন্টের ডাটাবেসে টাটকা ✓'); }
+    catch (e) { if (window.toast) window.toast('⚠️ সিঙ্ক হয়নি: ' + String(e?.message || e).slice(0, 70)); }
+    state.syncing = false; paint();
+  };
+  // অটো-ওয়াচ: ডেটা বদলালেই (নতুন প্রশ্ন/পরীক্ষা) নিজে নিজে টাটকা যায় — বারবার বাটন লাগে না
+  const startWatch = () => {
+    if (state.watchTried) return; state.watchTried = true;
+    setInterval(() => { try { if (document.hidden || !localStorage.getItem(LS_SHARED)) return; if (localStorage.getItem('ahBankSig') !== dataSig()) ensureSync(false); } catch (_) {} }, 90000);
+  };
+  // 🧬 HF-similarity ডুপ্লিকেট-যাচাই (নতুন-যোগ প্রশ্ন বনাম ব্যাংক)
+  const EMB = 'https://router.huggingface.co/hf-inference/models/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/pipeline/feature-extraction';
+  const embedAll = async texts => {
+    const out = [];
+    for (let i = 0; i < texts.length; i += 24) {
+      const res = await fetch(EMB, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + (keyList('hf')[0] || '') }, body: JSON.stringify({ inputs: texts.slice(i, i + 24) }) });
+      if (!res.ok) throw new Error('HF-' + res.status);
+      let embs = await res.json();
+      if (!Array.isArray(embs)) throw new Error('HF-শেপ');
+      out.push(...embs);
+    }
+    return out.map(e2 => { let v = e2; if (v.length && Array.isArray(v[0])) { const n = v.length || 1; v = v[0].map((_, j) => v.reduce((a2, r) => a2 + (r[j] || 0), 0) / n); } const m = Math.sqrt(v.reduce((a2, x) => a2 + x * x, 0)) || 1; return v.map(x => x / m); });
+  };
+  const cos = (a, b) => { let d = 0; for (let i = 0; i < a.length; i++) d += a[i] * b[i]; return d; };
+  const dupCheck = async () => {
+    const qs = (cache().questions || []).filter(q2 => q2 && String(q2.question || '').length > 8);
+    if (qs.length < 2) { state.dupReport = { busy: false, pairs: [], msg: 'ব্যাংকে যথেষ্ট প্রশ্ন নেই' }; paint(); return; }
+    if (!keyList('hf').length) { state.dupReport = { busy: false, pairs: [], msg: '⚙️ আগে Hugging Face-এর key বসাও' }; paint(); return; }
+    state.dupReport = { busy: true, pairs: [], msg: '🧬 এমবেডিং হিসাব হচ্ছে…' }; paint();
+    try {
+      const fresh = qs.slice(-25), old = qs.slice(0, Math.max(0, qs.length - 25)).slice(-275);
+      const embs = await embedAll(fresh.concat(old).map(q2 => String(q2.question).slice(0, 160)));
+      const fe = embs.slice(0, fresh.length), oe = embs.slice(fresh.length);
+      const pairs = [];
+      for (let i = 0; i < fresh.length; i++) for (let j = 0; j < i; j++) { const sc = cos(fe[i], fe[j]); if (sc >= 0.86) pairs.push({ a: fresh[i].question, b: fresh[j].question, sc }); }
+      for (let i = 0; i < fresh.length; i++) for (let j = 0; j < oe.length; j++) { const sc = cos(fe[i], oe[j]); if (sc >= 0.86) pairs.push({ a: fresh[i].question, b: old[j].question, sc }); }
+      pairs.sort((x, y) => y.sc - x.sc);
+      state.dupReport = { busy: false, pairs: pairs.slice(0, 12), msg: pairs.length ? bn(pairs.length) + ' জোড়া কাছাকাছি প্রশ্ন পাওয়া গেছে 👀' : '✅ কোনো কাছাকাছি ডুপ্লিকেট নেই' };
+    } catch (e) { state.dupReport = { busy: false, pairs: [], msg: '⚠️ ' + String(e?.message || e).slice(0, 80) }; }
+    paint();
+  };
+
   const shareData = async () => {
     push({ who: 'me', text: '📚 ডেটা পাঠাচ্ছি…' });
     push({ who: 'ai', text: '' });
@@ -973,6 +1042,6 @@ body{overflow-x:hidden}
     [1200, 2500, 4500].forEach(d => setTimeout(mountDashboard, d));
   };
 
-  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
+  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, forceSync, dupCheck, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();
