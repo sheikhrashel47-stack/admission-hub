@@ -49,11 +49,6 @@
   /* ---------- openers ---------- */
   // Note editor (saves into the Notes tool, with AI Explain field).
   function openNoteFor(q, payload){
-    const pendingReady = typeof window.isManualGeminiNoteReady === 'function' && window.isManualGeminiNoteReady(q.id);
-    if (pendingReady && typeof window.openManualGeminiNoteForQuestion === 'function') {
-      window.openManualGeminiNoteForQuestion(q.id);
-      return;
-    }
     if (typeof window.openQuestionNoteEditor === 'function') {
       const src = (payload && payload.source) || 'Mistake Note';
       const notePayload = Object.assign({ q, source: src }, payload || {});
@@ -81,10 +76,7 @@
   }
 
   function openAiExplainFor(q, payload){
-    if (typeof window.openManualGeminiNoteForQuestion === 'function' && window.isManualGeminiNoteReady?.(q.id)) {
-      window.openManualGeminiNoteForQuestion(q.id);
-      return;
-    }
+    if (window.AiExplain && typeof window.AiExplain.btn === 'function') { openInlineExplain(q, payload); return; }
     const src = (payload && payload.source) || 'Mock Test';
     const prompt = buildMnPrompt(Object.assign({ q }, payload || {}));
     window.__mnLastPrompt = prompt;
@@ -118,6 +110,30 @@
       if (typeof window.openManualGemini === 'function') window.openManualGemini();
       else window.open('https://gemini.google.com/app', '_blank');
     };
+  }
+
+  // v122: ম্যানুয়াল prompt-copy বাদ — AiExplain ইনলাইন-প্যানেল (এক প্রশ্ন = এক রিকোয়েস্ট, ক্যাশ-রিইউজ)
+  function openInlineExplain(q, payload){
+    const qid = String(q?.id || q?.question || '').slice(0, 60) || 'q-' + Date.now().toString(36);
+    let host = document.getElementById('mnAiexHost');
+    if (!host) {
+      host = document.createElement('div');
+      host.id = 'mnAiexHost';
+      host.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:10055;padding:8px 8px calc(8px + env(safe-area-inset-bottom));background:linear-gradient(180deg,rgba(240,253,246,0),#eefaf3 30%);pointer-events:none';
+      document.body.appendChild(host);
+    }
+    host.style.pointerEvents = 'none';
+    const inner = document.createElement('div');
+    inner.style.cssText = 'max-width:640px;margin:0 auto;pointer-events:auto';
+    host.innerHTML = ''; host.appendChild(inner);
+    const letter = i => ['ক', 'খ', 'গ', 'ঘ', 'ঙ'][i] || String(i + 1);
+    const sel = selectedIndex(q, Object.assign({}, payload));
+    const cor = correctOf(q);
+    const ctx = { q: q, options: q?.options || [], correctText: String((q?.options || [])[cor] || ''), student: sel, wrong: true, subject: String(q?.subjectName || payload?.subject || ''), topic: String(q?.topicName || payload?.topic || ''), mode: payload?.mode || 'mistake' };
+    inner.innerHTML = window.AiExplain.btn(qid, ctx);
+    const btnEl = inner.querySelector('.aiex-btn');
+    if (btnEl) { btnEl.click(); try { btnEl.closest('.aiex-wrap')?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (_) {} }
+    else host.innerHTML = '';
   }
 
   function correctOf(q){ return Number(q?.answerIndex ?? q?.answer ?? 0); }
