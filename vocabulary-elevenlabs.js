@@ -8,12 +8,12 @@
   // ── Central configuration (এক জায়গা থেকেই সব পরিবর্তন) ──────────────────────
   const VOICE_CONFIG = Object.freeze({
     provider: 'elevenlabs',
-    voiceId: '21m00Tcm4TlvDq8ikWAM',       // Rachel — natural, learner-friendly
+    voiceId: 'EXAVITQu4vr4xnSDxMaL',       // Sarah — clear American, free-plan API-allowed
     modelId: 'eleven_flash_v2_5',          // low-latency + cost-efficient
     outputFormat: 'mp3_22050_32',
     lang: 'en-US',                          // accent/locale — এক জায়গা থেকে বদলাও
     voiceSettings: Object.freeze({ stability: 0.5, similarity_boost: 0.75, style: 0, use_speaker_boost: true, speed: 1.0 }),
-    settingsVersion: 1,                     // voice/model বদলালে এই সংখ্যা বাড়ালেই পুরনো cache conflict-মুক্ত
+    settingsVersion: 2,                     // voice/model বদলালে এই সংখ্যা বাড়ালেই পুরনো cache conflict-মুক্ত
     maxWordLength: 60,
     timeoutMs: 20000,
     errorCooldownMs: 60000                  // ব্যর্থ word-এ এই সময় পর্যন্ত আবার API চেষ্টা হয় না
@@ -44,11 +44,16 @@
   const delRow = key => dbReady() ? Promise.resolve(dbDelRaw('voiceCache', key)).catch(() => false) : (mem.delete(key), Promise.resolve(true));
 
   // ── Secure endpoint (worker URL — secret নয়, key নয়) ────────────────────────
-  let proxyUrl = '';
-  try { proxyUrl = String(localStorage.getItem(LS_ENDPOINT) || '').trim(); } catch (_) {}
+  const DEFAULT_ENDPOINT = 'https://admission-voice.rashelzayan213.workers.dev';
+  let proxyUrl = DEFAULT_ENDPOINT;
+  try {
+    const saved = String(localStorage.getItem(LS_ENDPOINT) || '').trim();
+    proxyUrl = saved === 'off' ? '' : (saved || DEFAULT_ENDPOINT);
+  } catch (_) {}
   const saveEndpoint = url => {
-    proxyUrl = String(url || '').trim().replace(/\/+$/, '');
-    try { localStorage.setItem(LS_ENDPOINT, proxyUrl); } catch (_) {}
+    const value = String(url || '').trim().replace(/\/+$/, '');
+    proxyUrl = value === 'off' ? '' : (value || DEFAULT_ENDPOINT);
+    try { localStorage.setItem(LS_ENDPOINT, value); } catch (_) {}
     return proxyUrl;
   };
   const configured = () => !!proxyUrl;
@@ -231,7 +236,7 @@
         <button type="button" class="btn ghost sm" onclick="VocabularyElevenLabs.confirmClearCategory('${escape(category)}')">🧹 এই category-র voice cache</button>
         <button type="button" class="btn ghost sm" onclick="VocabularyElevenLabs.confirmClearAll()">🗑 সব voice cache</button>
       </div>
-      <small style="display:block;margin-top:9px;color:var(--sub);font-size:11px;line-height:1.5">Cached voice অফলাইনেও বাজে। Clear করলে শুধু audio যায় — vocabulary ডেটা ও 🎧 custom voice অক্ষত।</small>
+      <small style="display:block;margin-top:9px;color:var(--sub);font-size:11px;line-height:1.5">Cached voice অফলাইনেও বাজে। Clear করলে শুধু audio যায় — vocabulary ডেটা ও 🎧 custom voice অক্ষত। ডিফল্ট worker চলছে; বন্ধ করতে চাইলে ঘরে লেখো <code>off</code>।</small>
     </div>`;
   const hydrateSettingsSection = async category => {
     const box = document.getElementById('vmVoiceStatus');

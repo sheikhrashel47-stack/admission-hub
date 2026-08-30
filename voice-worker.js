@@ -17,7 +17,7 @@
  * app-header + per-IP rate limit — যেন অচেনা কেউ তোমার quota পোড়াতে না পারে।
  */
 
-const DEFAULT_VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel — natural, learner-friendly
+const DEFAULT_VOICE_ID = 'EXAVITQu4vr4xnSDxMaL'; // Sarah — clear American, free-plan API-allowed
 const DEFAULT_MODEL_ID = 'eleven_flash_v2_5';    // low-latency + cost-efficient
 const DEFAULT_FORMAT = 'mp3_22050_32';           // ছোট ফাইল — দ্রুত লোড
 
