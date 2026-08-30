@@ -168,7 +168,6 @@
         headers: { 'Content-Type': 'application/json', 'X-AH-App': APP_HEADER },
         body: JSON.stringify({
           telegram: { text: `${chosen.title}\n\n${chosen.body}` },
-          push: { title: chosen.title, body: chosen.body, tag: chosen.category },
           state: { streak: snapshot.streak, todayQuestions: snapshot.todayQ, lastOpen: todayKey() }
         })
       });
@@ -326,10 +325,9 @@
 
   // ── boot: dashboard hydration + periodic engine ─────────────────────────────
   const boot = () => {
-    if (!window.__ahNotifyNoAuto) {
-      setTimeout(() => { evaluate(); syncState(); maybeResubscribe(); }, 8000);
-      setInterval(() => { evaluate(); syncState(); }, 15 * 60000);
-    }
+    const lazy = fn => () => { if (!window.__ahNotifyNoAuto) fn(); };
+    setTimeout(lazy(() => { evaluate(); syncState(); maybeResubscribe(); }), 8000);
+    setInterval(lazy(() => { evaluate(); syncState(); }), 15 * 60000);
     document.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') maybeResubscribe(); });
 
   };

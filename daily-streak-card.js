@@ -115,10 +115,13 @@
     }
     const p3 = document.querySelector('#app [data-p3-command]');
     if (!p3) return; /* phase3 নেই → মূল টেমপ্লেটের কার্ডই দৃশ্যমান */
+    const greet = document.getElementById('ahGreet3d');
+    const anchor = (greet && greet.parentElement === p3) ? greet : p3;
+    const pos = anchor === p3 ? 'afterbegin' : 'afterend';
     const existing = document.getElementById('dailyStreakCard');
-    if (existing && existing.parentElement === p3 && p3.firstElementChild === existing) return;
+    if (existing && existing.parentElement === p3 && existing.previousElementSibling === (anchor === p3 ? null : anchor)) return;
     if (existing) existing.remove();
-    p3.insertAdjacentHTML('afterbegin', html());
+    anchor.insertAdjacentHTML(pos, html());
   }
   function startObserver() {
     if (window.__dscObserver) return;
