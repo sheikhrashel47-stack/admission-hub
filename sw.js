@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v106-autoimg-20260830';
+const BUILD_ID = 'v107-notify-20260830';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -49,6 +49,7 @@ const APP_SHELL = [
   './one-time-mock-seed.js?v=20260824-native',
   './one-time-mock-tool.js?v=20260824-native',
   './vocabulary-master-tool.js?v=vm-autoimg-v106',
+  './notification-hub.js?v=notify-v107',
   './vocabulary-pronunciation.js?v=voice-el-v104',
   './vocabulary-elevenlabs.js?v=el-voice-v105',
   './memorizing-match-tool.js?v=memorizing-match-v8-stable-cards',
@@ -176,4 +177,21 @@ self.addEventListener('fetch', event => {
       return offlineFallback(request);
     }
   })());
+});
+
+// v107 — Web Push display + notification click routing
+self.addEventListener('push', (event) => {
+  let data = {};
+  try { data = event.data.json(); } catch (_) {}
+  event.waitUntil(self.registration.showNotification(String(data.title || 'Admission Hub 🔔'), {
+    body: String(data.body || ''), tag: String(data.tag || 'admission-hub'), renotify: true, data: { url: data.url || './' }
+  }));
+});
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || './';
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+    for (const client of list) { if ('focus' in client) { try { client.navigate(url); } catch (_) {} return client.focus(); } }
+    return self.clients.openWindow(url);
+  }));
 });
