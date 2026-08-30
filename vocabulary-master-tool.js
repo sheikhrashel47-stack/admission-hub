@@ -129,7 +129,7 @@
       acronyms,
       imageDataUrl,
       tips: String(raw?.tips || '').trim(),
-      category: categoryOf(word),
+      category: /^[A-Z#]$/.test(String(raw?.category || '').trim()) ? String(raw.category).trim() : categoryOf(word),
       normalized: lower(word),
       order: Number.isFinite(Number(raw?.order)) ? Number(raw.order) : Number.isFinite(Number(raw?.sourceIndex)) ? Number(raw.sourceIndex) : Number(raw?.createdAt || now()),
       createdAt: Number(raw?.createdAt || now()),
@@ -410,18 +410,27 @@
   }
   function splitParserRecords(text) {
     const lines = String(text || '').split('\n');
-    const serialStart = /^\s*\d+\s*[/.):\-।]\s*[A-Za-z][A-Za-z\s'’-]{0,80}?\s*[:ঃ]/;
+    const serialStart = /^\s*(?:\d+\s*[/.):\-।]\s*[A-Za-z]|[A-Za-z][A-Za-z0-9\s'’-]{0,80}?\s*[:ঃ])/;
     const starts = lines.reduce((all, line, index) => serialStart.test(line) ? [...all, index] : all, []);
     if (!starts.length) return [lines];
-    return starts.map((start, index) => lines.slice(start, starts[index + 1] ?? lines.length));
+    const blocks = starts.map((start, index) => lines.slice(start, starts[index + 1] ?? lines.length));
+    if (starts[0] > 0 && lines.slice(0, starts[0]).some(line => line.trim())) blocks.unshift(lines.slice(0, starts[0]));
+    return blocks;
   }
   function parseVocabulary(text) {
     const normalizedText = String(text || '').replace(/\r/g, '').replace(/[০-৯]/g, digit => String('০১২৩৪৫৬৭৮৯'.indexOf(digit)));
     const records = splitParserRecords(normalizedText);
     return records.map((lines, index) => {
       const first = lines.find(line => line.trim());
-      const head = first?.match(/^\s*(?:\d+\s*[/.):\-।]\s*)?([A-Za-z][A-Za-z\s'’-]{0,80}?)\s*[:ঃ]\s*(.+?)\s*$/);
-      if (!head) return { raw:lines.join('\n'), valid:false, error:'Word এবং Bengali meaning পাওয়া যায়নি।' };
+      const head = first?.match(/^\s*(?:\d+\s*[/.):\-।]\s*)?([A-Za-z][A-Za-z0-9\s'’-]{0,80}?)\s*(?:[:ঃ]|\s-\s)\s*(.+?)\s*$/);
+      if (!head) {
+        const firstLine = lines.find(line => line.trim()) || '';
+        const stripped = firstLine.replace(/^\s*\d+\s*[/.):\-।]\s*/, '');
+        const parts = stripped.split(/\s*[:ঃ]\s*/);
+        const word = String(parts[0] || '').trim().slice(0, 90);
+        const meaning = parts.slice(1).join(': ').trim();
+        return { raw:lines.join('\n'), word, meaning, valid:false, error: word ? 'Bengali meaning পাওয়া যায়নি — তবু সেভ হবে।' : 'Word এবং Bengali meaning পাওয়া যায়নি — তবু সেভ হবে।' };
+      }
       const word = head[1].trim();
       const meaning = head[2].trim();
       const synonyms = [], antonyms = [], acronyms = [], tips = [];
@@ -452,11 +461,11 @@
   function parserPreviewCard(record, index) {
     const duplicate = state.records.some(existing => existing.normalized === record.normalized);
     const status = !record.valid ? 'invalid' : '';
-        return `<article class="vm-preview-card ${status}"><div class="row between"><div><b>${escape(record.word || 'Incomplete record')}</b><div class="muted" style="margin-top:3px">${escape(record.meaning || record.error || 'Missing Bengali meaning')}</div></div><button class="btn ghost sm" onclick="VocabularyMaster.editParsed(${index})">Edit</button></div><div class="vm-preview-meta"><span>${record.valid ? '✓ Valid' : '⚠ Incomplete'}</span><span>Synonyms: ${relations(record, 'synonyms').length}</span><span>Antonyms: ${relations(record, 'antonyms').length}</span><span>Acronyms: ${relations(record, 'acronyms').length}</span><span>${record.tips ? 'Explanation: Available' : 'Explanation: —'}</span>${duplicate ? '<span>Duplicate will be kept</span>' : ''}</div>${!record.valid ? `<button class="btn ghost sm" style="margin-top:11px" onclick="VocabularyMaster.skipParsed(${index})">Skip</button>` : ''}</article>`;
+        return `<article class="vm-preview-card ${status}"><div class="row between"><div><b>${escape(record.word || 'Incomplete record')}</b><div class="muted" style="margin-top:3px">${escape(record.meaning || record.error || 'Missing Bengali meaning')}</div></div><button class="btn ghost sm" onclick="VocabularyMaster.editParsed(${index})">Edit</button></div><div class="vm-preview-meta"><span>${record.valid ? '✓ Valid' : '⚠ Incomplete · তবু সেভ হবে'}</span><span>Synonyms: ${relations(record, 'synonyms').length}</span><span>Antonyms: ${relations(record, 'antonyms').length}</span><span>Acronyms: ${relations(record, 'acronyms').length}</span><span>${record.tips ? 'Explanation: Available' : 'Explanation: —'}</span>${duplicate ? '<span>Duplicate will be kept</span>' : ''}</div></article>`;
   }
   function renderParser() {
     const preview = state.parser.stage === 'preview';
-    const body = `<main class="vm-page">${heading('VOCABULARY PARSER', preview ? 'Review parsed vocabulary' : 'Paste vocabulary text', preview ? 'Save করার আগে প্রতিটি record যাচাই বা edit করুন।' : 'বাংলা বা English serial, word, Bengali meaning, synonyms, antonyms এবং tips detect করা হবে।')} ${preview ? `<section class="vm-parser-preview">${state.parser.records.length ? state.parser.records.map(parserPreviewCard).join('') : '<div class="vm-empty">No parsable vocabulary found.</div>'}</section><div class="vm-parser-footer"><p class="muted" style="margin:0;line-height:1.5">Duplicate vocabulary রাখা হবে—একই word একাধিকবার parse ও save করা যাবে।</p><button class="btn" onclick="VocabularyMaster.saveParsed()">Save All</button><button class="btn secondary" onclick="VocabularyMaster.backToPaste()">Edit Paste</button></div>` : `<textarea id="vmParserInput" class="vm-parser-area" placeholder="১/ Conjecture : অনুমান করা\n* Synonyms:\n    * Guess : অনুমান\n* Antonyms:\n    * Fact : সত্য / তথ্য\n* Tips & Explanation: মূল শব্দটির সাথে …">${escape(state.parser.text)}</textarea><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.parseInput()">Parse Vocabulary</button><p class="muted" style="margin:10px 2px 0;line-height:1.5">Nothing is saved until you review the parsed records and choose Save All.</p>`}</main>`;
+    const body = `<main class="vm-page">${heading('VOCABULARY PARSER', preview ? 'Review parsed vocabulary' : 'Paste vocabulary text', preview ? 'Save করার আগে প্রতিটি record যাচাই বা edit করুন।' : 'বাংলা বা English serial, word, Bengali meaning, synonyms, antonyms এবং tips detect করা হবে।')} ${preview ? `<section class="vm-parser-preview">${state.parser.records.length ? state.parser.records.map(parserPreviewCard).join('') : '<div class="vm-empty">No parsable vocabulary found.</div>'}</section><div class="vm-parser-footer"><p class="muted" style="margin:0;line-height:1.5">Duplicate vocabulary রাখা হবে—একই word একাধিকবার parse ও save করা যাবে। সব রেকর্ড (${state.parser.records.length}টি) সেভ হবে — কিছু বাদ যাবে না।</p><label class="flabel">সেভ হবে এই category-তে</label><select id="vmTargetCategory" onchange="VocabularyMaster.setParserTarget(this.value)"><option value="">Auto — শব্দের প্রথম অক্ষর অনুযায়ী (A–Z)</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('').map(letter => `<option value="${letter}" ${state.parser.targetCategory === letter ? 'selected' : ''}>${letter === '#' ? '# (other/অন্য)' : letter}</option>`).join('')}</select><button class="btn" onclick="VocabularyMaster.saveParsed()">Save All (${state.parser.records.length})</button><button class="btn secondary" onclick="VocabularyMaster.backToPaste()">Edit Paste</button></div>` : `<textarea id="vmParserInput" class="vm-parser-area" placeholder="১/ Conjecture : অনুমান করা\n* Synonyms:\n    * Guess : অনুমান\n* Antonyms:\n    * Fact : সত্য / তথ্য\n* Tips & Explanation: মূল শব্দটির সাথে …">${escape(state.parser.text)}</textarea><div class="vm-parser-footer" style="margin-top:14px"><label class="flabel">সেভ করার category</label><select id="vmTargetCategory" onchange="VocabularyMaster.setParserTarget(this.value)"><option value="">Auto — শব্দের প্রথম অক্ষর অনুযায়ী (A–Z)</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ#'.split('').map(letter => `<option value="${letter}" ${state.parser.targetCategory === letter ? 'selected' : ''}>${letter === '#' ? '# (other/অন্য)' : letter}</option>`).join('')}</select></div><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.parseInput()">Parse Vocabulary</button><p class="muted" style="margin:10px 2px 0;line-height:1.5">Nothing is saved until you review the parsed records and choose Save All.</p>`}</main>`;
     renderShell(body, { title:'Vocabulary Parser', back:`navigate('${ROUTE}')` });
   }
 
@@ -866,6 +875,7 @@
     openCategory(letter) { state.category = String(letter || '').toUpperCase(); state.query = ''; state.visible = 36; state.cardAnchorId = ''; state.cardAnchorTop = 0; state.pendingCardRestore = false; navigate(route(`category/${state.category}`)); },
     searchCategory(query) { const next = String(query || ''); clearTimeout(state.searchTimer); state.searchTimer = window.setTimeout(() => { state.query = next; state.visible = 36; state.cardAnchorId = ''; state.cardAnchorTop = 0; state.pendingCardRestore = false; snapshotResume(); refreshCategoryResults(); }, 120); },
     loadMore() { state.visible += 36; snapshotResume(); refreshCategoryResults(); },
+    setParserTarget(value) { const ta = document.getElementById('vmParserInput'); if (ta) state.parser.text = ta.value; state.parser.targetCategory = String(value || '').slice(0, 2).toUpperCase(); renderParser(); },
     parseInput() { state.parser.text = document.getElementById('vmParserInput')?.value || ''; state.parser.records = parseVocabulary(state.parser.text); state.parser.stage = 'preview'; renderParser(); },
     backToPaste() { state.parser.stage = 'input'; renderParser(); },
     skipParsed(index) { state.parser.records.splice(index, 1); renderParser(); },
@@ -874,7 +884,7 @@
       openModal(`<h3>Edit vocabulary</h3><label class="flabel">Word</label><input id="vmEditWord" value="${escape(record.word)}"><label class="flabel">Bengali Meaning</label><input id="vmEditMeaning" value="${escape(record.meaning)}"><label class="flabel">Synonyms (one per line: word : meaning)</label><textarea id="vmEditSyn">${escape(record.synonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Antonyms (one per line: word : meaning)</label><textarea id="vmEditAnt">${escape(record.antonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Acronyms / Abbreviations (one per line: short form : meaning)</label><textarea id="vmEditAcr">${escape(record.acronyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Tips & Explanation</label><textarea id="vmEditTips">${escape(record.tips)}</textarea><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.saveParsedEdit(${index})">Save changes</button>`);
     },
     saveParsedEdit(index) { const current = state.parser.records[index]; if (!current) return; const parseLines = id => parsePairs(document.getElementById(id)?.value || ''); const updated = normalizeRecord({ ...current, word:document.getElementById('vmEditWord')?.value || '', meaning:document.getElementById('vmEditMeaning')?.value || '', synonyms:parseLines('vmEditSyn'), antonyms:parseLines('vmEditAnt'), acronyms:parseLines('vmEditAcr'), tips:document.getElementById('vmEditTips')?.value || '' }); state.parser.records[index] = { ...updated, raw:current.raw, valid:!!(updated.word && updated.meaning), error:updated.word && updated.meaning ? '' : 'Incomplete record' }; closeModal(); renderParser(); },
-    async saveParsed() { const valid = state.parser.records.filter(record => record.valid); if (!valid.length) return toast('No valid vocabulary to save'); let saved = 0; for (const source of valid) { const record = normalizeRecord(source); await dbPut(STORE, record); saved++; } await loadRecords(true); state.parser = { text:'', records:[], stage:'input' }; toast(`${saved} vocabulary saved · duplicates kept`); navigate(route('bank')); },
+    async saveParsed() { const records = state.parser.records.filter(record => String(record.raw || '').trim()); if (!records.length) return toast('সেভ করার মতো কিছু পাওয়া যায়নি।'); const target = String(state.parser.targetCategory || '').toUpperCase(); let saved = 0; for (const source of records) { const record = normalizeRecord({ ...source, word: source.word || '', meaning: source.meaning || '' }); if (target && /^[A-Z#]$/.test(target)) record.category = target; await dbPut(STORE, record); saved++; } await loadRecords(true); state.parser = { text:'', records:[], stage:'input', targetCategory: target }; toast(`সব ${saved}টি vocabulary সেভ হয়েছে · duplicates kept`); navigate(route('bank')); },
     setPracticeSource(value) { const setup = state.practiceSetup; if (value === 'custom') setup.sourceType = 'custom'; else if (/^[A-Z]$/.test(value)) { setup.sourceType = 'category'; setup.category = value; } else { setup.sourceType = 'all'; setup.category = ''; } renderPracticeHome(); },
     setPracticeType(value) { if (PRACTICE_TYPES[value]) state.practiceSetup.practiceType = value; renderPracticeHome(); },
     setPracticeCount(value) { const setup = state.practiceSetup; if (value === 'custom') setup.countMode = 'custom'; else { setup.countMode = 'preset'; setup.questionCount = Number(value) || 10; } renderPracticeHome(); },
