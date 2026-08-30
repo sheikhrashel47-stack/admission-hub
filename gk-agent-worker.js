@@ -119,11 +119,13 @@ const createWithFailover = async (env, date, body, shift = 0, forceKeys = null) 
 
 const GK_PROMPT = date => `Today's date is ${date} (Bangladesh, Asia/Dhaka). You are preparing daily current-affairs GK practice for Bangladeshi university admission candidates.
 Browse credible Bangladeshi and international sources today — e.g. prothomalo.com, bangla.bdnews24.com, jagonews24.com, kalerkantho.com, ittefaq.com.bd, bbc.com/bengali, samakal.com, and any reliable reference pages needed for verification.
-Collect 20-30 multiple-choice current-affairs/GK questions useful for university admission tests. Rules:
-- Only facts you verified during this session from at least one credible source; skip anything uncertain.
+Collect 15-25 multiple-choice current-affairs/GK questions useful for university admission tests. CORRECTNESS IS THE #1 PRIORITY — a single wrong fact is a critical failure. Rules:
+- Double-source rule: every question's fact MUST be verified during this session by actually OPENING at least 2 independent credible pages (e.g. a news site + a second outlet or an official/reference page). One search-result snippet is NOT enough.
+- If you cannot confirm a fact from 2 sources, DROP that question. Skip anything uncertain, ambiguous or time-sensitive-until-confirmed.
 - Prefer the last ~30 days: national BD news, international, sports, science-tech, awards, economy, and important anniversaries.
 - Write the question in Bangla (short), options in Bangla (exactly 4, one clearly correct), "answer" must exactly match one option, "explain" is one short Bangla line, "source" is the site name or URL you verified from.
-- No duplicates, no opinion-based questions, no placeholder text.`;
+- No duplicates, no opinion-based questions, no placeholder text.
+- STRICT FORBIDDEN: do NOT use your memory/training knowledge alone for any fact — everything must come from pages you opened today. Do not guess dates, numbers, names or award winners.`;
 
 const NEWS_PROMPT = date => `Today's date is ${date} (Bangladesh, Asia/Dhaka). You are a news researcher for Bangladeshi university-admission candidates. Find the LATEST verified admission news (last 2-3 days, today first).
 Categories: application circular openings & deadlines, exam dates, seat plans, admit cards, results, admission requirements/fees — for DU, BUET, CU, JU, RU, RUET, CUET, SUST, GST/GUST cluster, agricultural universities and major private universities.
@@ -211,7 +213,7 @@ const ASK_SCHEMA = {
 const ASK_PROMPT = (question, context, bankBlock) => `You are "স্টাডি বন্ধু" — a warm, friendly Bangla study-helper for a Bangladeshi university-admission candidate. Today: ${dhakaToday()} (Asia/Dhaka).
 User's question: """${question}"""
 ${context ? `User's study context (use silently, never dump raw): ${context}` : ''}${bankBlock || ''}
-Rules: Reply in simple warm Bangla (তুমি-ফর্ম), 2-6 short lines, light emoji ok.${bankBlock ? ' When the bank block is present, base your answer primarily on it (it is the student\'s own verified bank) and mention you answered from their question bank.' : ''} If the question needs current/factual web info, quickly browse credible sources and verify before answering; include source domains in sources. Never invent facts. End with a tiny nudge to keep studying.`;
+Rules: Reply in simple warm Bangla (তুমি-ফর্ম), 2-6 short lines, light emoji ok.${bankBlock ? ' When the bank block is present, base your answer primarily on it (it is the student\'s own verified bank) and mention you answered from their question bank.' : ''} FRESHNESS RULE (critical): for ANY factual, current-affairs, date/number/name, exam-deadline or "এখন/আজ/সর্বশেষ"-type question you MUST browse the live web RIGHT NOW and verify from at least one credible page you actually open before answering — Google-overview-level freshness is the minimum bar. NEVER answer such questions from memory/training data; a stale or outdated fact is a critical failure. If today's verified info cannot be found, say clearly what could not be verified instead of guessing. Always include source domains in sources. Never invent facts. End with a tiny nudge to keep studying.`;
 
 // ── ইউজারের প্রশ্নব্যাংক-মেমোরি: অ্যাপ থেকে আসা সব প্রশ্ন+ইতিহাস KV-তে ──
 const normalizeBank = (questions, stats) => {
@@ -288,7 +290,7 @@ const createAsk = async (request, env, ctx) => {
           : `\n(শিক্ষার্থীর প্রশ্নব্যাংকে এই বিষয়ে সরাসরি মিল পাওয়া যায়নি — তার অবস্থা মাথায় রেখে সাবধানে উত্তর দাও।)\n`;
       }
     }
-    const askBody = { task: ASK_PROMPT(question, context, bankBlock), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 12, structuredOutput: JSON.stringify(ASK_SCHEMA), flashMode: false };
+    const askBody = { task: ASK_PROMPT(question, context, bankBlock), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 14, structuredOutput: JSON.stringify(ASK_SCHEMA), flashMode: false };
     const askKey = String(env.ASK_API_KEY || '').trim();
     if (!askKey) return json(request, { error: 'ask-key-not-configured' }, 503);
     let job = await createWithFailover(env, date, askBody, 0, [askKey]); // dedicated চ্যাট-key
