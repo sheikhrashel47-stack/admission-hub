@@ -669,8 +669,8 @@ function round2(n){return Math.round(n*100)/100;}
 function debounce(fn,ms){let t; return (...a)=>{clearTimeout(t); t=setTimeout(()=>fn(...a),ms);};}
 
 /* ---------------- IndexedDB layer ---------------- */
-const DB_NAME='admissionHubDB', DB_VERSION=7;
-const STORES=['appMeta','subjects','topics','questions','deletedQuestions','exams','examResults','mistakes','vocabulary','vocabularyMaster','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS'];
+const DB_NAME='admissionHubDB', DB_VERSION=8;
+const STORES=['appMeta','subjects','topics','questions','deletedQuestions','exams','examResults','mistakes','vocabulary','vocabularyMaster','dailyStats','activityLogs','settings','notes','ADMISSION_PLANS','PLAN_DAYS','voiceCache'];
 let DB=null;
 let STORAGE_MODE='indexeddb';
 // Serialize local database requests and retry short-lived transaction failures.
@@ -707,7 +707,7 @@ function ensureSchema(db,tx){
     });
   });
 }
-const SCHEMA_MIGRATIONS={1:ensureSchema,2:ensureSchema,3:ensureSchema,4:ensureSchema,5:ensureSchema,6:ensureSchema,7:ensureSchema};
+const SCHEMA_MIGRATIONS={1:ensureSchema,2:ensureSchema,3:ensureSchema,4:ensureSchema,5:ensureSchema,6:ensureSchema,7:ensureSchema,8:ensureSchema};
 function runSchemaMigrations(db,tx,oldVersion,newVersion){
   for(let version=Math.max(1,oldVersion+1);version<=newVersion;version++) (SCHEMA_MIGRATIONS[version]||ensureSchema)(db,tx);
 }
@@ -5084,7 +5084,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       // An older worker can keep serving the pre-fix navigation bundle in an
       // installed PWA. Remove that controller once, then install the current
       // worker with a fresh build URL.
-      const expectedSwVersion = 'v103-vm-voices-20260829';
+      const expectedSwVersion = 'v104-el-voice-20260830';
       if (registration && activeUrl && !activeUrl.includes(expectedSwVersion)) {
         await registration.unregister().catch(()=>{});
         registration=null;
@@ -5585,8 +5585,9 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 </script>
 <script src="./one-time-mock-seed.js?v=20260824-native"></script>
 <script src="./one-time-mock-tool.js?v=20260824-native"></script>
-<script src="./vocabulary-master-tool.js?v=vm-voices-v103"></script>
-<script src="./vocabulary-pronunciation.js?v=voice-lib-v103"></script>
+<script src="./vocabulary-master-tool.js?v=vm-el-voice-v104"></script>
+<script src="./vocabulary-pronunciation.js?v=voice-el-v104"></script>
+<script src="./vocabulary-elevenlabs.js?v=el-voice-v104"></script>
 <script src="./memorizing-match-tool.js?v=memorizing-match-v8-stable-cards"></script>
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>
 <script src="./result-analysis-500.js?v=result-analysis-500-deep-matched-v2"></script>
