@@ -67,7 +67,7 @@
     .vm-card-menu-panel button.danger{color:#a64d53}.vm-card-menu-panel button.danger>span:first-child{background:#fff0f0;color:#b85158}
     .vm-card-image-input{display:none}
     @media(max-width:520px){.vm-word-card{border-radius:22px}.vm-card-image-shell{border-radius:21px 21px 0 0}.vm-card-top{padding:16px 17px 13px}.vm-card-word h3{font-size:24px}.vm-meaning{margin-left:17px;margin-right:17px;font-size:18px}.vm-card-section{padding:15px 17px}    .vm-card-menu-panel{right:-3px;width:min(228px,calc(100vw - 48px))}}
-    .vm-category-intro-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.vm-category-intro-copy{min-width:0}.vm-category-icon-tools{display:flex;gap:6px;flex:0 0 auto}.vm-category-icon-tool{display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid #c6e5da;border-radius:11px;background:linear-gradient(145deg,#effcf6,#eaf2ff);color:#26715f;font:inherit;font-size:16px;cursor:pointer;box-shadow:0 4px 10px rgba(15,107,79,.08)}.vm-category-icon-tool:active{transform:scale(.92)}.vm-category-icon-tool[disabled]{opacity:.5;cursor:not-allowed}.vm-category-import-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.vm-category-import-row .btn{min-height:38px;padding:7px 10px;font-size:11px}.vm-category-import-hint{margin:8px 0 0;color:var(--sub);font-size:10px;line-height:1.45}.vm-hidden-file{display:none}
+    .vm-category-intro-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.vm-category-intro-copy{min-width:0}.vm-category-icon-tools{display:flex;gap:6px;flex:0 0 auto;flex-wrap:wrap;justify-content:flex-end}.vm-category-icon-tool{display:grid;place-items:center;width:36px;height:36px;padding:0;border:1px solid #c6e5da;border-radius:11px;background:linear-gradient(145deg,#effcf6,#eaf2ff);color:#26715f;font:inherit;font-size:16px;cursor:pointer;box-shadow:0 4px 10px rgba(15,107,79,.08)}.vm-category-icon-tool:active{transform:scale(.92)}.vm-category-icon-tool[disabled]{opacity:.5;cursor:not-allowed}.vm-category-import-row{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}.vm-category-import-row .btn{min-height:38px;padding:7px 10px;font-size:11px}.vm-category-import-hint{margin:8px 0 0;color:var(--sub);font-size:10px;line-height:1.45}.vm-hidden-file{display:none}
   `;
   document.head.appendChild(style);
 
@@ -319,6 +319,67 @@
     if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(categoryPromptText(target)).then(done).catch(() => { fallbackCopy(categoryPromptText(target)); done(); });
     fallbackCopy(categoryPromptText(target)); done();
   }
+  const vmVoiceKey = word => String(word || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  function categoryVoiceEntries(category) {
+    const target = !category || String(category).toUpperCase() === 'ALL' ? '' : String(category).toUpperCase();
+    const records = categoryRecords(target);
+    const map = new Map();
+    const add = (word, meaning, role, parent) => {
+      const w = String(word || '').trim(); if (!w) return;
+      const key = vmVoiceKey(w); if (!key) return;
+      if (!map.has(key)) map.set(key, { key, word: w, meaning: String(meaning || ''), roles: [] });
+      const entry = map.get(key);
+      if (!entry.meaning && meaning) entry.meaning = String(meaning);
+      entry.roles.push(role + (parent ? ` · ${parent}` : ''));
+    };
+    records.forEach(record => {
+      add(record.word, record.meaning, 'main word', record.word);
+      relations(record, 'synonyms').forEach(item => add(item.word, item.meaning, 'synonym', record.word));
+      relations(record, 'antonyms').forEach(item => add(item.word, item.meaning, 'antonym', record.word));
+    });
+    return { target, records, entries: [...map.values()] };
+  }
+  function categoryVoicePromptText(category) {
+    const { target, entries } = categoryVoiceEntries(category);
+    const label = target || 'ALL';
+    const lines = entries.map((entry, index) => `${index + 1}. ${entry.key}.mp3 — ${entry.word}${entry.meaning ? ' — ' + entry.meaning : ''} (${[...new Set(entry.roles)].join(', ')})`);
+    return `VOICE PACK — Vocabulary category: ${label} (${entries.length} unique words)\nভয়েস ফরম্যাট: MP3, পরিষ্কার মোনো রেকর্ডিং, প্রতিটি ফাইলে শুধু ওই একটি শব্দ।\nভয়েস স্টাইল: একদম মানুষের মতো natural, native-like স্পষ্ট উচ্চারণ; প্রতিটি শব্দ প্রথমে ধীরে, তারপর স্বাভাবিক গতিতে — মোট ২ বার; কোনো মিউজিক বা নয়েজ নয়।\nফাইলের নাম হুবহু নিচের তালিকার মতো রাখো — অ্যাপ নাম মিলিয়ে সঠিক শব্দে ভয়েস বসাবে।\n\n${lines.join('\n')}`;
+  }
+  async function copyCategoryVoicePrompt(category) {
+    const { entries } = categoryVoiceEntries(category);
+    if (!entries.length) return toast('এই category-তে কোনো vocabulary নেই।');
+    const text = categoryVoicePromptText(category);
+    const done = () => toast(`${entries.length}টি শব্দের voice prompt কপি হয়েছে — AI agent-কে দাও।`);
+    if (navigator.clipboard?.writeText) return navigator.clipboard.writeText(text).then(done).catch(() => { fallbackCopy(text); done(); });
+    fallbackCopy(text); done();
+  }
+  function voiceLib() { return window.__vmVoiceLib || {}; }
+  function openVoiceUploader(category) {
+    const { target, entries } = categoryVoiceEntries(category);
+    if (!entries.length) return toast('এই category-তে কোনো vocabulary নেই।');
+    const lib = voiceLib();
+    const have = entries.filter(entry => lib[entry.key]).length;
+    const safeCategory = escape(String(target || 'ALL'));
+    openModal(`<h3>🎧 Category voices — ${safeCategory}</h3><p class="muted" style="margin-top:5px">এই category-র <b>${entries.length}</b>টি unique শব্দের মধ্যে <b>${have}</b>টিতে কাস্টম voice আছে।</p><p class="muted" style="margin-top:5px;font-size:12px">🎙 দিয়ে prompt কপি করে AI দিয়ে voice বানাও, তারপর নিচে আপলোড দাও। ফাইলের নাম হুবহু হতে হবে (যেমন <code>apple.mp3</code>, <code>prove-guilty.mp3</code>) — অ্যাপ নাম মিলিয়ে সঠিক শব্দে বসাবে, অফলাইনেও বাজবে।</p><label class="flabel" style="margin-top:12px">Voice ফাইল আপলোড (একসাথে অনেকগুলো দেওয়া যাবে)</label><input id="vmVoiceInput" type="file" accept="audio/mpeg,audio/*,.mp3" multiple onchange="VocabularyMaster.uploadCategoryVoices('${safeCategory}',this)"><button class="btn ghost sm" style="margin-top:12px" onclick="VocabularyMaster.copyCategoryVoicePrompt('${safeCategory}')">🎙 এই category-র voice prompt কপি</button>`);
+  }
+  async function uploadCategoryVoices(category, input) {
+    const files = [...(input?.files || [])];
+    if (!files.length) return toast('কোনো voice ফাইল নির্বাচন করা হয়নি।');
+    let saved = 0; const unmatched = [];
+    for (const file of files) {
+      const key = String(file.name || '').replace(/\.[a-z0-9]+$/i, '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      if (!key) { unmatched.push(file.name); continue; }
+      try {
+        const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onerror = () => reject(reader.error || Error('read failed')); reader.onload = () => resolve(String(reader.result)); reader.readAsDataURL(file); });
+        await dbPut(STORE, { id: 'vmvoice-' + key, tool: 'vocabulary-master-voice', normalized: key, dataUrl, createdAt: now(), updatedAt: now() });
+        saved++;
+      } catch (_) { unmatched.push(file.name); }
+    }
+    try { window.VocabularyPronunciation?.reloadVoices?.(); } catch (_) {}
+    try { input.value = ''; } catch (_) {}
+    closeModal();
+    toast(`${saved}টি voice সেভ হয়েছে${unmatched.length ? ` · ${unmatched.length}টি ফাইলের নাম মেলেনি` : ''} — এখন অফলাইনেও কাস্টম voice বাজবে।`);
+  }
   function openCategoryImageImporter(category) {
     const safeCategory = escape(String(category || '').toUpperCase()); const count = categoryRecords(category).length;
     openModal(`<h3>Import category images</h3><p class="muted" style="margin-top:5px">${safeCategory} category-এর ${count}টি card-এর জন্য image serial অনুযায়ী বসবে। PDF page order অথবা filename serial ব্যবহার করা হবে।</p><label class="flabel">PDF upload · প্রতি page = একটি image</label><input id="vmCategoryPdfInput" class="vm-parser-area" style="min-height:auto;padding:10px" type="file" accept="application/pdf" onchange="VocabularyMaster.importCategoryPdf('${safeCategory}',this)"><label class="flabel" style="margin-top:14px">Multiple image gallery/file upload</label><input id="vmCategoryImageInput" class="vm-parser-area" style="min-height:auto;padding:10px" type="file" accept="image/*" multiple onchange="VocabularyMaster.importCategoryImages('${safeCategory}',this)"><p class="muted" style="font-size:11px;line-height:1.5;margin:12px 0 0">001, 002 বা 01, 02 filename থাকলে সেই serial অনুযায়ী sort হবে। Serial না থাকলে browser selection order রাখা হবে। অতিরিক্ত file/card হলে matching count পর্যন্ত apply হবে।</p><button class="btn secondary" style="margin-top:15px" onclick="closeModal()">Close</button>`);
@@ -382,7 +443,7 @@
     const all = recordsFor(state.query, state.category);
     const category = escape(state.category || 'ALL');
     const categoryFileKey = escape(state.category || 'ALL');
-    const body = `<main class="vm-page">${heading(`${state.category || 'ALL'} VOCABULARY`, `${state.category || 'Vocabulary'} Vocabulary`, `${all.length.toLocaleString()} words found`)}<div class="vm-category-intro"><div class="vm-category-intro-head"><div class="vm-category-intro-copy"><b>${category} category</b><span>Search word, বাংলা অর্থ, synonym বা antonym থেকে খুঁজুন।</span></div><div class="vm-category-icon-tools" aria-label="Category image tools"><button type="button" class="vm-category-icon-tool" title="১ ক্লিকে সব AI image prompt কপি (plain text)" aria-label="Copy category image prompt as plain text" onclick="VocabularyMaster.copyCategoryPrompt('${categoryFileKey}')">⧉</button><button type="button" class="vm-category-icon-tool" title="Import ordered images for this category" aria-label="Import ordered images for this category" onclick="VocabularyMaster.openCategoryImageImporter('${categoryFileKey}')">▧</button><button type="button" class="vm-category-icon-tool" title="Open category MCQ" aria-label="Open category MCQ" onclick="VocabularyMaster.startMcq('${categoryFileKey}')">❓</button><button type="button" class="vm-category-icon-tool" title="Category settings" aria-label="Category settings" onclick="VocabularyMaster.openCategorySettings('${categoryFileKey}')">⚙</button></div></div><p class="vm-category-import-hint">⧉ বাটনে এক ক্লিকেই এই category-এর সব vocabulary-র AI image prompt plain text কপি হয়ে যাবে — যেকোনো image জেনারেটরে পেস্ট করো। পরে ▧ দিয়ে image গুলো serial অনুযায়ী আপলোড করলেই card-এ বসে যাবে।</p></div><div class="vm-count" id="vmCategoryFound" style="margin:0 0 8px">${all.length.toLocaleString()} words found</div><div class="vm-tool-row"><div class="searchbar"><span>🔍</span><input id="vmBankSearch" value="${escape(state.query)}" placeholder="Search vocabulary" autocomplete="off" oninput="VocabularyMaster.searchCategory(this.value)"></div><select class="vm-filter" onchange="VocabularyMaster.openCategory(this.value)"><option value="">All A–Z</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => `<option value="${letter}" ${state.category === letter ? 'selected' : ''}>${letter}</option>`).join('')}</select></div><div id="vmCategoryResults">${categoryResultsContent()}</div></main>`;
+    const body = `<main class="vm-page">${heading(`${state.category || 'ALL'} VOCABULARY`, `${state.category || 'Vocabulary'} Vocabulary`, `${all.length.toLocaleString()} words found`)}<div class="vm-category-intro"><div class="vm-category-intro-head"><div class="vm-category-intro-copy"><b>${category} category</b><span>Search word, বাংলা অর্থ, synonym বা antonym থেকে খুঁজুন।</span></div><div class="vm-category-icon-tools" aria-label="Category image tools"><button type="button" class="vm-category-icon-tool" title="১ ক্লিকে সব AI image prompt কপি (plain text)" aria-label="Copy category image prompt as plain text" onclick="VocabularyMaster.copyCategoryPrompt('${categoryFileKey}')">⧉</button><button type="button" class="vm-category-icon-tool" title="১ ক্লিকে voice prompt কপি (সব word+synonym+antonym)" aria-label="Copy category voice prompt" onclick="VocabularyMaster.copyCategoryVoicePrompt('${categoryFileKey}')">🎙</button><button type="button" class="vm-category-icon-tool" title="Category voices আপলোড/স্ট্যাটাস" aria-label="Upload category voices" onclick="VocabularyMaster.openVoiceUploader('${categoryFileKey}')">🎧</button><button type="button" class="vm-category-icon-tool" title="Import ordered images for this category" aria-label="Import ordered images for this category" onclick="VocabularyMaster.openCategoryImageImporter('${categoryFileKey}')">▧</button><button type="button" class="vm-category-icon-tool" title="Open category MCQ" aria-label="Open category MCQ" onclick="VocabularyMaster.startMcq('${categoryFileKey}')">❓</button><button type="button" class="vm-category-icon-tool" title="Category settings" aria-label="Category settings" onclick="VocabularyMaster.openCategorySettings('${categoryFileKey}')">⚙</button></div></div><p class="vm-category-import-hint">⧉ বাটনে এক ক্লিকেই এই category-এর সব vocabulary-র AI image prompt plain text কপি হয়ে যাবে — যেকোনো image জেনারেটরে পেস্ট করো। পরে ▧ দিয়ে image গুলো serial অনুযায়ী আপলোড করলেই card-এ বসে যাবে।</p></div><div class="vm-count" id="vmCategoryFound" style="margin:0 0 8px">${all.length.toLocaleString()} words found</div><div class="vm-tool-row"><div class="searchbar"><span>🔍</span><input id="vmBankSearch" value="${escape(state.query)}" placeholder="Search vocabulary" autocomplete="off" oninput="VocabularyMaster.searchCategory(this.value)"></div><select class="vm-filter" onchange="VocabularyMaster.openCategory(this.value)"><option value="">All A–Z</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => `<option value="${letter}" ${state.category === letter ? 'selected' : ''}>${letter}</option>`).join('')}</select></div><div id="vmCategoryResults">${categoryResultsContent()}</div></main>`;
     renderShell(body, { title:`${state.category || 'Vocabulary'} Vocabulary`, back:`navigate('${route('bank')}')` });
     bindCategoryScrollTracking();
     restoreCategoryPosition();
@@ -938,6 +999,11 @@
     downloadCategoryPromptPdf(category) { return downloadCategoryPromptPdf(category); },
     copyCategoryPrompt(category) { return copyCategoryPrompt(category); },
     categoryPromptText(category) { return categoryPromptText(category); },
+    copyCategoryVoicePrompt(category) { return copyCategoryVoicePrompt(category); },
+    categoryVoicePromptText(category) { return categoryVoicePromptText(category); },
+    openVoiceUploader(category) { return openVoiceUploader(category); },
+    uploadCategoryVoices(category, input) { return uploadCategoryVoices(category, input); },
+    voiceKey: word => vmVoiceKey(word),
     openCategoryImageImporter(category) { return openCategoryImageImporter(category); },
     importCategoryImages(category, input) { return importCategoryImages(category, input); },
     importCategoryPdf(category, input) { return importCategoryPdf(category, input); },

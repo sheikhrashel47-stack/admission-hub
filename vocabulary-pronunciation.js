@@ -19,10 +19,28 @@
     }).sort((a, b) => b.score - a.score);
     return ranked[0]?.voice || voices[0] || null;
   };
+  const voiceKey = word => String(word || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  let customAudio = null;
+  const playCustom = key => {
+    const lib = window.__vmVoiceLib;
+    if (!lib || !lib[key]) return false;
+    try {
+      customAudio = customAudio || new Audio();
+      customAudio.pause();
+      customAudio.src = lib[key];
+      customAudio.currentTime = 0;
+      const p = customAudio.play();
+      if (p && p.catch) p.catch(() => {});
+      return true;
+    } catch (_) { return false; }
+  };
   const speak = raw => {
-    const word = String(raw || '').trim().replace(/[^A-Za-z' -]/g, '');
+    const rawWord = String(raw || '').trim();
+    if (!rawWord) return;
+    if (playCustom(voiceKey(rawWord))) return;
+    const word = rawWord.replace(/[^A-Za-z' -]/g, '');
     if (!word) return;
-    if (!supported()) { window.toast?.('এই device-এ pronunciation available নয়'); return; }
+    if (!supported()) { window.toast?.('এই device-এ pronunciation available নয়'); return; }
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(word);
@@ -34,12 +52,23 @@
       if (voice) { utterance.voice = voice; utterance.lang = voice.lang || utterance.lang; }
       window.speechSynthesis.speak(utterance);
     } catch (_) {
-      window.toast?.('Pronunciation শুরু করা যায়নি');
+      window.toast?.('Pronunciation শুরু করা যায়নি');
     }
   };
   if (supported()) {
     window.speechSynthesis.getVoices();
     window.speechSynthesis.addEventListener?.('voiceschanged', () => window.speechSynthesis.getVoices());
   }
-  window.VocabularyPronunciation = { play: speak, stop: () => window.speechSynthesis?.cancel?.() };
+  const loadVoiceLib = () => {
+    try {
+      if (typeof dbGetAll !== 'function') return;
+      dbGetAll('vocabularyMaster').then(rows => {
+        const lib = {};
+        (rows || []).forEach(row => { if (row && row.tool === 'vocabulary-master-voice' && row.normalized && row.dataUrl) lib[row.normalized] = row.dataUrl; });
+        window.__vmVoiceLib = lib;
+      }).catch(() => {});
+    } catch (_) {}
+  };
+  loadVoiceLib();
+  window.VocabularyPronunciation = { play: speak, stop: () => window.speechSynthesis?.cancel?.(), voiceKey, reloadVoices: loadVoiceLib };
 })();
