@@ -124,9 +124,13 @@ Collect 20-30 multiple-choice current-affairs/GK questions useful for university
 - Write the question in Bangla (short), options in Bangla (exactly 4, one clearly correct), "answer" must exactly match one option, "explain" is one short Bangla line, "source" is the site name or URL you verified from.
 - No duplicates, no opinion-based questions, no placeholder text.`;
 
-const NEWS_PROMPT = date => `Today's date is ${date} (Bangladesh, Asia/Dhaka). Search for TODAY's verified news about university admission in Bangladesh: application openings, deadlines, exam dates, seat-plan/result announcements, requirements for DU, BUET, CU, JU, RU, GST, GUST, agricultural and private universities.
-Check official/portals and credible national dailies (e.g. admission websites linked from prothomalo.com, bangla.bdnews24.com, jagonews24.com, university.ac.bd domains).
-Return ONLY genuinely verified, current items with their real source name, URL and date. If there are no relevant verified items today, return an empty news array — do NOT invent anything.`;
+const NEWS_PROMPT = date => `Today's date is ${date} (Bangladesh, Asia/Dhaka). You are a news researcher for Bangladeshi university-admission candidates. Find the LATEST verified admission news (last 2-3 days, today first).
+Categories: application circular openings & deadlines, exam dates, seat plans, admit cards, results, admission requirements/fees — for DU, BUET, CU, JU, RU, RUET, CUET, SUST, GST/GUST cluster, agricultural universities and major private universities.
+You MUST actually OPEN and read at least 6-8 of these verified sources before concluding (visit several, not just one):
+- National dailies & TV: prothomalo.com, bangla.bdnews24.com, kalerkantho.com, ittefaq.com.bd, samakal.com, jagonews24.com, banglatribune.com, bbc.com/bengali, somoynews.tv, channelsonline.com
+- Discovery: also search Google News (news.google.com) for "admission circular", "admission test date" etc. and follow only credible/official links.
+- University official sites when a circular is mentioned: du.ac.bd, buet.ac.bd, cu.ac.bd, ju.edu.bd? (verify via search), ru.ac.bd, gstadmission.ac.bd, rsu? — official .ac.bd / .edu domains only.
+Rules: ONLY items you verified on a page you actually opened this session. For each: title in Bangla, date (YYYY-MM-DD), 1-2 line Bangla summary, source domain, full URL. If after checking multiple sources nothing verified exists, return an empty news array — do NOT invent or reuse old news.`;
 
 const parseOutput = task => {
   if (!task) return null;
@@ -148,6 +152,8 @@ const getTask = async (key, id) => {
 };
 
 // সব টাস্ক শেষ হলে ডেটা KV-তে + Telegram খবর
+const newsTaskBody = (env, date) => ({ task: NEWS_PROMPT(date), llm: env.BU_LLM_NEWS || 'browser-use-2.0', maxSteps: 30, structuredOutput: JSON.stringify(NEWS_SCHEMA), flashMode: false });
+
 const runBackground = async (env, date, jobs) => {
   const all = keys(env);
   const deadline = Date.now() + POLL_MAX_MS;
@@ -168,15 +174,23 @@ const runBackground = async (env, date, jobs) => {
 
 // ফলাফল ফিল্টার → KV-সেভ → Telegram খবর (runBackground + healTasks দুই জায়গায় ব্যবহৃত)
 const finalizeResults = async (env, date, results) => {
-  const questions = Array.isArray(results.gk?.questions) ? results.gk.questions.filter(q => q?.q && Array.isArray(q.options) && q.options.length >= 2).slice(0, 40) : [];
-  const news = Array.isArray(results.news?.news) ? results.news.news.filter(n => n?.title && n?.summary).slice(0, 8) : [];
+  let prev = null;
+  try { const saved = await env.GK_KV.get(`gkData:${date}`); if (saved) prev = JSON.parse(saved); } catch (_) {}
+  const sameDay = prev && prev.date === date;
+  const gkRes = results.gk || (sameDay && Array.isArray(prev.questions) ? { questions: prev.questions, reused: true } : null);
+  const newsRes = results.news || (sameDay && Array.isArray(prev.news) ? { news: prev.news, reused: true } : null);
+  const questions = Array.isArray(gkRes?.questions) ? gkRes.questions.filter(q => q?.q && Array.isArray(q.options) && q.options.length >= 2).slice(0, 40) : [];
+  const news = Array.isArray(newsRes?.news) ? newsRes.news.filter(n => n?.title && n?.summary).slice(0, 8) : [];
   const payload = { date, count: questions.length, newsCount: news.length, questions, news, finishedAt: Date.now(), partial: !results.gk || !results.news };
   try { await env.GK_KV.put(`gkData:${date}`, JSON.stringify(payload)); await env.GK_KV.put('latest', JSON.stringify(payload)); } catch (_) {}
   try {
     if (env.TG_BOT_TOKEN && env.TG_CHAT_ID) {
-      const msg = questions.length
-        ? `🤖 আজকের GK এসেছে!\n\n📚 ${questions.length}টি নতুন MCQ${news.length ? `\n📰 ${news.length}টি verified admission news` : '\n📰 আজ কোনো verified news নেই'}\n\nঅ্যাপে Dashboard → 🤖 ডেইলি GK এজেন্ট খোলো!`
-        : '🤖 আজ GK এজেন্ট যথেষ্ট verified প্রশ্ন জোগাড় করতে পারেনি — কাল আবার চেষ্টা হবে।';
+      const msg = results.gk
+        ? (questions.length
+          ? `🤖 আজকের GK এসেছে!\n\n📚 ${questions.length}টি নতুন MCQ${news.length ? `\n📰 ${news.length}টি verified admission news` : '\n📰 আজ কোনো verified news নেই'}\n\nঅ্যাপে Dashboard → 🤖 ডেইলি GK এজেন্ট খোলো!`
+          : '🤖 আজ GK এজেন্ট যথেষ্ট verified প্রশ্ন জোগাড় করতে পারেনি — কাল আবার চেষ্টা হবে।')
+        : (news.length ? `📰 আজকের admission নিউজ এসেছে!\n\n${news.length}টি verified খবর — অ্যাপে Dashboard → 🤖 ডেইলি GK এজেন্ট → নিউজ ট্যাব` : null);
+      if (!msg) return payload;
       await fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: env.TG_CHAT_ID, text: msg }) }).catch(() => {});
     }
   } catch (_) {}
@@ -203,9 +217,27 @@ const healTasks = async (env, date) => {
   } catch (_) { return null; }
 };
 
+// নিউজ-আলাদা রি-রান: আজকের GK প্রশ্ন অক্ষত রেখে শুধু news টাস্ক নতুন করে চলে
+const startNewsOnly = async (request, env, ctx, date) => {
+  try {
+    if (!keys(env).length) return json(request, { error: 'keys-not-configured' }, 503);
+    const newsJob = await createWithFailover(env, date, newsTaskBody(env, date), 1);
+    if (!newsJob) return json(request, { error: 'all-keys-exhausted' }, 429);
+    const job = { kind: 'news', id: newsJob.id, keyIndex: newsJob.keyIndex };
+    const rec = await env.GK_KV.get(`gkTasks:${date}`);
+    const tasksRec = rec ? JSON.parse(rec) : { jobs: [], startedAt: Date.now() };
+    tasksRec.jobs = tasksRec.jobs.filter(j => j.kind !== 'news').concat([job]);
+    await env.GK_KV.put(`gkTasks:${date}`, JSON.stringify(tasksRec));
+    if (ctx && ctx.waitUntil) ctx.waitUntil(runBackground(env, date, [job]));
+    else runBackground(env, date, [job]);
+    return json(request, { started: true, kind: 'news' });
+  } catch (_) { return json(request, { error: 'run-failed' }, 500); }
+};
+
 const maybeStart = async (request, env, ctx) => {
   const date = dhakaToday();
   try {
+    if (new URL(request.url).searchParams.get('kind') === 'news') return await startNewsOnly(request, env, ctx, date);
     const lastDay = await env.GK_KV.get('gkDay');
     if (lastDay === date) {
       const stored = await env.GK_KV.get(`gkData:${date}`);
@@ -214,7 +246,7 @@ const maybeStart = async (request, env, ctx) => {
     if (!keys(env).length) return json(request, { error: 'keys-not-configured' }, 503);
     await env.GK_KV.put('gkDay', date); // দিনে ১ run — এখনই গার্ড বসে
     const gkJob = await createWithFailover(env, date, { task: GK_PROMPT(date), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 45, structuredOutput: JSON.stringify(GK_SCHEMA), flashMode: false });
-    const newsJob = await createWithFailover(env, date, { task: NEWS_PROMPT(date), llm: env.BU_LLM_NEWS || 'bu-2-0-mini-preview', maxSteps: 25, structuredOutput: JSON.stringify(NEWS_SCHEMA), flashMode: true }, 1); // shift+1: GK ও news ভিন্ন key-এ
+    const newsJob = await createWithFailover(env, date, newsTaskBody(env, date), 1); // shift+1: GK ও news ভিন্ন key-এ; শক্ত মডেল + ধীর ব্রাউজিং
     const jobs = [
       gkJob ? { kind: 'gk', id: gkJob.id, keyIndex: gkJob.keyIndex } : null,
       newsJob ? { kind: 'news', id: newsJob.id, keyIndex: newsJob.keyIndex } : null
@@ -245,11 +277,13 @@ export default {
     if (request.method === 'GET' && url.pathname === '/api/gk/today') {
       const date = dhakaToday();
       try {
+        const tasks = await env.GK_KV.get(`gkTasks:${date}`);
+        if (tasks) { // টাস্ক আছে → আগে heal: finished টাস্ক এনে merge-করে সেভ করে
+          const healed = await healTasks(env, date);
+          if (healed) return json(request, { ready: true, date, payload: healed });
+        }
         const stored = await env.GK_KV.get(`gkData:${date}`);
         if (stored) return json(request, { ready: true, date, payload: JSON.parse(stored) });
-        const healed = await healTasks(env, date); // পোল-মিস হলেও ডেটা হারাবে না
-        if (healed) return json(request, { ready: true, date, payload: healed });
-        const tasks = await env.GK_KV.get(`gkTasks:${date}`);
         return json(request, { ready: false, date, running: !!tasks });
       } catch (_) { return json(request, { ready: false, date, running: false }); }
     }
@@ -266,4 +300,4 @@ export default {
   }
 };
 
-export const __test = { tryCreate, createWithFailover, parseOutput, dhakaToday, keys, GK_PROMPT, GK_SCHEMA, NEWS_SCHEMA };
+export const __test = { tryCreate, createWithFailover, parseOutput, dhakaToday, keys, GK_PROMPT, GK_SCHEMA, NEWS_SCHEMA, finalizeResults };
