@@ -156,14 +156,15 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const imgs = list.filter(a => a.kind === 'image'), txts = list.filter(a => a.kind === 'text');
     const qText = question + txts.map(a => `\n\n📎 "${a.name}" ফাইলের বিষয়বস্তু:\n${(a.text || '').slice(0, 9000)}`).join('');
     if (c.provider === 'gemini') {
-      const model = c.model || 'gemini-3.5-flash-lite';
+      const model = c.model || 'gemini-3.6-flash';
       const histParts = msgsOf(curId()).filter(m => m.text).slice(-8).map(m => ({ role: m.who === 'ai' ? 'model' : 'user', parts: [{ text: m.text }] }));
       if (histParts.length) histParts[histParts.length - 1] = { role: 'user', parts: [{ text: qText }, ...imgs.filter(i => i.data).map(i => ({ inline_data: { mime_type: i.mime || 'image/jpeg', data: i.data } }))] };
       else histParts.push({ role: 'user', parts: [{ text: qText }, ...imgs.filter(i => i.data).map(i => ({ inline_data: { mime_type: i.mime || 'image/jpeg', data: i.data } }))] });
       const call = useTools => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ system_instruction: { parts: [{ text: sysPrompt() }] }, contents: histParts, generationConfig: { temperature: 0.5, maxOutputTokens: 2048 } }, useTools ? { tools: [{ google_search: {} }] } : {})) });
       let res = await call(true);
       let d = await res.json().catch(() => ({}));
-      if (!res.ok && /tool|google_search/i.test(String(d?.error?.message || ''))) { res = await call(false); d = await res.json().catch(() => ({})); }
+      // গ্রাউন্ডিং (google_search) কোটা/প্ল্যানে না চললে টুল-ছাড়া পুনঃপ্রচেষ্টা — উত্তর তো আসবেই
+      if (!res.ok) { res = await call(false); d = await res.json().catch(() => ({})); }
       if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
       const text = String((d.candidates?.[0]?.content?.parts || []).map(pp => pp.text || '').join('')).trim();
       return { text: text || 'উত্তর পাইনি — আবার লেখো?', sources: gemSources(d) };
@@ -184,7 +185,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     state.keyTest = { ok: null, msg: 'টেস্ট হচ্ছে…' }; paint();
     try {
       if (c.provider === 'gemini') {
-        const model = c.model || 'gemini-3.5-flash-lite';
+        const model = c.model || 'gemini-3.6-flash';
         const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'ok?' }] }], generationConfig: { maxOutputTokens: 8 } }) });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
@@ -246,12 +247,12 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       <div class="sai-setwrap">
         <label class="flabel">উত্তর-ইঞ্জিন</label>
         <div class="filter-row" style="margin:6px 0 4px"><button class="chip ${c.engine === 'agent' ? 'active' : ''}" onclick="StudyAiTool.setEngine('agent')">🌐 ব্রাউজার এজেন্ট</button><button class="chip ${c.engine === 'fast' ? 'active' : ''}" onclick="StudyAiTool.setEngine('fast')">⚡ ফাস্ট (API key)</button></div>
-        <div class="muted" style="font-size:11px;margin-bottom:12px">${c.engine === 'agent' ? 'সত্যিই ওয়েব ঘেঁটে যাচাই করে উত্তর দেয় — ১০ সেকেন্ড–৩ মিনিট (সবচেয়ে নির্ভরযোগ্য)' : 'সরাসরি API — দ্রুত; Gemini-তে Google-সার্চ-গ্রাউন্ডিং চালু আছে (ফ্রেশ তথ্য)'}</div>
+        <div class="muted" style="font-size:11px;margin-bottom:12px">${c.engine === 'agent' ? 'সত্যিই ওয়েব ঘেঁটে যাচাই করে উত্তর দেয় — ১০ সেকেন্ড–৩ মিনিট (সবচেয়ে নির্ভরযোগ্য)' : 'সরাসরি API — দ্রুত; চালু হলে Gemini Google-সার্চ করে টাটকা তথ্য দেয় (কোটা না চললে সাধারণ উত্তর)'}</div>
         <label class="flabel">API Provider — যেকোনো সময় বসাও/মুছো/বদলাও</label>
         ${prov('gemini', 'Gemini (ফ্রি key: aistudio.google.com)')}
         ${prov('xai', 'Grok (x.ai)')}
         ${prov('groq', 'Groq (console.groq.com)')}
-        <label class="flabel">মডেল (ঐচ্ছিক)</label><input type="text" placeholder="${c.provider === 'xai' ? 'grok-3-mini' : c.provider === 'groq' ? 'llama-3.3-70b-versatile' : 'gemini-3.5-flash-lite'}" value="${esc(c.model || '')}" onchange="StudyAiTool.setModel(this.value)">
+        <label class="flabel">মডেল (ঐচ্ছিক)</label><input type="text" placeholder="${c.provider === 'xai' ? 'grok-3-mini' : c.provider === 'groq' ? 'llama-3.3-70b-versatile' : 'gemini-3.6-flash'}" value="${esc(c.model || '')}" onchange="StudyAiTool.setModel(this.value)">
         <div class="row" style="gap:8px;margin:10px 0 4px"><button class="btn secondary sm" onclick="StudyAiTool.testKey()">🔑 key-টেস্ট করো</button></div>
         ${state.keyTest ? `<div class="${state.keyTest.ok === true ? 'sai-memok' : state.keyTest.ok === false ? 'sai-ghostbtn' : 'muted'}" style="display:block;font-size:12px;margin-top:6px">${esc(state.keyTest.msg)}</div>` : ''}
         <label class="flabel" style="margin-top:16px">থিম</label>
