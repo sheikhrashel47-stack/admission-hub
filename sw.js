@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v105-el-live-20260830';
+const BUILD_ID = 'v106-autoimg-20260830';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -48,7 +48,7 @@ const APP_SHELL = [
   './performance-hardening.js?v=1',
   './one-time-mock-seed.js?v=20260824-native',
   './one-time-mock-tool.js?v=20260824-native',
-  './vocabulary-master-tool.js?v=vm-el-voice-v104',
+  './vocabulary-master-tool.js?v=vm-autoimg-v106',
   './vocabulary-pronunciation.js?v=voice-el-v104',
   './vocabulary-elevenlabs.js?v=el-voice-v105',
   './memorizing-match-tool.js?v=memorizing-match-v8-stable-cards',
