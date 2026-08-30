@@ -197,6 +197,64 @@ const finalizeResults = async (env, date, results) => {
   return payload;
 };
 
+// ── Study-AI: ব্রাউজার-এজেন্ট চ্যাট (দ্রুত ইঞ্জিন অ্যাপে, ওয়েব-মোড এখানে) ──
+const ASK_SCHEMA = {
+  type: 'object',
+  properties: {
+    answer: { type: 'string' },
+    sources: { type: 'array', items: { type: 'string' } }
+  },
+  required: ['answer']
+};
+
+const ASK_PROMPT = (question, context) => `You are "স্টাডি বন্ধু" — a warm, friendly Bangla study-helper for a Bangladeshi university-admission candidate. Today: ${dhakaToday()} (Asia/Dhaka).
+User's question: """${question}"""
+${context ? `User's study context (use silently, never dump raw): ${context}` : ''}
+Rules: Reply in simple warm Bangla (তুমি-ফর্ম), 2-6 short lines, light emoji ok. If the question needs current/factual web info, quickly browse credible sources and verify before answering; include source domains in sources. Never invent facts. End with a tiny nudge to keep studying.`;
+
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : 'ask-' + Date.now() + '-' + Math.floor(Math.random() * 1e6));
+
+const createAsk = async (request, env, ctx) => {
+  const date = dhakaToday();
+  try {
+    let body = {};
+    try { body = await request.json(); } catch (_) {}
+    const question = String(body.question || '').trim().slice(0, 600);
+    const context = String(body.context || '').trim().slice(0, 700);
+    if (!question) return json(request, { error: 'empty-question' }, 400);
+    if (!keys(env).length) return json(request, { error: 'keys-not-configured' }, 503);
+    const id = newId();
+    const shift = Math.floor(Date.now() / 60000); // প্রতি-মিনিটে ভিন্ন key-অফসেট — লোড ভাগ হয়
+    const job = await createWithFailover(env, date, { task: ASK_PROMPT(question, context), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 12, structuredOutput: JSON.stringify(ASK_SCHEMA), flashMode: false }, shift % Math.max(1, keys(env).length));
+    if (!job) return json(request, { error: 'all-keys-exhausted' }, 429);
+    await env.GK_KV.put(`ask:${id}`, JSON.stringify({ id, jobId: job.id, keyIndex: job.keyIndex, date, status: 'running', createdAt: Date.now() }), { expirationTtl: 86400 * 3 });
+    return json(request, { id, started: true });
+  } catch (_) { return json(request, { error: 'ask-failed' }, 500); }
+};
+
+const askStatus = async (request, env, id) => {
+  try {
+    if (!/^[a-f0-9-]{8,40}$/i.test(id)) return json(request, { error: 'bad-id' }, 400);
+    const rec = await env.GK_KV.get(`ask:${id}`);
+    if (!rec) return json(request, { error: 'not-found' }, 404);
+    const ask = JSON.parse(rec);
+    if (ask.status !== 'running') return json(request, ask);
+    const all = keys(env);
+    const task = await getTask(all[ask.keyIndex] || all[0], ask.jobId).catch(() => null);
+    if (!task) return json(request, { status: 'running' });
+    if (task.status === 'failed') { ask.status = 'failed'; await env.GK_KV.put(`ask:${id}`, JSON.stringify(ask)); return json(request, { status: 'failed' }); }
+    const out = parseOutput(task);
+    if (out && typeof out.answer === 'string' && out.answer.trim()) {
+      ask.status = 'finished';
+      ask.answer = String(out.answer).slice(0, 4000);
+      ask.sources = Array.isArray(out.sources) ? out.sources.map(x => String(x).slice(0, 120)).slice(0, 6) : [];
+      await env.GK_KV.put(`ask:${id}`, JSON.stringify(ask));
+      return json(request, { status: 'finished', answer: ask.answer, sources: ask.sources });
+    }
+    return json(request, { status: task.status === 'finished' ? 'failed' : 'running' });
+  } catch (_) { return json(request, { error: 'status-failed' }, 500); }
+};
+
 // self-heal: ব্যাকগ্রাউন্ড-পোল শেষ হয়ে গেলেও /api/gk/today GET-ই BU-তে finished টাস্ক এনে সেভ করে
 const healTasks = async (env, date) => {
   try {
@@ -271,6 +329,8 @@ export default {
     }
 
     if (request.headers.get('X-AH-App') !== APP_HEADER) return json(request, { error: 'forbidden' }, 403);
+    if (request.method === 'POST' && url.pathname === '/api/ask') return await createAsk(request, env, ctx);
+    if (request.method === 'GET' && url.pathname.startsWith('/api/ask/')) return await askStatus(request, env, url.pathname.split('/').pop() || '');
 
     if (request.method === 'POST' && url.pathname === '/api/gk/run') return maybeStart(request, env, ctx);
 

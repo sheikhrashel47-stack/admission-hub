@@ -8,6 +8,30 @@
   const WORKER = (() => { try { return String(localStorage.getItem('ahGkUrl') || '').trim() || 'https://admission-gk.rashelzayan213.workers.dev'; } catch (_) { return 'https://admission-gk.rashelzayan213.workers.dev'; } })();
   const ROUTE = 'gk-agent';
   const route = () => (window.location.hash || '').replace(/^#\/?/, '').split('?')[0];
+  const gkStyleOnce = () => { if (document.getElementById('gkAgentStyle')) return; const st = document.createElement('style'); st.id = 'gkAgentStyle'; st.textContent = `
+.gk-card{padding:14px 14px 12px;border:1px solid var(--line,#e5e7eb);border-radius:16px;background:var(--card,#fff);box-shadow:0 1px 3px rgba(16,24,40,.05)}
+.gk-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.gk-chip{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--emerald,#0f6b4f);color:#fff;font-size:11px;font-weight:800;letter-spacing:.04em}
+.gk-chip-plain{background:var(--bg,#f3f4f6);color:var(--sub,#6b7280)}
+.gk-chip-ok{background:#e7f6ee;color:#0f6b4f}
+.gk-chip-bad{background:#fdecec;color:#c02626}
+.gk-crumb{font-size:11px;color:var(--sub,#6b7280);margin-bottom:6px}
+.gk-card .gk-q{font-weight:700;font-size:15px;line-height:1.45;margin-bottom:10px}
+.gk-opt-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 12px;margin:7px 0;border:1.5px solid var(--line,#e5e7eb);border-radius:12px;background:#fff;font-size:14px;line-height:1.4;cursor:pointer}
+.gk-opt-btn span{flex:0 0 26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--bg,#f3f4f6);font-weight:800;font-size:12px}
+.gk-opt-btn .gk-mark{margin-left:auto}
+.gk-opt-btn.correct{border-color:#0f6b4f;background:#e7f6ee;color:#0f6b4f;font-weight:700}
+.gk-opt-btn.correct span{background:#0f6b4f;color:#fff}
+.gk-opt-btn.wrong{border-color:#c02626;background:#fdecec;color:#c02626}
+.gk-opt-btn.wrong span{background:#c02626;color:#fff}
+.gk-opt-btn:disabled{cursor:default;opacity:1}
+.gk-explain{margin-top:10px;padding:10px 12px;border-radius:10px;background:#f0faf5;border-left:4px solid #0f6b4f;font-size:13px;line-height:1.55}
+.gk-explain-bad{background:#fdf2f2;border-left-color:#c02626}
+.gk-scorebar{margin:10px 0 2px;padding:9px 13px;border-radius:12px;background:var(--bg,#f3f4f6);font-size:13px}
+.gk-src{display:inline-block;margin-top:8px;font-size:11.5px;color:#0f6b4f;text-decoration:none}
+`; document.head.appendChild(st); }
+  const qRightIdx = (q, optIndex) => q && q.options.findIndex(opt => opt.trim() === q.answer.trim()) === optIndex;
+
   const STORE = 'gkBank';
 
   const esc = v => String(v ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
@@ -16,7 +40,7 @@
   const dateBn = iso => { try { return new Intl.DateTimeFormat('bn-BD', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(iso + 'T12:00:00')); } catch (_) { return iso; } };
   const LETTERS = ['ক', 'খ', 'গ', 'ঘ'];
 
-  let state = { tab: 'today', pollTimer: null, flash: null, mock: null, loading: false };
+  let state = { tab: 'today', pollTimer: null, flash: null, mock: null, loading: false, answered: {} };
 
   // ── ডেটা ────────────────────────────────────────────────────────────────────
   const allQuestions = async () => { try { return (await dbGetAll(STORE)).filter(r => r.tool === 'gk-daily'); } catch (_) { return []; } };
@@ -78,11 +102,40 @@
   const tabs = () => [['today', '📚 আজকের GK'], ['archive', '🗄 আর্কাইভ'], ['flash', '⚡ ফ্ল্যাশ'], ['mock', '📝 মক টেস্ট'], ['news', '📰 নিউজ']];
   const tabBar = () => `<div class="gk-tabs">${tabs().map(([key, label]) => `<button class="chip ${state.tab === key ? 'active' : ''}" onclick="GkAgentTool.setTab('${key}')">${label}</button>`).join('')}</div>`;
 
+  // Bank-কার্ড-স্টাইল ইন্টার‌অ্যাকটিভ কার্ড: অপশনে ক্লিক → তৎক্ষণাৎ ✓/✗ + ব্যাখ্যা
+  const qStatus = idx => { const a = state.answered[idx]; return a === undefined ? null : a; };
+  const statusChip = idx => { const s = qStatus(idx); return s === null ? '<span class="gk-chip gk-chip-plain">Unattempted</span>' : s ? '<span class="gk-chip gk-chip-ok">✓ সঠিক</span>' : '<span class="gk-chip gk-chip-bad">✗ ভুল</span>'; };
   const questionCard = (q, index, reveal) => {
     const answerIndex = q.options.findIndex(opt => opt.trim() === q.answer.trim());
-    return `<div class="gk-card"><div class="gk-q"><b>${bn(index + 1)}.</b> ${esc(q.q)}</div><div class="gk-opts">${q.options.map((opt, i) => `<div class="gk-opt ${reveal && i === answerIndex ? 'correct' : ''}"><span>${LETTERS[i] || i + 1}</span> ${esc(opt)}</div>`).join('')}</div>${reveal ? `<div class="gk-explain">💡 ${esc(q.explain || `সঠিক উত্তর: ${LETTERS[answerIndex] || q.answer}`)}</div>${q.source ? `<a class="gk-src" href="https://${String(q.source).replace(/^https?:\/\//, '')}" target="_blank" rel="noopener">🔗 ${esc(q.source.slice(0, 40))}</a>` : ''}` : `<button class="btn ghost sm" onclick="GkAgentTool.reveal(this)">উত্তর দেখাও</button>`}</div>`;
+    const picked = qStatus(index);
+    const done = reveal || picked !== null;
+    const opts = q.options.map((opt, i) => {
+      let cls = '';
+      if (done) { if (i === answerIndex) cls = 'correct'; else if (picked === i) cls = 'wrong'; }
+      return `<button class="gk-opt-btn ${cls}" ${done ? 'disabled' : ''} onclick="GkAgentTool.answerQuestion(${index}, ${i})"><span>${LETTERS[i] || i + 1}</span> ${esc(opt)}${done && i === answerIndex ? '<b class="gk-mark">✓</b>' : ''}${picked === i && i !== answerIndex ? '<b class="gk-mark">✗</b>' : ''}</button>`;
+    }).join('');
+    const fb = done ? `<div class="gk-explain ${picked !== null && picked !== answerIndex ? 'gk-explain-bad' : ''}">${picked === answerIndex ? '✓ <b>সঠিক!</b>' : picked !== null ? `✗ <b>ভুল — সঠিক উত্তর: ${LETTERS[answerIndex] || q.answer}</b>` : `💡 <b>সঠিক উত্তর: ${LETTERS[answerIndex] || q.answer}</b>`}${q.explain ? `<br>💡 ${esc(q.explain)}` : ''}</div>${q.source ? `<a class="gk-src" href="https://${String(q.source).replace(/^https?:\/\//, '')}" target="_blank" rel="noopener">🔗 ${esc(q.source.slice(0, 40))}</a>` : ''}` : '';
+    const peek = done ? '' : `<button class="btn ghost sm" onclick="GkAgentTool.reveal(this)">উত্তর দেখাও</button>`;
+    return `<div class="gk-card" data-idx="${index}"><div class="gk-card-head"><span class="gk-chip">Q ${bn(index + 1)}</span>${statusChip(index)}</div><div class="gk-crumb">GK • ডেইলি এজেন্ট${q.date ? ' • ' + dateBn(q.date) : ''}</div><div class="gk-q">${esc(q.q)}</div><div class="gk-opts">${opts}</div>${fb}${peek}</div>`;
   };
-  const reveal = btn => { const card = btn.closest('.gk-card'); card.classList.add('revealed'); const idx = Number(card.dataset.idx || -1); card.outerHTML = questionCard(state.dayRows[idx], idx, true); };
+  const updateScorebar = () => {
+    const rows = state.dayRows || [];
+    const vals = Object.entries(state.answered).filter(([k, v]) => v >= 0 && rows[Number(k)]);
+    if (!vals.length) return;
+    const right = vals.filter(([k, v]) => qRightIdx(rows[Number(k)], v)).length, wrong = vals.length - right;
+    let bar = document.querySelector('#gkBody .gk-scorebar');
+    const html = `<div class="gk-scorebar">🎯 Accuracy <b>${bn(vals.length ? Math.round(right / vals.length * 100) : 0)}%</b> · ✓ <b>${bn(right)}</b> · ✗ <b>${bn(wrong)}</b></div>`;
+    if (bar) bar.outerHTML = html;
+    else { const head = document.querySelector('#gkBody .card'); head && head.insertAdjacentHTML('afterend', html); }
+  };
+  const answerQuestion = (index, optIndex) => {
+    if (state.answered[index] !== undefined) return;
+    state.answered[index] = optIndex;
+    const card = document.querySelector(`#gkBody .gk-card[data-idx="${index}"]`);
+    if (card) card.outerHTML = questionCard(state.dayRows[index], index, false);
+    updateScorebar();
+  };
+  const reveal = btn => { const card = btn.closest('.gk-card'); card.classList.add('revealed'); const idx = Number(card.dataset.idx || -1); if (state.answered[idx] === undefined) state.answered[idx] = -1; card.outerHTML = questionCard(state.dayRows[idx], idx, true); };
   const dataAttrs = rows => rows.map((r, i) => `data-i="${i}"`).join(' ');
 
   // ── Tabs ────────────────────────────────────────────────────────────────────
@@ -94,7 +147,9 @@
     if (!rows.length) {
       return `<div class="gk-empty card"><div style="font-size:34px">🤖</div><b>আজকের GK এখনো সংগ্রহ হয়নি</b><p class="muted" style="margin-top:6px">এজেন্ট প্রতিদিন রাত ১২টার পর একবার নতুন প্রশ্ন জোগাড় করে — দিনে মাত্র ১ রান (খরচ বাঁচে)।</p>${state.loading ? `<p id="gkAgentProgress" style="margin-top:10px;font-weight:700">🤖 এজেন্ট কাজ করছে…</p>` : `<button class="btn" style="margin-top:12px" onclick="GkAgentTool.fetchToday()">🤖 এখনই সংগ্রহ করো</button>`}<p class="muted" style="margin-top:10px;font-size:11px">গত দিনগুলোর প্রশ্ন আর্কাইভ ট্যাবে থাকে।</p></div>`;
     }
-    return `<div class="card" style="display:flex;align-items:center;gap:10px;justify-content:space-between"><div><b>${dateBn(today)}</b><div class="muted" style="font-size:12px">${bn(rows.length)}টি প্রশ্ন${news.length ? ` · 📰 ${bn(news.length)}টি নিউজ` : ''}</div></div><div style="display:flex;gap:7px"><button class="btn sm" onclick="GkAgentTool.setTab('flash')">⚡ ফ্ল্যাশ</button><button class="btn secondary sm" onclick="GkAgentTool.setTab('mock')">📝 মক</button></div></div><div class="gk-list">${rows.map((q, i) => { const card = questionCard(q, i, false); return card.replace('class="gk-card"', `class="gk-card" data-idx="${i}"`); }).join('')}</div>`;
+    const vals = Object.entries(state.answered).filter(([k, v]) => v >= 0 && rows[Number(k)]);
+    const right = vals.filter(([k, v]) => qRightIdx(rows[Number(k)], v)).length, wrong = vals.length - right;
+    return `<div class="card" style="display:flex;align-items:center;gap:10px;justify-content:space-between"><div><b>${dateBn(today)}</b><div class="muted" style="font-size:12px">${bn(rows.length)}টি প্রশ্ন${news.length ? ` · 📰 ${bn(news.length)}টি নিউজ` : ''}</div></div><div style="display:flex;gap:7px"><button class="btn sm" onclick="GkAgentTool.setTab('flash')">⚡ ফ্ল্যাশ</button><button class="btn secondary sm" onclick="GkAgentTool.setTab('mock')">📝 মক</button></div></div>${vals.length ? `<div class="gk-scorebar">🎯 Accuracy <b>${bn(vals.length ? Math.round(right / vals.length * 100) : 0)}%</b> · ✓ <b>${bn(right)}</b> · ✗ <b>${bn(wrong)}</b></div>` : ''}<div class="gk-list">${rows.map((q, i) => questionCard(q, i, false)).join('')}</div>`;
   };
 
   const renderArchive = async () => {
@@ -111,7 +166,7 @@
     GkAgentTool.render();
   };
 
-  const renderDateView = async () => `<div class="card" style="display:flex;align-items:center;gap:10px;justify-content:space-between"><button class="btn ghost sm" onclick="GkAgentTool.setTab('archive')">← আর্কাইভ</button><div style="text-align:right"><b>${dateBn(state.dayRows[0]?.date || '')}</b><div class="muted" style="font-size:12px">${bn(state.dayRows.length)}টি প্রশ্ন</div></div></div><div class="gk-list">${state.dayRows.map((q, i) => questionCard(q, i, false).replace('class="gk-card"', `class="gk-card" data-idx="${i}"`)).join('')}</div>`;
+  const renderDateView = async () => `<div class="card" style="display:flex;align-items:center;gap:10px;justify-content:space-between"><button class="btn ghost sm" onclick="GkAgentTool.setTab('archive')">← আর্কাইভ</button><div style="text-align:right"><b>${dateBn(state.dayRows[0]?.date || '')}</b><div class="muted" style="font-size:12px">${bn(state.dayRows.length)}টি প্রশ্ন</div></div></div><div class="gk-list">${state.dayRows.map((q, i) => questionCard(q, i, false)).join('')}</div>`;
 
   // ── Flash ───────────────────────────────────────────────────────────────────
   const startFlash = async date => {
@@ -188,7 +243,7 @@
     render,
     setTab(tab) { state.tab = tab; GkAgentTool.render(); },
     fetchToday: () => { state.loading = false; fetchToday(); },
-    reveal, startFlash, flashReveal, flashMove, startMock, mockNext,
+    reveal, answerQuestion, startFlash, flashReveal, flashMove, startMock, mockNext,
     setMockCount(n) { state.mockCount = n; GkAgentTool.render(); },
     mockAnswer(qi, oi) {
       const m = state.mock;
