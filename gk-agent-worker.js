@@ -71,13 +71,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const keys = env => String(env.BROWSER_USE_API_KEYS || '').split(',').map(k => k.trim()).filter(Boolean);
 
-const badKeysToday = async (env, date) => {
-  try { return JSON.parse(await env.GK_KV.get('badKeys:' + date) || '[]'); } catch (_) { return []; }
+const badKeysToday = async (env, date, ns = 'gk') => {
+  try { return JSON.parse(await env.GK_KV.get(`badKeys:${date}:${ns}`) || '[]'); } catch (_) { return []; }
 };
-const markBad = async (env, date, index) => {
+const markBad = async (env, date, index, ns = 'gk') => {
   try {
     const bad = await badKeysToday(env, date);
-    if (!bad.includes(index)) { bad.push(index); await env.GK_KV.put('badKeys:' + date, JSON.stringify(bad)); }
+    if (!bad.includes(index)) { bad.push(index); await env.GK_KV.put(`badKeys:${date}:${ns}`, JSON.stringify(bad)); }
   } catch (_) {}
 };
 
@@ -97,10 +97,11 @@ const tryCreate = async (key, body) => {
   } catch (_) { return { error: 'network' }; }
 };
 
-const createWithFailover = async (env, date, body, shift = 0) => {
-  const all = keys(env);
+const createWithFailover = async (env, date, body, shift = 0, forceKeys = null) => {
+  const all = forceKeys || keys(env);
   if (!all.length) return null;
-  const bad = await badKeysToday(env, date); // 401/402 — সেদিনের জন্য মৃত
+  const ns = forceKeys ? 'ask' : 'gk'; // forceKeys-এর index আলাদা নেমস্পেসে — GK-পুল অক্ষত
+  const bad = await badKeysToday(env, date, ns); // 401/402 — সেদিনের জন্য মৃত
   // দৈনিক রোটেশন: প্রতিদিন ভিন্ন key দিয়ে শুরু — কোটা সব key-এ সমান ভাগে খরচ হয়
   const dayIndex = Math.floor(Date.parse(date + 'T00:00:00+06:00') / 86400000);
   const offset = ((((dayIndex % all.length) + all.length) % all.length) + shift) % all.length;
@@ -110,7 +111,7 @@ const createWithFailover = async (env, date, body, shift = 0) => {
     if (bad.includes(idx) || busy.has(idx)) continue;
     const result = await tryCreate(all[idx], body);
     if (result.id) return { id: result.id, keyIndex: idx };
-    if (result.dead) { await markBad(env, date, idx); continue; }
+    if (result.dead) { await markBad(env, date, idx, ns); continue; }
     busy.add(idx);
   }
   return null;
@@ -224,10 +225,14 @@ const createAsk = async (request, env, ctx) => {
     if (!question) return json(request, { error: 'empty-question' }, 400);
     if (!keys(env).length) return json(request, { error: 'keys-not-configured' }, 503);
     const id = newId();
-    const shift = Math.floor(Date.now() / 60000); // প্রতি-মিনিটে ভিন্ন key-অফসেট — লোড ভাগ হয়
-    const job = await createWithFailover(env, date, { task: ASK_PROMPT(question, context), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 12, structuredOutput: JSON.stringify(ASK_SCHEMA), flashMode: false }, shift % Math.max(1, keys(env).length));
+    const askBody = { task: ASK_PROMPT(question, context), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 12, structuredOutput: JSON.stringify(ASK_SCHEMA), flashMode: false };
+    const askKey = String(env.ASK_API_KEY || '').trim();
+    if (!askKey) return json(request, { error: 'ask-key-not-configured' }, 503);
+    let job = await createWithFailover(env, date, askBody, 0, [askKey]); // dedicated চ্যাট-key
+    let dedicated = !!job;
+    if (!job) job = await createWithFailover(env, date, askBody, Math.floor(Date.now() / 60000)); // মরে গেলে GK-পুল ফলব্যাক
     if (!job) return json(request, { error: 'all-keys-exhausted' }, 429);
-    await env.GK_KV.put(`ask:${id}`, JSON.stringify({ id, jobId: job.id, keyIndex: job.keyIndex, date, status: 'running', createdAt: Date.now() }), { expirationTtl: 86400 * 3 });
+    await env.GK_KV.put(`ask:${id}`, JSON.stringify({ id, jobId: job.id, keyIndex: job.keyIndex, dedicated, date, status: 'running', createdAt: Date.now() }), { expirationTtl: 86400 * 3 });
     return json(request, { id, started: true });
   } catch (_) { return json(request, { error: 'ask-failed' }, 500); }
 };
@@ -240,7 +245,9 @@ const askStatus = async (request, env, id) => {
     const ask = JSON.parse(rec);
     if (ask.status !== 'running') return json(request, ask);
     const all = keys(env);
-    const task = await getTask(all[ask.keyIndex] || all[0], ask.jobId).catch(() => null);
+    const key = ask.dedicated ? (String(env.ASK_API_KEY || '').trim() || all[0]) : (all[ask.keyIndex] || all[0]);
+    let task = await getTask(key, ask.jobId).catch(() => null);
+    if (!task && String(env.ASK_API_KEY || '').trim() && key !== String(env.ASK_API_KEY).trim()) task = await getTask(String(env.ASK_API_KEY).trim(), ask.jobId).catch(() => null); // legacy-shim
     if (!task) return json(request, { status: 'running' });
     if (task.status === 'failed') { ask.status = 'failed'; await env.GK_KV.put(`ask:${id}`, JSON.stringify(ask)); return json(request, { status: 'failed' }); }
     const out = parseOutput(task);
@@ -325,7 +332,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(request) });
 
     if (url.pathname === '/health') {
-      return json(request, { ok: true, keys: keys(env).length, kv: !!env.GK_KV, tg: !!env.TG_BOT_TOKEN, lastDay: env.GK_KV ? await env.GK_KV.get('gkDay') : null });
+      return json(request, { ok: true, keys: keys(env).length, askKey: !!env.ASK_API_KEY, kv: !!env.GK_KV, tg: !!env.TG_BOT_TOKEN, lastDay: env.GK_KV ? await env.GK_KV.get('gkDay') : null });
     }
 
     if (request.headers.get('X-AH-App') !== APP_HEADER) return json(request, { error: 'forbidden' }, 403);
