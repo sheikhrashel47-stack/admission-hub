@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v101-vm-edit-parens-20260829';
+const BUILD_ID = 'v102-vm-prompt-copy-20260829';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -48,7 +48,7 @@ const APP_SHELL = [
   './performance-hardening.js?v=1',
   './one-time-mock-seed.js?v=20260824-native',
   './one-time-mock-tool.js?v=20260824-native',
-  './vocabulary-master-tool.js?v=vm-edit-fix-parens-v101',
+  './vocabulary-master-tool.js?v=vm-prompt-copy-v102',
   './vocabulary-pronunciation.js?v=pronunciation-native-v3-natural-voice',
   './memorizing-match-tool.js?v=memorizing-match-v8-stable-cards',
   './question-card-game-visual.js?v=question-card-game-v2-persistent',
