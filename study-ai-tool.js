@@ -77,19 +77,25 @@
   };
   const buildBankUpload = () => {
     const c = cache();
-    const qs = (Array.isArray(c.questions) ? c.questions : []).slice(0, 3000).map(q => {
+    const qs = (Array.isArray(c.questions) ? c.questions : []).map(q => {
       const opts = Array.isArray(q && q.options) ? q.options : [];
       const ai = Number(q && (q.answerIndex ?? q.answer ?? q.correctAnswerIndex));
       const answer = typeof q?.answer === 'string' && q.answer ? q.answer : (Number.isFinite(ai) && opts[ai] != null ? String(opts[ai]) : '');
       return { q: String((q && (q.question ?? q.q)) || '').slice(0, 400), o: opts.map(x => String(x).slice(0, 120)).slice(0, 6), a: answer.slice(0, 120), e: String((q && q.explain) || '').slice(0, 300), s: subName(q && q.subjectId).slice(0, 70), t: topName(q && q.topicId).slice(0, 70) };
     }).filter(x => x.q && x.o.length >= 2);
-    const ex = (Array.isArray(c.examResults) ? c.examResults : []).slice(0, 25).map(e => { try { const t = Number(e && (e.totalQuestions ?? (Array.isArray(e.questions) ? e.questions.length : 0))) || 0; const cc = Number(e && (e.correctCount ?? e.correct)) || 0; return { d: dateStr(e && ((e.completedAt ?? e.at) || Date.now())), s: cc + '/' + t, m: e && e.mode ? String(e.mode).slice(0, 8) : '' }; } catch (_) { return null; } }).filter(Boolean);
-    const mis = Array.isArray(c.mistakes) ? c.mistakes.length : 0, voc = Array.isArray(c.vocabulary) ? c.vocabulary.length : 0;
+    const ex = (Array.isArray(c.examResults) ? c.examResults : []).slice(0, 500).map(e => { try { const t = Number(e && (e.totalQuestions ?? (Array.isArray(e.questions) ? e.questions.length : 0))) || 0; const cc = Number(e && (e.correctCount ?? e.correct)) || 0; return { d: dateStr(e && ((e.completedAt ?? e.at) || Date.now())), s: cc + '/' + t, m: e && e.mode ? String(e.mode).slice(0, 10) : '' }; } catch (_) { return null; } }).filter(Boolean);
+    const misAll = Array.isArray(c.mistakes) ? c.mistakes : [], vocAll = Array.isArray(c.vocabulary) ? c.vocabulary : [];
+    const mis = misAll.slice(0, 400).map(mm => { try { const raw = mm && (mm.q && typeof mm.q === 'object' ? mm.q : (c.questions || []).find(x => x && x.id === (mm.questionId || (mm.q || {}).id))); if (!raw) return null; const opts = Array.isArray(raw.options) ? raw.options : []; const ai = Number(raw.answerIndex ?? raw.answer ?? raw.correctAnswerIndex); const ans = typeof raw.answer === 'string' && raw.answer ? raw.answer : (Number.isFinite(ai) && opts[ai] != null ? String(opts[ai]) : ''); return { q: String((raw.question ?? raw.q) || '').slice(0, 220), a: ans.slice(0, 90), s: subName(raw.subjectId).slice(0, 60), t: topName(raw.topicId).slice(0, 60) }; } catch (_) { return null; } }).filter(Boolean).filter(x => x.q);
+    const voc = vocAll.slice(0, 1500).map(v => ({ w: String((v && (v.word ?? v.w)) || '').slice(0, 60), m: String((v && (v.meaning ?? v.m)) || '').slice(0, 110) })).filter(x => x.w);
     const lastAt = ex.length ? (c.examResults[0] && (c.examResults[0].completedAt || c.examResults[0].at)) || null : null;
-    return { questions: qs, stats: { count: qs.length, ...bankStats() }, history: ex, activity: { exams: (c.examResults || []).length, mistakes: mis, vocab: voc, lastExamAt: lastAt, syncedAt: Date.now() } };
+    const days = new Set((c.examResults || []).map(e => { try { return dateStr(e && ((e.completedAt ?? e.at) || Date.now())); } catch (_) { return ''; } }).filter(Boolean));
+    const answered = (c.examResults || []).reduce((a, e) => { try { return a + (Number(e && (e.totalQuestions ?? (Array.isArray(e.questions) ? e.questions.length : 0))) || 0); } catch (_) { return a; } }, 0);
+    const correct = (c.examResults || []).reduce((a, e) => { try { return a + (Number(e && (e.correctCount ?? e.correct)) || 0); } catch (_) { return a; } }, 0);
+    const lifetime = { exams: (c.examResults || []).length, answered, correct, acc: answered ? Math.round(correct * 100 / answered) : null, daysActive: days.size, mistakes: misAll.length, vocab: vocAll.length, opens: Number(localStorage.getItem('saiOpens') || 0) };
+    return { questions: qs, stats: { count: qs.length, ...bankStats() }, history: ex, mistakes: mis, vocabulary: voc, activity: { exams: lifetime.exams, mistakes: misAll.length, vocab: vocAll.length, lastExamAt: lastAt, lifetime, syncedAt: Date.now() } };
   };
   // ডেটা-সিগনেচার: প্রশ্ন/পরীক্ষা বদলালেই নতুন-মান → অটো-রি-সিঙ্কের ভিত্তি
-  const dataSig = () => { const c = cache(); const ex = c.examResults || []; const last = ex[0] && (ex[0].completedAt || ex[0].at) || 0; return (c.questions || []).length + ':' + ex.length + ':' + last; };
+  const dataSig = () => { const c = cache(); const ex = c.examResults || []; const last = ex[0] && (ex[0].completedAt || ex[0].at) || 0; return (c.questions || []).length + ':' + ex.length + ':' + (c.mistakes || []).length + ':' + (c.vocabulary || []).length + ':' + last; };
   const syncBank = async () => {
     // অ্যাপ খুলে IndexedDB-তে প্রশ্ন আসা পর্যন্ত অপেক্ষা (সর্বোচ্চ ~১২ সেকেন্ড)
     for (let i = 0; i < 30 && !(cache().questions || []).length; i++) await new Promise(r => setTimeout(r, 400));
@@ -139,7 +145,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
 
   // ── 🌐 Browser Use এজেন্ট ────────────────────────────────────────────────────
   const askAgent = async (question, source, onStep, abortRef) => {
-    const res = await fetch(WORKER + '/api/ask', { method: 'POST', headers: { ...APP_HEADER, 'Content-Type': 'application/json' }, body: JSON.stringify({ question, context: cfg().sendData ? (localStorage.getItem('studyAiCtx') || '').slice(0, 500) : '', source }) });
+    const res = await fetch(WORKER + '/api/ask', { method: 'POST', headers: { ...APP_HEADER, 'Content-Type': 'application/json' }, body: JSON.stringify({ question, context: cfg().sendData ? (localStorage.getItem('studyAiCtx') || '').slice(0, 1100) : '', source }) });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error === 'all-keys-exhausted' ? 'এজেন্ট এখন ব্যস্ত — ১-২ মিনিট পরে আবার' : d.error === 'ask-key-not-configured' ? 'চ্যাট-এজেন্ট এখন কনফিগার হয়নি — একটু পরে আবার' : 'সংযোগ করা গেল না — নেট দেখে আবার চেষ্টা করো');
     if (!d.id) throw new Error('এজেন্ট শুরু করা যায়নি — আবার চেষ্টা করো');
@@ -187,20 +193,24 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       const qs = c.questions || [];
       const subs = [...new Set((c.subjects || []).map(x => String(x.name || '').trim()).filter(Boolean))];
       let out = '[লাইভ-মেমোরি — অ্যাপের এখনকার অবস্থা]\nপ্রশ্নব্যাংক: ' + bn(qs.length) + 'টি প্রশ্ন' + (subs.length ? ' · বিষয়: ' + subs.join(', ') : '');
-      const wrongs = (c.mistakes || []).slice(-6).map(m => { const q = qs.find(x => x && x.id === (m.questionId || (m.q || {}).id)); return q ? String(q.question || '').slice(0, 70) : ''; }).filter(Boolean);
-      if (wrongs.length) out += '\nসাম্প্রতিক ভুল: ' + wrongs.join(' | ');
       const hist = (c.examResults || []).slice(0, 10).map(e2 => { try { const t = Number(e2 && (e2.totalQuestions ?? 0)) || 0; const mo = e2 && e2.mode ? ' (' + String(e2.mode).slice(0, 10) + ')' : ''; return dateStr(e2 && ((e2.completedAt ?? e2.at) || Date.now())) + mo + ': ' + bn(e2 && (e2.correctCount ?? 0)) + '/' + bn(t); } catch (_) { return ''; } }).filter(Boolean);
       if (hist.length) out += '\nপরীক্ষার ইতিহাস (নতুন→পুরনো):\n' + hist.join('\n');
       out += '\nঅ্যাক্টিভিটি: মোট পরীক্ষা ' + bn((c.examResults || []).length) + ' · ভুল-নোট ' + bn((c.mistakes || []).length) + ' · শব্দ ' + bn((c.vocabulary || []).length);
       const hits = bankMatch(userText);
       if (hits.length) out += '\nতোমার ব্যাংক থেকে মিলে-যাওয়া প্রশ্ন (উত্তরসহ — উত্তরের প্রধান ভিত্তি এগুলো):\n' + hits.map(h => { const opts = Array.isArray(h.q.options) ? h.q.options : []; const ai = Number(h.q.answerIndex ?? h.q.answer ?? h.q.correctAnswerIndex); const ans = typeof h.q.answer === 'string' && h.q.answer ? h.q.answer : (Number.isFinite(ai) && opts[ai] != null ? String(opts[ai]) : ''); return '— ' + String(h.q.question ?? h.q.q).slice(0, 120) + (ans ? ' ⇒ উত্তর: ' + ans.slice(0, 40) : ''); }).join('\n').slice(0, 900);
+      const weakTop = bankStats().weak || [];
+      if (weakTop.length) out += '\nদুর্বল-টপিক (ভুলের হিসাব): ' + weakTop.slice(0, 6).join(', ');
+      const misRec = (c.mistakes || []).slice(-5).map(m => { try { const raw = m && (m.q && typeof m.q === 'object' ? m.q : qs.find(x => x && x.id === (m.questionId || (m.q || {}).id))); if (!raw) return ''; const opts = Array.isArray(raw.options) ? raw.options : []; const ai2 = Number(raw.answerIndex ?? raw.answer ?? raw.correctAnswerIndex); const ans = typeof raw.answer === 'string' && raw.answer ? raw.answer : (Number.isFinite(ai2) && opts[ai2] != null ? String(opts[ai2]) : ''); return String((raw.question ?? raw.q) || '').slice(0, 70) + ' ⇒ সঠিক: ' + ans.slice(0, 30); } catch (_) { return ''; } }).filter(Boolean);
+      if (misRec.length) out += '\nসাম্প্রতিক ভুল (সঠিক-উত্তরসহ):\n' + misRec.join('\n');
+      const vocRec = (c.vocabulary || []).slice(-6).map(v => { try { return String((v && (v.word ?? v.w)) || '').slice(0, 30) + (v && v.meaning ? '=' + String(v.meaning).slice(0, 40) : ''); } catch (_) { return ''; } }).filter(Boolean);
+      if (vocRec.length) out += '\nশব্দ-সংগ্রহ: ' + bn((c.vocabulary || []).length) + 'টি — সাম্প্রতিক: ' + vocRec.join(', ');
       const lines = [];
       listChats().filter(ch => ch.id !== curId()).slice(0, 5).forEach(ch => {
         const ms = msgsOf(ch.id).filter(m => m.text).slice(-4);
         if (ms.length) lines.push('— ' + String(ch.title || 'চ্যাট').slice(0, 30) + ': ' + ms.map(m => (m.who === 'me' ? 'ইউজার' : 'AI') + ': ' + String(m.text).slice(0, 110)).join(' § '));
       });
       if (lines.length) out += '\nআগের চ্যাটের স্মৃতি:\n' + lines.join('\n').slice(0, 1200);
-      return out.slice(0, 3600);
+      return out.slice(0, 4800);
     } catch (_) { return ''; }
   };
   const fastAvailable = () => keyList(cfg().provider).length > 0;
@@ -222,7 +232,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const c = cfg(); const key = keyList(c.provider)[0] || '';
     if (!key) throw new Error('Settings-এ key নেই — 🌐 এজেন্ট মোড়ে পাঠাও বা key বসাও');
     const list = Array.isArray(atts) ? atts : [];
-    const brain = (c.provider === 'gemini' || c.provider === 'openrouter') ? buildBrain(question) : '';
+    const brain = buildBrain(question); // v129: ইউজার-নির্দেশ — যেকোনো মডেল (Gemini/OpenRouter/HF/Groq) সব-ডেটা পাবে
     // 🎨 ছবি-আঁকা — যেকোনো ইঞ্জিন থেকে Gemini-ইমেজ-মডেলে
     if (/(ছবি|চিত্র)[^\n.]{0,26}(বানাও|আঁকো|আঁকা|তৈরি|জেনারেট)|(বানাও|আঁকো)[^\n.]{0,20}ছবি|(generate|create|draw)[^\n.]{0,16}(image|picture)|^\/img/i.test(question)) {
       const gk = keyList('gemini')[0];
@@ -395,6 +405,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     } else {
       inner = `${m.img ? `<img class="sai-att" style="width:100%;max-width:340px;border-radius:14px;display:block;margin-bottom:8px" src="data:image/jpeg;base64,${m.img}" alt="তৈরি করা ছবি">` : ''}<div class="sai-md">${md(m.text)}</div>${m.sources && m.sources.length ? `<div class="sai-src">🔗 ${m.sources.map(esc).join(' · ')}</div>` : ''}`;
       if (m.steps && m.steps.length && m.status === 'completed') inner += `<details class="sai-activity"><summary>▸ Agent activity <span class="muted">${bn(m.steps.length)} ধাপ</span></summary>${m.steps.map(st => `<div class="sai-step">✓ ${esc(st)}</div>`).join('')}</details>`;
+      if (m.exam) inner += m.exam;
       if (m.fb === 'good') inner += `<div class="sai-fbnote">দারুণ — ধন্যবাদ! 🌱</div>`;
       if (m.fb === 'bad') inner += `<div class="sai-fbnote">জানালোর জন্য ধন্যবাদ — পরেরবার আরও ভালো করবো 🙏</div>`;
     }
@@ -432,6 +443,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         <div class="sai-dhead"><b>${engTitle()}</b><button class="sai-dclose" onclick="StudyAiTool.closeSheet()" aria-label="বন্ধ">✕</button></div>
         <div class="sai-dscroll">
           ${drow('🏠', 'ড্যাশবোর্ডে ফেরি', 'মূল অ্যাপে ফিরে যাও', "StudyAiTool.closeSheet();navigate('dashboard')")}
+          ${drow('📝', 'চ্যাটে পরীক্ষা', '৫-প্রশ্নের ফ্ল্যাশ-টেস্ট — স্কোর ইতিহাসে সেভ হবে', "StudyAiTool.closeSheet();StudyAiTool.startChatExam()")}
           ${drow('✏️', 'নতুন চ্যাট', 'একদম শূন্য থেকে', "StudyAiTool.newChat()")}
           ${drow('⊕', 'সোর্স', 'AI কোথা থেকে উত্তর দেবে', "StudyAiTool.openSheet('source')")}
           ${drow('⚡', 'ইঞ্জিন', 'এখন উত্তর দিচ্ছে: ' + (ENG_LABEL[c.provider] || 'Admihub AI'), "StudyAiTool.openSheet('engine')")}
@@ -586,7 +598,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   const render = () => {
     ensureChat(); fixIds(curId());
     state.page = null; state.viewer = null; state.msgsFull = false;
-    if (!state.autoSyncTried) { state.autoSyncTried = true; setTimeout(() => ensureSync(false), 900); startWatch(); }
+    if (!state.autoSyncTried) { state.autoSyncTried = true; try { localStorage.setItem('saiOpens', String((Number(localStorage.getItem('saiOpens')) || 0) + 1)); } catch (_) {} setTimeout(() => ensureSync(false), 900); startWatch(); }
     renderShell(`<div id="saiBody"></div><div id="saiSheetRoot"></div>`, {
       title: engTitle(),
       hideNav: true,
@@ -712,6 +724,10 @@ body{overflow-x:hidden}
 .sai-tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .sai-tbl th,.sai-tbl td{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .sai-tblwrap{overflow-x:auto;margin:8px 0;border:1px solid var(--line,#e5e7eb);border-radius:12px;-webkit-overflow-scrolling:touch}
+.sai-exq{background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:14px;padding:12px;margin:6px 0;box-shadow:0 1px 6px rgba(16,24,40,.06)}
+.sai-exq b{display:block;margin-bottom:7px;font-size:13.5px;color:#0f6b4f}
+.sai-exopt{display:block;width:100%;text-align:left;background:#f6faf8;border:1px solid var(--line,#e5e7eb);border-radius:10px;padding:9px 11px;margin:6px 0;font-size:13.5px;cursor:pointer;color:#20302a}
+.sai-exopt:active{transform:scale(.985)}
 .sai-tbl{border-collapse:collapse;width:100%;font-size:12.8px;min-width:340px}
 .sai-tbl th{background:#f0f5f2;text-align:left;padding:8px 10px;font-size:11.5px;letter-spacing:.2px}
 .sai-tbl td{padding:7px 10px;border-top:1px solid var(--line,#eef1ef);vertical-align:top}
@@ -806,6 +822,7 @@ body{overflow-x:hidden}
   };
   const send = async (textArg, retryOf) => {
     if (state.busy) return;
+    if (!retryOf && String(textArg || '').trim() === '/exam') { startChatExam(); return; }
     if (!retryOf && typeof navigator !== 'undefined' && navigator.onLine === false) {
       push({ who: 'me', text: String(textArg || draftText()).trim() || '…' });
       push({ who: 'ai', text: '📡 এখন ইন্টারনেট নেই — তোমার চ্যাট পড়া যাচ্ছে, কিন্তু নতুন উত্তর আনতে নেট লাগবে। নেট ফিরলে আবার পাঠাও 😊' });
@@ -1058,6 +1075,41 @@ body{overflow-x:hidden}
     [1200, 2500, 4500].forEach(d => setTimeout(mountDashboard, d));
   };
 
-  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, forceSync, dupCheck, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
+  // 📝 চ্যাট-পরীক্ষা (ফ্ল্যাশ-টেস্ট স্টাইল) — ব্যাংক থেকে ৫ প্রশ্ন, স্কোর আসল-ইতিহাসে
+  const chatExam = { on: false, qs: [], i: 0, score: 0 };
+  const exShuffle = arr => arr.map(x => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
+  const exAnsOf = q => { const opts = Array.isArray(q.options) ? q.options : []; const ai = Number(q.answerIndex ?? q.answer ?? q.correctAnswerIndex); return { ai, ans: typeof q.answer === 'string' && q.answer ? q.answer : (Number.isFinite(ai) && opts[ai] != null ? String(opts[ai]) : '') }; };
+  const exQBlock = () => { const e = chatExam, q = e.qs[e.i]; const opts = Array.isArray(q.options) ? q.options : []; return `<div class="sai-exq"><b>📝 প্রশ্ন ${bn(e.i + 1)}/${bn(e.qs.length)} · স্কোর ${bn(e.score)}</b>${esc(String((q.question ?? q.q) || '').slice(0, 300))}<div style="margin-top:6px">${opts.map((o, oi) => `<button class="sai-exopt" onclick="StudyAiTool.examPick(${oi})">${'কখগঘঙ'[oi] || oi + 1}) ${esc(String(o).slice(0, 90))}</button>`).join('')}</div></div>`; };
+  const startChatExam = () => {
+    state.sheet = null;
+    const pool = (cache().questions || []).filter(q => q && Array.isArray(q.options) && q.options.length >= 2);
+    if (!pool.length) { if (window.toast) window.toast('আগে প্রশ্নব্যাংক লোড হোক — তারপর পরীক্ষা! 📚'); return; }
+    chatExam.on = true; chatExam.qs = exShuffle(pool).slice(0, Math.min(5, pool.length)); chatExam.i = 0; chatExam.score = 0;
+    push({ who: 'me', text: '📝 চ্যাট-পরীক্ষা শুরু!' });
+    push({ who: 'ai', text: 'চলো! ' + bn(chatExam.qs.length) + 'টি প্রশ্ন — অপশনে চাপ দাও 😄', exam: exQBlock() });
+    paint();
+  };
+  const examPick = oi => {
+    if (!chatExam.on) return;
+    const e = chatExam, q = e.qs[e.i];
+    const { ai, ans } = exAnsOf(q);
+    const right = oi === ai;
+    if (right) e.score++;
+    push({ who: 'me', text: (right ? '✓ ' : '✗ ') + String((q.options || [])[oi] ?? '').slice(0, 60) });
+    e.i++;
+    if (e.i >= e.qs.length) {
+      const pct = e.qs.length ? Math.round(e.score * 100 / e.qs.length) : 0;
+      const finMsg = push({ who: 'ai', text: '', exam: `<div class="sai-exq"><b>🏁 শেষ! স্কোর ${bn(e.score)}/${bn(e.qs.length)} (${bn(pct)}%)</b>${pct >= 80 ? 'দুর্দান্ত! 🎉' : pct >= 60 ? 'ভালো — আরও একটু! 💪' : 'চিন্তা নেই — ভুলগুলোই তো শেখা! 🌱'}</div>` });
+      try { patchMsg(finMsg.id, { status: 'completed' }); } catch (_) {}
+      try { const c2 = cache(); c2.examResults = Array.isArray(c2.examResults) ? c2.examResults : []; c2.examResults.unshift({ completedAt: Date.now(), at: Date.now(), totalQuestions: e.qs.length, correctCount: e.score, mode: 'chat' }); } catch (_) {}
+      chatExam.on = false;
+      try { ensureSync(false); } catch (_) {}
+    } else {
+      push({ who: 'ai', text: right ? '✓ ঠিক! পরেরটা…' : ('✗ ভুল — সঠিক: ' + ans.slice(0, 40)), exam: exQBlock() });
+    }
+    paint();
+  };
+
+  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, forceSync, dupCheck, startChatExam, examPick, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();
