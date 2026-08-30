@@ -81,7 +81,7 @@ const markBad = async (env, date, index) => {
   } catch (_) {}
 };
 
-// একটা key দিয়ে task তৈরি; 401/402/429 হলে {exhausted:true}
+// একটা key দিয়ে task তৈরি; 401/402 → dead, 429 → busy
 const tryCreate = async (key, body) => {
   try {
     const resp = await fetch(`${BU_BASE}/tasks`, {
@@ -89,7 +89,8 @@ const tryCreate = async (key, body) => {
       headers: { 'X-Browser-Use-API-Key': key, 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    if (resp.status === 401 || resp.status === 402 || resp.status === 429) return { exhausted: true };
+    if (resp.status === 401 || resp.status === 402) return { dead: true };
+    if (resp.status === 429) return { busy: true };
     if (!resp.ok) return { error: 'http-' + resp.status };
     const data = await resp.json();
     return data?.id ? { id: data.id } : { error: 'no-id' };
@@ -98,13 +99,19 @@ const tryCreate = async (key, body) => {
 
 const createWithFailover = async (env, date, body) => {
   const all = keys(env);
-  const bad = await badKeysToday(env, date);
+  if (!all.length) return null;
+  const bad = await badKeysToday(env, date); // 401/402 — সেদিনের জন্য মৃত
+  // দৈনিক রোটেশন: প্রতিদিন ভিন্ন key দিয়ে শুরু — কোটা সব key-এ সমান ভাগে খরচ হয়
+  const dayIndex = Math.floor(Date.parse(date + 'T00:00:00+06:00') / 86400000);
+  const offset = ((dayIndex % all.length) + all.length) % all.length;
+  const busy = new Set(); // 429/নেটওয়ার্ক — শুধু এই রানে স্কিপ, key বাতিল নয়
   for (let i = 0; i < all.length; i++) {
-    if (bad.includes(i)) continue;
-    const result = await tryCreate(all[i], body);
-    if (result.exhausted) { await markBad(env, date, i); continue; }
-    if (result.id) return { id: result.id, keyIndex: i };
-    await markBad(env, date, i); // নেটওয়ার্ক/অদ্ভুত ত্রুটি — পরের key দিয়ে চেষ্টা
+    const idx = (offset + i) % all.length;
+    if (bad.includes(idx) || busy.has(idx)) continue;
+    const result = await tryCreate(all[idx], body);
+    if (result.id) return { id: result.id, keyIndex: idx };
+    if (result.dead) { await markBad(env, date, idx); continue; }
+    busy.add(idx);
   }
   return null;
 };
