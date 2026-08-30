@@ -1,4 +1,5 @@
-/* Direct, mobile-safe Vocabulary pronunciation. Runs synchronously on the tap gesture. */
+/* Direct, mobile-safe Vocabulary pronunciation. Runs synchronously on the tap gesture.
+   v104 pipeline: custom uploaded voice → ElevenLabs (IndexedDB cache → worker generate) → Web Speech TTS. */
 (() => {
   'use strict';
   const supported = () => 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
@@ -24,6 +25,8 @@
   const playCustom = key => {
     const lib = window.__vmVoiceLib;
     if (!lib || !lib[key]) return false;
+    const shared = window.VocabularyElevenLabs;
+    if (shared?.playUrl) { try { if (shared.playUrl(lib[key])) return true; } catch (_) {} }
     try {
       customAudio = customAudio || new Audio();
       customAudio.pause();
@@ -34,11 +37,8 @@
       return true;
     } catch (_) { return false; }
   };
-  const speak = raw => {
-    const rawWord = String(raw || '').trim();
-    if (!rawWord) return;
-    if (playCustom(voiceKey(rawWord))) return;
-    const word = rawWord.replace(/[^A-Za-z' -]/g, '');
+  const speakTts = rawWord => {
+    const word = String(rawWord || '').replace(/[^A-Za-z' -]/g, '');
     if (!word) return;
     if (!supported()) { window.toast?.('এই device-এ pronunciation available নয়'); return; }
     try {
@@ -55,6 +55,14 @@
       window.toast?.('Pronunciation শুরু করা যায়নি');
     }
   };
+  const speak = (raw, btn) => {
+    const rawWord = String(raw || '').trim();
+    if (!rawWord) return;
+    if (playCustom(voiceKey(rawWord))) return;
+    const eleven = window.VocabularyElevenLabs;
+    if (eleven?.speakWord) { try { eleven.speakWord(rawWord, btn); return; } catch (_) {} }
+    speakTts(rawWord);
+  };
   if (supported()) {
     window.speechSynthesis.getVoices();
     window.speechSynthesis.addEventListener?.('voiceschanged', () => window.speechSynthesis.getVoices());
@@ -70,5 +78,11 @@
     } catch (_) {}
   };
   loadVoiceLib();
-  window.VocabularyPronunciation = { play: speak, stop: () => window.speechSynthesis?.cancel?.(), voiceKey, reloadVoices: loadVoiceLib };
+  window.VocabularyPronunciation = {
+    play: speak,
+    stop: () => { try { window.speechSynthesis?.cancel?.(); } catch (_) {} try { window.VocabularyElevenLabs?.stopAudio?.(); } catch (_) {} },
+    voiceKey,
+    reloadVoices: loadVoiceLib,
+    speakTtsOnly: speakTts
+  };
 })();
