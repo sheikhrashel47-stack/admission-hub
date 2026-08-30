@@ -380,6 +380,55 @@
     closeModal();
     toast(`${saved}টি voice সেভ হয়েছে${unmatched.length ? ` · ${unmatched.length}টি ফাইলের নাম মেলেনি` : ''} — এখন অফলাইনেও কাস্টম voice বাজবে।`);
   }
+  let autoImageState = null;
+  const autoImageSeed = word => { let hash = 7; const text = String(word || 'x'); for (let i = 0; i < text.length; i += 1) hash = (hash * 31 + text.charCodeAt(i)) >>> 0; return hash % 100000; };
+  function autoImagePromptFor(word) { return `Educational vocabulary illustration for the English word "${word}". One clear simple scene showing the word's meaning, bright friendly colors, clean flat modern illustration style, centered composition, no text, no letters, no watermark`; }
+  function autoCategoryImages(category) {
+    const normalized = String(category || '').toUpperCase();
+    if (!/^[A-Z]$/.test(normalized)) return toast('একটি নির্দিষ্ট vocabulary category নির্বাচন করুন।');
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return toast('\ud83d\udcf4 অফলাইনে ছবি বানানো যায় না — internet চালু করে আবার চেষ্টা করো।');
+    const pending = categoryRecords(normalized).filter(record => !record.imageDataUrl);
+    if (!pending.length) return toast(`${normalized} category-র সব card-এই image আছে ✓`);
+    confirmModal(
+      `${normalized} — Auto AI image`,
+      `${normalized} category-র ${pending.length}টি card-এ image নেই। এক ক্লিকে AI দিয়ে এক একটি ছবি বানিয়ে সঠিক card-এ বসে যাবে (প্রতিটায় কয়েক সেকেন্ড লাগে, internet লাগবে; আগে থেকে থাকা ছবি বদলাবে না)।`,
+      () => startAutoImages(normalized, pending),
+      '\u2702 ছবি বানাও',
+      false
+    );
+  }
+  async function startAutoImages(category, queue) {
+    autoImageState = { category, total: queue.length, done: 0, failed: 0, stop: false };
+    openModal(`<h3>\u2702 Auto image — ${escape(category)}</h3><p class="muted" id="vmAutoImgStatus" style="margin-top:6px">শুরু হচ্ছে…</p><div style="margin-top:12px;height:8px;border-radius:99px;background:var(--mint);overflow:hidden"><div id="vmAutoImgBar" style="height:100%;width:0%;background:var(--emerald);transition:width .3s"></div></div><button class="btn ghost sm" style="margin-top:14px" onclick="VocabularyMaster.stopAutoImages()">\u23f9 থামাও</button>`);
+    for (const record of queue) {
+      if (!autoImageState || autoImageState.stop) break;
+      autoImageStatus(record.word);
+      try {
+        const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(autoImagePromptFor(record.word))}?width=768&height=432&nologo=true&model=flux&seed=${autoImageSeed(record.word)}`;
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('http-' + response.status);
+        const blob = await response.blob();
+        const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob); });
+        if (!/^data:image\/(jpeg|png|webp)/.test(dataUrl)) throw new Error('not-image');
+        const fresh = state.records.find(row => row.id === record.id) || record;
+        await dbPut(STORE, normalizeRecord({ ...fresh, imageDataUrl: dataUrl, id: fresh.id, createdAt: fresh.createdAt }));
+        autoImageState.done += 1;
+      } catch (_) { if (autoImageState) autoImageState.failed += 1; }
+      autoImageBar();
+      await new Promise(resolve => setTimeout(resolve, 1200));
+    }
+    const summary = autoImageState ? { ...autoImageState } : null;
+    autoImageState = null;
+    await loadRecords(true);
+    closeModal();
+    refreshCategoryResults();
+    if (summary) toast(summary.stop
+      ? `\u23f8 থামানো হলো — ${summary.done}টি ছবি বসানো হয়েছে${summary.failed ? `, ${summary.failed}টি ব্যর্থ` : ''}`
+      : `\u2705 ${summary.done}টি ছবি বসানো হয়েছে${summary.failed ? ` — \u26a0\ufe0f ${summary.failed}টি ব্যর্থ; আবার ✨ চাপলে শুধু ব্যর্থগুলোর চেষ্টা হবে` : ''}`);
+  }
+  function autoImageStatus(word) { const box = document.getElementById('vmAutoImgStatus'); if (box && autoImageState) box.textContent = `ছবি আঁকা হচ্ছে… ${autoImageState.done + 1}/${autoImageState.total} — ${word}`; }
+  function autoImageBar() { const bar = document.getElementById('vmAutoImgBar'); if (bar && autoImageState) bar.style.width = `${Math.round((autoImageState.done / autoImageState.total) * 100)}%`; }
+  function stopAutoImages() { if (autoImageState) { autoImageState.stop = true; toast('\u23f9 এই ছবির পরে থেমে যাবে…'); } }
   function openCategoryImageImporter(category) {
     const safeCategory = escape(String(category || '').toUpperCase()); const count = categoryRecords(category).length;
     openModal(`<h3>Import category images</h3><p class="muted" style="margin-top:5px">${safeCategory} category-এর ${count}টি card-এর জন্য image serial অনুযায়ী বসবে। PDF page order অথবা filename serial ব্যবহার করা হবে।</p><label class="flabel">PDF upload · প্রতি page = একটি image</label><input id="vmCategoryPdfInput" class="vm-parser-area" style="min-height:auto;padding:10px" type="file" accept="application/pdf" onchange="VocabularyMaster.importCategoryPdf('${safeCategory}',this)"><label class="flabel" style="margin-top:14px">Multiple image gallery/file upload</label><input id="vmCategoryImageInput" class="vm-parser-area" style="min-height:auto;padding:10px" type="file" accept="image/*" multiple onchange="VocabularyMaster.importCategoryImages('${safeCategory}',this)"><p class="muted" style="font-size:11px;line-height:1.5;margin:12px 0 0">001, 002 বা 01, 02 filename থাকলে সেই serial অনুযায়ী sort হবে। Serial না থাকলে browser selection order রাখা হবে। অতিরিক্ত file/card হলে matching count পর্যন্ত apply হবে।</p><button class="btn secondary" style="margin-top:15px" onclick="closeModal()">Close</button>`);
@@ -451,7 +500,7 @@
     const all = recordsFor(state.query, state.category);
     const category = escape(state.category || 'ALL');
     const categoryFileKey = escape(state.category || 'ALL');
-    const body = `<main class="vm-page">${heading(`${state.category || 'ALL'} VOCABULARY`, `${state.category || 'Vocabulary'} Vocabulary`, `${all.length.toLocaleString()} words found`)}<div class="vm-category-intro"><div class="vm-category-intro-head"><div class="vm-category-intro-copy"><b>${category} category</b><span>Search word, বাংলা অর্থ, synonym বা antonym থেকে খুঁজুন।</span></div><div class="vm-category-icon-tools" aria-label="Category image tools"><button type="button" class="vm-category-icon-tool" title="১ ক্লিকে সব AI image prompt কপি (plain text)" aria-label="Copy category image prompt as plain text" onclick="VocabularyMaster.copyCategoryPrompt('${categoryFileKey}')">⧉</button><button type="button" class="vm-category-icon-tool" title="১ ক্লিকে voice prompt কপি (সব word+synonym+antonym)" aria-label="Copy category voice prompt" onclick="VocabularyMaster.copyCategoryVoicePrompt('${categoryFileKey}')">🎙</button><button type="button" class="vm-category-icon-tool" title="Category voices আপলোড/স্ট্যাটাস" aria-label="Upload category voices" onclick="VocabularyMaster.openVoiceUploader('${categoryFileKey}')">🎧</button><button type="button" class="vm-category-icon-tool" title="Import ordered images for this category" aria-label="Import ordered images for this category" onclick="VocabularyMaster.openCategoryImageImporter('${categoryFileKey}')">▧</button><button type="button" class="vm-category-icon-tool" title="Open category MCQ" aria-label="Open category MCQ" onclick="VocabularyMaster.startMcq('${categoryFileKey}')">❓</button><button type="button" class="vm-category-icon-tool" title="Category settings" aria-label="Category settings" onclick="VocabularyMaster.openCategorySettings('${categoryFileKey}')">⚙</button></div></div><p class="vm-category-import-hint">⧉ বাটনে এক ক্লিকেই এই category-এর সব vocabulary-র AI image prompt plain text কপি হয়ে যাবে — যেকোনো image জেনারেটরে পেস্ট করো। পরে ▧ দিয়ে image গুলো serial অনুযায়ী আপলোড করলেই card-এ বসে যাবে।</p></div><div class="vm-count" id="vmCategoryFound" style="margin:0 0 8px">${all.length.toLocaleString()} words found</div><div class="vm-tool-row"><div class="searchbar"><span>🔍</span><input id="vmBankSearch" value="${escape(state.query)}" placeholder="Search vocabulary" autocomplete="off" oninput="VocabularyMaster.searchCategory(this.value)"></div><select class="vm-filter" onchange="VocabularyMaster.openCategory(this.value)"><option value="">All A–Z</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => `<option value="${letter}" ${state.category === letter ? 'selected' : ''}>${letter}</option>`).join('')}</select></div><div id="vmCategoryResults">${categoryResultsContent()}</div></main>`;
+    const body = `<main class="vm-page">${heading(`${state.category || 'ALL'} VOCABULARY`, `${state.category || 'Vocabulary'} Vocabulary`, `${all.length.toLocaleString()} words found`)}<div class="vm-category-intro"><div class="vm-category-intro-head"><div class="vm-category-intro-copy"><b>${category} category</b><span>Search word, বাংলা অর্থ, synonym বা antonym থেকে খুঁজুন।</span></div><div class="vm-category-icon-tools" aria-label="Category image tools"><button type="button" class="vm-category-icon-tool" title="১ ক্লিকে সব AI image prompt কপি (plain text)" aria-label="Copy category image prompt as plain text" onclick="VocabularyMaster.copyCategoryPrompt('${categoryFileKey}')">⧉</button><button type="button" class="vm-category-icon-tool" title="১ ক্লিকে voice prompt কপি (সব word+synonym+antonym)" aria-label="Copy category voice prompt" onclick="VocabularyMaster.copyCategoryVoicePrompt('${categoryFileKey}')">🎙</button><button type="button" class="vm-category-icon-tool" title="Category voices আপলোড/স্ট্যাটাস" aria-label="Upload category voices" onclick="VocabularyMaster.openVoiceUploader('${categoryFileKey}')">🎧</button><button type="button" class="vm-category-icon-tool" title="এক ক্লিকে সব card-এ AI image বসাও (যেগুলোতে নেই)" aria-label="Auto AI images for cards without images" onclick="VocabularyMaster.autoCategoryImages('${categoryFileKey}')">✨</button><button type="button" class="vm-category-icon-tool" title="Import ordered images for this category" aria-label="Import ordered images for this category" onclick="VocabularyMaster.openCategoryImageImporter('${categoryFileKey}')">▧</button><button type="button" class="vm-category-icon-tool" title="Open category MCQ" aria-label="Open category MCQ" onclick="VocabularyMaster.startMcq('${categoryFileKey}')">❓</button><button type="button" class="vm-category-icon-tool" title="Category settings" aria-label="Category settings" onclick="VocabularyMaster.openCategorySettings('${categoryFileKey}')">⚙</button></div></div><p class="vm-category-import-hint">⧉ বাটনে এক ক্লিকেই এই category-এর সব vocabulary-র AI image prompt plain text কপি হয়ে যাবে — যেকোনো image জেনারেটরে পেস্ট করো। পরে ▧ দিয়ে image গুলো serial অনুযায়ী আপলোড করলেই card-এ বসে যাবে।</p></div><div class="vm-count" id="vmCategoryFound" style="margin:0 0 8px">${all.length.toLocaleString()} words found</div><div class="vm-tool-row"><div class="searchbar"><span>🔍</span><input id="vmBankSearch" value="${escape(state.query)}" placeholder="Search vocabulary" autocomplete="off" oninput="VocabularyMaster.searchCategory(this.value)"></div><select class="vm-filter" onchange="VocabularyMaster.openCategory(this.value)"><option value="">All A–Z</option>${'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').map(letter => `<option value="${letter}" ${state.category === letter ? 'selected' : ''}>${letter}</option>`).join('')}</select></div><div id="vmCategoryResults">${categoryResultsContent()}</div></main>`;
     renderShell(body, { title:`${state.category || 'Vocabulary'} Vocabulary`, back:`navigate('${route('bank')}')` });
     bindCategoryScrollTracking();
     restoreCategoryPosition();
@@ -1014,6 +1063,8 @@
     voiceKey: word => vmVoiceKey(word),
     categoryVoiceEntries: category => categoryVoiceEntries(category),
     confirmDeleteCategory: category => confirmDeleteCategory(category),
+    autoCategoryImages(category) { return autoCategoryImages(category); },
+    stopAutoImages() { return stopAutoImages(); },
     openCategoryImageImporter(category) { return openCategoryImageImporter(category); },
     importCategoryImages(category, input) { return importCategoryImages(category, input); },
     importCategoryPdf(category, input) { return importCategoryPdf(category, input); },
