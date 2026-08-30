@@ -196,6 +196,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const pv = c.provider;
     const base = pv === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : pv === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' : pv === 'hf' ? 'https://router.huggingface.co/v1/chat/completions' : 'https://api.x.ai/v1/chat/completions';
     const model = c.model || ({ groq: 'llama-3.3-70b-versatile', xai: 'grok-4.3', openrouter: 'openrouter/auto', hf: 'meta-llama/Llama-3.1-8B-Instruct' }[pv] || 'grok-4.3');
+    const modelChain = [...new Set([model, { groq: 'llama-3.1-8b-instant', xai: 'grok-4.20', openrouter: 'meta-llama/llama-3.3-70b-instruct:free', hf: 'meta-llama/Llama-3.3-70B-Instruct' }[pv]].filter(Boolean))];
     const extraH = pv === 'openrouter' ? { 'HTTP-Referer': 'https://sheikhrashel47-stack.github.io/admission-hub/', 'X-Title': 'Admihub' } : {};
     if (imgs.length) {
       const vmodel = c.model || VL_DEFAULT[pv];
@@ -210,10 +211,14 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       return { text: String(vd.choices?.[0]?.message?.content || '').trim() || 'ছবি দেখতে পারলাম না — আবার পাঠাও?', sources: [] };
     }
     const msgs = [{ role: 'system', content: sysPrompt() }, ...msgsOf(curId()).filter(m => m.text).slice(-8).map((m, i, arr) => ({ role: m.who === 'ai' ? 'assistant' : 'user', content: i === arr.length - 1 ? qText : m.text }))].slice(0, 9);
-    const res = await fetch(base, Object.assign({ method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, extraH), body: JSON.stringify({ model, messages: msgs, temperature: 0.5, max_tokens: 1024 }) }, ctl ? { signal: ctl.signal } : {}));
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(res.status === 429 ? 'এই provider-এর ফ্রি-কোটা এখন শেষ — ১ মিনিট পরে আবার' : (d?.error?.message || 'HTTP ' + res.status));
-    return { text: String(d.choices?.[0]?.message?.content || '').trim() || 'উত্তর পাইনি — আবার লেখো?', sources: [] };
+    let lastD = {}, lastStatus = 0;
+    for (const model of modelChain) {
+      const res = await fetch(base, Object.assign({ method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, extraH), body: JSON.stringify(pv === 'openrouter' ? { model, models: modelChain, messages: msgs, temperature: 0.5, max_tokens: 1024 } : { model, messages: msgs, temperature: 0.5, max_tokens: 1024 }) }, ctl ? { signal: ctl.signal } : {}));
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { lastD = d; lastStatus = res.status; if (ctl && ctl.signal && ctl.signal.aborted) throw new Error('aborted'); continue; }
+      return { text: String(d.choices?.[0]?.message?.content || '').trim() || 'উত্তর পাইনি — আবার লেখো?', sources: [] };
+    }
+    throw new Error(lastStatus === 429 ? 'এই provider-এর ফ্রি-কোটা এখন শেষ — ১ মিনিট পরে আবার' : (lastD?.error?.message || 'HTTP ' + lastStatus));
   };
   // 🔑 key-টেস্ট: আসলে কাজ করে কি না, কোন মডেল, লিমিট-হিন্ট — সেটিংস-পেজে দেখায়
   const testKey = async () => {
@@ -323,7 +328,6 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     return `<div class="sai-landing">${ghost ? '<button class="sai-ghostbtn" onclick="StudyAiTool.shareData()">⚠️ ডেটা এখনো এজেন্টের কাছে পৌঁছায়নি — 📚 এখনই পাঠাও</button>' : ''}<div class="sai-logo"><span>🤖</span><i>✨</i></div><div class="sai-hello">হ্যালো, <b class="sai-name" onclick="StudyAiTool.editName()">${esc(nameOf())}</b>!</div><div class="sai-sub">আজ তোমাকে কীভাবে সাহায্য করবো?</div>${shareCard()}${synced ? `<div class="sai-memok">📚 মেমোরি: ${bn(new Date(Number(synced)).getDate())} তারিখে ${bn('…') || ''}ব্যাংক সেভ আছে · Settings-এ আপডেট করো</div>` : ''}<div class="sai-note">🌐 ব্রাউজার-এজেন্ট সত্যিই ওয়েব ঘেঁটে যাচাই করে উত্তর দেয় — সাধারণত ১০ সেকেন্ড–৩ মিনিট, কাজ বড় হলে বেশি</div></div>`;
   };
 
-  const engBadge = () => { const c = cfg(); const lbl = c.engine === 'fast' ? '⚡ ' + (c.provider === 'gemini' ? 'Gemini' : c.provider === 'groq' ? 'Groq' : c.provider === 'openrouter' ? 'OpenRouter' : c.provider === 'hf' ? 'HF' : 'Grok') : '🌐 এজেন্ট'; return `<button class="sai-engchip ${c.engine === 'fast' ? 'fast' : ''}" onclick="StudyAiTool.toggleEngine()" title="উত্তর-ইঞ্জিন">${lbl}</button>`; };
 
   const sheet = () => {
     if (state.viewer) { const v = state.viewer; return `<div class="sai-viewer" role="dialog" aria-label="ছবি ভিউয়ার"><button class="sai-vclose" onclick="StudyAiTool.viewerClose()" aria-label="বন্ধ">✕</button>${v.list.length > 1 ? `<button class="sai-vnav prev" onclick="StudyAiTool.viewerNav(-1)" aria-label="আগের ছবি">‹</button>` : ''}<img class="sai-vimg" src="${v.list[v.i]}" alt="সংযুক্ত ছবি" onclick="this.classList.toggle('zoom')">${v.list.length > 1 ? `<button class="sai-vnav next" onclick="StudyAiTool.viewerNav(1)" aria-label="পরের ছবি">›</button><div class="sai-vcount">${bn(v.i + 1)}/${bn(v.list.length)}</div>` : ''}</div>`; }
@@ -340,13 +344,23 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       </div></div></div>`;
     }
     if (state.sheet === 'menu') {
-      return `<div class="sai-sheet-bg" onclick="StudyAiTool.closeSheet()"><div class="sai-sheet" onclick="event.stopPropagation()"><div class="sai-sheet-grip"></div><h3>চ্যাট মেনু</h3><div class="sai-sheet-list">
-        <button class="sai-sheet-item" onclick="StudyAiTool.newChat()"><span>＋</span> নতুন চ্যাট<small>আলাদা ব্রাঞ্চ</small></button>
-        <button class="sai-sheet-item" onclick="StudyAiTool.renameChat()"><span>✏️</span> এই চ্যাটের নাম বদলাও<small>${esc(chatTitle())}</small></button>
-        <button class="sai-sheet-item" onclick="StudyAiTool.clearCurrent()"><span>🧹</span> এই কথোপকথন মুছি<small>শুরু থেকে ফাঁকা</small></button>
-        <button class="sai-sheet-item" onclick="StudyAiTool.openSheet('chats')"><span>💬</span> সব চ্যাট<small>${bn(listChats().length)}টি ব্রাঞ্চ</small></button>
-        <button class="sai-sheet-item" onclick="StudyAiTool.openSheet('settings')"><span>⚙️</span> সেটিংস<small>key/থিম/ডেটা</small></button>
-      </div></div></div>`;
+      const c = cfg();
+      const drow = (ico, lbl, sub, fn) => `<button class="sai-drow" onclick="${fn}"><span class="sai-dico">${ico}</span><span class="sai-dtx"><b>${lbl}</b>${sub ? `<small>${sub}</small>` : ''}</span></button>`;
+      const chats = listChats();
+      return `<div class="sai-drawer-bg" onclick="StudyAiTool.closeSheet()"><aside class="sai-drawer" onclick="event.stopPropagation()" role="dialog" aria-label="মেনু">
+        <div class="sai-dhead"><b>${engTitle()}</b><button class="sai-dclose" onclick="StudyAiTool.closeSheet()" aria-label="বন্ধ">✕</button></div>
+        <div class="sai-dscroll">
+          ${drow('✏️', 'নতুন চ্যাট', 'একদম শূন্য থেকে', "StudyAiTool.newChat()")}
+          ${drow('⊕', 'সোর্স', 'AI কোথা থেকে উত্তর দেবে', "StudyAiTool.openSheet('source')")}
+          ${drow('⚡', 'ইঞ্জিন', 'এখন উত্তর দিচ্ছে: ' + (ENG_LABEL[c.provider] || 'Admihub AI'), "StudyAiTool.openSheet('engine')")}
+          ${drow('💬', 'সব চ্যাট', bn(chats.length) + 'টি ব্রাঞ্চ', "StudyAiTool.openSheet('chats')")}
+          ${drow('✏️', 'চ্যাটের নাম বদলাও', esc(chatTitle()), "StudyAiTool.renameChat()")}
+          ${drow('🧹', 'এই কথোপকথন মুছি', 'শুরু থেকে ফাঁকা', "StudyAiTool.clearCurrent()")}
+          <div class="sai-dsec">সাম্প্রতিক</div>
+          ${chats.slice(0, 8).map(ch => `<div class="sai-drow ${ch.id === curId() ? 'on' : ''}" onclick="StudyAiTool.openChat('${ch.id}')"><span class="sai-dico">🗨️</span><span class="sai-dtx"><b>${esc(ch.title)}</b><small>${dateStr(ch.at)}</small></span><b class="sai-del" onclick="event.stopPropagation();StudyAiTool.delChat('${ch.id}')">🗑</b></div>`).join('')}
+        </div>
+        <div class="sai-dfoot">${drow('⚙️', 'সেটিংস', 'key • ইঞ্জিন • থিম', "StudyAiTool.openSheet('settings')")}</div>
+      </aside></div>`;
     }
     if (state.sheet === 'source') {
       const subs = (cache().subjects || []).map(s => ({ name: String(s.name || ''), n: (cache().questions || []).filter(q => q && q.subjectId === s.id).length })).sort((a, b) => b.n - a.n).filter(s => s.n > 0);
@@ -400,7 +414,6 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   };
 
   const EMPTY_TASKS = ['প্রশ্ন বিশ্লেষণ করো', 'MCQ বানাও', 'ছবি থেকে প্রশ্ন বের করো', 'টপিক বুঝিয়ে দাও'];
-  const SUGGS = [['📚 Explain', 'ব্যাখ্যা করো: '], ['📝 MCQ', 'এই বিষয়ে ৫টি MCQ বানাও (উত্তর+ব্যাখ্যাসহ): '], ['🖼 ছবি', 'ছবি দাও — আমি বিশ্লেষণ করবো'], ['🔍 যাচাই', 'এই তথ্য ওয়েব ঘেঁটে যাচাই করো: ']];
   const draftText = () => localStorage.getItem(draftKey()) || '';
   const saveDraft = v => { try { localStorage.setItem(draftKey(), String(v || '')); } catch (_) {} };
   const nearBottom = el => !el ? true : (el.scrollHeight - el.scrollTop - el.clientHeight < 90);
@@ -416,7 +429,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   const composeSig = () => [state.busy, state.attach.map(a => a.id + a.status).join(','), draftText().length ? 1 : 0].join('|');
   const composerHTML = () => {
     const tray = state.attach.length ? `<div class="sai-tray">${state.attach.map(a => `<div class="sai-trayitem ${a.status || 'ready'}">${a.kind === 'image' && (a.thumb || a.view) ? `<img src="${a.thumb || a.view}" alt="${esc(a.name)}" onclick="StudyAiTool.viewerTray('${a.id}')">` : `<span class="sai-trayfile">📄</span>`}<button class="sai-trayx" onclick="StudyAiTool.removeAttach('${a.id}')" aria-label="ছবিটা বাদ দাও">✕</button>${a.status === 'processing' ? '<span class="sai-traystat">প্রসেস হচ্ছে…</span>' : a.status === 'error' ? `<span class="sai-traystat err">ব্যর্থ <b onclick="StudyAiTool.retryAttach('${a.id}')">আবার</b></span>` : ''}</div>`).join('')}${state.attach.length < 8 ? `<button class="sai-trayadd" onclick="StudyAiTool.pickAttach()">＋<small>আরও</small></button>` : ''}</div>` : '';
-    return `<div class="sai-compose">${tray}<div class="sai-inputbar"><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><input id="saiFile" type="file" multiple accept="image/*,.txt,.md,.json,.csv" style="display:none" onchange="StudyAiTool.handleFiles(this.files);this.value=''"><textarea id="saiInput" rows="1" placeholder="Ask anything…" aria-label="তোমার প্রশ্ন">${esc(draftText())}</textarea><button class="sai-send ${state.busy ? 'stop' : ''}" onclick="${state.busy ? 'StudyAiTool.stopGen()' : 'StudyAiTool.send()'}" aria-label="${state.busy ? 'থামাও' : 'পাঠাও'}">${state.busy ? '■' : '↑'}</button></div><div class="sai-suggs">${SUGGS.map(([l, t]) => `<button class="chip" onclick="StudyAiTool.sugg('${esc(t).replace(/'/g, '&#39')}')">${l}</button>`).join('')}</div><div class="sai-disclaim">⚠️ Admihub AI ভুল করতে পারে — গুরুত্বপূর্ণ তথ্য যাচাই করে নিও</div></div>`;
+    return `<div class="sai-compose">${tray}<div class="sai-inputbar"><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><input id="saiFile" type="file" multiple accept="image/*,.txt,.md,.json,.csv" style="display:none" onchange="StudyAiTool.handleFiles(this.files);this.value=''"><textarea id="saiInput" rows="1" placeholder="Ask anything…" aria-label="তোমার প্রশ্ন">${esc(draftText())}</textarea><button class="sai-send ${state.busy ? 'stop' : ''}" onclick="${state.busy ? 'StudyAiTool.stopGen()' : 'StudyAiTool.send()'}" aria-label="${state.busy ? 'থামাও' : 'পাঠাও'}">${state.busy ? '■' : '↑'}</button></div></div>`;
   };
   const renderChat = () => chatBodyHTML() + composerHTML();
   const bindTapActions = () => {
@@ -435,11 +448,11 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     if (ta && !ta.dataset.bound) {
       ta.dataset.bound = '1';
       ta.addEventListener('input', () => { saveDraft(ta.value); autoGrow(ta); updateComposeIfChanged(); });
+      ta.addEventListener('paste', ev => { try { const items = ((ev.clipboardData || {}).items || []); const fs = []; for (const it of items) if (it.kind === 'file') { const f2 = it.getAsFile(); if (f2 && /^image\//.test(f2.type || '')) fs.push(f2); } if (fs.length) { ev.preventDefault(); handleFiles(fs); } } catch (_) {} });
     }
     autoGrow(ta);
   };
   const autoGrow = ta => { if (!ta) return; ta.style.height = 'auto'; ta.style.height = Math.min(132, Math.max(44, ta.scrollHeight)) + 'px'; ta.style.overflowY = ta.scrollHeight > 132 ? 'auto' : 'hidden'; };
-  const sugg = t => { const ta = document.getElementById('saiInput'); if (!ta) return; ta.value = draftText() && draftText().slice(-1) !== ' ' ? draftText() + ' ' + t : (draftText() ? draftText() + t : t); saveDraft(ta.value); autoGrow(ta); ta.focus(); };
   const lastSig = { compose: '', chat: '' };
   const updateComposeIfChanged = () => { const b = document.getElementById('saiBody'); if (!b || state.page === 'settings') return; const sig = composeSig(); const bar = b.querySelector('.sai-compose'); if (!bar) return; if (sig !== lastSig.compose) { const focused = document.activeElement === document.getElementById('saiInput'); const val = draftText(); bar.outerHTML = composerHTML(); const ta = document.getElementById('saiInput'); if (ta) { if (focused || !val) { ta.value = val; ta.focus(); ta.setSelectionRange(val.length, val.length); } bindComposer(); } lastSig.compose = sig; } };
   const paint = () => {
@@ -483,7 +496,6 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const sh = document.getElementById('saiSheetRoot'); if (sh) sh.innerHTML = sheet();
   };
 
-  const topChips = () => { const c = cfg(); const src = (state.source || 'auto') === 'auto' ? 'সোর্স' : decodeURIComponent(String(state.source).slice(5)).slice(0, 8); const eng = c.engine === 'fast' ? '⚡ ' + (c.provider === 'gemini' ? 'Gemini' : c.provider === 'groq' ? 'Groq' : c.provider === 'openrouter' ? 'OpenRouter' : c.provider === 'hf' ? 'HF' : 'Grok') : '🌐'; return `<button class="sai-topchip" onclick="StudyAiTool.openSheet('source')" aria-label="সোর্স নির্বাচন">⊕ ${esc(src)}</button><button class="sai-topchip ${c.engine === 'fast' ? 'gold' : ''}" onclick="StudyAiTool.openSheet('engine')" aria-label="ইঞ্জিন নির্বাচন">${eng}</button>`; };
   const ENG_LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter', hf: 'Hugging Face', xai: 'Grok' };
   const engTitle = () => { const c = cfg(); return c.engine === 'fast' ? '⚡ ' + (ENG_LABEL[c.provider] || 'Fast') : '🌐 Admihub AI'; };
   const render = () => {
@@ -494,7 +506,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       title: engTitle(),
       hideNav: true,
       back: "navigate('dashboard')",
-      actions: [`${topChips()}`, `<button class="sai-topicon" onclick="StudyAiTool.openSheet('settings')" aria-label="সেটিংস">⚙️</button>`, `<button class="sai-topicon" onclick="StudyAiTool.openSheet('menu')" aria-label="মেনু">⋯</button>`]
+      actions: [`<button class="sai-topicon" onclick="StudyAiTool.openSheet('menu')" aria-label="মেনু">⋯</button>`]
     });
     if (!document.getElementById('saiAgentStyle')) {
       const s = document.createElement('style'); s.id = 'saiAgentStyle'; s.textContent = `
@@ -518,6 +530,22 @@ body{overflow-x:hidden}
 .sai-setwrap{background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:18px;padding:16px 14px;box-shadow:0 6px 22px rgba(16,24,40,.05)}
 .sai-clip{background:none;border:none;font-size:20px;cursor:pointer;padding:2px;color:#5b6b63}
 .sai-keyta{width:100%;min-height:38px;border:1px solid var(--line,#e5e7eb);border-radius:10px;padding:8px 10px;font:12.5px/1.5 inherit;background:#fff;resize:vertical;color:#1f2937}
+.sai-drawer-bg{position:fixed;inset:0;z-index:10070;background:rgba(8,28,22,.45);animation:saiFade .25s ease}
+.sai-drawer{position:absolute;top:0;right:0;bottom:0;width:min(86%,364px);background:#fff;border-radius:22px 0 0 22px;box-shadow:-18px 0 44px rgba(16,24,40,.22);display:flex;flex-direction:column;animation:saiDrawerIn .28s cubic-bezier(.2,.9,.3,1);padding:14px 10px calc(10px + env(safe-area-inset-bottom));box-sizing:border-box}
+@keyframes saiDrawerIn{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+.sai-dhead{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 12px}
+.sai-dhead b{font-size:19px;font-weight:900;color:#12261d}
+.sai-dclose{width:34px;height:34px;border:0;border-radius:50%;background:#eef5f0;font-size:16px;cursor:pointer}
+.sai-dscroll{flex:1;overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px;padding:2px}
+.sai-drow{display:flex;align-items:center;gap:13px;width:100%;border:0;background:none;text-align:left;padding:11px 10px;border-radius:14px;cursor:pointer}
+.sai-drow:hover,.sai-drow.on{background:#f0f8f3}
+.sai-dico{flex:0 0 24px;font-size:18px;text-align:center}
+.sai-dtx{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.sai-dtx b{font-size:14.5px;font-weight:700;color:#1c2b24}
+.sai-dtx small{font-size:11px;color:#8ba398;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sai-dsec{font-size:11px;font-weight:800;letter-spacing:.06em;color:#93a89d;padding:14px 10px 6px}
+.sai-dfoot{border-top:1px solid #edf2ee;padding-top:8px;margin-top:6px}
+.topbar h1{max-width:48vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .sai-engchip{margin-left:auto;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:700;color:var(--sub,#6b7280);cursor:pointer}
 .sai-engchip.fast{background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f59e0b;color:#92400e}
 .sai-attachbar{display:flex;flex-wrap:wrap;gap:6px;padding:6px 2px}
@@ -534,8 +562,8 @@ body{overflow-x:hidden}
 .sai-row.me{justify-content:flex-end}
 @keyframes saiIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
 .sai-bubble{max-width:84%;padding:12px 15px;border-radius:20px;font-size:14.5px;line-height:1.65;white-space:pre-wrap;box-shadow:0 2px 10px rgba(16,24,40,.06)}
-.me .sai-bubble{background:var(--sai-mebg,#eef1f4);color:var(--sai-metx,#1f2937);border-bottom-right-radius:8px;box-shadow:0 1px 5px rgba(16,24,40,.08)}
-.ai .sai-bubble{background:transparent;border:none;box-shadow:none;padding:4px 2px;border-radius:0}
+.me .sai-bubble{background:var(--sai-mebg,linear-gradient(135deg,#12835f,#0d5f46));color:var(--sai-metx,#fff);border-bottom-right-radius:8px;box-shadow:0 4px 14px rgba(15,107,79,.3)}
+.ai .sai-bubble{background:#fff;border:1px solid var(--line,#e7ece9);border-bottom-left-radius:7px;box-shadow:0 3px 14px rgba(16,24,40,.06)}
 .sai-src{margin-top:8px;font-size:11px;color:var(--sub,#6b7280)}
 .sai-wait{margin-top:8px;font-size:11px;color:var(--sub,#6b7280);line-height:1.5}
 .sai-typing{display:flex;align-items:center;gap:11px}
@@ -552,10 +580,10 @@ body{overflow-x:hidden}
 .sai-topicon{background:none;border:none;font-size:21px;padding:4px 6px;color:var(--emerald-d,#0f6b4f);cursor:pointer;width:42px;height:42px;display:grid;place-items:center;border-radius:14px}
 .sai-compose{position:fixed;bottom:0;left:0;right:0;z-index:60;padding:4px 10px calc(6px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(247,250,248,0),#f7faf8 18%,#f7faf8 70%)}
 .sai-inputbar{transition:border-color .2s ease,box-shadow .25s ease}.sai-inputbar:focus-within{border-color:#8fd4b8!important;box-shadow:0 4px 18px rgba(15,107,79,.14)!important}
-.sai-inputbar{display:flex;gap:8px;align-items:flex-end;background:#fff;border:1px solid #e4ede8;border-radius:26px;padding:7px 9px 7px 12px;box-shadow:0 10px 26px rgba(16,24,40,.1);transition:box-shadow .2s,border-color .2s}
+.sai-inputbar{display:flex;gap:8px;align-items:flex-end;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:22px;padding:6px 8px;box-shadow:0 4px 18px rgba(16,24,40,.07);transition:box-shadow .2s,border-color .2s}
 .sai-inputbar:focus-within{border-color:var(--emerald,#0f6b4f);box-shadow:0 6px 22px rgba(15,107,79,.14)}
 .sai-inputbar textarea{flex:1;border:none;outline:none;resize:none;font:inherit;font-size:14.5px;line-height:1.55;background:transparent;min-height:44px;max-height:132px;padding:10px 2px;overflow-y:hidden;word-break:break-word;white-space:pre-wrap}
-.sai-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 10px 10px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scroll-behavior:smooth}
+.sai-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 12px 30px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scroll-behavior:smooth}
 .sai-tray{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px}
 .sai-trayitem{position:relative;flex:0 0 auto;width:74px;height:74px;border-radius:14px;border:1.5px solid var(--line,#e5e7eb);background:#fff;overflow:visible;display:grid;place-items:center}
 .sai-trayitem img{width:100%;height:100%;object-fit:cover;border-radius:13px;cursor:pointer}
@@ -568,9 +596,7 @@ body{overflow-x:hidden}
 .sai-send{width:40px;height:40px;border-radius:50%;border:none;background:var(--emerald,#0f6b4f);color:#fff;font-size:17px;cursor:pointer;flex:0 0 auto;display:grid;place-items:center;transition:transform .15s}
 .sai-send:active{transform:scale(.92)}
 .sai-send.stop{background:#1f2937}
-.sai-suggs{display:flex;gap:6px;overflow-x:auto;padding:8px 2px 2px}
-.sai-suggs .chip{flex:0 0 auto;background:rgba(255,255,255,.92);border:1px solid #dfe9e3;border-radius:999px}
-.sai-disclaim{text-align:center;font-size:9.8px;color:#9aa5a0;padding:6px 0 2px}
+
 .sai-actions{display:none;gap:2px;margin-top:4px;flex-wrap:wrap}
 .sai-row.show-acts .sai-actions{display:flex}
 .sai-row .sai-bubble{cursor:pointer;transition:transform .16s ease,box-shadow .2s ease}.sai-row .sai-bubble:active{transform:scale(.97)}
@@ -578,7 +604,7 @@ body{overflow-x:hidden}
 .sai-act:hover{background:rgba(15,107,79,.07)}
 .sai-act.on{color:var(--emerald,#0f6b4f);font-weight:700}
 .sai-act.retry{color:#b45309;font-weight:700}
-.sai-meta{display:block;font-size:9.5px;margin-top:5px;text-align:right;color:rgba(31,41,55,.4)}
+.sai-meta{display:block;font-size:9.5px;margin-top:5px;text-align:right;color:rgba(255,255,255,.72)}
 .ai .sai-meta{color:#a2aca6}
 .sai-md{font-size:15px;line-height:1.78;word-break:break-word;overflow-wrap:anywhere;color:#243029}
 .sai-md .sai-p{margin:0 0 9px}
@@ -850,13 +876,6 @@ body{overflow-x:hidden}
     setCfg(c);
     state.page === 'settings' ? paint() : render(); // টপবার-চিপ তাজা থাকুক
   };
-  const toggleEngine = () => {
-    const c = cfg(); state.sheet = null;
-    if (c.engine === 'fast') c.engine = 'agent';
-    else if (fastAvailable()) c.engine = 'fast';
-    else { if (window.toast) window.toast('⚡ ফাস্টের জন্য আগে API key বসাও — ⚙️ সেটিংস খুলছি'); state.page = 'settings'; state.keyTest = null; setCfg(c); render(); return; }
-    setCfg(c); render();
-  };
   const setModel = m => { const c = cfg(); c.model = String(m || '').trim(); setCfg(c); paint(); };
   const setTheme = t => { const c = cfg(); c.theme = t; setCfg(c); applyTheme(); paint(); };
   const toggleData = () => { const c = cfg(); c.sendData = !c.sendData; setCfg(c); paint(); };
@@ -899,6 +918,6 @@ body{overflow-x:hidden}
     [1200, 2500, 4500].forEach(d => setTimeout(mountDashboard, d));
   };
 
-  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, toggleEngine, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, sugg, _state: () => state };
+  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();

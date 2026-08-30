@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v123-geminilook-20260831';
+const BUILD_ID = 'v124-drawer-20260831';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -51,7 +51,7 @@ const APP_SHELL = [
   './vocabulary-master-tool.js?v=vm-autoimg-v106',
   './notification-hub.js?v=notify-v110',
   './gk-agent-tool.js?v=gk-v115',
-  './study-ai-tool.js?v=studyai-v123',
+  './study-ai-tool.js?v=studyai-v124',
   './ai-explain-tool.js?v=aiex-v2',
   './bug-agent-tool.js?v=bugagent-v112',
   './vocabulary-pronunciation.js?v=voice-el-v104',
