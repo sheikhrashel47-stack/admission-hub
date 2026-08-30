@@ -23,7 +23,7 @@
   const cfg = () => { try { return Object.assign({ engine: 'agent', provider: 'gemini', keys: {}, model: '', sendData: true, theme: 'aurora' }, JSON.parse(localStorage.getItem(LS_CFG) || '{}')); } catch (_) { return { engine: 'agent', provider: 'gemini', keys: {}, model: '', sendData: true, theme: 'aurora' }; } };
   const setCfg = c => localStorage.setItem(LS_CFG, JSON.stringify(c));
 
-  let state = { busy: false, sheet: null, view: {} };
+  let state = { busy: false, sheet: null, view: {}, page: null, attach: [], keyTest: null, bankInfo: undefined, autoSyncTried: false };
 
   // ── চ্যাট-লিস্ট (branches) ────────────────────────────────────────────────────
   const listChats = () => { try { const l = JSON.parse(localStorage.getItem(LS_LIST) || '[]'); return Array.isArray(l) ? l : []; } catch (_) { return []; } };
@@ -86,17 +86,47 @@
     return { questions: qs, stats: { count: qs.length, ...bankStats() } };
   };
   const syncBank = async () => {
+    // অ্যাপ খুলে IndexedDB-তে প্রশ্ন আসা পর্যন্ত অপেক্ষা (সর্বোচ্চ ~১২ সেকেন্ড)
+    for (let i = 0; i < 30 && !(cache().questions || []).length; i++) await new Promise(r => setTimeout(r, 400));
     const payload = buildBankUpload();
-    if (!payload.questions.length) throw new Error('ব্যাংক খালি');
-    const res = await fetch(WORKER + '/api/bank', { method: 'POST', headers: { ...APP_HEADER, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok || !d.saved) throw new Error('সেভ করা গেল না');
+    if (!payload.questions.length) throw new Error('ব্যাংক খালি (অ্যাপে প্রশ্ন লোড হয়নি?)');
+    try {
+      const res = await fetch(WORKER + '/api/bank', { method: 'POST', headers: { ...APP_HEADER, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.saved) throw new Error('সেভ করা গেল না (' + res.status + ')');
+    } catch (err) {
+      // ফলব্যাক: sendBeacon (কোনো preflight/হেডার ছাড়াই যায়) → পরে GET দিয়ে নিশ্চিত
+      const okBeacon = typeof navigator !== 'undefined' && navigator.sendBeacon && navigator.sendBeacon(WORKER + '/api/bank', new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+      if (!okBeacon) throw err;
+      await new Promise(r => setTimeout(r, 1800));
+      const chk = await fetch(WORKER + '/api/bank', { headers: APP_HEADER }).then(r => r.json()).catch(() => ({}));
+      if (!chk.saved) throw new Error('beacon-ও কাজ করেনি — ' + String(err?.message || err).slice(0, 60));
+    }
     localStorage.setItem(LS_BANK, String(Date.now()));
+    localStorage.removeItem('studyAiSyncErr');
     localStorage.setItem('studyAiCtx', buildContext());
-    return d.count;
+    return (payload.stats || {}).count || 0;
+  };
+  // অটো-সিঙ্ক: worker-এ ব্যাংক না থাকলে চ্যাট খোলামাত্র নিজে থেকেই পাঠিয়ে দাও — ট্যাপ লাগে না
+  const ensureSync = async manual => {
+    try {
+      const info = await fetch(WORKER + '/api/bank', { headers: APP_HEADER }).then(r => r.json()).catch(() => ({}));
+      state.bankInfo = info;
+      if (info && info.saved) { if (!localStorage.getItem(LS_BANK)) localStorage.setItem(LS_BANK, String(info.savedAt || Date.now())); return; }
+      const n = await syncBank();
+      state.bankInfo = { saved: true, count: n, savedAt: Date.now() };
+      localStorage.setItem(LS_SHARED, '1');
+      if (window.toast) window.toast('📚 তোমার প্রশ্নব্যাংক এজেন্টের কাছে সেভ হয়েছে ✓');
+    } catch (e) {
+      localStorage.setItem('studyAiSyncErr', String(e?.message || e).slice(0, 90));
+      if (manual && window.toast) window.toast('⚠️ ডেটা যায়নি: ' + String(e?.message || e).slice(0, 60));
+    }
+    paint(); // landing/সেটিংস — যে-ভিউতেই থাকি, নতুন স্ট্যাটাস দেখাও
   };
 
+  const todayBd = () => { try { return new Date(Date.now() + 6 * 3600000).toISOString().slice(0, 10); } catch (_) { return ''; } };
   const sysPrompt = () => `তুমি "স্টাডি বন্ধু" — বাংলাদেশি বিশ্ববিদ্যালয় ভর্তি-প্রস্তুতির বন্ধুসুলভ AI সহকারী (অ্যাপ: Admission Hub / Admihub AI)।
+আজকের তারিখ: ${todayBd()} (বাংলাদেশ, Asia/Dhaka)। FRESHNESS নিয়ম: তারিখ/সংখ্যা/নাম/কারেন্ট-অ্যাফেয়ার্স/ভর্তি-তথ্য জাতীয় যেকোনো প্রশ্নে নিজের পুরনো জ্ঞানে (training memory) উত্তর দেওয়া নিষিদ্ধ — সর্বশেষ যাচাইকৃত তথ্য দাও; যাচাই করতে না পারলে স্পষ্ট করে বলো কোনটা যাচাই করা যায়নি।
 নিয়ম: সহজ-উষ্ণ বাংলায় তুমি-ফর্মে কথা বলো; উত্তর ছোট ও সোজা (সাধারণত ২-৬ লাইন); হালকা emoji ঠিক আছে কিন্তু অতিরিক্ত নয়; ভুল তথ্য কখনো বানাবে না — নিশ্চিত না হলে স্বচ্ছভাবে বলবে বা ওয়েব ঘেঁটে যাচাই করবে।
 ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার্থীর ডেটা (প্রসঙ্গ কাজে লাগাও, কাঁচা ডেটা ফেরত লিখো না):\n${localStorage.getItem('studyAiCtx')}` : ''}`;
 
@@ -118,28 +148,62 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
 
   // ── ⚡ অপশনাল ফাস্ট-ইঞ্জিন (Settings থেকে key) ─────────────────────────────────
   const fastAvailable = () => { const c = cfg(); return !!c.keys[c.provider]; };
-  const askFast = async question => {
+  const gemSources = d => { try { const ch = (d.candidates?.[0]?.groundingMetadata?.groundingChunks || []).map(c => { try { return String(new URL(c.web.uri).hostname).replace(/^www\./, ''); } catch (_) { return ''; } }).filter(Boolean); return [...new Set(ch)].slice(0, 4); } catch (_) { return []; } };
+  const askFast = async (question, atts) => {
     const c = cfg(); const key = c.keys[c.provider] || '';
     if (!key) throw new Error('Settings-এ key নেই — 🌐 এজেন্ট মোড়ে পাঠাও বা key বসাও');
-    const msgs = [{ role: 'system', content: sysPrompt() }, ...msgsOf(curId()).filter(m => m.text).slice(-8).map(m => ({ role: m.who === 'ai' ? 'assistant' : 'user', content: m.text }))].slice(0, 9);
+    const list = Array.isArray(atts) ? atts : [];
+    const imgs = list.filter(a => a.kind === 'image'), txts = list.filter(a => a.kind === 'text');
+    const qText = question + txts.map(a => `\n\n📎 "${a.name}" ফাইলের বিষয়বস্তু:\n${(a.text || '').slice(0, 9000)}`).join('');
     if (c.provider === 'gemini') {
       const model = c.model || 'gemini-3.5-flash-lite';
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system_instruction: { parts: [{ text: sysPrompt() }] }, contents: msgsOf(curId()).filter(m => m.text).slice(-8).map(m => ({ role: m.who === 'ai' ? 'model' : 'user', parts: [{ text: m.text }] })), generationConfig: { temperature: 0.5, maxOutputTokens: 1024 } }) });
-      const d = await res.json().catch(() => ({}));
+      const histParts = msgsOf(curId()).filter(m => m.text).slice(-8).map(m => ({ role: m.who === 'ai' ? 'model' : 'user', parts: [{ text: m.text }] }));
+      if (histParts.length) histParts[histParts.length - 1] = { role: 'user', parts: [{ text: qText }, ...imgs.filter(i => i.data).map(i => ({ inline_data: { mime_type: i.mime || 'image/jpeg', data: i.data } }))] };
+      else histParts.push({ role: 'user', parts: [{ text: qText }, ...imgs.filter(i => i.data).map(i => ({ inline_data: { mime_type: i.mime || 'image/jpeg', data: i.data } }))] });
+      const call = useTools => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ system_instruction: { parts: [{ text: sysPrompt() }] }, contents: histParts, generationConfig: { temperature: 0.5, maxOutputTokens: 2048 } }, useTools ? { tools: [{ google_search: {} }] } : {})) });
+      let res = await call(true);
+      let d = await res.json().catch(() => ({}));
+      if (!res.ok && /tool|google_search/i.test(String(d?.error?.message || ''))) { res = await call(false); d = await res.json().catch(() => ({})); }
       if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
-      return String((d.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('')).trim() || 'উত্তর পাইনি — আবার লেখো?';
+      const text = String((d.candidates?.[0]?.content?.parts || []).map(pp => pp.text || '').join('')).trim();
+      return { text: text || 'উত্তর পাইনি — আবার লেখো?', sources: gemSources(d) };
     }
+    if (imgs.length) throw new Error('এই ইঞ্জিনে ছবি পড়া যায় না — Gemini নির্বাচন করো');
     const base = c.provider === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : 'https://api.x.ai/v1/chat/completions';
     const model = c.model || (c.provider === 'groq' ? 'llama-3.3-70b-versatile' : 'grok-3-mini');
+    const msgs = [{ role: 'system', content: sysPrompt() }, ...msgsOf(curId()).filter(m => m.text).slice(-8).map((m, i, arr) => ({ role: m.who === 'ai' ? 'assistant' : 'user', content: i === arr.length - 1 ? qText : m.text }))].slice(0, 9);
     const res = await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify({ model, messages: msgs, temperature: 0.5, max_tokens: 1024 }) });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
-    return String(d.choices?.[0]?.message?.content || '').trim() || 'উত্তর পাইনি — আবার লেখো?';
+    return { text: String(d.choices?.[0]?.message?.content || '').trim() || 'উত্তর পাইনি — আবার লেখো?', sources: [] };
+  };
+  // 🔑 key-টেস্ট: আসলে কাজ করে কি না, কোন মডেল, লিমিট-হিন্ট — সেটিংস-পেজে দেখায়
+  const testKey = async () => {
+    const c = cfg(); const key = c.keys[c.provider] || '';
+    if (!key) { state.keyTest = { ok: false, msg: 'আগে key বসাও, তারপর টেস্ট' }; paint(); return; }
+    state.keyTest = { ok: null, msg: 'টেস্ট হচ্ছে…' }; paint();
+    try {
+      if (c.provider === 'gemini') {
+        const model = c.model || 'gemini-3.5-flash-lite';
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'ok?' }] }], generationConfig: { maxOutputTokens: 8 } }) });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
+        state.keyTest = { ok: true, msg: `✓ কাজ করছে (${model}) · ফ্রি-লিমিট হিন্ট: Flash ~১৫ রিকোয়েস্ট/মিনিট, ~১০০০+/দিন — লিমিট শেষ হলে এরর আসবে` };
+      } else {
+        const base = c.provider === 'groq' ? 'https://api.groq.com/openai/v1/models' : 'https://api.x.ai/v1/models';
+        const res = await fetch(base, { headers: { Authorization: 'Bearer ' + key } });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
+        const n = Array.isArray(d.data) ? d.data.length : 0;
+        state.keyTest = { ok: true, msg: `✓ কাজ করছে · ${n}টি মডেল পাওয়া গেছে` };
+      }
+    } catch (e) { state.keyTest = { ok: false, msg: '✗ ' + String(e?.message || e).slice(0, 110) }; }
+    paint();
   };
 
   // ── UI ───────────────────────────────────────────────────────────────────────
   const sourceLabel = () => { const s = state.source; if (!s || s === 'auto') return '🌐 ওয়েব + আমার ব্যাংক'; if (s === 'bank') return '📚 শুধু আমার ব্যাংক'; return '📚 ' + decodeURIComponent(String(s).slice(5)); };
-  const bubble = m => `<div class="sai-row ${m.who}"><div class="sai-bubble">${m.who === 'ai' && !m.text ? '<span class="sai-dots"><i></i><i></i><i></i></span><div class="sai-wait">🌐 ওয়েব ঘেঁটে যাচাই করছে…<br><small>সাধারণত ১০ সেকেন্ড–২ মিনিট, বড় কাজে বেশি</small></div>' : esc(m.text).replace(/\n/g, '<br>')}${m.sources?.length ? `<div class="sai-src">🔗 ${m.sources.map(esc).join(' · ')}</div>` : ''}</div></div>`;
+  const bubble = m => `<div class="sai-row ${m.who}"><div class="sai-bubble">${(m.atts || []).map(a => a.kind === 'image' && a.thumb ? `<img class="sai-att" src="${a.thumb}" alt="${esc(a.name)}">` : `<span class="sai-attfile">📄 ${esc(a.name)}</span>`).join('')}${m.who === 'ai' && !m.text ? '<span class="sai-dots"><i></i><i></i><i></i></span><div class="sai-wait">🌐 ওয়েব ঘেঁটে যাচাই করছে…<br><small>সাধারণত ১০ সেকেন্ড–২ মিনিট, বড় কাজে বেশি</small></div>' : esc(m.text).replace(/\n/g, '<br>')}${m.sources?.length ? `<div class="sai-src">🔗 ${m.sources.map(esc).join(' · ')}</div>` : ''}</div></div>`;
   const shareCard = () => localStorage.getItem(LS_SHARED) === '1' ? '' : `<div class="card sai-share"><b>📊 এজেন্টকে তোমার সব ডেটা দাও?</b><p class="muted" style="margin:6px 0 10px">অ্যাপ পাঠাবে <b>সম্পূর্ণ প্রশ্নব্যাংক + পরীক্ষার ইতিহাস + প্রগ্রেস</b> — এজেন্টের নিজের ডাটাবেসে সেভ থাকবে। এরপর সে তোমার ব্যাংক থেকেই প্রশ্নের উত্তর দেবে। (এই কার্ড আর আসবে না; Settings-থেকে যখন খুশি আপডেট করা যাবে)</p><button class="btn" onclick="StudyAiTool.shareData()">✅ সব ডেটা পাঠাও</button><button class="btn ghost sm" style="margin-left:8px" onclick="StudyAiTool.skipShare()">পরে</button></div>`;
   const CHIPS = ['আজ কী পড়বো?', 'দুর্বল টপিক বলো', '৭ দিনের রিভিশন প্ল্যান', 'GK কুইজ দাও'];
 
@@ -149,7 +213,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     return `<div class="sai-landing">${ghost ? '<button class="sai-ghostbtn" onclick="StudyAiTool.shareData()">⚠️ ডেটা এখনো এজেন্টের কাছে পৌঁছায়নি — 📚 এখনই পাঠাও</button>' : ''}<div class="sai-logo"><span>🤖</span><i>✨</i></div><div class="sai-hello">হ্যালো, <b class="sai-name" onclick="StudyAiTool.editName()">${esc(nameOf())}</b>!</div><div class="sai-sub">আজ তোমাকে কীভাবে সাহায্য করবো?</div>${shareCard()}${synced ? `<div class="sai-memok">📚 মেমোরি: ${bn(new Date(Number(synced)).getDate())} তারিখে ${bn('…') || ''}ব্যাংক সেভ আছে · Settings-এ আপডেট করো</div>` : ''}<div class="sai-note">🌐 ব্রাউজার-এজেন্ট সত্যিই ওয়েব ঘেঁটে যাচাই করে উত্তর দেয় — সাধারণত ১০ সেকেন্ড–৩ মিনিট, কাজ বড় হলে বেশি</div></div>`;
   };
 
-  const inputBar = () => `<div class="sai-srcbar"><button class="sai-srchip" onclick="StudyAiTool.openSheet('source')">${esc(sourceLabel())} ▾</button></div><div class="sai-inputbar"><button class="sai-plus" onclick="StudyAiTool.openSheet('source')" aria-label="সোর্স">⊕</button><input id="saiInput" type="text" placeholder="প্রশ্ন লেখো…" onkeydown="if(event.key==='Enter')StudyAiTool.send()"><button class="sai-send" ${state.busy ? 'disabled' : ''} onclick="StudyAiTool.send()" aria-label="পাঠাও">▲</button></div>`;
+  const inputBar = () => `<div class="sai-srcbar"><button class="sai-srchip" onclick="StudyAiTool.openSheet('source')">${esc(sourceLabel())} ▾</button></div>${state.attach.length ? `<div class="sai-attachbar">${state.attach.map((a, i) => `<span class="sai-atchip">${a.kind === 'image' && a.thumb ? `<img src="${a.thumb}">` : '📄'} ${esc((a.name || '').slice(0, 18))}<b onclick="StudyAiTool.removeAttach(${i})">✕</b></span>`).join('')}</div>` : ''}<div class="sai-inputbar"><button class="sai-plus" onclick="StudyAiTool.openSheet('source')" aria-label="সোর্স">⊕</button><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><input id="saiFile" type="file" multiple accept="image/*,.txt,.md,.json,.csv" style="display:none" onchange="StudyAiTool.handleFiles(this.files);this.value=''"><input id="saiInput" type="text" placeholder="প্রশ্ন লেখো…" onkeydown="if(event.key==='Enter')StudyAiTool.send()"><button class="sai-send" ${state.busy ? 'disabled' : ''} onclick="StudyAiTool.send()" aria-label="পাঠাও">▲</button></div>`;
 
   const sheet = () => {
     if (state.sheet === 'source') {
@@ -166,30 +230,39 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         ${listChats().map(c => `<div class="sai-sheet-item ${c.id === curId() ? 'on' : ''}" onclick="StudyAiTool.openChat('${c.id}')"><span>💬</span> ${esc(c.title)}<small>${dateStr(c.at)}</small><b class="sai-del" onclick="event.stopPropagation();StudyAiTool.delChat('${c.id}')">🗑</b></div>`).join('')}
       </div></div></div>`;
     }
-    if (state.sheet === 'settings') {
-      const c = cfg();
-      const bi = state.bankInfo;
-      const memLine = bi === null ? '<div class="muted" style="font-size:11.5px">📚 মেমোরি: দেখা হচ্ছে…</div>'
-        : bi && bi.saved ? `<div class="sai-memok" style="display:inline-block">📚 এজেন্ট-মেমোরি: ${bn(bi.count)}টি প্রশ্ন সেভ ✓${bi.savedAt ? ' · ' + dateStr(bi.savedAt) : ''}</div>`
-        : '<div class="sai-ghostbtn" style="display:inline-block;margin-top:6px">⚠️ এখনো কোনো ডেটা সেভ হয়নি — নিচের বাটনে পাঠাও</div>';
-      const prov = (key, label) => `<div class="sai-setrow"><b>${label}</b><input type="password" placeholder="key বসাও…" value="${esc(c.keys[key] || '')}" onchange="StudyAiTool.setKey('${key}',this.value)"><div class="row" style="gap:6px"><button class="btn sm ${c.provider === key ? '' : 'ghost'}" onclick="StudyAiTool.setProvider('${key}')">${c.provider === key ? '✓ নির্বাচিত' : 'নাও'}</button>${c.keys[key] ? `<button class="btn ghost sm" onclick="StudyAiTool.setKey('${key}','')">মুছি</button>` : ''}</div></div>`;
-      return `<div class="sai-sheet-bg" onclick="StudyAiTool.closeSheet()"><div class="sai-sheet" onclick="event.stopPropagation()"><div class="sai-sheet-grip"></div><h3>⚙️ সেটিংস</h3><div class="sai-setwrap">
+    return '';
+  };
+
+  const settingsPage = () => {
+    const c = cfg();
+    const bi = state.bankInfo;
+    const syncErr = localStorage.getItem('studyAiSyncErr');
+    const memLine = bi === null ? '<div class="muted" style="font-size:12.5px">📚 মেমোরি: দেখা হচ্ছে…</div>'
+      : bi && bi.saved ? `<div class="sai-memok" style="display:inline-block">📚 এজেন্ট-মেমোরি: ${bn(bi.count)}টি প্রশ্ন সেভ ✓${bi.savedAt ? ' · ' + dateStr(bi.savedAt) : ''}</div>`
+      : '<div class="sai-ghostbtn" style="display:inline-block;margin-top:6px">⚠️ এখনো কোনো ডেটা সেভ হয়নি — চ্যাট খুললে নিজে নিজে পাঠানোর চেষ্টা হবে, বা নিচের বাটনে চাপো</div>';
+    const prov = (key, label) => `<div class="sai-setrow"><b>${label}</b><input type="password" placeholder="key বসাও…" value="${esc(c.keys[key] || '')}" onchange="StudyAiTool.setKey('${key}',this.value)"><div class="row" style="gap:6px"><button class="btn sm ${c.provider === key ? '' : 'ghost'}" onclick="StudyAiTool.setProvider('${key}')">${c.provider === key ? '✓ নির্বাচিত' : 'নাও'}</button>${c.keys[key] ? `<button class="btn ghost sm" onclick="StudyAiTool.setKey('${key}','')">মুছি</button>` : ''}</div></div>`;
+    return `<div class="sai-settings-page">
+      <div class="sai-sethead"><button class="sai-back2" onclick="StudyAiTool.closePage()" aria-label="ফিরে">←</button><b>⚙️ সেটিংস</b></div>
+      <div class="sai-setwrap">
         <label class="flabel">উত্তর-ইঞ্জিন</label>
-        <div class="filter-row" style="margin:6px 0 12px"><button class="chip ${c.engine === 'agent' ? 'active' : ''}" onclick="StudyAiTool.setEngine('agent')">🌐 ব্রাউজার এজেন্ট</button><button class="chip ${c.engine === 'fast' ? 'active' : ''}" onclick="StudyAiTool.setEngine('fast')">⚡ ফাস্ট (API key)</button></div>
+        <div class="filter-row" style="margin:6px 0 4px"><button class="chip ${c.engine === 'agent' ? 'active' : ''}" onclick="StudyAiTool.setEngine('agent')">🌐 ব্রাউজার এজেন্ট</button><button class="chip ${c.engine === 'fast' ? 'active' : ''}" onclick="StudyAiTool.setEngine('fast')">⚡ ফাস্ট (API key)</button></div>
+        <div class="muted" style="font-size:11px;margin-bottom:12px">${c.engine === 'agent' ? 'সত্যিই ওয়েব ঘেঁটে যাচাই করে উত্তর দেয় — ১০ সেকেন্ড–৩ মিনিট (সবচেয়ে নির্ভরযোগ্য)' : 'সরাসরি API — দ্রুত; Gemini-তে Google-সার্চ-গ্রাউন্ডিং চালু আছে (ফ্রেশ তথ্য)'}</div>
         <label class="flabel">API Provider — যেকোনো সময় বসাও/মুছো/বদলাও</label>
         ${prov('gemini', 'Gemini (ফ্রি key: aistudio.google.com)')}
         ${prov('xai', 'Grok (x.ai)')}
         ${prov('groq', 'Groq (console.groq.com)')}
         <label class="flabel">মডেল (ঐচ্ছিক)</label><input type="text" placeholder="${c.provider === 'xai' ? 'grok-3-mini' : c.provider === 'groq' ? 'llama-3.3-70b-versatile' : 'gemini-3.5-flash-lite'}" value="${esc(c.model || '')}" onchange="StudyAiTool.setModel(this.value)">
-        <label class="flabel">থিম</label>
+        <div class="row" style="gap:8px;margin:10px 0 4px"><button class="btn secondary sm" onclick="StudyAiTool.testKey()">🔑 key-টেস্ট করো</button></div>
+        ${state.keyTest ? `<div class="${state.keyTest.ok === true ? 'sai-memok' : state.keyTest.ok === false ? 'sai-ghostbtn' : 'muted'}" style="display:block;font-size:12px;margin-top:6px">${esc(state.keyTest.msg)}</div>` : ''}
+        <label class="flabel" style="margin-top:16px">থিম</label>
         <div class="filter-row" style="margin:6px 0 12px">${[['aurora', '🌿 Emerald'], ['violet', '💜 Violet'], ['dark', '🌙 Dark']].map(([v, l]) => `<button class="chip ${c.theme === v ? 'active' : ''}" onclick="StudyAiTool.setTheme('${v}')">${l}</button>`).join('')}</div>
         <div class="sai-setrow"><b>এজেন্টকে আমার ডেটা পাঠাবে</b><div class="toggle ${c.sendData ? 'on' : ''}" onclick="StudyAiTool.toggleData()"><div class="dot"></div></div></div>
-        <div style="margin-top:12px">${memLine}</div>
+        <div style="margin-top:14px">${memLine}</div>
+        ${syncErr ? `<div class="sai-ghostbtn" style="display:block;font-size:11.5px;margin-top:8px">শেষ সিঙ্ক-ত্রুটি: ${esc(syncErr)}</div>` : ''}
         <div class="row" style="gap:8px;margin-top:10px"><button class="btn secondary sm" onclick="StudyAiTool.shareData()">📚 ডেটা ${localStorage.getItem(LS_BANK) ? 'আপডেট' : 'পাঠাও'}</button><button class="btn ghost sm" onclick="StudyAiTool.clearChats()">সব চ্যাট মুছি</button></div>
-        <div class="muted" style="font-size:10.5px;margin-top:10px">Keys শুধু তোমার ডিভাইসেই থাকে (localStorage) — কোথাও আপলোড হয় না। এজেন্ট zero-access: অ্যাপ/কোড/কোনো সার্ভারে প্রবেশাধিকার নেই।</div>
-      </div></div></div>`;
-    }
-    return '';
+        <div class="muted" style="font-size:10.5px;margin-top:12px">Keys শুধু তোমার ডিভাইসেই থাকে (localStorage) — কোথাও আপলোড হয় না। এজেন্ট zero-access: অ্যাপ/কোড/কোনো সার্ভারে প্রবেশাধিকার নেই।</div>
+      </div>
+    </div>`;
   };
 
   const renderChat = () => {
@@ -202,12 +275,16 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
 
   const paint = () => {
     const b = document.getElementById('saiBody');
-    if (b) { b.innerHTML = renderChat() + inputBar(); const el = document.getElementById('saiMsgs'); if (el) el.scrollTop = el.scrollHeight; }
+    if (b) {
+      b.innerHTML = state.page === 'settings' ? settingsPage() : renderChat() + inputBar();
+      const el = document.getElementById('saiMsgs'); if (el) el.scrollTop = el.scrollHeight;
+    }
     const sh = document.getElementById('saiSheetRoot'); if (sh) sh.innerHTML = sheet();
   };
 
   const render = () => {
     ensureChat();
+    if (!state.autoSyncTried) { state.autoSyncTried = true; setTimeout(() => ensureSync(false), 900); }
     renderShell(`<div id="saiBody"></div><div id="saiSheetRoot"></div>`, {
       title: 'Admihub AI',
       hideNav: true,
@@ -230,6 +307,17 @@ body{overflow-x:hidden}
 .sai-sub{font-size:15px;color:var(--sub,#6b7280);margin-top:5px}
 .sai-memok{font-size:11px;color:var(--emerald,#0f6b4f);background:#e7f6ee;border-radius:999px;padding:5px 12px;margin-top:12px}
 .sai-ghostbtn{margin-top:14px;padding:10px 14px;border-radius:12px;border:1.5px solid #f0b428;background:#fdf6e3;color:#8a6100;font-size:12.5px;font-weight:700}
+.sai-settings-page{flex:1;display:flex;flex-direction:column;animation:saiFade .3s ease}
+.sai-sethead{display:flex;align-items:center;gap:10px;padding:14px 6px 8px;font-size:18px}
+.sai-back2{background:var(--emerald-soft,#e8f3ec);border:none;width:40px;height:40px;border-radius:13px;font-size:20px;color:var(--emerald-d,#0f6b4f);cursor:pointer}
+.sai-setwrap{background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:18px;padding:16px 14px;box-shadow:0 6px 22px rgba(16,24,40,.05)}
+.sai-clip{background:none;border:none;font-size:19px;cursor:pointer;padding:2px}
+.sai-attachbar{display:flex;flex-wrap:wrap;gap:6px;padding:6px 2px}
+.sai-atchip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:12px;padding:4px 8px;font-size:11.5px;max-width:46vw}
+.sai-atchip img{width:26px;height:26px;object-fit:cover;border-radius:7px}
+.sai-atchip b{cursor:pointer;color:#b3261e;font-weight:700;padding:0 2px}
+.sai-att{display:block;max-width:130px;max-height:110px;border-radius:12px;margin-bottom:6px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.sai-attfile{display:inline-block;background:rgba(255,255,255,.22);border-radius:9px;padding:3px 8px;font-size:11.5px;margin-bottom:5px}
 .sai-note{font-size:10.5px;color:var(--sub,#9ca3af);margin-top:12px;max-width:300px;line-height:1.5}
 .sai-share{margin-top:16px;text-align:left;border-left:4px solid var(--emerald,#0f6b4f);font-size:12.5px;max-width:340px;animation:saiPop .45s cubic-bezier(.2,.9,.3,1.2)}
 @keyframes saiPop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
@@ -289,16 +377,24 @@ body{overflow-x:hidden}
   const send = async textArg => {
     if (state.busy) return;
     const input = document.getElementById('saiInput');
-    const text = String(textArg || (input ? input.value : '')).trim();
-    if (!text) return;
+    let text = String(textArg || (input ? input.value : '')).trim();
+    const atts = state.attach.slice();
+    if (!text && !atts.length) return;
+    if (!text) text = 'সংযুক্ত ফাইলটা দেখে বলো';
+    const imgs = atts.filter(a => a.kind === 'image');
+    if (imgs.length && !(cfg().engine === 'fast' && cfg().provider === 'gemini' && cfg().keys.gemini)) {
+      if (window.toast) window.toast('📎 ছবি পড়তে ⚡ ফাস্ট-ইঞ্জিনে Gemini key দরকার — Settings-এ বসাও');
+      return;
+    }
     if (input) input.value = '';
     state.busy = true;
-    push({ who: 'me', text });
+    push({ who: 'me', text, atts: atts.map(a => ({ kind: a.kind, name: a.name, thumb: a.thumb || '' })) });
+    state.attach = [];
     push({ who: 'ai', text: '' });
     try {
       if (cfg().engine === 'fast' && fastAvailable()) {
-        const r = await askFast(text);
-        const id = curId(); const msgs = msgsOf(id); msgs[msgs.length - 1] = { who: 'ai', text: r }; saveMsgs(id, msgs);
+        const r = await askFast(text, atts);
+        const id = curId(); const msgs = msgsOf(id); msgs[msgs.length - 1] = { who: 'ai', text: r.text, sources: r.sources || [] }; saveMsgs(id, msgs);
       } else {
         const source = state.source || 'auto';
         const r = await askAgent(text, source);
@@ -311,26 +407,72 @@ body{overflow-x:hidden}
   };
 
   const shareData = async () => {
+    push({ who: 'me', text: '📚 ডেটা পাঠাচ্ছি…' });
+    push({ who: 'ai', text: '' });
     try {
       const count = await syncBank();
+      state.bankInfo = { saved: true, count, savedAt: Date.now() };
       localStorage.setItem(LS_SHARED, '1');
-      push({ who: 'ai', text: `রাখলাম! 📚\nতোমার সম্পূর্ণ প্রশ্নব্যাংক (${bn(count)}টি প্রশ্ন), পরীক্ষার ইতিহাস আর প্রগ্রেস আমার ডাটাবেসে সেভ হয়ে গেছে।\nএখন থেকে তোমার ব্যাংক থেকেই উত্তর দিতে পারব — ⊕ থেকে বিষয় বেছে নাও! 😊` });
+      const id = curId(); const msgs = msgsOf(id); msgs[msgs.length - 1] = { who: 'ai', text: `রাখলাম! 📚\nতোমার সম্পূর্ণ প্রশ্নব্যাংক (${bn(count)}টি প্রশ্ন), পরীক্ষার ইতিহাস আর প্রগ্রেস আমার ডাটাবেসে সেভ হয়ে গেছে।\nএখন থেকে তোমার ব্যাংক থেকেই উত্তর দিতে পারব — ⊕ থেকে বিষয় বেছে নাও! 😊` }; saveMsgs(id, msgs);
     } catch (e) {
-      localStorage.setItem(LS_SHARED, '1');
-      push({ who: 'ai', text: `ডেটা এবার সেভ হয়নি (${String(e?.message || e)}) — নেট দেখে Settings → 📚 ডেটা পাঠাও আবার চাপো।` });
+      localStorage.setItem('studyAiSyncErr', String(e?.message || e).slice(0, 90));
+      const id = curId(); const msgs = msgsOf(id); msgs[msgs.length - 1] = { who: 'ai', text: `ডেটা এবার সেভ হয়নি (${String(e?.message || e)})।\nচিন্তা নেই — চ্যাট খোলা থাকলে আমি নিজে নিজেই আবার চেষ্টা করবো, আর Settings-এ 📚 বাটনেও চাপা যাবে।` }; saveMsgs(id, msgs);
     }
+    state.page === 'settings' ? paint() : paint();
   };
   const skipShare = () => { localStorage.setItem(LS_SHARED, '1'); paint(); };
   const quick = t => send(t);
   const editName = () => { const n = prompt('তোমার নাম?', nameOf()); if (n && n.trim()) { localStorage.setItem(LS_NAME, n.trim().slice(0, 20)); paint(); } };
   const openSheet = w => {
-    state.sheet = w; paint();
-    if (w === 'settings' && state.bankInfo === undefined) {
+    if (w === 'settings') { state.page = 'settings'; state.sheet = null; state.keyTest = null; paint(); } // ⚙️ = আলাদা পরিষ্কার পেজ (পপআপ নয়)
+    else { state.sheet = w; paint(); }
+    if (w === 'settings' && state.bankInfo === undefined && typeof fetch === 'function') {
       state.bankInfo = null;
-      fetch(WORKER + '/api/bank', { headers: APP_HEADER }).then(r => r.json()).then(d => { state.bankInfo = d; if (state.sheet === 'settings') paint(); }).catch(() => { state.bankInfo = { saved: false }; if (state.sheet === 'settings') paint(); });
+      fetch(WORKER + '/api/bank', { headers: APP_HEADER }).then(r => r.json()).then(d => { state.bankInfo = d; if (state.page === 'settings') paint(); }).catch(() => { state.bankInfo = { saved: false }; if (state.page === 'settings') paint(); });
     }
   };
+  const closePage = () => { state.page = null; state.keyTest = null; paint(); };
   const closeSheet = () => { state.sheet = null; paint(); };
+  // ── 📎 অ্যাটাচমেন্ট: ছবি (canvas-ডাউনস্কেল) + টেক্সট-ফাইল ──
+  const pickAttach = () => { const el = document.getElementById('saiFile'); if (el) el.click(); };
+  const removeAttach = i => { state.attach.splice(i, 1); paint(); };
+  const handleFiles = files => {
+    [...(files || [])].slice(0, 4).forEach(f => {
+      try {
+        if (/^image\//.test(f.type || '')) {
+          const rd = new FileReader();
+          rd.onload = () => {
+            const raw = String(rd.result || '');
+            let data = '', thumb = '', mime = 'image/jpeg';
+            try {
+              const im = new Image();
+              im.onload = () => {
+                try {
+                  const k = Math.min(1, 1280 / Math.max(im.width || 1, im.height || 1));
+                  const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round((im.width || 1) * k)); cv.height = Math.max(1, Math.round((im.height || 1) * k));
+                  cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
+                  data = cv.toDataURL('image/jpeg', 0.82).split(',')[1] || '';
+                  const tk = Math.min(1, 112 / Math.max(im.width || 1, im.height || 1));
+                  const tv = document.createElement('canvas'); tv.width = Math.max(1, Math.round((im.width || 1) * tk)); tv.height = Math.max(1, Math.round((im.height || 1) * tk));
+                  tv.getContext('2d').drawImage(im, 0, 0, tv.width, tv.height);
+                  thumb = tv.toDataURL('image/jpeg', 0.7);
+                } catch (_) { if (raw.length < 350000) { const ps = raw.split(','); data = ps[1] || ''; mime = (ps[0].match(/data:([^;]+)/) || [])[1] || 'image/jpeg'; thumb = raw; } }
+                if (data) { state.attach.push({ kind: 'image', name: f.name || 'ছবি', mime, data, thumb }); paint(); }
+                else if (window.toast) window.toast('ছবিটা বড় হয়ে গেছে — ছোট ছবি দাও');
+              };
+              im.onerror = () => { if (window.toast) window.toast('ছবিটা খোলা গেল না'); };
+              im.src = raw;
+            } catch (_) { if (window.toast) window.toast('ছবি প্রক্রিয়া করা গেল না'); }
+          };
+          rd.readAsDataURL(f);
+        } else if (/^text\//.test(f.type || '') || /\.(txt|md|json|csv)$/i.test(f.name || '')) {
+          const rd = new FileReader();
+          rd.onload = () => { state.attach.push({ kind: 'text', name: f.name || 'ফাইল', text: String(rd.result || '').slice(0, 12000) }); paint(); };
+          rd.readAsText(f);
+        } else if (window.toast) window.toast('এই ধরনের ফাইল এখনো না — ছবি বা টেক্সট ফাইল দাও (PDF আসছে)');
+      } catch (_) {}
+    });
+  };
   const setSource = s => { state.source = s; state.sheet = null; paint(); };
   const setEngine = e => { const c = cfg(); c.engine = e; setCfg(c); paint(); };
   const setProvider = p => { const c = cfg(); c.provider = p; setCfg(c); paint(); };
@@ -375,6 +517,6 @@ body{overflow-x:hidden}
     [1200, 2500, 4500].forEach(d => setTimeout(mountDashboard, d));
   };
 
-  window.StudyAiTool = { render, send, quick, shareData, skipShare, editName, openSheet, closeSheet, setSource, newChat, openChat, delChat, clearChats, setEngine, setProvider, setKey, setModel, setTheme, toggleData, _state: () => state };
+  window.StudyAiTool = { render, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, setEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, testKey, ensureSync, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();
