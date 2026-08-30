@@ -183,7 +183,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     if (imgs.length) throw new Error('এই ইঞ্জিনে ছবি পড়া যায় না — Gemini নির্বাচন করো');
     const pv = c.provider;
     const base = pv === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : pv === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' : pv === 'hf' ? 'https://router.huggingface.co/v1/chat/completions' : 'https://api.x.ai/v1/chat/completions';
-    const model = c.model || ({ groq: 'llama-3.3-70b-versatile', xai: 'grok-3-mini', openrouter: 'openrouter/auto', hf: 'meta-llama/Llama-3.1-8B-Instruct' }[pv] || 'grok-3-mini');
+    const model = c.model || ({ groq: 'llama-3.3-70b-versatile', xai: 'grok-4.3', openrouter: 'openrouter/auto', hf: 'meta-llama/Llama-3.1-8B-Instruct' }[pv] || 'grok-4.3');
     const extraH = pv === 'openrouter' ? { 'HTTP-Referer': 'https://sheikhrashel47-stack.github.io/admission-hub/', 'X-Title': 'Admihub' } : {};
     const msgs = [{ role: 'system', content: sysPrompt() }, ...msgsOf(curId()).filter(m => m.text).slice(-8).map((m, i, arr) => ({ role: m.who === 'ai' ? 'assistant' : 'user', content: i === arr.length - 1 ? qText : m.text }))].slice(0, 9);
     const res = await fetch(base, Object.assign({ method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, extraH), body: JSON.stringify({ model, messages: msgs, temperature: 0.5, max_tokens: 1024 }) }, ctl ? { signal: ctl.signal } : {}));
@@ -359,7 +359,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         ${prov('groq', 'Groq (console.groq.com)')}
         ${prov('openrouter', 'OpenRouter (openrouter.ai/keys)')}
         ${prov('hf', 'Hugging Face (hf.co/settings/tokens)')}
-        <label class="flabel">মডেল (ঐচ্ছিক)</label><input type="text" placeholder="${c.provider === 'xai' ? 'grok-3-mini' : c.provider === 'groq' ? 'llama-3.3-70b-versatile' : c.provider === 'openrouter' ? 'openrouter/auto' : c.provider === 'hf' ? 'meta-llama/Llama-3.1-8B-Instruct' : 'gemini-3.6-flash'}" value="${esc(c.model || '')}" onchange="StudyAiTool.setModel(this.value)">
+        <label class="flabel">মডেল (ঐচ্ছিক)</label><input type="text" placeholder="${c.provider === 'xai' ? 'grok-4.3' : c.provider === 'groq' ? 'llama-3.3-70b-versatile' : c.provider === 'openrouter' ? 'openrouter/auto' : c.provider === 'hf' ? 'meta-llama/Llama-3.1-8B-Instruct' : 'gemini-3.6-flash'}" value="${esc(c.model || '')}" onchange="StudyAiTool.setModel(this.value)">
         <div class="row" style="gap:8px;margin:10px 0 4px"><button class="btn secondary sm" onclick="StudyAiTool.testKey()">🔑 key-টেস্ট করো</button></div>
         ${state.keyTest ? `<div class="${state.keyTest.ok === true ? 'sai-memok' : state.keyTest.ok === false ? 'sai-ghostbtn' : 'muted'}" style="display:block;font-size:12px;margin-top:6px">${esc(state.keyTest.msg)}</div>` : ''}
         <label class="flabel" style="margin-top:16px">থিম</label>
@@ -500,7 +500,7 @@ body{overflow-x:hidden}
 .sai-note{font-size:10.5px;color:var(--sub,#9ca3af);margin-top:12px;max-width:300px;line-height:1.5}
 .sai-share{margin-top:16px;text-align:left;border-left:4px solid var(--emerald,#0f6b4f);font-size:12.5px;max-width:340px;animation:saiPop .45s cubic-bezier(.2,.9,.3,1.2)}
 @keyframes saiPop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
-.sai-msgs{flex:1;overflow-y:auto;padding:6px 2px 8px;max-height:calc(100vh - 250px)}
+.sai-msgs{padding:6px 2px 8px}
 .sai-row{display:flex;margin:9px 0;animation:saiIn .38s cubic-bezier(.2,.9,.3,1.1)}
 .sai-row.me{justify-content:flex-end}
 @keyframes saiIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
@@ -522,10 +522,11 @@ body{overflow-x:hidden}
 .sai-topchip.gold{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e}
 .sai-topicon{background:none;border:none;font-size:21px;padding:4px 6px;color:var(--emerald-d,#0f6b4f);cursor:pointer;width:42px;height:42px;display:grid;place-items:center;border-radius:14px}
 .sai-compose{position:fixed;bottom:0;left:0;right:0;z-index:60;padding:4px 10px calc(6px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(247,250,248,0),#f7faf8 18%,#f7faf8 70%)}
+.sai-inputbar{transition:border-color .2s ease,box-shadow .25s ease}.sai-inputbar:focus-within{border-color:#8fd4b8!important;box-shadow:0 4px 18px rgba(15,107,79,.14)!important}
 .sai-inputbar{display:flex;gap:8px;align-items:flex-end;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:22px;padding:6px 8px;box-shadow:0 4px 18px rgba(16,24,40,.07);transition:box-shadow .2s,border-color .2s}
 .sai-inputbar:focus-within{border-color:var(--emerald,#0f6b4f);box-shadow:0 6px 22px rgba(15,107,79,.14)}
 .sai-inputbar textarea{flex:1;border:none;outline:none;resize:none;font:inherit;font-size:14.5px;line-height:1.55;background:transparent;min-height:44px;max-height:132px;padding:10px 2px;overflow-y:hidden;word-break:break-word;white-space:pre-wrap}
-.sai-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 10px 10px;-webkit-overflow-scrolling:touch}
+.sai-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 10px 10px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scroll-behavior:smooth}
 .sai-tray{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px}
 .sai-trayitem{position:relative;flex:0 0 auto;width:74px;height:74px;border-radius:14px;border:1.5px solid var(--line,#e5e7eb);background:#fff;overflow:visible;display:grid;place-items:center}
 .sai-trayitem img{width:100%;height:100%;object-fit:cover;border-radius:13px;cursor:pointer}
@@ -543,7 +544,7 @@ body{overflow-x:hidden}
 .sai-disclaim{text-align:center;font-size:9.8px;color:#9aa5a0;padding:6px 0 2px}
 .sai-actions{display:none;gap:2px;margin-top:4px;flex-wrap:wrap}
 .sai-row.show-acts .sai-actions{display:flex}
-.sai-row .sai-bubble{cursor:pointer}
+.sai-row .sai-bubble{cursor:pointer;transition:transform .16s ease,box-shadow .2s ease}.sai-row .sai-bubble:active{transform:scale(.97)}
 .sai-act{background:none;border:none;font-size:11px;color:var(--sub,#6b7280);cursor:pointer;padding:4px 7px;border-radius:8px}
 .sai-act:hover{background:rgba(15,107,79,.07)}
 .sai-act.on{color:var(--emerald,#0f6b4f);font-weight:700}
@@ -616,7 +617,7 @@ body{overflow-x:hidden}
     if (!window.__saiVvBound && window.visualViewport) {
       window.__saiVvBound = true;
       const vv = window.visualViewport;
-      const onVV = () => { const bar = document.querySelector('.sai-compose'); if (!bar) return; const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)); bar.style.bottom = kb + 'px'; const ms = document.getElementById('saiMsgs'); if (ms) ms.scrollTop = ms.scrollHeight; };
+      const onVV = () => { const bar = document.querySelector('.sai-compose'); if (!bar) return; const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)); bar.style.bottom = kb + 'px'; const ms = document.getElementById('saiScroll'); if (ms) ms.scrollTop = ms.scrollHeight; };
       vv.addEventListener('resize', onVV); vv.addEventListener('scroll', onVV);
     }
     setTimeout(() => { const i = document.getElementById('saiInput'); i && i.focus(); }, 150);
