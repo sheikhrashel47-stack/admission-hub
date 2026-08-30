@@ -139,13 +139,14 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
 
   // ── UI ───────────────────────────────────────────────────────────────────────
   const sourceLabel = () => { const s = state.source; if (!s || s === 'auto') return '🌐 ওয়েব + আমার ব্যাংক'; if (s === 'bank') return '📚 শুধু আমার ব্যাংক'; return '📚 ' + decodeURIComponent(String(s).slice(5)); };
-  const bubble = m => `<div class="sai-row ${m.who}"><div class="sai-bubble">${m.who === 'ai' && !m.text ? '<span class="sai-dots"><i></i><i></i><i></i></span>' : esc(m.text).replace(/\n/g, '<br>')}${m.sources?.length ? `<div class="sai-src">🔗 ${m.sources.map(esc).join(' · ')}</div>` : ''}</div></div>`;
+  const bubble = m => `<div class="sai-row ${m.who}"><div class="sai-bubble">${m.who === 'ai' && !m.text ? '<span class="sai-dots"><i></i><i></i><i></i></span><div class="sai-wait">🌐 ওয়েব ঘেঁটে যাচাই করছে…<br><small>সাধারণত ১০ সেকেন্ড–২ মিনিট, বড় কাজে বেশি</small></div>' : esc(m.text).replace(/\n/g, '<br>')}${m.sources?.length ? `<div class="sai-src">🔗 ${m.sources.map(esc).join(' · ')}</div>` : ''}</div></div>`;
   const shareCard = () => localStorage.getItem(LS_SHARED) === '1' ? '' : `<div class="card sai-share"><b>📊 এজেন্টকে তোমার সব ডেটা দাও?</b><p class="muted" style="margin:6px 0 10px">অ্যাপ পাঠাবে <b>সম্পূর্ণ প্রশ্নব্যাংক + পরীক্ষার ইতিহাস + প্রগ্রেস</b> — এজেন্টের নিজের ডাটাবেসে সেভ থাকবে। এরপর সে তোমার ব্যাংক থেকেই প্রশ্নের উত্তর দেবে। (এই কার্ড আর আসবে না; Settings-থেকে যখন খুশি আপডেট করা যাবে)</p><button class="btn" onclick="StudyAiTool.shareData()">✅ সব ডেটা পাঠাও</button><button class="btn ghost sm" style="margin-left:8px" onclick="StudyAiTool.skipShare()">পরে</button></div>`;
   const CHIPS = ['আজ কী পড়বো?', 'দুর্বল টপিক বলো', '৭ দিনের রিভিশন প্ল্যান', 'GK কুইজ দাও'];
 
   const landing = () => {
     const synced = localStorage.getItem(LS_BANK);
-    return `<div class="sai-landing"><div class="sai-logo"><span>🤖</span><i>✨</i></div><div class="sai-hello">হ্যালো, <b class="sai-name" onclick="StudyAiTool.editName()">${esc(nameOf())}</b>!</div><div class="sai-sub">আজ তোমাকে কীভাবে সাহায্য করবো?</div>${shareCard()}${synced ? `<div class="sai-memok">📚 মেমোরি: ${bn(new Date(Number(synced)).getDate())} তারিখে ${bn('…') || ''}ব্যাংক সেভ আছে · Settings-এ আপডেট করো</div>` : ''}<div class="sai-note">🌐 ব্রাউজার-এজেন্ট সত্যিই ওয়েব ঘেঁটে যাচাই করে উত্তর দেয় — সাধারণত ১০ সেকেন্ড–৩ মিনিট, কাজ বড় হলে বেশি</div></div>`;
+    const ghost = localStorage.getItem(LS_SHARED) === '1' && !synced;
+    return `<div class="sai-landing">${ghost ? '<button class="sai-ghostbtn" onclick="StudyAiTool.shareData()">⚠️ ডেটা এখনো এজেন্টের কাছে পৌঁছায়নি — 📚 এখনই পাঠাও</button>' : ''}<div class="sai-logo"><span>🤖</span><i>✨</i></div><div class="sai-hello">হ্যালো, <b class="sai-name" onclick="StudyAiTool.editName()">${esc(nameOf())}</b>!</div><div class="sai-sub">আজ তোমাকে কীভাবে সাহায্য করবো?</div>${shareCard()}${synced ? `<div class="sai-memok">📚 মেমোরি: ${bn(new Date(Number(synced)).getDate())} তারিখে ${bn('…') || ''}ব্যাংক সেভ আছে · Settings-এ আপডেট করো</div>` : ''}<div class="sai-note">🌐 ব্রাউজার-এজেন্ট সত্যিই ওয়েব ঘেঁটে যাচাই করে উত্তর দেয় — সাধারণত ১০ সেকেন্ড–৩ মিনিট, কাজ বড় হলে বেশি</div></div>`;
   };
 
   const inputBar = () => `<div class="sai-srcbar"><button class="sai-srchip" onclick="StudyAiTool.openSheet('source')">${esc(sourceLabel())} ▾</button></div><div class="sai-inputbar"><button class="sai-plus" onclick="StudyAiTool.openSheet('source')" aria-label="সোর্স">⊕</button><input id="saiInput" type="text" placeholder="প্রশ্ন লেখো…" onkeydown="if(event.key==='Enter')StudyAiTool.send()"><button class="sai-send" ${state.busy ? 'disabled' : ''} onclick="StudyAiTool.send()" aria-label="পাঠাও">▲</button></div>`;
@@ -167,6 +168,10 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     }
     if (state.sheet === 'settings') {
       const c = cfg();
+      const bi = state.bankInfo;
+      const memLine = bi === null ? '<div class="muted" style="font-size:11.5px">📚 মেমোরি: দেখা হচ্ছে…</div>'
+        : bi && bi.saved ? `<div class="sai-memok" style="display:inline-block">📚 এজেন্ট-মেমোরি: ${bn(bi.count)}টি প্রশ্ন সেভ ✓${bi.savedAt ? ' · ' + dateStr(bi.savedAt) : ''}</div>`
+        : '<div class="sai-ghostbtn" style="display:inline-block;margin-top:6px">⚠️ এখনো কোনো ডেটা সেভ হয়নি — নিচের বাটনে পাঠাও</div>';
       const prov = (key, label) => `<div class="sai-setrow"><b>${label}</b><input type="password" placeholder="key বসাও…" value="${esc(c.keys[key] || '')}" onchange="StudyAiTool.setKey('${key}',this.value)"><div class="row" style="gap:6px"><button class="btn sm ${c.provider === key ? '' : 'ghost'}" onclick="StudyAiTool.setProvider('${key}')">${c.provider === key ? '✓ নির্বাচিত' : 'নাও'}</button>${c.keys[key] ? `<button class="btn ghost sm" onclick="StudyAiTool.setKey('${key}','')">মুছি</button>` : ''}</div></div>`;
       return `<div class="sai-sheet-bg" onclick="StudyAiTool.closeSheet()"><div class="sai-sheet" onclick="event.stopPropagation()"><div class="sai-sheet-grip"></div><h3>⚙️ সেটিংস</h3><div class="sai-setwrap">
         <label class="flabel">উত্তর-ইঞ্জিন</label>
@@ -179,6 +184,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         <label class="flabel">থিম</label>
         <div class="filter-row" style="margin:6px 0 12px">${[['aurora', '🌿 Emerald'], ['violet', '💜 Violet'], ['dark', '🌙 Dark']].map(([v, l]) => `<button class="chip ${c.theme === v ? 'active' : ''}" onclick="StudyAiTool.setTheme('${v}')">${l}</button>`).join('')}</div>
         <div class="sai-setrow"><b>এজেন্টকে আমার ডেটা পাঠাবে</b><div class="toggle ${c.sendData ? 'on' : ''}" onclick="StudyAiTool.toggleData()"><div class="dot"></div></div></div>
+        <div style="margin-top:12px">${memLine}</div>
         <div class="row" style="gap:8px;margin-top:10px"><button class="btn secondary sm" onclick="StudyAiTool.shareData()">📚 ডেটা ${localStorage.getItem(LS_BANK) ? 'আপডেট' : 'পাঠাও'}</button><button class="btn ghost sm" onclick="StudyAiTool.clearChats()">সব চ্যাট মুছি</button></div>
         <div class="muted" style="font-size:10.5px;margin-top:10px">Keys শুধু তোমার ডিভাইসেই থাকে (localStorage) — কোথাও আপলোড হয় না। এজেন্ট zero-access: অ্যাপ/কোড/কোনো সার্ভারে প্রবেশাধিকার নেই।</div>
       </div></div></div>`;
@@ -206,7 +212,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       title: 'Admihub AI',
       hideNav: true,
       back: "navigate('dashboard')",
-      actions: [`<button class="backbtn" onclick="StudyAiTool.openSheet('chats')" style="margin-right:6px">💬</button>`, `<button class="backbtn" onclick="StudyAiTool.openSheet('settings')">⚙️</button>`]
+      actions: [`<button class="sai-topicon" onclick="StudyAiTool.openSheet('chats')" aria-label="চ্যাট">💬</button>`, `<button class="sai-topicon" onclick="StudyAiTool.openSheet('settings')" aria-label="সেটিংস">⚙️</button>`]
     });
     if (!document.getElementById('saiAgentStyle')) {
       const s = document.createElement('style'); s.id = 'saiAgentStyle'; s.textContent = `
@@ -223,6 +229,7 @@ body{overflow-x:hidden}
 .sai-name{background:linear-gradient(90deg,#e0447c,#7a5cf0);-webkit-background-clip:text;background-clip:text;color:transparent;cursor:pointer}
 .sai-sub{font-size:15px;color:var(--sub,#6b7280);margin-top:5px}
 .sai-memok{font-size:11px;color:var(--emerald,#0f6b4f);background:#e7f6ee;border-radius:999px;padding:5px 12px;margin-top:12px}
+.sai-ghostbtn{margin-top:14px;padding:10px 14px;border-radius:12px;border:1.5px solid #f0b428;background:#fdf6e3;color:#8a6100;font-size:12.5px;font-weight:700}
 .sai-note{font-size:10.5px;color:var(--sub,#9ca3af);margin-top:12px;max-width:300px;line-height:1.5}
 .sai-share{margin-top:16px;text-align:left;border-left:4px solid var(--emerald,#0f6b4f);font-size:12.5px;max-width:340px;animation:saiPop .45s cubic-bezier(.2,.9,.3,1.2)}
 @keyframes saiPop{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
@@ -234,12 +241,15 @@ body{overflow-x:hidden}
 .me .sai-bubble{background:var(--sai-me,#0f6b4f);color:#fff;border-bottom-right-radius:6px;box-shadow:0 4px 12px rgba(15,107,79,.3)}
 .ai .sai-bubble{background:#fff;border-bottom-left-radius:6px;border:1px solid var(--line,#e5e7eb)}
 .sai-src{margin-top:8px;font-size:11px;color:var(--sub,#6b7280)}
+.sai-wait{margin-top:8px;font-size:11px;color:var(--sub,#6b7280);line-height:1.5}
 .sai-dots{display:inline-flex;gap:5px;padding:5px 2px}.sai-dots i{width:8px;height:8px;border-radius:50%;background:var(--sub,#9ca3af);animation:saiB 1.15s infinite}
 .sai-dots i:nth-child(2){animation-delay:.16s}.sai-dots i:nth-child(3){animation-delay:.32s}
 @keyframes saiB{0%,60%,100%{opacity:.35;transform:translateY(0) scale(.9)}30%{opacity:1;transform:translateY(-5px) scale(1.15)}}
 .sai-srcbar{padding:8px 0 0}
 .sai-srchip{display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid var(--line,#e5e7eb);background:#fff;font-size:11.5px;font-weight:700;color:var(--emerald,#0f6b4f)}
-.sai-inputbar{display:flex;gap:8px;align-items:center;padding:8px 0 10px;position:sticky;bottom:0;background:transparent}
+.sai-topicon{background:none;border:none;font-size:21px;padding:4px 6px;color:var(--emerald-d,#0f6b4f);cursor:pointer;width:42px;height:42px;display:grid;place-items:center;border-radius:14px}
+.sai-inputbar{display:flex;gap:8px;align-items:center;padding:8px 2px calc(10px + env(safe-area-inset-bottom,0px));position:fixed;bottom:0;left:0;right:0;z-index:60;background:linear-gradient(180deg,rgba(247,250,248,0),#f7faf8 26%,#f7faf8)}
+.sai-page{padding-bottom:84px}
 .sai-plus,.sai-send{flex:0 0 46px;height:46px;border-radius:50%;font-size:21px;transition:transform .15s ease}
 .sai-plus{background:#fff;border:1.5px solid var(--line,#e5e7eb);color:var(--sub,#4b5563)}
 .sai-plus:active,.sai-send:active{transform:scale(.88)}
@@ -265,6 +275,12 @@ body{overflow-x:hidden}
 `; document.head.appendChild(s);
     }
     paint();
+    if (!window.__saiVvBound && window.visualViewport) {
+      window.__saiVvBound = true;
+      const vv = window.visualViewport;
+      const onVV = () => { const bar = document.querySelector('.sai-inputbar'); if (!bar) return; const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)); bar.style.bottom = kb + 'px'; const ms = document.getElementById('saiMsgs'); if (ms) ms.scrollTop = ms.scrollHeight; };
+      vv.addEventListener('resize', onVV); vv.addEventListener('scroll', onVV);
+    }
     setTimeout(() => { const i = document.getElementById('saiInput'); i && i.focus(); }, 150);
   };
 
@@ -307,7 +323,13 @@ body{overflow-x:hidden}
   const skipShare = () => { localStorage.setItem(LS_SHARED, '1'); paint(); };
   const quick = t => send(t);
   const editName = () => { const n = prompt('তোমার নাম?', nameOf()); if (n && n.trim()) { localStorage.setItem(LS_NAME, n.trim().slice(0, 20)); paint(); } };
-  const openSheet = w => { state.sheet = w; paint(); };
+  const openSheet = w => {
+    state.sheet = w; paint();
+    if (w === 'settings' && state.bankInfo === undefined) {
+      state.bankInfo = null;
+      fetch(WORKER + '/api/bank', { headers: APP_HEADER }).then(r => r.json()).then(d => { state.bankInfo = d; if (state.sheet === 'settings') paint(); }).catch(() => { state.bankInfo = { saved: false }; if (state.sheet === 'settings') paint(); });
+    }
+  };
   const closeSheet = () => { state.sheet = null; paint(); };
   const setSource = s => { state.source = s; state.sheet = null; paint(); };
   const setEngine = e => { const c = cfg(); c.engine = e; setCfg(c); paint(); };

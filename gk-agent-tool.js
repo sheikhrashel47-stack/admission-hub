@@ -125,7 +125,7 @@
     const acc = vals.length ? Math.round(right / vals.length * 100) : 0;
     const bm = bookmarked(q);
     const footer = `<div class="gk-foot"><span>Accuracy <b>${bn(acc)}%</b></span><span>Mistakes <b>${bn(vals.length - right)}</b></span><button class="gk-footbtn" onclick="GkAgentTool.toggleBookmark('${esc(q.id || '')}', this)">${bm ? '★ Saved' : '☆ Bookmark'}</button>${done ? '' : '<button class="gk-footbtn" onclick="GkAgentTool.reveal(this)">Show Answer</button>'}</div>`;
-    return `<div class="gk-card" data-idx="${index}"><div class="gk-card-head"><span class="gk-chip">Q ${bn(index + 1)}</span>${statusChip(index)}</div><div class="gk-crumb">GK • ডেইলি এজেন্ট •${q.date ? ' ' + dateBn(q.date) : ''} 📅</div><div class="gk-q">${esc(q.q)}</div><div class="gk-opts">${opts}</div>${fb}${footer}</div>`;
+    return `<div class="gk-card" data-idx="${index}"><div class="gk-card-head"><span class="gk-chip">Q ${bn(index + 1)}</span>${statusChip(index)}</div><div class="gk-crumb">GK • ডেইলি এজেন্ট${q.date ? ' • ' + dateBn(q.date) : ''}</div><div class="gk-q">${esc(q.q)}</div><div class="gk-opts">${opts}</div>${fb}${footer}</div>`;
   };
   const toggleBookmark = (qid, btn) => {
     try {
@@ -188,10 +188,22 @@
   const renderDateView = async () => `<div class="card" style="display:flex;align-items:center;gap:10px;justify-content:space-between"><button class="btn ghost sm" onclick="GkAgentTool.setTab('archive')">← আর্কাইভ</button><div style="text-align:right"><b>${dateBn(state.dayRows[0]?.date || '')}</b><div class="muted" style="font-size:12px">${bn(state.dayRows.length)}টি প্রশ্ন</div></div></div><div class="gk-list">${state.dayRows.map((q, i) => questionCard(q, i, false)).join('')}</div>`;
 
   // ── Flash ───────────────────────────────────────────────────────────────────
+  // GK প্রশ্ন → অ্যাপের question-শেপ; পরীক্ষা চলে অ্যাপের আসল ইঞ্জিনেই (flash/mock + ইতিহাস)
+  const toAppQ = (r, i) => {
+    const opts = (r.options || []).slice(0, 4).map(x => String(x));
+    const found = opts.findIndex(o => o.trim() === String(r.answer || '').trim());
+    return { id: r.id || 'gkx-' + i, subjectId: 'gkagent', topicId: null, question: r.q, options: opts, answerIndex: Math.max(0, found), explanation: r.explain || '' };
+  };
+  const startAppExam = async (pool, mode) => {
+    if (!pool.length) { window.toast?.('এই সেটে কোনো প্রশ্ন নেই'); return; }
+    if (typeof window.beginExamFromPool === 'function') { await window.beginExamFromPool(pool.map(toAppQ), mode); return true; }
+    return false;
+  };
   const startFlash = async date => {
     const rows = date ? await byDate(date) : state.dayRows.length ? state.dayRows : await allQuestions();
     if (!rows.length) { window.toast?.('এই সেটে কোনো প্রশ্ন নেই'); return; }
-    state.flash = { rows, index: 0, revealed: false, date: date || rows[0].date };
+    if (await startAppExam(rows, 'flash')) return; // অ্যাপ-ইঞ্জিন (হুবহু অ্যাপের মতো)
+    state.flash = { rows, index: 0, revealed: false, date: date || rows[0].date }; // ফলব্যাক
     state.tab = 'flash-run';
     GkAgentTool.render();
   };
@@ -210,6 +222,7 @@
     let pool = state.mockScope === 'all' ? await allQuestions() : (state.dayRows.length ? state.dayRows : await allQuestions());
     pool = shuffle(pool).slice(0, count);
     if (pool.length < 5) { window.toast?.('মক টেস্টের জন্য অন্তত ৫টি প্রশ্ন দরকার'); return; }
+    if (await startAppExam(pool, 'mock')) return;
     state.mock = { rows: pool.map((q, i) => ({ ...q, shuffled: shuffle(q.options.map((opt, oi) => ({ opt, correct: opt.trim() === q.answer.trim() })) ), index: i })), answers: {}, index: 0, done: false, startedAt: Date.now() };
     state.tab = 'mock-run';
     GkAgentTool.render();
@@ -238,6 +251,7 @@
 
   // ── Render ──────────────────────────────────────────────────────────────────
   const render = async () => {
+    gkStyleOnce();
     stopPoll();
     let body = '';
     try {
