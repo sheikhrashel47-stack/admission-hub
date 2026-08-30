@@ -210,9 +210,9 @@ const ASK_SCHEMA = {
   required: ['answer']
 };
 
-const ASK_PROMPT = (question, context, bankBlock) => `You are "স্টাডি বন্ধু" — a warm, friendly Bangla study-helper for a Bangladeshi university-admission candidate. Today: ${dhakaToday()} (Asia/Dhaka).
+const ASK_PROMPT = (question, context, bankBlock, histBlock) => `You are "স্টাডি বন্ধু" — a warm, friendly Bangla study-helper for a Bangladeshi university-admission candidate. Today: ${dhakaToday()} (Asia/Dhaka).
 User's question: """${question}"""
-${context ? `User's study context (use silently, never dump raw): ${context}` : ''}${bankBlock || ''}
+${context ? `User's study context (use silently, never dump raw): ${context}` : ''}${bankBlock || ''}${histBlock || ''}
 Rules: Reply in simple warm Bangla (তুমি-ফর্ম), 2-6 short lines, light emoji ok.${bankBlock ? ' When the bank block is present, base your answer primarily on it (it is the student\'s own verified bank) and mention you answered from their question bank.' : ''} FRESHNESS RULE (critical): for ANY factual, current-affairs, date/number/name, exam-deadline or "এখন/আজ/সর্বশেষ"-type question you MUST browse the live web RIGHT NOW and verify from at least one credible page you actually open before answering — Google-overview-level freshness is the minimum bar. NEVER answer such questions from memory/training data; a stale or outdated fact is a critical failure. If today's verified info cannot be found, say clearly what could not be verified instead of guessing. Always include source domains in sources. Never invent facts. End with a tiny nudge to keep studying.`;
 
 // ── ইউজারের প্রশ্নব্যাংক-মেমোরি: অ্যাপ থেকে আসা সব প্রশ্ন+ইতিহাস KV-তে ──
@@ -239,7 +239,7 @@ const bankUpload = async (request, env) => {
     let body = {}; try { body = await request.json(); } catch (_) {}
     const bank = normalizeBank(body.questions, body.stats);
     if (!bank.qs.length) return json(request, { error: 'empty-bank' }, 400);
-    await env.GK_KV.put('userBank', JSON.stringify({ ...bank, savedAt: Date.now() }));
+    await env.GK_KV.put('userBank', JSON.stringify({ ...bank, history: Array.isArray(body.history) ? body.history.slice(0, 25) : [], activity: body.activity && typeof body.activity === 'object' ? body.activity : {}, savedAt: Date.now() }));
     return json(request, { saved: true, count: bank.qs.length });
   } catch (_) { return json(request, { error: 'bank-failed' }, 500); }
 };
@@ -249,13 +249,25 @@ const bankInfo = async (request, env) => {
     const raw = await env.GK_KV.get('userBank');
     if (!raw) return json(request, { saved: false });
     const b = JSON.parse(raw);
-    return json(request, { saved: true, count: b.qs.length, stats: b.stats, savedAt: b.savedAt });
+    return json(request, { saved: true, count: b.qs.length, stats: b.stats, savedAt: b.savedAt, history: Array.isArray(b.history) ? b.history.length : 0, activity: b.activity || {} });
   } catch (_) { return json(request, { saved: false }); }
+};
+
+// ইতিহাস+অ্যাক্টিভিটি → এজেন্ট-প্রম্পট ব্লক (সাইলেন্ট-ইউজ)
+const histBlock = b => {
+  try {
+    const h = Array.isArray(b && b.history) ? b.history.slice(0, 10) : [];
+    const a = (b && b.activity) || {};
+    let out = '';
+    if (h.length) out += '\nপরীক্ষার ইতিহাস (নতুন→পুরনো): ' + h.map(x => `${(x && x.d) || ''} — ${((x && x.s) || '?')}${x && x.m ? ' (' + x.m + ')' : ''}`).join(' | ');
+    if (a && (a.exams || a.mistakes || a.vocab)) out += `\nঅ্যাক্টিভিটি: মোট পরীক্ষা ${a.exams || 0} · ভুল-নোট ${a.mistakes || 0} · শব্দ ${a.vocab || 0}`;
+    return out ? `\n(শিক্ষার্থীর পরীক্ষার ইতিহাস ও অ্যাক্টিভিটি — সাইলেন্টলি ব্যবহার করো, raw ডাম্প করো না)${out}` : '';
+  } catch (_) { return ''; }
 };
 
 // ব্যাংক থেকে প্রশ্নের সাথে মিলিয়ে top-পিক (subject ফিল্টারসহ)
 const bankPick = (bank, question, subject) => {
-  const toks = String(question).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(t => t.length > 2).slice(0, 20);
+  const toks = String(question).toLowerCase().split(/[^\p{L}\p{M}\p{N}]+/u).filter(t => t.length > 2).slice(0, 20);
   let pool = bank.qs || [];
   if (subject) { const f = pool.filter(q => (q.s || '').includes(subject) || (q.t || '').includes(subject)); if (f.length) pool = f; }
   return pool.map(q => {
@@ -273,24 +285,28 @@ const createAsk = async (request, env, ctx) => {
     let body = {};
     try { body = await request.json(); } catch (_) {}
     const question = String(body.question || '').trim().slice(0, 600);
-    const context = String(body.context || '').trim().slice(0, 700);
+    const context = String(body.context || '').trim().slice(0, 1200);
     if (!question) return json(request, { error: 'empty-question' }, 400);
     if (!keys(env).length) return json(request, { error: 'keys-not-configured' }, 503);
     const id = newId();
     const source = String(body.source || 'auto').slice(0, 60);
     let bankBlock = '';
-    if (source.startsWith('bank')) {
+    let histB = '';
+    {
       const raw = await env.GK_KV.get('userBank');
       if (raw) {
         const bank = JSON.parse(raw);
-        const subject = source.startsWith('bank:') ? decodeURIComponent(source.slice(5)) : '';
-        const picks = bankPick(bank, question, subject);
-        bankBlock = picks.length
-          ? `\nশিক্ষার্থীর নিজের প্রশ্নব্যাংক থেকে মিলে-যাওয়া প্রশ্ন-উত্তর (উত্তরের প্রধান ভিত্তি এগুলো):\n${picks.map((q, i) => `${i + 1}) প্র: ${q.q}\n${(q.o || []).map((o, oi) => `   ${'কখগঘঙ'[oi] || oi + 1}) ${o}`).join('\n')}\n   উত্তর: ${q.a}${q.e ? ` — ${q.e}` : ''}`).join('\n')}\n`
-          : `\n(শিক্ষার্থীর প্রশ্নব্যাংকে এই বিষয়ে সরাসরি মিল পাওয়া যায়নি — তার অবস্থা মাথায় রেখে সাবধানে উত্তর দাও।)\n`;
+        histB = histBlock(bank);
+        if (source.startsWith('bank')) {
+          const subject = source.startsWith('bank:') ? decodeURIComponent(source.slice(5)) : '';
+          const picks = bankPick(bank, question, subject);
+          bankBlock = picks.length
+            ? `\nশিক্ষার্থীর নিজের প্রশ্নব্যাংক থেকে মিলে-যাওয়া প্রশ্ন-উত্তর (উত্তরের প্রধান ভিত্তি এগুলো):\n${picks.map((q, i) => `${i + 1}) প্র: ${q.q}\n${(q.o || []).map((o, oi) => `   ${'কখগঘঙ'[oi] || oi + 1}) ${o}`).join('\n')}\n   উত্তর: ${q.a}${q.e ? ` — ${q.e}` : ''}`).join('\n')}\n`
+            : `\n(শিক্ষার্থীর প্রশ্নব্যাংকে এই বিষয়ে সরাসরি মিল পাওয়া যায়নি — তার অবস্থা মাথায় রেখে সাবধানে উত্তর দাও।)\n`;
+        }
       }
     }
-    const askBody = { task: ASK_PROMPT(question, context, bankBlock), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 14, structuredOutput: JSON.stringify(ASK_SCHEMA), flashMode: false };
+    const askBody = { task: ASK_PROMPT(question, context, bankBlock, histB), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 14, structuredOutput: JSON.stringify(ASK_SCHEMA), flashMode: false };
     const askKey = String(env.ASK_API_KEY || '').trim();
     if (!askKey) return json(request, { error: 'ask-key-not-configured' }, 503);
     let job = await createWithFailover(env, date, askBody, 0, [askKey]); // dedicated চ্যাট-key
@@ -437,4 +453,4 @@ export default {
   }
 };
 
-export const __test = { tryCreate, createWithFailover, parseOutput, dhakaToday, keys, GK_PROMPT, GK_SCHEMA, NEWS_SCHEMA, finalizeResults, normalizeBank, bankPick };
+export const __test = { tryCreate, createWithFailover, parseOutput, dhakaToday, keys, GK_PROMPT, GK_SCHEMA, NEWS_SCHEMA, finalizeResults, normalizeBank, bankPick, bankUpload, bankInfo, ASK_PROMPT, histBlock };
