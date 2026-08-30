@@ -979,7 +979,7 @@ function renderShell(innerHtml, opts){
 }
 function topbarHtml(opts){
   return `<div class="topbar">
-    ${opts.back ? `<button class="backbtn" onclick="${opts.back}">←</button>` : ''}
+    ${opts.back ? `<button class="backbtn" onclick="${opts.back}">${opts.iconBack||'←'}</button>` : ''}
     <h1>${opts.title||''}</h1>
     ${(opts.actions||[]).join('')}
   </div>`;
@@ -3593,6 +3593,7 @@ function renderResultView(r, isFresh){
     else if(revealSkippedCorrect) cls+=' is-correct';
     return `<div class="${cls}"><span class="result-option-letter">${String.fromCharCode(65+oi)}</span><span class="result-option-text">${esc(opt)}</span>${revealSkippedCorrect?'<span class="result-option-note">✓ সঠিক উত্তর</span>':''}</div>`;
   }).join('');
+  window.__ahQueueNote=window.__ahQueueNote||((s2)=>{try{const q2=CACHE.questions.find(x=>x.id===s2.questionId)||{};(window.__ahNotes=window.__ahNotes||[]).push({qid:s2.questionId,ctx:{q:s2,options:s2.options,correctText:(s2.options||[])[s2.answerIndex],student:s2.selected,wrong:true,subject:subjectName(q2.subjectId||s2.subjectId||''),topic:topicName(q2.topicId||s2.topicId||''),mode:r.mode||'mock'}});clearTimeout(window.__ahNotesT);window.__ahNotesT=setTimeout(()=>{const L=window.__ahNotes||[];window.__ahNotes=[];if(window.AiExplain&&L.length)window.AiExplain.autoExplain(L)},1200);}catch(_e){}});
   const reviewCard=(s)=>{
     const qnum=sn.findIndex(x=>x.questionId===s.questionId)+1, seconds=s.timing&&s.timing.ms?round2(s.timing.ms/1000):0;
     const isSaved=!!(CACHE.questions.find(q=>q.id===s.questionId)||{}).bookmarked;
@@ -3603,7 +3604,7 @@ function renderResultView(r, isFresh){
       <h3 class="result-question">${esc(s.question||'প্রশ্নের তথ্য পাওয়া যায়নি')}</h3>
       <div class="result-options">${optionHtml(s)}</div>
       ${s.explanation?`<div class="result-explanation"><b>💡 ব্যাখ্যা</b><div>${esc(s.explanation)}</div></div>`:''}
-      ${status==='wrong'&&window.AiExplain?(()=>{const qrow=CACHE.questions.find(x=>x.id===s.questionId)||{};return AiExplain.btn(s.questionId,{q:s,options:s.options,correctText:(s.options||[])[s.answerIndex],student:s.selected,wrong:true,subject:subjectName(qrow.subjectId||s.subjectId)||'',topic:topicName(qrow.topicId||s.topicId)||'',mode:r.mode||'mock'});})():''}
+      ${status==='wrong'&&window.AiExplain?(()=>{try{window.__ahQueueNote&&window.__ahQueueNote(s)}catch(_e){}const qrow=CACHE.questions.find(x=>x.id===s.questionId)||{};return AiExplain.btn(s.questionId,{q:s,options:s.options,correctText:(s.options||[])[s.answerIndex],student:s.selected,wrong:true,subject:subjectName(qrow.subjectId||s.subjectId)||'',topic:topicName(qrow.topicId||s.topicId)||'',mode:r.mode||'mock'});})():''}
       <div class="result-actions"><button class="result-action ${isSaved?'saved':''}" onclick="resultToggleBookmark('${s.questionId}')">${isSaved?'★ Saved':'☆ Bookmark'}</button>${status==='wrong'?`<button class="result-action ${isMistake?'saved':''}" onclick="resultAddMistake('${s.questionId}','${r.id}')">${isMistake?'✓ ভুলের খাতায় আছে':'📕 ভুলের খাতায় যোগ করুন'}</button><button class="result-action primary" onclick="resultPracticeOne('${r.id}','${s.questionId}')">🔁 আবার অনুশীলন করুন</button>`:''}</div>
     </article>`;
   };
@@ -5090,7 +5091,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       // An older worker can keep serving the pre-fix navigation bundle in an
       // installed PWA. Remove that controller once, then install the current
       // worker with a fresh build URL.
-      const expectedSwVersion = 'v124-drawer-20260831';
+      const expectedSwVersion = 'v125-brain-20260831';
       if (registration && activeUrl && !activeUrl.includes(expectedSwVersion)) {
         await registration.unregister().catch(()=>{});
         registration=null;
@@ -5373,7 +5374,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="mobile-ux-fix.js?v=1"></script>
 <script src="notes-tool.js?v=dashboard-notes-v9-compact-pages"></script>
 <script src="deleted-questions.js?v=trash5-clean"></script>
-<script src="ai-explain-tool.js?v=aiex-v2"></script>
+<script src="ai-explain-tool.js?v=aiex-v3"></script>
 <script src="nav-resume-fix.js?v=1"></script>
 <script src="mistake-note-icon.js?v=16-aiex"></script>
 <script src="experience-studio-store.js?v=2"></script>
@@ -5598,7 +5599,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./vocabulary-elevenlabs.js?v=el-voice-v105"></script>
 <script src="./notification-hub.js?v=notify-v110"></script>
 <script src="./gk-agent-tool.js?v=gk-v115"></script>
-<script src="./study-ai-tool.js?v=studyai-v124"></script>
+<script src="./study-ai-tool.js?v=studyai-v125"></script>
 <script src="./bug-agent-tool.js?v=bugagent-v112"></script>
 <script src="./memorizing-match-tool.js?v=memorizing-match-v8-stable-cards"></script>
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>

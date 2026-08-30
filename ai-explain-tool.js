@@ -128,6 +128,19 @@ Explain to the student in clear simple Bengali (তুমি-ফর্ম). Requ
     generate(qid, ctx.q, ctx).then(text => mount(qid, panelHTML(qid, 'done', text))).catch(() => mount(qid, panelHTML(qid, 'error', '')));
   }
   function open(qid, q, c) { ensureCtx(qid, q, c); toggle(qid, null); }
+  // 🤖 অটো-নোট: রেজাল্টের ভুল-প্রশ্নগুলোর ব্যাখ্যা নিজে থেকেই তৈরি+সেভ (এক-প্রশ্ন=এক-রিকোয়েস্ট, ক্যাশ-রিইউজ)
+  async function autoExplain(list) {
+    const items = (Array.isArray(list) ? list : []).slice(0, 12);
+    for (const it of items) {
+      try {
+        const qid = String(it.qid || '');
+        if (!qid || savedExp(qid) || _inflight[qid]) continue;
+        await generate(qid, it.ctx && it.ctx.q, it.ctx || {});
+        await new Promise(r => setTimeout(r, 700));
+      } catch (_) {}
+    }
+  }
+
   function retry(qid) { const ctx = ctxStore[qid] || {}; mount(qid, panelHTML(qid, 'loading', '')); generate(qid, ctx.q, ctx).then(text => mount(qid, panelHTML(qid, 'done', text))).catch(() => mount(qid, panelHTML(qid, 'error', ''))); }
   function collapse(qid) { const el = document.getElementById('aiex-p-' + cid(qid)); if (el) el.remove(); }
   function toNote(qid) {
@@ -157,7 +170,7 @@ Explain to the student in clear simple Bengali (তুমি-ফর্ম). Requ
 .aiex-btn{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--emerald,#0f6b4f);color:var(--emerald-d,#0b5a42);border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px rgba(15,107,79,.10)}
 .aiex-btn.urge{background:var(--emerald,#0f6b4f);color:#fff}
 .aiex-btn:active{transform:scale(.97)}
-.aiex-panel{margin-top:8px;background:#fbfefc;border:1px solid #d9e8df;border-left:4px solid var(--emerald,#0f6b4f);border-radius:14px;padding:12px 14px;height:auto;animation:aiexIn .25s ease}
+.aiex-panel{margin:6px -6px 2px;background:#fbfefc;border:1px solid #d9e8df;border-left:4px solid var(--emerald,#0f6b4f);border-radius:14px;padding:12px 12px;height:auto;animation:aiexIn .25s ease}
 @keyframes aiexIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .aiex-head{display:flex;justify-content:space-between;align-items:center;font-weight:800;font-size:13.5px;color:var(--emerald-d,#0b5a42);margin-bottom:6px}
 .aiex-saved{font-size:10px;color:#5f7a6d;font-weight:600}
@@ -179,5 +192,5 @@ Explain to the student in clear simple Bengali (তুমি-ফর্ম). Requ
   open && (window.__aiexOpenRaw = open);
   const openStyled = function (qid, q, c) { styleOnce(); ensureCtx(qid, q, c); const saved = savedExp(qid); mount(qid, panelHTML(qid, saved ? 'done' : 'loading', saved)); if (!saved) generate(qid, q, c).then(t => mount(qid, panelHTML(qid, 'done', t))).catch(() => mount(qid, panelHTML(qid, 'error', ''))); };
 
-  window.AiExplain = { btn: (qid, c) => { styleOnce(); return btn(qid, c); }, toggle: (qid, el) => { styleOnce(); return origToggle(qid, el); }, open: openStyled, retry, collapse, toNote, savedExp, _inflight: inflight };
+  window.AiExplain = { btn: (qid, c) => { styleOnce(); return btn(qid, c); }, toggle: (qid, el) => { styleOnce(); return origToggle(qid, el); }, open: openStyled, retry, collapse, toNote, savedExp, autoExplain, _inflight: inflight };
 })();

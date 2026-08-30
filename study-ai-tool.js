@@ -157,15 +157,58 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
 
   // ── ⚡ অপশনাল ফাস্ট-ইঞ্জিন (Settings থেকে key) ─────────────────────────────────
   const keyList = pv => { const k = cfg().keys[pv]; return (Array.isArray(k) ? k : (k ? [k] : [])).map(x => String(x || '').trim()).filter(Boolean); };
-  const VL_DEFAULT = { openrouter: 'google/gemma-4-31b-it:free', hf: 'meta-llama/Llama-3.2-11B-Vision-Instruct', xai: 'grok-4.3' };
+  const VL_DEFAULT = { openrouter: 'google/gemma-4-31b-it:free', hf: 'meta-llama/Llama-3.2-11B-Vision-Instruct' };
+  // 🧠 লাইভ-ব্রেইন: ব্যাংক-সারাংশ + পুরনো চ্যাটের স্মৃতি — প্রতি মেসেজে তাজা (Gemini + OpenRouter; HF নয়)
+  const buildBrain = () => {
+    try {
+      const c = cache();
+      const qs = c.questions || [];
+      const subs = [...new Set((c.subjects || []).map(x => String(x.name || '').trim()).filter(Boolean))];
+      let out = '[লাইভ-মেমোরি — অ্যাপের এখনকার অবস্থা]\nপ্রশ্নব্যাংক: ' + bn(qs.length) + 'টি প্রশ্ন' + (subs.length ? ' · বিষয়: ' + subs.join(', ') : '');
+      const wrongs = (c.mistakes || []).slice(-6).map(m => { const q = qs.find(x => x && x.id === (m.questionId || (m.q || {}).id)); return q ? String(q.question || '').slice(0, 70) : ''; }).filter(Boolean);
+      if (wrongs.length) out += '\nসাম্প্রতিক ভুল: ' + wrongs.join(' | ');
+      const last = (c.examResults || []).slice(-1)[0];
+      if (last) out += '\nশেষ পরীক্ষা: ' + bn(last.correctCount ?? last.score ?? 0) + '/' + bn(last.totalQuestions || 0) + ' সঠিক';
+      const lines = [];
+      listChats().filter(ch => ch.id !== curId()).slice(0, 3).forEach(ch => {
+        const ms = msgsOf(ch.id).filter(m => m.text).slice(-3);
+        if (ms.length) lines.push('— ' + String(ch.title || 'চ্যাট').slice(0, 30) + ': ' + ms.map(m => (m.who === 'me' ? 'ইউজার' : 'AI') + ': ' + String(m.text).slice(0, 110)).join(' § '));
+      });
+      if (lines.length) out += '\nআগের চ্যাটের স্মৃতি:\n' + lines.join('\n').slice(0, 1200);
+      return out.slice(0, 2000);
+    } catch (_) { return ''; }
+  };
   const fastAvailable = () => keyList(cfg().provider).length > 0;
   const gemSources = d => { try { const ch = (d.candidates?.[0]?.groundingMetadata?.groundingChunks || []).map(c => { try { return String(new URL(c.web.uri).hostname).replace(/^www\./, ''); } catch (_) { return ''; } }).filter(Boolean); return [...new Set(ch)].slice(0, 4); } catch (_) { return []; } };
+  const shrinkB64 = b64 => new Promise(res => {
+    try {
+      const cv = document.createElement('canvas');
+      if (!cv.getContext || !cv.getContext('2d')) { res(b64); return; }
+      const im = new Image();
+      const to = setTimeout(() => res(b64), 3000);
+      im.onload = () => { clearTimeout(to); try { const k = Math.min(1, 720 / Math.max(im.width || 1, im.height || 1)); const cv2 = document.createElement('canvas'); cv2.width = Math.max(1, Math.round((im.width || 1) * k)); cv2.height = Math.max(1, Math.round((im.height || 1) * k)); cv2.getContext('2d').drawImage(im, 0, 0, cv2.width, cv2.height); res(cv2.toDataURL('image/jpeg', 0.82).split(',')[1] || b64); } catch (_) { res(b64); } };
+      im.onerror = () => { clearTimeout(to); res(b64); };
+      im.src = 'data:image/png;base64,' + b64;
+    } catch (_) { res(b64); }
+  });
   const askFast = async (question, atts, abortRef) => {
     const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
     if (abortRef && ctl) { const iv = setInterval(() => { if (abortRef.aborted) { try { ctl.abort(); } catch (_) {} clearInterval(iv); } }, 400); setTimeout(() => clearInterval(iv), 240000); }
     const c = cfg(); const key = keyList(c.provider)[0] || '';
     if (!key) throw new Error('Settings-এ key নেই — 🌐 এজেন্ট মোড়ে পাঠাও বা key বসাও');
     const list = Array.isArray(atts) ? atts : [];
+    const brain = (c.provider === 'gemini' || c.provider === 'openrouter') ? buildBrain() : '';
+    // 🎨 ছবি-আঁকা — যেকোনো ইঞ্জিন থেকে Gemini-ইমেজ-মডেলে
+    if (/(ছবি|চিত্র)[^\n.]{0,26}(বানাও|আঁকো|আঁকা|তৈরি|জেনারেট)|(বানাও|আঁকো)[^\n.]{0,20}ছবি|(generate|create|draw)[^\n.]{0,16}(image|picture)|^\/img/i.test(question)) {
+      const gk = keyList('gemini')[0];
+      if (!gk) throw new Error('ছবি আঁকতে Gemini-র key দরকার 🎨 — ⚙️ সেটিংসে key বসাও, তারপর যেকোনো ইঞ্জিন থেকেই ছবি আঁকা যাবে');
+      const gd = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent', Object.assign({ method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': gk }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Generate an image: ' + question }] }] }) }, ctl ? { signal: ctl.signal } : {})).then(r => r.json()).catch(() => ({}));
+      const gparts = (gd?.candidates?.[0]?.content?.parts || []);
+      const gimg = gparts.find(pp => pp.inline_data && pp.inline_data.data);
+      const gcap = gparts.filter(pp => pp.text).map(pp => pp.text).join(' ').slice(0, 180);
+      if (!gimg) throw new Error('ছবি আঁকা গেল না এখন 😅 — একটু পরে আবার বলো');
+      return { text: gcap || 'ছবি তৈরি হয়েছে ✨', img: (await shrinkB64(String(gimg.inline_data.data))) || undefined };
+    }
     const imgs = list.filter(a => a.kind === 'image'), txts = list.filter(a => a.kind === 'text');
     const qText = question + txts.map(a => `\n\n📎 "${a.name}" ফাইলের বিষয়বস্তু:\n${(a.text || '').slice(0, 9000)}`).join('');
     if (c.provider === 'gemini') {
@@ -174,7 +217,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       const histParts = msgsOf(curId()).filter(m => m.text).slice(-8).map(m => ({ role: m.who === 'ai' ? 'model' : 'user', parts: [{ text: m.text }] }));
       if (histParts.length) histParts[histParts.length - 1] = { role: 'user', parts: [{ text: qText }, ...imgs.filter(i => i.data).map(i => ({ inline_data: { mime_type: i.mime || 'image/jpeg', data: i.data } }))] };
       else histParts.push({ role: 'user', parts: [{ text: qText }, ...imgs.filter(i => i.data).map(i => ({ inline_data: { mime_type: i.mime || 'image/jpeg', data: i.data } }))] });
-      const gCall = (model, useTools, k) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, Object.assign({ method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, body: JSON.stringify(Object.assign({ system_instruction: { parts: [{ text: sysPrompt() }] }, contents: histParts, generationConfig: { temperature: 0.5, maxOutputTokens: 2048 } }, useTools ? { tools: [{ google_search: {} }] } : {})) }, ctl ? { signal: ctl.signal } : {}));
+      const gCall = (model, useTools, k) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, Object.assign({ method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, body: JSON.stringify(Object.assign({ system_instruction: { parts: [{ text: sysPrompt() + (brain ? '\n\n' + brain : '') }] }, contents: histParts, generationConfig: { temperature: 0.5, maxOutputTokens: 2048 } }, useTools ? { tools: [{ google_search: {} }] } : {})) }, ctl ? { signal: ctl.signal } : {}));
       let lastMsg = '', lastStatus = 0;
       for (const k of gKeys) {
         for (const model of gModels) {
@@ -194,9 +237,9 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       throw new Error(/high demand/i.test(lastMsg) ? 'Gemini-র সার্ভার এখন ভিড়াল 😵 — একটু পরে আবার পাঠাও, বা কম্পোজারের ব্যাজ চেপে অন্য ইঞ্জিনে বদলাও' : (lastStatus === 429 ? 'Gemini-র ফ্রি-কোটা শেষ — ১ মিনিট পরে আবার, বা 🌐 এজেন্টে বদলাও' : (lastMsg || 'Gemini এখন উত্তর দিচ্ছে না — একটু পরে আবার')));
     }
     const pv = c.provider;
-    const base = pv === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : pv === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' : pv === 'hf' ? 'https://router.huggingface.co/v1/chat/completions' : 'https://api.x.ai/v1/chat/completions';
-    const model = c.model || ({ groq: 'llama-3.3-70b-versatile', xai: 'grok-4.3', openrouter: 'openrouter/auto', hf: 'meta-llama/Llama-3.1-8B-Instruct' }[pv] || 'grok-4.3');
-    const modelChain = [...new Set([model, { groq: 'llama-3.1-8b-instant', xai: 'grok-4.20', openrouter: 'meta-llama/llama-3.3-70b-instruct:free', hf: 'meta-llama/Llama-3.3-70B-Instruct' }[pv]].filter(Boolean))];
+    const base = pv === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : pv === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' : 'https://router.huggingface.co/v1/chat/completions';
+    const model = c.model || ({ groq: 'llama-3.3-70b-versatile', openrouter: 'openrouter/auto', hf: 'meta-llama/Llama-3.1-8B-Instruct' }[pv] || 'llama-3.3-70b-versatile');
+    const modelChain = [...new Set([model, { groq: 'llama-3.1-8b-instant', openrouter: 'meta-llama/llama-3.3-70b-instruct:free', hf: 'meta-llama/Llama-3.3-70B-Instruct' }[pv]].filter(Boolean))];
     const extraH = pv === 'openrouter' ? { 'HTTP-Referer': 'https://sheikhrashel47-stack.github.io/admission-hub/', 'X-Title': 'Admihub' } : {};
     if (imgs.length) {
       const vmodel = c.model || VL_DEFAULT[pv];
@@ -210,7 +253,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       if (!vres.ok) throw new Error(vres.status === 429 ? 'এই ভিশন-মডেলের কোটা এখন শেষ — একটু পরে আবার' : (vd?.error?.message || 'ছবি-বিশ্লেষণে সমস্যা (HTTP ' + vres.status + ')'));
       return { text: String(vd.choices?.[0]?.message?.content || '').trim() || 'ছবি দেখতে পারলাম না — আবার পাঠাও?', sources: [] };
     }
-    const msgs = [{ role: 'system', content: sysPrompt() }, ...msgsOf(curId()).filter(m => m.text).slice(-8).map((m, i, arr) => ({ role: m.who === 'ai' ? 'assistant' : 'user', content: i === arr.length - 1 ? qText : m.text }))].slice(0, 9);
+    const msgs = [{ role: 'system', content: sysPrompt() + (brain ? '\n\n' + brain : '') }, ...msgsOf(curId()).filter(m => m.text).slice(-8).map((m, i, arr) => ({ role: m.who === 'ai' ? 'assistant' : 'user', content: i === arr.length - 1 ? qText : m.text }))].slice(0, 9);
     let lastD = {}, lastStatus = 0;
     for (const model of modelChain) {
       const res = await fetch(base, Object.assign({ method: 'POST', headers: Object.assign({ 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, extraH), body: JSON.stringify(pv === 'openrouter' ? { model, models: modelChain, messages: msgs, temperature: 0.5, max_tokens: 1024 } : { model, messages: msgs, temperature: 0.5, max_tokens: 1024 }) }, ctl ? { signal: ctl.signal } : {}));
@@ -233,7 +276,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         const d = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
       } else {
-        const base = c.provider === 'groq' ? 'https://api.groq.com/openai/v1/models' : c.provider === 'openrouter' ? 'https://openrouter.ai/api/v1/models' : c.provider === 'hf' ? 'https://router.huggingface.co/v1/models' : 'https://api.x.ai/v1/models';
+        const base = c.provider === 'groq' ? 'https://api.groq.com/openai/v1/models' : c.provider === 'openrouter' ? 'https://openrouter.ai/api/v1/models' : 'https://router.huggingface.co/v1/models';
         const res = await fetch(base, { headers: { Authorization: 'Bearer ' + k } });
         const d = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
@@ -304,14 +347,14 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const atts = (m.atts || []).map(a => a.kind === 'image' && (a.view || a.thumb) ? `<img class="sai-att" src="${a.view || a.thumb}" alt="${esc(a.name)}" onclick="StudyAiTool.viewer('${m.id}');event.stopPropagation()" role="button" aria-label="ছবি বড় করে দেখো">` : `<span class="sai-attfile">📄 ${esc(a.name)}</span>`).join('');
     let inner = '';
     if (m.who === 'ai' && !m.text && m.status === 'pending') {
-      inner = `<div class="sai-typing"><span class="sai-dots3d"><i></i><i></i><i></i></span><div class="sai-wait">${m.phase === 'run' ? '🤖 ' : '🌐 '}<span class="sai-shimmer">${m.phase === 'run' ? 'এজেন্ট কাজ করছে…' : 'চিন্তা করছি…'}</span><br><small>${m.steps && m.steps.length ? 'ধাপ ' + bn(m.steps.length) + ' সম্পন্ন' : 'সাধারণত ১০ সেকেন্ড–২ মিনিট'}</small></div></div>`;
+      inner = `<div class="sai-typing"><span class="sai-orb"><b></b><b></b></span><div class="sai-wait">${m.phase === 'run' ? '🤖 ' : '🌐 '}<span class="sai-shimmer">${m.phase === 'run' ? 'এজেন্ট কাজ করছে…' : 'চিন্তা করছি…'}</span><br><small>${m.steps && m.steps.length ? 'ধাপ ' + bn(m.steps.length) + ' সম্পন্ন' : 'সাধারণত ১০ সেকেন্ড–২ মিনিট'}</small></div></div>`;
       if (m.steps && m.steps.length) inner += `<details class="sai-activity"><summary>▸ Agent activity <span class="muted">${bn(m.steps.length)} ধাপ</span></summary>${m.steps.map(st => `<div class="sai-step">✓ ${esc(st)}</div>`).join('')}</details>`;
     } else if (m.status === 'error') {
       inner = `<div class="sai-errbubble">⚠️ ${esc(m.errText || 'কিছু একটা সমস্যা হয়েছে')}</div>`;
     } else if (m.status === 'cancelled') {
       inner = `<div class="sai-cancelbubble">⏹ Generation stopped</div>`;
     } else {
-      inner = `<div class="sai-md">${md(m.text)}</div>${m.sources && m.sources.length ? `<div class="sai-src">🔗 ${m.sources.map(esc).join(' · ')}</div>` : ''}`;
+      inner = `${m.img ? `<img class="sai-att" style="width:100%;max-width:340px;border-radius:14px;display:block;margin-bottom:8px" src="data:image/jpeg;base64,${m.img}" alt="তৈরি করা ছবি">` : ''}<div class="sai-md">${md(m.text)}</div>${m.sources && m.sources.length ? `<div class="sai-src">🔗 ${m.sources.map(esc).join(' · ')}</div>` : ''}`;
       if (m.steps && m.steps.length && m.status === 'completed') inner += `<details class="sai-activity"><summary>▸ Agent activity <span class="muted">${bn(m.steps.length)} ধাপ</span></summary>${m.steps.map(st => `<div class="sai-step">✓ ${esc(st)}</div>`).join('')}</details>`;
       if (m.fb === 'good') inner += `<div class="sai-fbnote">দারুণ — ধন্যবাদ! 🌱</div>`;
       if (m.fb === 'bad') inner += `<div class="sai-fbnote">জানালোর জন্য ধন্যবাদ — পরেরবার আরও ভালো করবো 🙏</div>`;
@@ -338,7 +381,6 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         ${item(c.engine === 'agent', '🌐 ব্রাউজার এজেন্ট', 'ওয়েব ঘেঁটে যাচাই করা উত্তর', "StudyAiTool.setEngine('agent')")}
         ${item(c.engine === 'fast' && c.provider === 'gemini', '⚡ Gemini', keyList('gemini').length ? 'তোমার key-তে চলছে' : 'key নেই — সেটিংসে বসাও', "StudyAiTool.pickEngine('gemini')", true)}
         ${item(c.engine === 'fast' && c.provider === 'groq', '⚡ Groq', keyList('groq').length ? 'তোমার key-তে চলছে' : 'key নেই', "StudyAiTool.pickEngine('groq')", true)}
-        ${item(c.engine === 'fast' && c.provider === 'xai', '⚡ Grok', keyList('xai').length ? 'তোমার key-তে চলছে' : 'key নেই', "StudyAiTool.pickEngine('xai')", true)}
         ${item(c.engine === 'fast' && c.provider === 'openrouter', '⚡ OpenRouter', keyList('openrouter').length ? 'তোমার key-তে চলছে' : 'key নেই', "StudyAiTool.pickEngine('openrouter')", true)}
         ${item(c.engine === 'fast' && c.provider === 'hf', '⚡ Hugging Face', keyList('hf').length ? 'তোমার key-তে চলছে' : 'key নেই', "StudyAiTool.pickEngine('hf')", true)}
       </div></div></div>`;
@@ -350,6 +392,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       return `<div class="sai-drawer-bg" onclick="StudyAiTool.closeSheet()"><aside class="sai-drawer" onclick="event.stopPropagation()" role="dialog" aria-label="মেনু">
         <div class="sai-dhead"><b>${engTitle()}</b><button class="sai-dclose" onclick="StudyAiTool.closeSheet()" aria-label="বন্ধ">✕</button></div>
         <div class="sai-dscroll">
+          ${drow('🏠', 'ড্যাশবোর্ডে ফেরি', 'মূল অ্যাপে ফিরে যাও', "StudyAiTool.closeSheet();navigate('dashboard')")}
           ${drow('✏️', 'নতুন চ্যাট', 'একদম শূন্য থেকে', "StudyAiTool.newChat()")}
           ${drow('⊕', 'সোর্স', 'AI কোথা থেকে উত্তর দেবে', "StudyAiTool.openSheet('source')")}
           ${drow('⚡', 'ইঞ্জিন', 'এখন উত্তর দিচ্ছে: ' + (ENG_LABEL[c.provider] || 'Admihub AI'), "StudyAiTool.openSheet('engine')")}
@@ -395,11 +438,10 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         <div class="muted" style="font-size:11px;margin-bottom:12px">${c.engine === 'agent' ? 'সত্যিই ওয়েব ঘেঁটে যাচাই করে উত্তর দেয় — ১০ সেকেন্ড–৩ মিনিট (সবচেয়ে নির্ভরযোগ্য)' : 'সরাসরি API — দ্রুত; চালু হলে Gemini Google-সার্চ করে টাটকা তথ্য দেয় (কোটা না চললে সাধারণ উত্তর)'}</div>
         <label class="flabel">API Provider — যেকোনো সময় বসাও/মুছো/বদলাও</label>
         ${prov('gemini', 'Gemini (ফ্রি key: aistudio.google.com)')}
-        ${prov('xai', 'Grok (x.ai)')}
         ${prov('groq', 'Groq (console.groq.com)')}
         ${prov('openrouter', 'OpenRouter (openrouter.ai/keys)')}
         ${prov('hf', 'Hugging Face (hf.co/settings/tokens)')}
-        <label class="flabel">মডেল (ঐচ্ছিক)</label><input type="text" placeholder="${c.provider === 'xai' ? 'grok-4.3' : c.provider === 'groq' ? 'llama-3.3-70b-versatile' : c.provider === 'openrouter' ? 'openrouter/auto' : c.provider === 'hf' ? 'meta-llama/Llama-3.1-8B-Instruct' : 'gemini-3.6-flash'}" value="${esc(c.model || '')}" onchange="StudyAiTool.setModel(this.value)">
+        <label class="flabel">মডেল (ঐচ্ছিক)</label><input type="text" placeholder="${c.provider === 'groq' ? 'llama-3.3-70b-versatile' : c.provider === 'openrouter' ? 'openrouter/auto' : c.provider === 'hf' ? 'meta-llama/Llama-3.1-8B-Instruct' : 'gemini-3.6-flash'}" value="${esc(c.model || '')}" onchange="StudyAiTool.setModel(this.value)">
         <div class="row" style="gap:8px;margin:10px 0 4px"><button class="btn secondary sm" onclick="StudyAiTool.testKey()">🔑 key-টেস্ট করো</button></div>
         ${state.keyTest ? `<div class="${state.keyTest.ok === true ? 'sai-memok' : state.keyTest.ok === false ? 'sai-ghostbtn' : 'muted'}" style="display:block;font-size:12px;margin-top:6px">${esc(state.keyTest.msg)}</div>` : ''}
         <label class="flabel" style="margin-top:16px">থিম</label>
@@ -496,7 +538,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const sh = document.getElementById('saiSheetRoot'); if (sh) sh.innerHTML = sheet();
   };
 
-  const ENG_LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter', hf: 'Hugging Face', xai: 'Grok' };
+  const ENG_LABEL = { gemini: 'Gemini', groq: 'Groq', openrouter: 'OpenRouter', hf: 'Hugging Face' };
   const engTitle = () => { const c = cfg(); return c.engine === 'fast' ? '⚡ ' + (ENG_LABEL[c.provider] || 'Fast') : '🌐 Admihub AI'; };
   const render = () => {
     ensureChat(); fixIds(curId());
@@ -505,7 +547,8 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     renderShell(`<div id="saiBody"></div><div id="saiSheetRoot"></div>`, {
       title: engTitle(),
       hideNav: true,
-      back: "navigate('dashboard')",
+      back: "StudyAiTool.openSheet('menu')",
+      iconBack: '☰',
       actions: [`<button class="sai-topicon" onclick="StudyAiTool.openSheet('menu')" aria-label="মেনু">⋯</button>`]
     });
     if (!document.getElementById('saiAgentStyle')) {
@@ -545,7 +588,8 @@ body{overflow-x:hidden}
 .sai-dtx small{font-size:11px;color:#8ba398;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sai-dsec{font-size:11px;font-weight:800;letter-spacing:.06em;color:#93a89d;padding:14px 10px 6px}
 .sai-dfoot{border-top:1px solid #edf2ee;padding-top:8px;margin-top:6px}
-.topbar h1{max-width:48vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar h1{max-width:52vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topbar:has(.sai-topicon){background:transparent;border-bottom:none;box-shadow:none}
 .sai-engchip{margin-left:auto;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:700;color:var(--sub,#6b7280);cursor:pointer}
 .sai-engchip.fast{background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f59e0b;color:#92400e}
 .sai-attachbar{display:flex;flex-wrap:wrap;gap:6px;padding:6px 2px}
@@ -561,16 +605,21 @@ body{overflow-x:hidden}
 .sai-row{display:flex;margin:9px 0;animation:saiIn .38s cubic-bezier(.2,.9,.3,1.1)}
 .sai-row.me{justify-content:flex-end}
 @keyframes saiIn{from{opacity:0;transform:translateY(14px) scale(.96)}to{opacity:1;transform:none}}
-.sai-bubble{max-width:84%;padding:12px 15px;border-radius:20px;font-size:14.5px;line-height:1.65;white-space:pre-wrap;box-shadow:0 2px 10px rgba(16,24,40,.06)}
-.me .sai-bubble{background:var(--sai-mebg,linear-gradient(135deg,#12835f,#0d5f46));color:var(--sai-metx,#fff);border-bottom-right-radius:8px;box-shadow:0 4px 14px rgba(15,107,79,.3)}
-.ai .sai-bubble{background:#fff;border:1px solid var(--line,#e7ece9);border-bottom-left-radius:7px;box-shadow:0 3px 14px rgba(16,24,40,.06)}
+.sai-bubble{max-width:92%;padding:13px 16px;border-radius:16px;font-size:15px;line-height:1.68;white-space:pre-wrap;box-shadow:0 2px 10px rgba(16,24,40,.06)}
+.me .sai-bubble{background:#0e7a58;color:#fff;font-weight:600;border-bottom-right-radius:5px;box-shadow:0 4px 14px rgba(15,107,79,.3)}
+.ai .sai-bubble{background:#fff;border:1px solid var(--line,#e7ece9);border-bottom-left-radius:5px;box-shadow:0 3px 14px rgba(16,24,40,.06)}
 .sai-src{margin-top:8px;font-size:11px;color:var(--sub,#6b7280)}
 .sai-wait{margin-top:8px;font-size:11px;color:var(--sub,#6b7280);line-height:1.5}
-.sai-typing{display:flex;align-items:center;gap:11px}
-.sai-dots3d{display:inline-flex;gap:6px;padding:6px 2px}
-.sai-dots3d i{width:12px;height:12px;border-radius:50%;background:radial-gradient(circle at 32% 28%,#8ff0c6,#10a56d 58%,#0a4f38);box-shadow:0 3px 6px rgba(15,107,79,.35),inset 0 -2px 3px rgba(0,0,0,.2);animation:sai3d 1.25s cubic-bezier(.34,1.56,.64,1) infinite}
-.sai-dots3d i:nth-child(2){animation-delay:.15s}.sai-dots3d i:nth-child(3){animation-delay:.3s}
-@keyframes sai3d{0%,60%,100%{transform:translateY(0) scale(1);box-shadow:0 3px 6px rgba(15,107,79,.35),inset 0 -2px 3px rgba(0,0,0,.2)}30%{transform:translateY(-8px) scale(1.14);box-shadow:0 10px 14px rgba(15,107,79,.25),inset 0 -2px 3px rgba(0,0,0,.14)}}
+.sai-typing{display:flex;align-items:center;gap:13px}
+.sai-orb{position:relative;flex:0 0 40px;height:40px;display:grid;place-items:center}
+.sai-orb::before{content:'';width:27px;height:27px;border-radius:50%;background:radial-gradient(circle at 32% 26%,#c9ffe9,#12b57a 52%,#085540);box-shadow:0 9px 20px rgba(15,107,79,.42),inset 0 -4px 8px rgba(0,0,0,.22);animation:orbPulse 1.5s ease-in-out infinite}
+.sai-orb::after{content:'';position:absolute;inset:1px;border-radius:50%;border:3px solid transparent;border-top-color:#2fd08f;border-right-color:rgba(47,208,143,.5);animation:orbSpin 1.05s linear infinite}
+.sai-orb b{position:absolute;width:7px;height:7px;border-radius:50%;background:#10a56d;box-shadow:0 0 12px #2fd08f;animation:orbDot 1.5s ease-in-out infinite}
+.sai-orb b:first-child{transform:rotate(52deg) translateX(20px)}
+.sai-orb b:last-child{transform:rotate(232deg) translateX(20px);animation-delay:.5s}
+@keyframes orbPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.16)}}
+@keyframes orbSpin{to{transform:rotate(360deg)}}
+@keyframes orbDot{0%,100%{opacity:.3;transform-origin:center}50%{opacity:1}}
 .sai-shimmer{font-weight:800;background:linear-gradient(90deg,#0f6b4f 25%,#2fd08f 45%,#0f6b4f 65%);background-size:220% auto;-webkit-background-clip:text;background-clip:text;color:transparent;animation:saiShine 1.7s linear infinite}
 @keyframes saiShine{to{background-position:-220% center}}
 .sai-srcbar{padding:8px 0 0}
@@ -604,9 +653,9 @@ body{overflow-x:hidden}
 .sai-act:hover{background:rgba(15,107,79,.07)}
 .sai-act.on{color:var(--emerald,#0f6b4f);font-weight:700}
 .sai-act.retry{color:#b45309;font-weight:700}
-.sai-meta{display:block;font-size:9.5px;margin-top:5px;text-align:right;color:rgba(255,255,255,.72)}
+.sai-meta{display:block;font-size:9.5px;margin-top:5px;text-align:right;color:rgba(255,255,255,.85)}
 .ai .sai-meta{color:#a2aca6}
-.sai-md{font-size:15px;line-height:1.78;word-break:break-word;overflow-wrap:anywhere;color:#243029}
+.sai-md{font-size:15.5px;line-height:1.8;letter-spacing:.1px;word-break:break-word;overflow-wrap:anywhere;color:#20302a}
 .sai-md .sai-p{margin:0 0 9px}
 .sai-md .sai-p:last-child{margin-bottom:0}
 .sai-md strong{color:#0b5c43;font-weight:800}
@@ -618,6 +667,8 @@ body{overflow-x:hidden}
 .sai-codeblk{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:10px 12px;margin:8px 0;overflow-x:auto}
 .sai-codeblk small{color:#94a3b8;font-size:9.5px;letter-spacing:.4px;text-transform:uppercase}
 .sai-codeblk pre{margin:4px 0 0;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.6;white-space:pre}
+.sai-tblwrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.sai-tbl th,.sai-tbl td{white-space:nowrap;word-break:normal;overflow-wrap:normal}
 .sai-tblwrap{overflow-x:auto;margin:8px 0;border:1px solid var(--line,#e5e7eb);border-radius:12px;-webkit-overflow-scrolling:touch}
 .sai-tbl{border-collapse:collapse;width:100%;font-size:12.8px;min-width:340px}
 .sai-tbl th{background:#f0f5f2;text-align:left;padding:8px 10px;font-size:11.5px;letter-spacing:.2px}
@@ -746,7 +797,7 @@ body{overflow-x:hidden}
       if (cfg().engine === 'fast' && fastAvailable()) {
         patchMsg(aiMsg.id, { status: 'streaming' });
         const r = await askFast(text, atts, state.abortRef);
-        await typewrite(aiMsg.id, r.text, { sources: r.sources || [] });
+        await typewrite(aiMsg.id, r.text, { sources: r.sources || [], img: r.img || '' });
       } else {
         const source = state.source || 'auto';
         patchMsg(aiMsg.id, { phase: 'run' });
