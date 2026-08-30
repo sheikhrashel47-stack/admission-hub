@@ -268,7 +268,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     return acts.length ? `<div class="sai-actions">${acts.join('')}</div>` : '';
   };
   const bubbleHTML = m => {
-    const atts = (m.atts || []).map(a => a.kind === 'image' && (a.view || a.thumb) ? `<img class="sai-att" src="${a.view || a.thumb}" alt="${esc(a.name)}" onclick="StudyAiTool.viewer('${m.id}')" role="button" aria-label="ছবি বড় করে দেখো">` : `<span class="sai-attfile">📄 ${esc(a.name)}</span>`).join('');
+    const atts = (m.atts || []).map(a => a.kind === 'image' && (a.view || a.thumb) ? `<img class="sai-att" src="${a.view || a.thumb}" alt="${esc(a.name)}" onclick="StudyAiTool.viewer('${m.id}');event.stopPropagation()" role="button" aria-label="ছবি বড় করে দেখো">` : `<span class="sai-attfile">📄 ${esc(a.name)}</span>`).join('');
     let inner = '';
     if (m.who === 'ai' && !m.text && m.status === 'pending') {
       inner = `<span class="sai-dots"><i></i><i></i><i></i></span><div class="sai-wait">${m.phase === 'run' ? '🤖 এজেন্ট কাজ করছে…' : '🌐 চিন্তা করছি…'}<br><small>${m.steps && m.steps.length ? 'ধাপ ' + bn(m.steps.length) + ' সম্পন্ন' : 'সাধারণত ১০ সেকেন্ড–২ মিনিট'}</small></div>`;
@@ -296,10 +296,19 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   };
 
   const engBadge = () => { const c = cfg(); const lbl = c.engine === 'fast' ? '⚡ ' + (c.provider === 'gemini' ? 'Gemini' : c.provider === 'groq' ? 'Groq' : 'Grok') : '🌐 এজেন্ট'; return `<button class="sai-engchip ${c.engine === 'fast' ? 'fast' : ''}" onclick="StudyAiTool.toggleEngine()" title="উত্তর-ইঞ্জিন">${lbl}</button>`; };
-  const inputBar = () => `<div class="sai-srcbar"><button class="sai-srchip" onclick="StudyAiTool.openSheet('source')">${esc(sourceLabel())} ▾</button>${engBadge()}</div>${state.attach.length ? `<div class="sai-attachbar">${state.attach.map((a, i) => `<span class="sai-atchip">${a.kind === 'image' && a.thumb ? `<img src="${a.thumb}">` : '📄'} ${esc((a.name || '').slice(0, 18))}<b onclick="StudyAiTool.removeAttach(${i})">✕</b></span>`).join('')}</div>` : ''}<div class="sai-inputbar"><button class="sai-plus" onclick="StudyAiTool.openSheet('source')" aria-label="সোর্স">⊕</button><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><input id="saiFile" type="file" multiple accept="image/*,.txt,.md,.json,.csv" style="display:none" onchange="StudyAiTool.handleFiles(this.files);this.value=''"><input id="saiInput" type="text" placeholder="প্রশ্ন লেখো…" onkeydown="if(event.key==='Enter')StudyAiTool.send()"><button class="sai-send" ${state.busy ? 'disabled' : ''} onclick="StudyAiTool.send()" aria-label="পাঠাও">▲</button></div>`;
 
   const sheet = () => {
     if (state.viewer) { const v = state.viewer; return `<div class="sai-viewer" role="dialog" aria-label="ছবি ভিউয়ার"><button class="sai-vclose" onclick="StudyAiTool.viewerClose()" aria-label="বন্ধ">✕</button>${v.list.length > 1 ? `<button class="sai-vnav prev" onclick="StudyAiTool.viewerNav(-1)" aria-label="আগের ছবি">‹</button>` : ''}<img class="sai-vimg" src="${v.list[v.i]}" alt="সংযুক্ত ছবি" onclick="this.classList.toggle('zoom')">${v.list.length > 1 ? `<button class="sai-vnav next" onclick="StudyAiTool.viewerNav(1)" aria-label="পরের ছবি">›</button><div class="sai-vcount">${bn(v.i + 1)}/${bn(v.list.length)}</div>` : ''}</div>`; }
+    if (state.sheet === 'engine') {
+      const c = cfg();
+      const item = (on, lbl, sub, fn, gold) => `<button class="sai-sheet-item ${on ? 'on' : ''}" onclick="${fn}"><span>${gold ? '⚡' : '🌐'}</span> ${lbl}<small>${sub}</small></button>`;
+      return `<div class="sai-sheet-bg" onclick="StudyAiTool.closeSheet()"><div class="sai-sheet" onclick="event.stopPropagation()"><div class="sai-sheet-grip"></div><h3>কে উত্তর দেবে?</h3><div class="sai-sheet-list">
+        ${item(c.engine === 'agent', '🌐 ব্রাউজার এজেন্ট', 'ওয়েব ঘেঁটে যাচাই করা উত্তর', "StudyAiTool.setEngine('agent')")}
+        ${item(c.engine === 'fast' && c.provider === 'gemini', '⚡ Gemini', c.keys.gemini ? 'তোমার key-তে চলছে' : 'key নেই — সেটিংসে বসাও', "StudyAiTool.pickEngine('gemini')", true)}
+        ${item(c.engine === 'fast' && c.provider === 'groq', '⚡ Groq', c.keys.groq ? 'তোমার key-তে চলছে' : 'key নেই', "StudyAiTool.pickEngine('groq')", true)}
+        ${item(c.engine === 'fast' && c.provider === 'xai', '⚡ Grok', c.keys.xai ? 'তোমার key-তে চলছে' : 'key নেই', "StudyAiTool.pickEngine('xai')", true)}
+      </div></div></div>`;
+    }
     if (state.sheet === 'menu') {
       return `<div class="sai-sheet-bg" onclick="StudyAiTool.closeSheet()"><div class="sai-sheet" onclick="event.stopPropagation()"><div class="sai-sheet-grip"></div><h3>চ্যাট মেনু</h3><div class="sai-sheet-list">
         <button class="sai-sheet-item" onclick="StudyAiTool.newChat()"><span>＋</span> নতুন চ্যাট<small>আলাদা ব্রাঞ্চ</small></button>
@@ -375,9 +384,20 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   const composeSig = () => [state.busy, state.attach.map(a => a.id + a.status).join(','), draftText().length ? 1 : 0].join('|');
   const composerHTML = () => {
     const tray = state.attach.length ? `<div class="sai-tray">${state.attach.map(a => `<div class="sai-trayitem ${a.status || 'ready'}">${a.kind === 'image' && (a.thumb || a.view) ? `<img src="${a.thumb || a.view}" alt="${esc(a.name)}" onclick="StudyAiTool.viewerTray('${a.id}')">` : `<span class="sai-trayfile">📄</span>`}<button class="sai-trayx" onclick="StudyAiTool.removeAttach('${a.id}')" aria-label="ছবিটা বাদ দাও">✕</button>${a.status === 'processing' ? '<span class="sai-traystat">প্রসেস হচ্ছে…</span>' : a.status === 'error' ? `<span class="sai-traystat err">ব্যর্থ <b onclick="StudyAiTool.retryAttach('${a.id}')">আবার</b></span>` : ''}</div>`).join('')}${state.attach.length < 8 ? `<button class="sai-trayadd" onclick="StudyAiTool.pickAttach()">＋<small>আরও</small></button>` : ''}</div>` : '';
-    return `<div class="sai-compose">${tray}<div class="sai-inputbar"><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><textarea id="saiInput" rows="1" placeholder="Ask anything…" aria-label="তোমার প্রশ্ন">${esc(draftText())}</textarea><button class="sai-send ${state.busy ? 'stop' : ''}" onclick="${state.busy ? 'StudyAiTool.stopGen()' : 'StudyAiTool.send()'}" aria-label="${state.busy ? 'থামাও' : 'পাঠাও'}">${state.busy ? '■' : '↑'}</button></div><div class="sai-suggs">${SUGGS.map(([l, t]) => `<button class="chip" onclick="StudyAiTool.sugg('${esc(t).replace(/'/g, '&#39')}')">${l}</button>`).join('')}</div><div class="sai-disclaim">⚠️ Admihub AI ভুল করতে পারে — গুরুত্বপূর্ণ তথ্য যাচাই করে নিও</div></div>`;
+    return `<div class="sai-compose">${tray}<div class="sai-inputbar"><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><input id="saiFile" type="file" multiple accept="image/*,.txt,.md,.json,.csv" style="display:none" onchange="StudyAiTool.handleFiles(this.files);this.value=''"><textarea id="saiInput" rows="1" placeholder="Ask anything…" aria-label="তোমার প্রশ্ন">${esc(draftText())}</textarea><button class="sai-send ${state.busy ? 'stop' : ''}" onclick="${state.busy ? 'StudyAiTool.stopGen()' : 'StudyAiTool.send()'}" aria-label="${state.busy ? 'থামাও' : 'পাঠাও'}">${state.busy ? '■' : '↑'}</button></div><div class="sai-suggs">${SUGGS.map(([l, t]) => `<button class="chip" onclick="StudyAiTool.sugg('${esc(t).replace(/'/g, '&#39')}')">${l}</button>`).join('')}</div><div class="sai-disclaim">⚠️ Admihub AI ভুল করতে পারে — গুরুত্বপূর্ণ তথ্য যাচাই করে নিও</div></div>`;
   };
-  const renderChat = () => chatBodyHTML() + `<div class="sai-srcbar"><button class="sai-srchip" onclick="StudyAiTool.openSheet('source')">${esc(sourceLabel())} ▾</button>${engBadge()}</div>` + composerHTML();
+  const renderChat = () => chatBodyHTML() + composerHTML();
+  const bindTapActions = () => {
+    const list = document.getElementById('saiMsgs');
+    if (list && !list.dataset.acts) {
+      list.dataset.acts = '1';
+      list.addEventListener('click', e => {
+        if (e.target.closest('.sai-act') || e.target.closest('.sai-att')) return;
+        const row = e.target.closest('.sai-row');
+        if (row && row.querySelector('.sai-actions')) row.classList.toggle('show-acts');
+      });
+    }
+  };
   const bindComposer = () => {
     const ta = document.getElementById('saiInput');
     if (ta && !ta.dataset.bound) {
@@ -400,7 +420,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         // স্থিতিশীল-রিকনসিল: বদলানো মেসেজের নোডই শুধু বদলায় — পুরো লিস্ট কখনো রিমাউন্ট নয়
         const container = b.querySelector('#saiMsgs');
         const needsFull = !container || container.dataset.chat !== curId() || !container.querySelector('[data-mid]');
-        if (needsFull) { b.innerHTML = renderChat(); lastSig.compose = composeSig(); bindComposer(); const sc = document.getElementById('saiScroll'); if (sc) sc.scrollTop = sc.scrollHeight; }
+        if (needsFull) { b.innerHTML = renderChat(); lastSig.compose = composeSig(); bindComposer(); bindTapActions(); const sc = document.getElementById('saiScroll'); if (sc) sc.scrollTop = sc.scrollHeight; }
         else {
           const nb = nearBottom(document.getElementById('saiScroll'));
           const msgs = (state.msgsFull ? msgsOf(curId()) : msgsOf(curId()).slice(-renderCap()));
@@ -431,6 +451,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const sh = document.getElementById('saiSheetRoot'); if (sh) sh.innerHTML = sheet();
   };
 
+  const topChips = () => { const c = cfg(); const src = (state.source || 'auto') === 'auto' ? 'সোর্স' : decodeURIComponent(String(state.source).slice(5)).slice(0, 8); const eng = c.engine === 'fast' ? '⚡ ' + (c.provider === 'gemini' ? 'Gemini' : c.provider === 'groq' ? 'Groq' : 'Grok') : '🌐'; return `<button class="sai-topchip" onclick="StudyAiTool.openSheet('source')" aria-label="সোর্স নির্বাচন">⊕ ${esc(src)}</button><button class="sai-topchip ${c.engine === 'fast' ? 'gold' : ''}" onclick="StudyAiTool.openSheet('engine')" aria-label="ইঞ্জিন নির্বাচন">${eng}</button>`; };
   const render = () => {
     ensureChat(); fixIds(curId());
     state.page = null; state.viewer = null; state.msgsFull = false;
@@ -439,7 +460,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       title: 'Admihub AI',
       hideNav: true,
       back: "navigate('dashboard')",
-      actions: [`<button class="sai-topicon" onclick="StudyAiTool.openSheet('settings')" aria-label="সেটিংস">⚙️</button>`, `<button class="sai-topicon" onclick="StudyAiTool.openSheet('menu')" aria-label="মেনু">⋯</button>`]
+      actions: [`${topChips()}`, `<button class="sai-topicon" onclick="StudyAiTool.openSheet('settings')" aria-label="সেটিংস">⚙️</button>`, `<button class="sai-topicon" onclick="StudyAiTool.openSheet('menu')" aria-label="মেনু">⋯</button>`]
     });
     if (!document.getElementById('saiAgentStyle')) {
       const s = document.createElement('style'); s.id = 'saiAgentStyle'; s.textContent = `
@@ -487,6 +508,8 @@ body{overflow-x:hidden}
 @keyframes saiB{0%,60%,100%{opacity:.35;transform:translateY(0) scale(.9)}30%{opacity:1;transform:translateY(-5px) scale(1.15)}}
 .sai-srcbar{padding:8px 0 0}
 .sai-srchip{display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid var(--line,#e5e7eb);background:#fff;font-size:11.5px;font-weight:700;color:var(--emerald,#0f6b4f)}
+.sai-topchip{background:var(--mint,#e8f3ec);border:none;border-radius:999px;padding:7px 11px;font-size:11.5px;font-weight:800;color:var(--emerald-d,#0f6b4f);cursor:pointer;white-space:nowrap}
+.sai-topchip.gold{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e}
 .sai-topicon{background:none;border:none;font-size:21px;padding:4px 6px;color:var(--emerald-d,#0f6b4f);cursor:pointer;width:42px;height:42px;display:grid;place-items:center;border-radius:14px}
 .sai-compose{position:fixed;bottom:0;left:0;right:0;z-index:60;padding:4px 10px calc(6px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(247,250,248,0),#f7faf8 18%,#f7faf8 70%)}
 .sai-inputbar{display:flex;gap:8px;align-items:flex-end;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:22px;padding:6px 8px;box-shadow:0 4px 18px rgba(16,24,40,.07);transition:box-shadow .2s,border-color .2s}
@@ -508,7 +531,9 @@ body{overflow-x:hidden}
 .sai-suggs{display:flex;gap:6px;overflow-x:auto;padding:8px 2px 2px}
 .sai-suggs .chip{flex:0 0 auto;background:#fff;border:1px solid var(--line,#e5e7eb)}
 .sai-disclaim{text-align:center;font-size:9.8px;color:#9aa5a0;padding:6px 0 2px}
-.sai-actions{display:flex;gap:2px;margin-top:4px;flex-wrap:wrap}
+.sai-actions{display:none;gap:2px;margin-top:4px;flex-wrap:wrap}
+.sai-row.show-acts .sai-actions{display:flex}
+.sai-row .sai-bubble{cursor:pointer}
 .sai-act{background:none;border:none;font-size:11px;color:var(--sub,#6b7280);cursor:pointer;padding:4px 7px;border-radius:8px}
 .sai-act:hover{background:rgba(15,107,79,.07)}
 .sai-act.on{color:var(--emerald,#0f6b4f);font-weight:700}
@@ -769,8 +794,9 @@ body{overflow-x:hidden}
       } catch (_) {}
     });
   };
-  const setSource = s => { state.source = s; state.sheet = null; paint(); };
-  const setEngine = e => { const c = cfg(); c.engine = e; setCfg(c); paint(); };
+  const setSource = sv => { state.source = sv; state.sheet = null; render(); };
+  const setEngine = e => { const c = cfg(); c.engine = e; setCfg(c); state.sheet = null; render(); };
+  const pickEngine = pv => { const c = cfg(); c.provider = pv; c.engine = 'fast'; setCfg(c); state.sheet = null; if (!c.keys[pv]) { if (window.toast) window.toast('⚡ ' + pv + '-এর key নেই — সেটিংসে বসাও'); openSheet('settings'); return; } render(); };
   const setProvider = p => { const c = cfg(); c.provider = p; setCfg(c); paint(); };
   const setKey = (k, v) => {
     const c = cfg(); c.keys[k] = String(v || '').trim();
@@ -778,14 +804,15 @@ body{overflow-x:hidden}
       c.provider = k;
       if (c.engine !== 'fast') { c.engine = 'fast'; if (window.toast) window.toast('⚡ ফাস্ট-ইঞ্জিন (' + (k === 'gemini' ? 'Gemini' : k === 'groq' ? 'Groq' : 'Grok') + ') চালু হলো — এখন থেকে ওই-ই উত্তর দেবে'); }
     }
-    setCfg(c); paint();
+    setCfg(c);
+    state.page === 'settings' ? paint() : render(); // টপবার-চিপ তাজা থাকুক
   };
   const toggleEngine = () => {
-    const c = cfg();
+    const c = cfg(); state.sheet = null;
     if (c.engine === 'fast') c.engine = 'agent';
     else if (fastAvailable()) c.engine = 'fast';
-    else { if (window.toast) window.toast('⚡ ফাস্টের জন্য আগে API key বসাও — ⚙️ সেটিংস খুলছি'); state.page = 'settings'; state.keyTest = null; setCfg(c); paint(); return; }
-    setCfg(c); paint();
+    else { if (window.toast) window.toast('⚡ ফাস্টের জন্য আগে API key বসাও — ⚙️ সেটিংস খুলছি'); state.page = 'settings'; state.keyTest = null; setCfg(c); render(); return; }
+    setCfg(c); render();
   };
   const setModel = m => { const c = cfg(); c.model = String(m || '').trim(); setCfg(c); paint(); };
   const setTheme = t => { const c = cfg(); c.theme = t; setCfg(c); applyTheme(); paint(); };
@@ -829,6 +856,6 @@ body{overflow-x:hidden}
     [1200, 2500, 4500].forEach(d => setTimeout(mountDashboard, d));
   };
 
-  window.StudyAiTool = { render, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, toggleEngine, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, sugg, _state: () => state };
+  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, toggleEngine, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, sugg, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();
