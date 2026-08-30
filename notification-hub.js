@@ -220,6 +220,22 @@
 
   // ── UI: dashboard card + notification center + settings ─────────────────────
   const unreadCount = async () => (await logRows()).filter(row => !row.readAt).length;
+  // DOM-বসানো: কোন renderer জিতুক, ড্যাশবোর্ডে streak-কার্ডের ঠিক নিচে কার্ড বসাও (v108)
+  const mountDashboardCard = () => {
+    try {
+      if (typeof document === 'undefined') return false;
+      const page = document.querySelector('#app .page');
+      if (!page) return false;
+      if (page.querySelector('#ahNotifCard')) return true;
+      const streak = page.querySelector('#dailyStreakCard');
+      const holder = document.createElement('div');
+      holder.innerHTML = dashboardHtml();
+      const card = holder.firstElementChild;
+      if (streak && streak.parentElement) streak.insertAdjacentElement('afterend', card);
+      else page.insertBefore(card, page.firstChild);
+      return true;
+    } catch (_) { return false; }
+  };
   const fmtTime = ts => { try { return new Date(ts).toLocaleString('bn-BD', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' }); } catch (_) { return ''; } };
   const dashboardHtml = () => `
     <div id="ahNotifCard" class="card premium-card fade-in stagger-1" style="display:flex;align-items:center;gap:12px">
@@ -296,20 +312,22 @@
     let tries = 0;
     const tick = () => {
       tries++;
+      mountDashboardCard();
       if (document.getElementById('ahNotifCard')) hydrateDashboard();
-      if (tries < 60) setTimeout(tick, 2000);
+      if (tries < 150) setTimeout(tick, 2000);
     };
-    setTimeout(tick, 2500);
+    setTimeout(tick, 2200);
+    window.addEventListener?.('hashchange', () => setTimeout(mountDashboardCard, 350));
     if (!window.__ahNotifyNoAuto) {
       setTimeout(() => { evaluate(); syncState(); }, 8000);
       setInterval(() => { evaluate(); syncState(); }, 15 * 60000);
     }
-    document.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') hydrateDashboard(); });
+    document.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') { mountDashboardCard(); hydrateDashboard(); } });
   };
   if (typeof document !== 'undefined') boot();
 
   window.NotificationHub = {
-    dashboardHtml, hydrateDashboard, openCenter, openSettings, markAllRead,
+    dashboardHtml, hydrateDashboard, mountDashboardCard, openCenter, openSettings, markAllRead,
     promptEnable, dismissPrompt, enablePush, disablePush, testNow,
     toggleMaster, toggleCat, setQuiet, setCap, saveEndpoint,
     evaluate, syncState,
