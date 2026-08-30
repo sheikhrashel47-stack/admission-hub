@@ -277,11 +277,13 @@ export default {
     if (request.method === 'GET' && url.pathname === '/api/gk/today') {
       const date = dhakaToday();
       try {
+        const tasks = await env.GK_KV.get(`gkTasks:${date}`);
+        if (tasks) { // টাস্ক আছে → আগে heal: finished টাস্ক এনে merge-করে সেভ করে
+          const healed = await healTasks(env, date);
+          if (healed) return json(request, { ready: true, date, payload: healed });
+        }
         const stored = await env.GK_KV.get(`gkData:${date}`);
         if (stored) return json(request, { ready: true, date, payload: JSON.parse(stored) });
-        const healed = await healTasks(env, date); // পোল-মিস হলেও ডেটা হারাবে না
-        if (healed) return json(request, { ready: true, date, payload: healed });
-        const tasks = await env.GK_KV.get(`gkTasks:${date}`);
         return json(request, { ready: false, date, running: !!tasks });
       } catch (_) { return json(request, { ready: false, date, running: false }); }
     }
