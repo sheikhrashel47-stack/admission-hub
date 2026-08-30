@@ -206,6 +206,18 @@
       return 'subscribe-failed';
     }
   };
+  let lastResub = 0;
+  const maybeResubscribe = async () => {
+    const nowTs = Date.now();
+    if (nowTs - lastResub < 5 * 60000 || !endpoint || !pushReady()) return;
+    try {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      lastResub = nowTs;
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) await fetch(endpoint + '/api/push/subscribe', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-AH-App': APP_HEADER }, body: JSON.stringify(subscription.toJSON()) }).catch(() => {});
+    } catch (_) {}
+  };
   const disablePush = async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
@@ -279,7 +291,12 @@
   const openSettings = async () => {
     const prefs = await getPrefs();
     const soon = Object.entries(CAT_SOON).filter(([, v]) => v).map(([k]) => CAT_LABEL[k]).join(' · ');
-    openModal(`<h3>⚙️ Notifications</h3>
+    const perm = typeof Notification !== 'undefined' ? Notification.permission : 'unsupported';
+    const pushRow = !pushReady() ? '<div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:12px;color:var(--sub)">📱 এই device-এ web push নেই — Telegram-এ notification যাবে ✈️</div>'
+      : perm === 'granted' ? `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)"><span style="flex:1;font-size:13px">📱 iPhone push</span><span class="chip active" style="pointer-events:none">চালু ✓</span></div>`
+      : perm === 'denied' ? '<div style="padding:9px 0;border-bottom:1px solid var(--line);font-size:12px;color:var(--red)">⚠️ Push অনুমতি ব্লকড — iOS Settings → Safari/Home-অ্যাপ → Notifications থেকে চালু করো</div>'
+      : `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)"><span style="flex:1;font-size:13px">📱 iPhone push</span><button class="btn sm" onclick="NotificationHub.enablePush().then(() => NotificationHub.openSettings())">চালু করি</button></div>`;
+    openModal(`<h3>⚙️ Notifications</h3>${pushRow}
       <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)"><span style="flex:1;font-weight:700">Master Notification</span><button class="chip ${prefs.master ? 'active' : ''}" onclick="NotificationHub.toggleMaster()">${prefs.master ? 'ON' : 'OFF'}</button></div>
       ${Object.keys(DEFAULT_PREFS.cats).map(key => toggleRow(CAT_LABEL[key] + (CAT_SOON[key] ? ' <span style="color:var(--sub);font-size:10px">(শীঘ্রই)</span>' : ''), key, prefs)).join('')}
       <label class="flabel" style="margin-top:10px">Quiet hours (এই সময়ে কিছু আসবে না)</label>
@@ -309,25 +326,17 @@
 
   // ── boot: dashboard hydration + periodic engine ─────────────────────────────
   const boot = () => {
-    let tries = 0;
-    const tick = () => {
-      tries++;
-      mountDashboardCard();
-      if (document.getElementById('ahNotifCard')) hydrateDashboard();
-      if (tries < 150) setTimeout(tick, 2000);
-    };
-    setTimeout(tick, 2200);
-    window.addEventListener?.('hashchange', () => setTimeout(mountDashboardCard, 350));
     if (!window.__ahNotifyNoAuto) {
-      setTimeout(() => { evaluate(); syncState(); }, 8000);
+      setTimeout(() => { evaluate(); syncState(); maybeResubscribe(); }, 8000);
       setInterval(() => { evaluate(); syncState(); }, 15 * 60000);
     }
-    document.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') { mountDashboardCard(); hydrateDashboard(); } });
+    document.addEventListener?.('visibilitychange', () => { if (document.visibilityState === 'visible') maybeResubscribe(); });
+
   };
   if (typeof document !== 'undefined') boot();
 
   window.NotificationHub = {
-    dashboardHtml, hydrateDashboard, mountDashboardCard, openCenter, openSettings, markAllRead,
+    dashboardHtml, hydrateDashboard, mountDashboardCard, openCenter, openSettings, markAllRead, maybeResubscribe,
     promptEnable, dismissPrompt, enablePush, disablePush, testNow,
     toggleMaster, toggleCat, setQuiet, setCap, saveEndpoint,
     evaluate, syncState,
