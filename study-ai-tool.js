@@ -41,8 +41,8 @@
     const l = listChats(); const c = l.find(x => x.id === id);
     if (c) { if (firstText && c.title === 'নতুন চ্যাট') c.title = String(firstText).slice(0, 28); c.at = Date.now(); saveList(l.sort((a, b) => b.at - a.at)); }
   };
-  const newChat = () => { const c = { id: uid(), title: 'নতুন চ্যাট', at: Date.now() }; saveList([c, ...listChats()]); localStorage.setItem(LS_CUR, c.id); state.sheet = null; paint(); };
-  const openChat = id => { localStorage.setItem(LS_CUR, id); state.sheet = null; paint(); };
+  const newChat = () => { const c = { id: uid(), title: 'নতুন চ্যাট', at: Date.now() }; saveList([c, ...listChats()]); localStorage.setItem(LS_CUR, c.id); state.sheet = null; state.msgsFull = false; paint(); };
+  const openChat = id => { localStorage.setItem(LS_CUR, id); state.sheet = null; state.msgsFull = false; fixIds(id); paint(); };
   const delChat = id => { let l = listChats().filter(c => c.id !== id); localStorage.removeItem('studyAiChat:' + id); if (!l.length) { const c = { id: uid(), title: 'নতুন চ্যাট', at: Date.now() }; l = [c]; } saveList(l); if (curId() === id) localStorage.setItem(LS_CUR, l[0].id); paint(); };
   const chatTitle = () => (listChats().find(c => c.id === curId()) || {}).title || 'নতুন চ্যাট';
 
@@ -131,17 +131,26 @@
 ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার্থীর ডেটা (প্রসঙ্গ কাজে লাগাও, কাঁচা ডেটা ফেরত লিখো না):\n${localStorage.getItem('studyAiCtx')}` : ''}`;
 
   // ── 🌐 Browser Use এজেন্ট ────────────────────────────────────────────────────
-  const askAgent = async (question, source) => {
+  const askAgent = async (question, source, onStep, abortRef) => {
     const res = await fetch(WORKER + '/api/ask', { method: 'POST', headers: { ...APP_HEADER, 'Content-Type': 'application/json' }, body: JSON.stringify({ question, context: cfg().sendData ? (localStorage.getItem('studyAiCtx') || '').slice(0, 500) : '', source }) });
     const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d.error === 'all-keys-exhausted' ? 'এজেন্ট এখন ব্যস্ত — ১-২ মিনিট পরে আবার' : d.error === 'ask-key-not-configured' ? 'চ্যাট-এজেন্ট key এখনো জোড়া হয়নি' : 'সংযোগ করা গেল না — নেট দেখে আবার চেষ্টা করো');
+    if (!res.ok) throw new Error(d.error === 'all-keys-exhausted' ? 'এজেন্ট এখন ব্যস্ত — ১-২ মিনিট পরে আবার' : d.error === 'ask-key-not-configured' ? 'চ্যাট-এজেন্ট এখন কনফিগার হয়নি — একটু পরে আবার' : 'সংযোগ করা গেল না — নেট দেখে আবার চেষ্টা করো');
     if (!d.id) throw new Error('এজেন্ট শুরু করা যায়নি — আবার চেষ্টা করো');
+    const stepsSeen = [];
     const started = Date.now();
     while (Date.now() - started < 4.5 * 60000) {
-      await new Promise(r => setTimeout(r, 7000));
-      const st = await fetch(WORKER + '/api/ask/' + d.id, { headers: APP_HEADER }).then(r => r.json()).catch(() => ({}));
-      if (st.status === 'finished') return { text: st.answer, sources: st.sources || [] };
-      if (st.status === 'failed') throw new Error('এজেন্ট এবার উত্তর দিতে পারেনি — প্রশ্নটা আবার পাঠাও');
+      if (abortRef && abortRef.aborted) { fetch(WORKER + '/api/ask/' + d.id + '/cancel', { method: 'POST', headers: APP_HEADER }).catch(() => {}); throw Object.assign(new Error('__aborted__'), { aborted: true }); }
+      await new Promise(r => setTimeout(r, stepsSeen.length ? 6000 : 1100)); // প্রথম প্রোব দ্রুত, পরেরগুলো ৬ সেকেন্ডে
+      const st = await Promise.race([
+        fetch(WORKER + '/api/ask/' + d.id, { headers: APP_HEADER }).then(r => r.json()).then(j => { if (j && j.error && !j.status) throw new Error('poll-error'); return j; }).catch(e => { if (e && e.message === 'poll-error') return { __pollErr: true }; return {}; }),
+        new Promise(r => setTimeout(() => r({ __slowPoll: true }), 8000))
+      ]);
+      if (abortRef && abortRef.aborted) { fetch(WORKER + '/api/ask/' + d.id + '/cancel', { method: 'POST', headers: APP_HEADER }).catch(() => {}); throw Object.assign(new Error('__aborted__'), { aborted: true }); }
+      if (st && st.__pollErr) throw new Error('এজেন্ট এবার উত্তর দিতে পারেনি — Retry চাপো বা আবার পাঠাও');
+      const steps = Array.isArray(st.steps) ? st.steps : [];
+      if (steps.length > stepsSeen.length) { stepsSeen.push(...steps.slice(stepsSeen.length)); if (onStep) onStep(stepsSeen.length, stepsSeen); }
+      if (st.status === 'finished') return { text: st.answer, sources: st.sources || [], steps: stepsSeen };
+      if (st.status === 'failed') throw new Error('এজেন্ট এবার কাজটা শেষ করতে পারেনি — Retry চাপো বা আবার পাঠাও');
     }
     throw new Error('সময় শেষ — প্রশ্নটা বেশ ভারী ছিল; আবার পাঠাও');
   };
@@ -149,7 +158,9 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   // ── ⚡ অপশনাল ফাস্ট-ইঞ্জিন (Settings থেকে key) ─────────────────────────────────
   const fastAvailable = () => { const c = cfg(); return !!c.keys[c.provider]; };
   const gemSources = d => { try { const ch = (d.candidates?.[0]?.groundingMetadata?.groundingChunks || []).map(c => { try { return String(new URL(c.web.uri).hostname).replace(/^www\./, ''); } catch (_) { return ''; } }).filter(Boolean); return [...new Set(ch)].slice(0, 4); } catch (_) { return []; } };
-  const askFast = async (question, atts) => {
+  const askFast = async (question, atts, abortRef) => {
+    const ctl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+    if (abortRef && ctl) { const iv = setInterval(() => { if (abortRef.aborted) { try { ctl.abort(); } catch (_) {} clearInterval(iv); } }, 400); setTimeout(() => clearInterval(iv), 240000); }
     const c = cfg(); const key = c.keys[c.provider] || '';
     if (!key) throw new Error('Settings-এ key নেই — 🌐 এজেন্ট মোড়ে পাঠাও বা key বসাও');
     const list = Array.isArray(atts) ? atts : [];
@@ -160,7 +171,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       const histParts = msgsOf(curId()).filter(m => m.text).slice(-8).map(m => ({ role: m.who === 'ai' ? 'model' : 'user', parts: [{ text: m.text }] }));
       if (histParts.length) histParts[histParts.length - 1] = { role: 'user', parts: [{ text: qText }, ...imgs.filter(i => i.data).map(i => ({ inline_data: { mime_type: i.mime || 'image/jpeg', data: i.data } }))] };
       else histParts.push({ role: 'user', parts: [{ text: qText }, ...imgs.filter(i => i.data).map(i => ({ inline_data: { mime_type: i.mime || 'image/jpeg', data: i.data } }))] });
-      const call = useTools => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ system_instruction: { parts: [{ text: sysPrompt() }] }, contents: histParts, generationConfig: { temperature: 0.5, maxOutputTokens: 2048 } }, useTools ? { tools: [{ google_search: {} }] } : {})) });
+      const call = useTools => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, Object.assign({ method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ system_instruction: { parts: [{ text: sysPrompt() }] }, contents: histParts, generationConfig: { temperature: 0.5, maxOutputTokens: 2048 } }, useTools ? { tools: [{ google_search: {} }] } : {})) }, ctl ? { signal: ctl.signal } : {}));
       let res = await call(true);
       let d = await res.json().catch(() => ({}));
       // গ্রাউন্ডিং (google_search) কোটা/প্ল্যানে না চললে টুল-ছাড়া পুনঃপ্রচেষ্টা — উত্তর তো আসবেই
@@ -173,7 +184,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const base = c.provider === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : 'https://api.x.ai/v1/chat/completions';
     const model = c.model || (c.provider === 'groq' ? 'llama-3.3-70b-versatile' : 'grok-3-mini');
     const msgs = [{ role: 'system', content: sysPrompt() }, ...msgsOf(curId()).filter(m => m.text).slice(-8).map((m, i, arr) => ({ role: m.who === 'ai' ? 'assistant' : 'user', content: i === arr.length - 1 ? qText : m.text }))].slice(0, 9);
-    const res = await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify({ model, messages: msgs, temperature: 0.5, max_tokens: 1024 }) });
+    const res = await fetch(base, Object.assign({ method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify({ model, messages: msgs, temperature: 0.5, max_tokens: 1024 }) }, ctl ? { signal: ctl.signal } : {}));
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(res.status === 429 ? 'এই provider-এর ফ্রি-কোটা এখন শেষ — ১ মিনিট পরে আবার' : (d?.error?.message || 'HTTP ' + res.status));
     return { text: String(d.choices?.[0]?.message?.content || '').trim() || 'উত্তর পাইনি — আবার লেখো?', sources: [] };
@@ -204,7 +215,77 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
 
   // ── UI ───────────────────────────────────────────────────────────────────────
   const sourceLabel = () => { const s = state.source; if (!s || s === 'auto') return '🌐 ওয়েব + আমার ব্যাংক'; if (s === 'bank') return '📚 শুধু আমার ব্যাংক'; return '📚 ' + decodeURIComponent(String(s).slice(5)); };
-  const bubble = m => `<div class="sai-row ${m.who}"><div class="sai-bubble">${(m.atts || []).map(a => a.kind === 'image' && a.thumb ? `<img class="sai-att" src="${a.thumb}" alt="${esc(a.name)}">` : `<span class="sai-attfile">📄 ${esc(a.name)}</span>`).join('')}${m.who === 'ai' && !m.text ? '<span class="sai-dots"><i></i><i></i><i></i></span><div class="sai-wait">🌐 ওয়েব ঘেঁটে যাচাই করছে…<br><small>সাধারণত ১০ সেকেন্ড–২ মিনিট, বড় কাজে বেশি</small></div>' : esc(m.text).replace(/\n/g, '<br>')}${m.sources?.length ? `<div class="sai-src">🔗 ${m.sources.map(esc).join(' · ')}</div>` : ''}</div></div>`;
+  // ── 🖋 OUTPUT RENDERER — নিরাপদ মিনি-markdown (escape-আগে, তারপর সীমিত ট্রান্সফর্ম) ──
+  const mdInline = t => t
+    .replace(/`([^`\n]{1,160})`/g, '<code class="sai-code-i">$1</code>')
+    .replace(/\[([^\]\n]{1,80})\]\((https?:\/\/[^)\s]{1,200})\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+    .replace(/\*\*([^*\n]{1,300})\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[\s(])\*([^*\n]{1,200})\*(?=[\s).,;:!?]|$)/g, '$1<em>$2</em>');
+  const md = raw => {
+    try {
+      let t = String(raw || '').slice(0, 24000).replace(/\r/g, '');
+      const codes = [];
+      t = t.replace(/```([a-z]*)\n?([\s\S]{0,8000}?)```/g, (_, lang, code) => { codes.push({ lang, code: code.replace(/\n$/, '') }); return '\u0000C' + (codes.length - 1) + '\u0000'; });
+      const esc0 = t.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+      const lines = esc0.split('\n'); const out = []; let list = null, table = null;
+      const closeList = () => { if (list) { out.push(`<${list.t}>` + list.items.map(x => `<li>${mdInline(x)}</li>`).join('') + `</${list.t}>`); list = null; } };
+      const closeTable = () => { if (table) { const head = table[0]; const body = table.slice(1).filter(r => !/^[\s|:-]+$/.test(r.join('|'))); out.push('<div class="sai-tblwrap"><table class="sai-tbl">' + head.map(h => `<th>${mdInline(h)}</th>`).join('') + body.slice(0, 40).map(r => '<tr>' + head.map((_, i2) => `<td>${mdInline((r[i2] || '').slice(0, 400))}</td>`).join('') + '</tr>').join('') + '</table></div>'); table = null; } };
+      for (const ln of lines) {
+        const tl = ln.trim();
+        if (/^\|(.+)\|$/.test(tl)) { closeList(); table = table || []; table.push(tl.slice(1, -1).split('|').map(c2 => c2.trim())); continue; }
+        closeTable();
+        if (!tl) { closeList(); continue; }
+        if (/^(-{3,}|_{3,})$/.test(tl)) { closeList(); out.push('<hr class="sai-hr">'); continue; }
+        const hm = tl.match(/^(#{1,4})\s+(.{1,300})$/);
+        if (hm) { closeList(); out.push(`<div class="sai-h sai-h${Math.min(4, hm[1].length) + 1}">${mdInline(hm[2])}</div>`); continue; }
+        const bm = tl.match(/^[-*•]\s+(.{1,600})$/);
+        if (bm) { if (!list || list.t !== 'ul') { closeList(); list = { t: 'ul', items: [] }; } list.items.push(bm[1]); continue; }
+        const nm = tl.match(/^\d{1,2}[.)]\s+(.{1,600})$/);
+        if (nm) { if (!list || list.t !== 'ol') { closeList(); list = { t: 'ol', items: [] }; } list.items.push(nm[1]); continue; }
+        if (/^>\s?/.test(tl)) { closeList(); out.push(`<blockquote class="sai-quote">${mdInline(tl.replace(/^>\s?/, ''))}</blockquote>`); continue; }
+        closeList();
+        out.push(`<p class="sai-p">${mdInline(tl)}</p>`);
+      }
+      closeList(); closeTable();
+      let html = out.join('');
+      html = html.replace(/\u0000C(\d+)\u0000/g, (_, i2) => { const c3 = codes[Number(i2)] || { code: '' }; return `<div class="sai-codeblk"><small>${esc(c3.lang || 'code')}</small><pre>${c3.code.replace(/[&<>]/g, cc => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[cc])).slice(0, 4000)}</pre></div>`; });
+      // MCQ-কার্ড: কমপক্ষে ৩টি অপশন-লাইন এক ব্লকে → সুন্দর কার্ড; সঠিক-উত্তর+ব্যাখ্যা হাইলাইট
+      html = html.replace(/(?:<p class="sai-p">\s*[([]?(?:ক|খ|গ|ঘ|a|b|c|d|A|B|C|D)[).][^<]{1,240}<\/p>\s*){3,}/g, blk => `<div class="sai-mcq">${blk.replace(/sai-p/g, 'sai-opt')}</div>`);
+      html = html.replace(/<p class="sai-p">\s*((?:✓|✔|সঠিক উত্তর|সঠিকঃ|সঠিক)\s*[:：]?\s*[^<]{0,160})<\/p>/g, '<div class="sai-ansline">✓ $1</div>');
+      html = html.replace(/<p class="sai-p">\s*(ব্যাখ্যা\s*[:：]\s*[^<]{0,900})<\/p>/g, '<div class="sai-explain">$1</div>');
+      html = html.replace(/<p class="sai-p">\s*((?:💡|⚠️|সারসংক্ষেপ|সারমর্ম)\s*[:：]?\s*[^<]{0,600})<\/p>/g, '<div class="sai-callout">$1</div>');
+      return html;
+    } catch (_) { return `<p class="sai-p">${esc(String(raw || '').slice(0, 2000)).replace(/\n/g, '<br>')}</p>`; }
+  };
+  const msgHash = m => [m.text || '', m.status || '', (m.sources || []).length, (m.steps || []).length, (m.atts || []).length, m.fb || '', m.errText || '', m.phase || ''].join('§').length + '·' + (m.text || '').length + '·' + m.status;
+  const timeBn = ts => { try { const d2 = new Date(ts); let h = d2.getHours(); const mm = String(d2.getMinutes()).padStart(2, '0'); const ap = h >= 12 ? 'PM' : 'AM'; h = h % 12 || 12; return `${h}:${mm} ${ap}`; } catch (_) { return ''; } };
+  const actRow = (m, prev) => {
+    const acts = [];
+    if (m.who === 'me') { acts.push(`<button class="sai-act" onclick="StudyAiTool.copyMsg('${m.id}')">📋 Copy</button>`, `<button class="sai-act" onclick="StudyAiTool.editMsg('${m.id}')">✏️ Edit</button>`); }
+    else if (m.status === 'completed' && m.text) { acts.push(`<button class="sai-act" onclick="StudyAiTool.copyMsg('${m.id}')">📋 Copy</button>`, `<button class="sai-act" onclick="StudyAiTool.regenerate('${m.id}')">🔄 Regenerate</button>`, `<button class="sai-act ${m.fb === 'good' ? 'on' : ''}" onclick="StudyAiTool.rate('${m.id}','good')">👍</button>`, `<button class="sai-act ${m.fb === 'bad' ? 'on' : ''}" onclick="StudyAiTool.rate('${m.id}','bad')">👎</button>`); }
+    else if (m.status === 'error') { acts.push(`<button class="sai-act retry" onclick="StudyAiTool.retryMsg('${m.id}')">⚠️ Retry</button>`); }
+    if (prev && prev.who === 'me') return `<div class="sai-actions">${acts.join('')}</div>`;
+    return acts.length ? `<div class="sai-actions">${acts.join('')}</div>` : '';
+  };
+  const bubbleHTML = m => {
+    const atts = (m.atts || []).map(a => a.kind === 'image' && (a.view || a.thumb) ? `<img class="sai-att" src="${a.view || a.thumb}" alt="${esc(a.name)}" onclick="StudyAiTool.viewer('${m.id}')" role="button" aria-label="ছবি বড় করে দেখো">` : `<span class="sai-attfile">📄 ${esc(a.name)}</span>`).join('');
+    let inner = '';
+    if (m.who === 'ai' && !m.text && m.status === 'pending') {
+      inner = `<span class="sai-dots"><i></i><i></i><i></i></span><div class="sai-wait">${m.phase === 'run' ? '🤖 এজেন্ট কাজ করছে…' : '🌐 চিন্তা করছি…'}<br><small>${m.steps && m.steps.length ? 'ধাপ ' + bn(m.steps.length) + ' সম্পন্ন' : 'সাধারণত ১০ সেকেন্ড–২ মিনিট'}</small></div>`;
+      if (m.steps && m.steps.length) inner += `<details class="sai-activity"><summary>▸ Agent activity <span class="muted">${bn(m.steps.length)} ধাপ</span></summary>${m.steps.map(st => `<div class="sai-step">✓ ${esc(st)}</div>`).join('')}</details>`;
+    } else if (m.status === 'error') {
+      inner = `<div class="sai-errbubble">⚠️ ${esc(m.errText || 'কিছু একটা সমস্যা হয়েছে')}</div>`;
+    } else if (m.status === 'cancelled') {
+      inner = `<div class="sai-cancelbubble">⏹ Generation stopped</div>`;
+    } else {
+      inner = `<div class="sai-md">${md(m.text)}</div>${m.sources && m.sources.length ? `<div class="sai-src">🔗 ${m.sources.map(esc).join(' · ')}</div>` : ''}`;
+      if (m.steps && m.steps.length && m.status === 'completed') inner += `<details class="sai-activity"><summary>▸ Agent activity <span class="muted">${bn(m.steps.length)} ধাপ</span></summary>${m.steps.map(st => `<div class="sai-step">✓ ${esc(st)}</div>`).join('')}</details>`;
+      if (m.fb === 'good') inner += `<div class="sai-fbnote">দারুণ — ধন্যবাদ! 🌱</div>`;
+      if (m.fb === 'bad') inner += `<div class="sai-fbnote">জানালোর জন্য ধন্যবাদ — পরেরবার আরও ভালো করবো 🙏</div>`;
+    }
+    return `${atts}<div class="sai-bubble">${inner}</div><div class="sai-meta">${timeBn(m.ts)}${m.who === 'me' && m.status === 'completed' ? ' ✓✓' : ''}</div>`;
+  };
+  const bubbleOuter = (m, prev) => `<div class="sai-row ${m.who}" data-mid="${m.id}" data-h="${esc(msgHash(m))}">${bubbleHTML(m)}${actRow(m, prev)}</div>`;
   const shareCard = () => localStorage.getItem(LS_SHARED) === '1' ? '' : `<div class="card sai-share"><b>📊 এজেন্টকে তোমার সব ডেটা দাও?</b><p class="muted" style="margin:6px 0 10px">অ্যাপ পাঠাবে <b>সম্পূর্ণ প্রশ্নব্যাংক + পরীক্ষার ইতিহাস + প্রগ্রেস</b> — এজেন্টের নিজের ডাটাবেসে সেভ থাকবে। এরপর সে তোমার ব্যাংক থেকেই প্রশ্নের উত্তর দেবে। (এই কার্ড আর আসবে না; Settings-থেকে যখন খুশি আপডেট করা যাবে)</p><button class="btn" onclick="StudyAiTool.shareData()">✅ সব ডেটা পাঠাও</button><button class="btn ghost sm" style="margin-left:8px" onclick="StudyAiTool.skipShare()">পরে</button></div>`;
   const CHIPS = ['আজ কী পড়বো?', 'দুর্বল টপিক বলো', '৭ দিনের রিভিশন প্ল্যান', 'GK কুইজ দাও'];
 
@@ -218,6 +299,16 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   const inputBar = () => `<div class="sai-srcbar"><button class="sai-srchip" onclick="StudyAiTool.openSheet('source')">${esc(sourceLabel())} ▾</button>${engBadge()}</div>${state.attach.length ? `<div class="sai-attachbar">${state.attach.map((a, i) => `<span class="sai-atchip">${a.kind === 'image' && a.thumb ? `<img src="${a.thumb}">` : '📄'} ${esc((a.name || '').slice(0, 18))}<b onclick="StudyAiTool.removeAttach(${i})">✕</b></span>`).join('')}</div>` : ''}<div class="sai-inputbar"><button class="sai-plus" onclick="StudyAiTool.openSheet('source')" aria-label="সোর্স">⊕</button><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><input id="saiFile" type="file" multiple accept="image/*,.txt,.md,.json,.csv" style="display:none" onchange="StudyAiTool.handleFiles(this.files);this.value=''"><input id="saiInput" type="text" placeholder="প্রশ্ন লেখো…" onkeydown="if(event.key==='Enter')StudyAiTool.send()"><button class="sai-send" ${state.busy ? 'disabled' : ''} onclick="StudyAiTool.send()" aria-label="পাঠাও">▲</button></div>`;
 
   const sheet = () => {
+    if (state.viewer) { const v = state.viewer; return `<div class="sai-viewer" role="dialog" aria-label="ছবি ভিউয়ার"><button class="sai-vclose" onclick="StudyAiTool.viewerClose()" aria-label="বন্ধ">✕</button>${v.list.length > 1 ? `<button class="sai-vnav prev" onclick="StudyAiTool.viewerNav(-1)" aria-label="আগের ছবি">‹</button>` : ''}<img class="sai-vimg" src="${v.list[v.i]}" alt="সংযুক্ত ছবি" onclick="this.classList.toggle('zoom')">${v.list.length > 1 ? `<button class="sai-vnav next" onclick="StudyAiTool.viewerNav(1)" aria-label="পরের ছবি">›</button><div class="sai-vcount">${bn(v.i + 1)}/${bn(v.list.length)}</div>` : ''}</div>`; }
+    if (state.sheet === 'menu') {
+      return `<div class="sai-sheet-bg" onclick="StudyAiTool.closeSheet()"><div class="sai-sheet" onclick="event.stopPropagation()"><div class="sai-sheet-grip"></div><h3>চ্যাট মেনু</h3><div class="sai-sheet-list">
+        <button class="sai-sheet-item" onclick="StudyAiTool.newChat()"><span>＋</span> নতুন চ্যাট<small>আলাদা ব্রাঞ্চ</small></button>
+        <button class="sai-sheet-item" onclick="StudyAiTool.renameChat()"><span>✏️</span> এই চ্যাটের নাম বদলাও<small>${esc(chatTitle())}</small></button>
+        <button class="sai-sheet-item" onclick="StudyAiTool.clearCurrent()"><span>🧹</span> এই কথোপকথন মুছি<small>শুরু থেকে ফাঁকা</small></button>
+        <button class="sai-sheet-item" onclick="StudyAiTool.openSheet('chats')"><span>💬</span> সব চ্যাট<small>${bn(listChats().length)}টি ব্রাঞ্চ</small></button>
+        <button class="sai-sheet-item" onclick="StudyAiTool.openSheet('settings')"><span>⚙️</span> সেটিংস<small>key/থিম/ডেটা</small></button>
+      </div></div></div>`;
+    }
     if (state.sheet === 'source') {
       const subs = (cache().subjects || []).map(s => ({ name: String(s.name || ''), n: (cache().questions || []).filter(q => q && q.subjectId === s.id).length })).sort((a, b) => b.n - a.n).filter(s => s.n > 0);
       return `<div class="sai-sheet-bg" onclick="StudyAiTool.closeSheet()"><div class="sai-sheet" onclick="event.stopPropagation()"><div class="sai-sheet-grip"></div><h3>AI কোন সোর্স থেকে উত্তর দেবে?</h3><div class="sai-sheet-list">
@@ -267,31 +358,88 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     </div>`;
   };
 
-  const renderChat = () => {
-    const msgs = msgsOf(curId());
-    const chips = `<div class="sai-chips">${CHIPS.map(t => `<button class="chip" onclick="StudyAiTool.quick('${t}')">${t}</button>`).join('')}</div>`;
-    const noUserMsg = !msgs.some(m => m.who === 'me'); // ইউজার নিজে না পাঠিয়েছে বোধ্য পর্যন্ত সাজেশন থাকে
-    if (!msgs.length) return landing() + chips;
-    return `<div class="sai-msgs" id="saiMsgs">${msgs.map(bubble).join('')}</div>` + (noUserMsg ? chips : '');
+  const EMPTY_TASKS = ['প্রশ্ন বিশ্লেষণ করো', 'MCQ বানাও', 'ছবি থেকে প্রশ্ন বের করো', 'টপিক বুঝিয়ে দাও'];
+  const SUGGS = [['📚 Explain', 'ব্যাখ্যা করো: '], ['📝 MCQ', 'এই বিষয়ে ৫টি MCQ বানাও (উত্তর+ব্যাখ্যাসহ): '], ['🖼 ছবি', 'ছবি দাও — আমি বিশ্লেষণ করবো'], ['🔍 যাচাই', 'এই তথ্য ওয়েব ঘেঁটে যাচাই করো: ']];
+  const draftText = () => localStorage.getItem(draftKey()) || '';
+  const saveDraft = v => { try { localStorage.setItem(draftKey(), String(v || '')); } catch (_) {} };
+  const nearBottom = el => !el ? true : (el.scrollHeight - el.scrollTop - el.clientHeight < 90);
+  const renderCap = () => 80;
+  const chatBodyHTML = () => {
+    const msgsAll = msgsOf(curId());
+    const msgs = state.msgsFull ? msgsAll : msgsAll.slice(-renderCap());
+    const older = !state.msgsFull && msgsAll.length > renderCap();
+    if (!msgsAll.length) return `<div class="sai-scroll" id="saiScroll"><div id="saiMsgs">${landing()}<div class="sai-chips">${EMPTY_TASKS.map(t => `<button class="chip" onclick="StudyAiTool.quick('${t}')">${t}</button>`).join('')}</div></div></div>`;
+    const rows = msgs.map((m, i) => bubbleOuter(m, msgs[i - 1])).join('');
+    return `<div class="sai-scroll" id="saiScroll"><div id="saiMsgs">${older ? `<button class="sai-older" onclick="StudyAiTool.expandMsgs()">↑ আগের মেসেজগুলো (${bn(msgsAll.length - renderCap())}টি)</button>` : ''}${rows}</div></div>`;
   };
-
+  const composeSig = () => [state.busy, state.attach.map(a => a.id + a.status).join(','), draftText().length ? 1 : 0].join('|');
+  const composerHTML = () => {
+    const tray = state.attach.length ? `<div class="sai-tray">${state.attach.map(a => `<div class="sai-trayitem ${a.status || 'ready'}">${a.kind === 'image' && (a.thumb || a.view) ? `<img src="${a.thumb || a.view}" alt="${esc(a.name)}" onclick="StudyAiTool.viewerTray('${a.id}')">` : `<span class="sai-trayfile">📄</span>`}<button class="sai-trayx" onclick="StudyAiTool.removeAttach('${a.id}')" aria-label="ছবিটা বাদ দাও">✕</button>${a.status === 'processing' ? '<span class="sai-traystat">প্রসেস হচ্ছে…</span>' : a.status === 'error' ? `<span class="sai-traystat err">ব্যর্থ <b onclick="StudyAiTool.retryAttach('${a.id}')">আবার</b></span>` : ''}</div>`).join('')}${state.attach.length < 8 ? `<button class="sai-trayadd" onclick="StudyAiTool.pickAttach()">＋<small>আরও</small></button>` : ''}</div>` : '';
+    return `<div class="sai-compose">${tray}<div class="sai-inputbar"><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><textarea id="saiInput" rows="1" placeholder="Ask anything…" aria-label="তোমার প্রশ্ন">${esc(draftText())}</textarea><button class="sai-send ${state.busy ? 'stop' : ''}" onclick="${state.busy ? 'StudyAiTool.stopGen()' : 'StudyAiTool.send()'}" aria-label="${state.busy ? 'থামাও' : 'পাঠাও'}">${state.busy ? '■' : '↑'}</button></div><div class="sai-suggs">${SUGGS.map(([l, t]) => `<button class="chip" onclick="StudyAiTool.sugg('${esc(t).replace(/'/g, '&#39')}')">${l}</button>`).join('')}</div><div class="sai-disclaim">⚠️ Admihub AI ভুল করতে পারে — গুরুত্বপূর্ণ তথ্য যাচাই করে নিও</div></div>`;
+  };
+  const renderChat = () => chatBodyHTML() + `<div class="sai-srcbar"><button class="sai-srchip" onclick="StudyAiTool.openSheet('source')">${esc(sourceLabel())} ▾</button>${engBadge()}</div>` + composerHTML();
+  const bindComposer = () => {
+    const ta = document.getElementById('saiInput');
+    if (ta && !ta.dataset.bound) {
+      ta.dataset.bound = '1';
+      ta.addEventListener('input', () => { saveDraft(ta.value); autoGrow(ta); updateComposeIfChanged(); });
+    }
+    autoGrow(ta);
+  };
+  const autoGrow = ta => { if (!ta) return; ta.style.height = 'auto'; ta.style.height = Math.min(132, Math.max(44, ta.scrollHeight)) + 'px'; ta.style.overflowY = ta.scrollHeight > 132 ? 'auto' : 'hidden'; };
+  const sugg = t => { const ta = document.getElementById('saiInput'); if (!ta) return; ta.value = draftText() && draftText().slice(-1) !== ' ' ? draftText() + ' ' + t : (draftText() ? draftText() + t : t); saveDraft(ta.value); autoGrow(ta); ta.focus(); };
+  const lastSig = { compose: '', chat: '' };
+  const updateComposeIfChanged = () => { const b = document.getElementById('saiBody'); if (!b || state.page === 'settings') return; const sig = composeSig(); const bar = b.querySelector('.sai-compose'); if (!bar) return; if (sig !== lastSig.compose) { const focused = document.activeElement === document.getElementById('saiInput'); const val = draftText(); bar.outerHTML = composerHTML(); const ta = document.getElementById('saiInput'); if (ta) { if (focused || !val) { ta.value = val; ta.focus(); ta.setSelectionRange(val.length, val.length); } bindComposer(); } lastSig.compose = sig; } };
   const paint = () => {
     const b = document.getElementById('saiBody');
     if (b) {
-      b.innerHTML = state.page === 'settings' ? settingsPage() : renderChat() + inputBar();
-      const el = document.getElementById('saiMsgs'); if (el) el.scrollTop = el.scrollHeight;
+      if (state.page === 'settings') {
+        b.innerHTML = settingsPage();
+        lastSig.compose = '';
+      } else {
+        // স্থিতিশীল-রিকনসিল: বদলানো মেসেজের নোডই শুধু বদলায় — পুরো লিস্ট কখনো রিমাউন্ট নয়
+        const container = b.querySelector('#saiMsgs');
+        const needsFull = !container || container.dataset.chat !== curId() || !container.querySelector('[data-mid]');
+        if (needsFull) { b.innerHTML = renderChat(); lastSig.compose = composeSig(); bindComposer(); const sc = document.getElementById('saiScroll'); if (sc) sc.scrollTop = sc.scrollHeight; }
+        else {
+          const nb = nearBottom(document.getElementById('saiScroll'));
+          const msgs = (state.msgsFull ? msgsOf(curId()) : msgsOf(curId()).slice(-renderCap()));
+          const rows = [...container.querySelectorAll('[data-mid]')];
+          const byId = {}; rows.forEach(r => byId[r.dataset.mid] = r);
+          const wanted = msgs.map(m => m.id);
+          rows.forEach(r => { if (!wanted.includes(r.dataset.mid)) r.remove(); });
+          let prev = null;
+          msgs.forEach(m => {
+            const h = msgHash(m);
+            const ex = byId[m.id];
+            if (ex && ex.dataset.h === String(h.length) + '·' + (m.text || '').length + '·' + m.status) { prev = m; return; }
+            const tmp = document.createElement('div'); tmp.innerHTML = bubbleOuter(m, prev);
+            const nu = tmp.firstElementChild;
+            if (ex) ex.replaceWith(nu); else container.appendChild(nu);
+            prev = m;
+          });
+          const olderBtn = container.querySelector('.sai-older');
+          const wantOlder = !state.msgsFull && msgsOf(curId()).length > renderCap();
+          if (wantOlder && !olderBtn) container.insertAdjacentHTML('afterbegin', `<button class="sai-older" onclick="StudyAiTool.expandMsgs()">↑ আগের মেসেজগুলো</button>`);
+          if (!wantOlder && olderBtn) olderBtn.remove();
+          const sc = document.getElementById('saiScroll');
+          if (sc && (nb || state.forceScroll)) { sc.scrollTop = sc.scrollHeight; state.forceScroll = false; }
+          updateComposeIfChanged();
+        }
+      }
     }
     const sh = document.getElementById('saiSheetRoot'); if (sh) sh.innerHTML = sheet();
   };
 
   const render = () => {
-    ensureChat();
+    ensureChat(); fixIds(curId());
+    state.page = null; state.viewer = null; state.msgsFull = false;
     if (!state.autoSyncTried) { state.autoSyncTried = true; setTimeout(() => ensureSync(false), 900); }
     renderShell(`<div id="saiBody"></div><div id="saiSheetRoot"></div>`, {
       title: 'Admihub AI',
       hideNav: true,
       back: "navigate('dashboard')",
-      actions: [`<button class="sai-topicon" onclick="StudyAiTool.openSheet('chats')" aria-label="চ্যাট">💬</button>`, `<button class="sai-topicon" onclick="StudyAiTool.openSheet('settings')" aria-label="সেটিংস">⚙️</button>`]
+      actions: [`<button class="sai-topicon" onclick="StudyAiTool.openSheet('settings')" aria-label="সেটিংস">⚙️</button>`, `<button class="sai-topicon" onclick="StudyAiTool.openSheet('menu')" aria-label="মেনু">⋯</button>`]
     });
     if (!document.getElementById('saiAgentStyle')) {
       const s = document.createElement('style'); s.id = 'saiAgentStyle'; s.textContent = `
@@ -340,7 +488,67 @@ body{overflow-x:hidden}
 .sai-srcbar{padding:8px 0 0}
 .sai-srchip{display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid var(--line,#e5e7eb);background:#fff;font-size:11.5px;font-weight:700;color:var(--emerald,#0f6b4f)}
 .sai-topicon{background:none;border:none;font-size:21px;padding:4px 6px;color:var(--emerald-d,#0f6b4f);cursor:pointer;width:42px;height:42px;display:grid;place-items:center;border-radius:14px}
-.sai-inputbar{display:flex;gap:8px;align-items:center;padding:8px 2px calc(10px + env(safe-area-inset-bottom,0px));position:fixed;bottom:0;left:0;right:0;z-index:60;background:linear-gradient(180deg,rgba(247,250,248,0),#f7faf8 26%,#f7faf8)}
+.sai-compose{position:fixed;bottom:0;left:0;right:0;z-index:60;padding:4px 10px calc(6px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(247,250,248,0),#f7faf8 18%,#f7faf8 70%)}
+.sai-inputbar{display:flex;gap:8px;align-items:flex-end;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:22px;padding:6px 8px;box-shadow:0 4px 18px rgba(16,24,40,.07);transition:box-shadow .2s,border-color .2s}
+.sai-inputbar:focus-within{border-color:var(--emerald,#0f6b4f);box-shadow:0 6px 22px rgba(15,107,79,.14)}
+.sai-inputbar textarea{flex:1;border:none;outline:none;resize:none;font:inherit;font-size:14.5px;line-height:1.55;background:transparent;min-height:44px;max-height:132px;padding:10px 2px;overflow-y:hidden;word-break:break-word;white-space:pre-wrap}
+.sai-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 10px 10px;-webkit-overflow-scrolling:touch}
+.sai-tray{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px}
+.sai-trayitem{position:relative;flex:0 0 auto;width:74px;height:74px;border-radius:14px;border:1.5px solid var(--line,#e5e7eb);background:#fff;overflow:visible;display:grid;place-items:center}
+.sai-trayitem img{width:100%;height:100%;object-fit:cover;border-radius:13px;cursor:pointer}
+.sai-trayx{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:none;background:#1f2937;color:#fff;font-size:12px;cursor:pointer;display:grid;place-items:center;box-shadow:0 2px 6px rgba(0,0,0,.25)}
+.sai-traystat{position:absolute;bottom:-16px;left:2px;font-size:9.5px;color:var(--sub,#6b7280);white-space:nowrap}
+.sai-traystat.err{color:#b3261e;font-weight:700}
+.sai-trayitem.error{border-color:#f0b428;background:#fdf6e3}
+.sai-trayadd{flex:0 0 auto;width:74px;height:74px;border-radius:14px;border:1.5px dashed var(--line,#cbd5d1);background:transparent;color:var(--sub,#6b7280);font-size:20px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.sai-trayadd small{font-size:9.5px;margin-top:3px}
+.sai-send{width:40px;height:40px;border-radius:50%;border:none;background:var(--emerald,#0f6b4f);color:#fff;font-size:17px;cursor:pointer;flex:0 0 auto;display:grid;place-items:center;transition:transform .15s}
+.sai-send:active{transform:scale(.92)}
+.sai-send.stop{background:#1f2937}
+.sai-suggs{display:flex;gap:6px;overflow-x:auto;padding:8px 2px 2px}
+.sai-suggs .chip{flex:0 0 auto;background:#fff;border:1px solid var(--line,#e5e7eb)}
+.sai-disclaim{text-align:center;font-size:9.8px;color:#9aa5a0;padding:6px 0 2px}
+.sai-actions{display:flex;gap:2px;margin-top:4px;flex-wrap:wrap}
+.sai-act{background:none;border:none;font-size:11px;color:var(--sub,#6b7280);cursor:pointer;padding:4px 7px;border-radius:8px}
+.sai-act:hover{background:rgba(15,107,79,.07)}
+.sai-act.on{color:var(--emerald,#0f6b4f);font-weight:700}
+.sai-act.retry{color:#b45309;font-weight:700}
+.sai-meta{font-size:9.5px;color:#a7b1ac;margin-top:3px}
+.sai-md{font-size:14px;line-height:1.72;word-break:break-word;overflow-wrap:anywhere}
+.sai-md .sai-p{margin:0 0 8px}
+.sai-md .sai-p:last-child{margin-bottom:0}
+.sai-h{font-weight:800;margin:10px 0 6px}
+.sai-h2{font-size:16.5px}.sai-h3{font-size:15px}.sai-h4{font-size:14px}
+.sai-md ul,.sai-md ol{margin:2px 0 10px;padding-left:22px;display:grid;gap:3px}
+.sai-code-i{background:rgba(15,107,79,.08);border-radius:6px;padding:1px 6px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px}
+.sai-codeblk{background:#0f172a;color:#e2e8f0;border-radius:12px;padding:10px 12px;margin:8px 0;overflow-x:auto}
+.sai-codeblk small{color:#94a3b8;font-size:9.5px;letter-spacing:.4px;text-transform:uppercase}
+.sai-codeblk pre{margin:4px 0 0;font-family:ui-monospace,Menlo,monospace;font-size:12px;line-height:1.6;white-space:pre}
+.sai-tblwrap{overflow-x:auto;margin:8px 0;border:1px solid var(--line,#e5e7eb);border-radius:12px;-webkit-overflow-scrolling:touch}
+.sai-tbl{border-collapse:collapse;width:100%;font-size:12.8px;min-width:340px}
+.sai-tbl th{background:#f0f5f2;text-align:left;padding:8px 10px;font-size:11.5px;letter-spacing:.2px}
+.sai-tbl td{padding:7px 10px;border-top:1px solid var(--line,#eef1ef);vertical-align:top}
+.sai-quote{border-left:3px solid var(--emerald,#0f6b4f);background:rgba(15,107,79,.05);margin:8px 0;padding:7px 12px;border-radius:0 10px 10px 0}
+.sai-hr{border:none;border-top:1px dashed var(--line,#d5dcd8);margin:10px 0}
+.sai-mcq{background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:14px;padding:10px 12px;margin:8px 0;display:grid;gap:4px}
+.sai-mcq .sai-opt{margin:0;padding:5px 8px;border-radius:9px;background:#f7faf8}
+.sai-ansline{font-weight:800;color:var(--emerald-d,#0b5a42);background:#e7f6ee;border-radius:10px;padding:7px 11px;margin:8px 0 4px}
+.sai-explain{background:#f4f6fb;border-radius:10px;padding:7px 11px;margin:4px 0 8px;font-size:13px}
+.sai-callout{background:#fdf6e3;border:1px solid #f0e2b6;border-radius:10px;padding:7px 11px;margin:6px 0}
+.sai-errbubble{background:#fdeceb;border:1px solid #f5c6c0;color:#8f2f26;border-radius:12px;padding:9px 12px}
+.sai-cancelbubble{color:var(--sub,#6b7280);font-style:italic}
+.sai-activity{margin-top:8px;border:1px solid #d9e8df;background:#f4faf6;border-radius:12px;padding:7px 10px}
+.sai-activity summary{cursor:pointer;font-size:12px;font-weight:700;color:var(--emerald-d,#0b5a42)}
+.sai-step{font-size:11.8px;color:#3c5348;padding:3px 0 3px 4px}
+.sai-fbnote{font-size:11px;color:var(--sub,#6b7280);margin-top:6px}
+.sai-older{margin:0 auto 10px;display:block;background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:999px;padding:6px 14px;font-size:11.5px;color:var(--sub,#6b7280);cursor:pointer}
+.sai-viewer{position:fixed;inset:0;background:rgba(10,14,12,.92);z-index:200;display:flex;align-items:center;justify-content:center}
+.sai-vimg{max-width:94vw;max-height:82vh;border-radius:10px;transition:transform .2s;cursor:zoom-in}
+.sai-vimg.zoom{transform:scale(1.6);cursor:zoom-out}
+.sai-vclose{position:absolute;top:14px;right:14px;width:40px;height:40px;border-radius:50%;border:none;background:rgba(255,255,255,.14);color:#fff;font-size:17px;cursor:pointer}
+.sai-vnav{position:absolute;top:50%;transform:translateY(-50%);width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.14);color:#fff;font-size:24px;cursor:pointer}
+.sai-vnav.prev{left:10px}.sai-vnav.next{right:10px}
+.sai-vcount{position:absolute;bottom:16px;left:0;right:0;text-align:center;color:#cbd5d1;font-size:12px}
 .sai-page{padding-bottom:84px}
 .sai-plus,.sai-send{flex:0 0 46px;height:46px;border-radius:50%;font-size:21px;transition:transform .15s ease}
 .sai-plus{background:#fff;border:1.5px solid var(--line,#e5e7eb);color:var(--sub,#4b5563)}
@@ -370,24 +578,60 @@ body{overflow-x:hidden}
     if (!window.__saiVvBound && window.visualViewport) {
       window.__saiVvBound = true;
       const vv = window.visualViewport;
-      const onVV = () => { const bar = document.querySelector('.sai-inputbar'); if (!bar) return; const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)); bar.style.bottom = kb + 'px'; const ms = document.getElementById('saiMsgs'); if (ms) ms.scrollTop = ms.scrollHeight; };
+      const onVV = () => { const bar = document.querySelector('.sai-compose'); if (!bar) return; const kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)); bar.style.bottom = kb + 'px'; const ms = document.getElementById('saiMsgs'); if (ms) ms.scrollTop = ms.scrollHeight; };
       vv.addEventListener('resize', onVV); vv.addEventListener('scroll', onVV);
     }
     setTimeout(() => { const i = document.getElementById('saiInput'); i && i.focus(); }, 150);
   };
 
-  const push = m => { const id = ensureChat(); const msgs = msgsOf(id); msgs.push(m); saveMsgs(id, msgs); touchChat(id, m.who === 'me' ? m.text : null); paint(); };
+  const push = m => { const id = ensureChat(); const msgs = msgsOf(id); const rec = Object.assign({ id: 'm' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), ts: Date.now(), status: m.who === 'ai' && !m.text ? 'pending' : 'completed' }, m); msgs.push(rec); saveMsgs(id, msgs); touchChat(id, m.who === 'me' ? m.text : null); paint(); return rec; };
 
-  const send = async textArg => {
+  // টাইপরাইটার-রিভিল: উত্তর টুকরো টুকরো করে দেখায় (giant-dump নিষিদ্ধ); শুধু ওই-নোড বদলায়
+  const typewrite = (mid, full, extras) => new Promise(res => {
+    let i = 0;
+    const iv = setInterval(() => {
+      if (state.abortRef && state.abortRef.aborted) { clearInterval(iv); patchMsg(mid, { status: 'cancelled', text: '' }); res(); return; }
+      i = Math.min(full.length, i + 12);
+      const node = document.querySelector(`[data-mid="${mid}"] .sai-bubble`);
+      if (node) { node.innerHTML = `<div class="sai-md">${md(full.slice(0, i))}</div>`; const sc = document.getElementById('saiScroll'); if (sc && nearBottom(sc)) sc.scrollTop = sc.scrollHeight; }
+      if (i >= full.length) { clearInterval(iv); patchMsg(mid, Object.assign({ text: full, status: 'completed' }, extras || {})); res(); }
+    }, 16);
+  });
+  const fixIds = id => { const ms = msgsOf(id); let ch = false; ms.forEach(m => { if (!m.id) { m.id = 'm' + Math.random().toString(36).slice(2, 9); m.ts = m.ts || Date.now(); m.status = m.status || 'completed'; ch = true; } }); if (ch) saveMsgs(id, ms); };
+  // মেসেজ-আপডেট হেল্পার: শুধু ওই-মেসেজটাই বদলায় (পুরো লিস্ট রিমাউন্ট নিষিদ্ধ)
+  const patchMsg = (mid, fields) => {
+    const id = curId(); const msgs = msgsOf(id); const i = msgs.findIndex(m => m.id === mid);
+    if (i < 0) return;
+    msgs[i] = Object.assign({}, msgs[i], fields);
+    saveMsgs(id, msgs); paint();
+  };
+  const draftKey = () => 'studyAiDraft:' + curId();
+  const friendlyErr = e => {
+    const m = String(e?.message || e);
+    if (e && e.aborted) return '';
+    if (/quota|429/i.test(m)) return 'AI-এর ফ্রি-কোটা এখন শেষ — ১ মিনিট পরে আবার চেষ্টা করো 🙏';
+    if (/failed to fetch|network|offline/i.test(m)) return 'ইন্টারনেট সংযোগে সমস্যা হচ্ছে — নেট দেখে Retry চাপো';
+    return 'AI সার্ভিসে সাময়িক সমস্যা হয়েছে — একটু পরে আবার চেষ্টা করো 🙏';
+  };
+  const send = async (textArg, retryOf) => {
     if (state.busy) return;
+    if (!retryOf && typeof navigator !== 'undefined' && navigator.onLine === false) {
+      push({ who: 'me', text: String(textArg || draftText()).trim() || '…' });
+      push({ who: 'ai', text: '📡 এখন ইন্টারনেট নেই — তোমার চ্যাট পড়া যাচ্ছে, কিন্তু নতুন উত্তর আনতে নেট লাগবে। নেট ফিরলে আবার পাঠাও 😊' });
+      return;
+    }
     const input = document.getElementById('saiInput');
-    let text = String(textArg || (input ? input.value : '')).trim();
+    let text = String(textArg !== undefined ? textArg : draftText()).trim();
     const atts = state.attach.slice();
     if (!text && !atts.length) return;
-    if (!text) text = 'সংযুক্ত ফাইলটা দেখে বলো';
+    if (!text) text = retryOf ? 'আবার চেষ্টা করো' : 'সংযুক্ত ফাইলটা দেখে বলো';
     const imgs = atts.filter(a => a.kind === 'image');
-    if (imgs.length && !(cfg().engine === 'fast' && cfg().provider === 'gemini' && cfg().keys.gemini)) {
-      if (window.toast) window.toast('📎 ছবি পড়তে ⚡ ফাস্ট-ইঞ্জিনে Gemini key দরকার — Settings-এ বসাও');
+    const visionOk = cfg().engine === 'fast' && cfg().provider === 'gemini' && !!cfg().keys.gemini;
+    // Gemini OPTIONAL: ছবি থাকলে ভিশন-ক্ষমতা দরকার — না থাকলে বন্ধুসুলভ capability-বার্তা (কখনো কঠিন error নয়)
+    if (imgs.length && !visionOk) {
+      push({ who: 'me', text, atts: atts.map(a => ({ kind: a.kind, name: a.name, thumb: a.thumb || '' })) });
+      state.attach = []; saveDraft('');
+      push({ who: 'ai', text: 'ছবি-বিশ্লেষণের জন্য এখন আমার কাছে কোনো ভিশন-প্রোভাইডার জোড়া নেই 👀\n⚙️ সেটিংসে কোনো vision-মডেলের key (যেমন Gemini) জুড়লে সরাসরি ছবি পড়ে দিতে পারব — আর না-ও জুড়লে চ্যাট, এজেন্ট, প্রশ্ন-ব্যাংক সবই আগের মতো চলবে।\nকাছাকাছি সমাধান: ছবির প্রশ্নটা লিখে পাঠাও — 🌐 এজেন্ট ওয়েব ঘেঁটে উত্তর দেবে ✨' });
       return;
     }
     // ইউজার যে-ইঞ্জিন নির্বাচন করেছে সেটাই উত্তর দেবে — চুপচাপ অন্য-ইঞ্জিনে ফেলো নয়
@@ -397,25 +641,60 @@ body{overflow-x:hidden}
       if (input) input.value = '';
       return;
     }
-    if (input) input.value = '';
-    state.busy = true;
-    push({ who: 'me', text, atts: atts.map(a => ({ kind: a.kind, name: a.name, thumb: a.thumb || '' })) });
-    state.attach = [];
-    push({ who: 'ai', text: '' });
+    state.busy = true; state.abortRef = { aborted: false }; state.forceScroll = true;
+    if (!retryOf) {
+      push({ who: 'me', text, atts: atts.map(a => ({ kind: a.kind, name: a.name, thumb: a.thumb || '' })) });
+      state.attach = []; saveDraft('');
+    }
+    const aiMsg = push({ who: 'ai', text: '', status: 'pending' });
+    paint();
     try {
       if (cfg().engine === 'fast' && fastAvailable()) {
-        const r = await askFast(text, atts);
-        const id = curId(); const msgs = msgsOf(id); msgs[msgs.length - 1] = { who: 'ai', text: r.text, sources: r.sources || [] }; saveMsgs(id, msgs);
+        patchMsg(aiMsg.id, { status: 'streaming' });
+        const r = await askFast(text, atts, state.abortRef);
+        await typewrite(aiMsg.id, r.text, { sources: r.sources || [] });
       } else {
         const source = state.source || 'auto';
-        const r = await askAgent(text, source);
-        const id = curId(); const msgs = msgsOf(id); msgs[msgs.length - 1] = { who: 'ai', text: r.text, sources: r.sources }; saveMsgs(id, msgs);
+        patchMsg(aiMsg.id, { phase: 'run' });
+        const onStep = (n, steps) => patchMsg(aiMsg.id, { phase: 'run', steps: steps.map(x => String(x && (x.description || x.title || x) || '').slice(0, 90)).filter(Boolean).slice(-8), status: 'pending' });
+        const r = await askAgent(text, source, onStep, state.abortRef);
+        await typewrite(aiMsg.id, r.text, { sources: r.sources, steps: r.steps });
       }
     } catch (e) {
-      const id = curId(); const msgs = msgsOf(id); msgs[msgs.length - 1] = { who: 'ai', text: `দুঃখিত, এবার হয়নি: ${String(e?.message || e)}` }; saveMsgs(id, msgs);
+      if (e && (e.aborted || e.name === 'AbortError')) patchMsg(aiMsg.id, { status: 'cancelled', text: '' });
+      else patchMsg(aiMsg.id, { status: 'error', errText: friendlyErr(e) || String(e?.message || e).slice(0, 80), text: '' });
     }
-    state.busy = false; paint();
+    state.busy = false; state.abortRef = null; paint();
   };
+  const stopGen = () => { if (state.abortRef) state.abortRef.aborted = true; if (window.toast) window.toast('⏹ থামানো হচ্ছে…'); };
+
+  // ── মেসেজ-অ্যাকশন: copy / edit / retry / regenerate / rate ──
+  const findMsg = mid => msgsOf(curId()).find(m => m.id === mid);
+  const copyMsg = async mid => { const m = findMsg(mid); const t = m ? (m.text || '') : ''; try { if (navigator.clipboard) await navigator.clipboard.writeText(t); else { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); } if (window.toast) window.toast('কপি হয়েছে ✓'); } catch (_) { if (window.toast) window.toast('কপি করা গেল না'); } };
+  const editMsg = mid => {
+    const msgs = msgsOf(curId()); const i = msgs.findIndex(m => m.id === mid);
+    if (i < 0) return;
+    const text = msgs[i].text || '';
+    msgs.splice(i, msgs[i + 1] && msgs[i + 1].who === 'ai' ? 2 : 1);
+    saveMsgs(curId(), msgs); saveDraft(text); paint();
+    const ta = document.getElementById('saiInput'); if (ta) { ta.focus(); autoGrow(ta); }
+  };
+  const retryMsg = mid => {
+    const msgs = msgsOf(curId()); const i = msgs.findIndex(m => m.id === mid);
+    if (i < 0) return;
+    let u = null; for (let j = i - 1; j >= 0; j--) if (msgs[j].who === 'me') { u = msgs[j]; break; }
+    if (!u) return;
+    msgs.splice(i, 1); saveMsgs(curId(), msgs);
+    send(u.text || 'আবার চেষ্টা করো', {});
+  };
+  const regenerate = mid => retryMsg(mid);
+  const rate = (mid, fb) => { patchMsg(mid, { fb }); };
+  const expandMsgs = () => { state.msgsFull = true; paint(); };
+  // ── 🖼 ফুলস্ক্রিন ভিউয়ার ──
+  const viewer = mid => { const m = findMsg(mid); const list = ((m && m.atts) || []).filter(a => a.view || a.thumb).map(a => a.view || a.thumb); if (!list.length) return; state.viewer = { list, i: 0 }; paint(); };
+  const viewerTray = aid => { const a = state.attach.find(x => x.id === aid); if (!a || !(a.view || a.thumb)) return; state.viewer = { list: [a.view || a.thumb], i: 0 }; paint(); };
+  const viewerNav = d => { if (!state.viewer) return; state.viewer.i = (state.viewer.i + d + state.viewer.list.length) % state.viewer.list.length; paint(); };
+  const viewerClose = () => { state.viewer = null; paint(); };
 
   const shareData = async () => {
     push({ who: 'me', text: '📚 ডেটা পাঠাচ্ছি…' });
@@ -443,44 +722,50 @@ body{overflow-x:hidden}
     }
   };
   const closePage = () => { state.page = null; state.keyTest = null; paint(); };
-  const closeSheet = () => { state.sheet = null; paint(); };
-  // ── 📎 অ্যাটাচমেন্ট: ছবি (canvas-ডাউনস্কেল) + টেক্সট-ফাইল ──
+  const closeSheet = () => { state.sheet = null; state.viewer = null; paint(); };
+  // ── 📎 AttachmentManager: multi-image + lifecycle (processing→ready/error→retry) + individual delete ──
+  const MAXATT = 8;
+  const processImage = (a, f) => new Promise(done => {
+    const rd = new FileReader();
+    rd.onload = () => {
+      const raw = String(rd.result || '');
+      const im = new Image();
+      im.onload = () => {
+        try {
+          const mk = (max, q) => { const k = Math.min(1, max / Math.max(im.width || 1, im.height || 1)); const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round((im.width || 1) * k)); cv.height = Math.max(1, Math.round((im.height || 1) * k)); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); return cv.toDataURL('image/jpeg', q).split(',')[1] || cv.toDataURL('image/jpeg', q); };
+          a.data = mk(1280, 0.82);
+          a.view = mk(560, 0.78);
+          a.thumb = (() => { try { const k = Math.min(1, 112 / Math.max(im.width || 1, im.height || 1)); const tv = document.createElement('canvas'); tv.width = Math.max(1, Math.round((im.width || 1) * k)); tv.height = Math.max(1, Math.round((im.height || 1) * k)); tv.getContext('2d').drawImage(im, 0, 0, tv.width, tv.height); return tv.toDataURL('image/jpeg', 0.7); } catch (_) { return a.view; } })();
+          a.mime = 'image/jpeg'; a.status = 'ready';
+        } catch (_) { a.status = 'error'; }
+        done(a);
+      };
+      im.onerror = () => { a.status = 'error'; done(a); };
+      im.src = raw;
+    };
+    rd.onerror = () => { a.status = 'error'; done(a); };
+    rd.readAsDataURL(f);
+  });
+  const processText = (a, f) => new Promise(done => {
+    const rd = new FileReader();
+    rd.onload = () => { a.text = String(rd.result || '').slice(0, 12000); a.status = 'ready'; done(a); };
+    rd.onerror = () => { a.status = 'error'; done(a); };
+    rd.readAsText(f);
+  });
+  const runAttach = a => { const pr = a.kind === 'image' ? processImage(a, a.file) : processText(a, a.file); pr.then(() => paint()); return pr; };
   const pickAttach = () => { const el = document.getElementById('saiFile'); if (el) el.click(); };
-  const removeAttach = i => { state.attach.splice(i, 1); paint(); };
+  const retryAttach = id => { const a = state.attach.find(x => x.id === id); if (a) { a.status = 'processing'; paint(); runAttach(a); } };
+  const removeAttach = id => { state.attach = state.attach.filter(a => a.id !== id); paint(); };
   const handleFiles = files => {
-    [...(files || [])].slice(0, 4).forEach(f => {
+    [...(files || [])].slice(0, MAXATT).forEach(f => {
       try {
-        if (/^image\//.test(f.type || '')) {
-          const rd = new FileReader();
-          rd.onload = () => {
-            const raw = String(rd.result || '');
-            let data = '', thumb = '', mime = 'image/jpeg';
-            try {
-              const im = new Image();
-              im.onload = () => {
-                try {
-                  const k = Math.min(1, 1280 / Math.max(im.width || 1, im.height || 1));
-                  const cv = document.createElement('canvas'); cv.width = Math.max(1, Math.round((im.width || 1) * k)); cv.height = Math.max(1, Math.round((im.height || 1) * k));
-                  cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height);
-                  data = cv.toDataURL('image/jpeg', 0.82).split(',')[1] || '';
-                  const tk = Math.min(1, 112 / Math.max(im.width || 1, im.height || 1));
-                  const tv = document.createElement('canvas'); tv.width = Math.max(1, Math.round((im.width || 1) * tk)); tv.height = Math.max(1, Math.round((im.height || 1) * tk));
-                  tv.getContext('2d').drawImage(im, 0, 0, tv.width, tv.height);
-                  thumb = tv.toDataURL('image/jpeg', 0.7);
-                } catch (_) { if (raw.length < 350000) { const ps = raw.split(','); data = ps[1] || ''; mime = (ps[0].match(/data:([^;]+)/) || [])[1] || 'image/jpeg'; thumb = raw; } }
-                if (data) { state.attach.push({ kind: 'image', name: f.name || 'ছবি', mime, data, thumb }); paint(); }
-                else if (window.toast) window.toast('ছবিটা বড় হয়ে গেছে — ছোট ছবি দাও');
-              };
-              im.onerror = () => { if (window.toast) window.toast('ছবিটা খোলা গেল না'); };
-              im.src = raw;
-            } catch (_) { if (window.toast) window.toast('ছবি প্রক্রিয়া করা গেল না'); }
-          };
-          rd.readAsDataURL(f);
-        } else if (/^text\//.test(f.type || '') || /\.(txt|md|json|csv)$/i.test(f.name || '')) {
-          const rd = new FileReader();
-          rd.onload = () => { state.attach.push({ kind: 'text', name: f.name || 'ফাইল', text: String(rd.result || '').slice(0, 12000) }); paint(); };
-          rd.readAsText(f);
-        } else if (window.toast) window.toast('এই ধরনের ফাইল এখনো না — ছবি বা টেক্সট ফাইল দাও (PDF আসছে)');
+        if (state.attach.length >= MAXATT) { if (window.toast) window.toast('একসাথে সর্বোচ্চ ' + MAXATT + 'টি ফাইল — কয়েকটা সরিয়ে আবার দাও 🙏'); return; }
+        const base = { id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), name: f.name || 'ফাইল', size: f.size || 0, status: 'processing', file: f };
+        if (/^image\//.test(f.type || '')) state.attach.push(Object.assign(base, { kind: 'image', mime: f.type }));
+        else if (/^text\//.test(f.type || '') || /\.(txt|md|json|csv)$/i.test(f.name || '')) state.attach.push(Object.assign(base, { kind: 'text', mime: 'text/plain' }));
+        else { if (window.toast) window.toast('এই ধরনের ফাইল এখনো না — ছবি বা টেক্সট ফাইল দাও (PDF আসছে)'); return; }
+        paint();
+        runAttach(state.attach[state.attach.length - 1]);
       } catch (_) {}
     });
   };
@@ -505,6 +790,8 @@ body{overflow-x:hidden}
   const setModel = m => { const c = cfg(); c.model = String(m || '').trim(); setCfg(c); paint(); };
   const setTheme = t => { const c = cfg(); c.theme = t; setCfg(c); applyTheme(); paint(); };
   const toggleData = () => { const c = cfg(); c.sendData = !c.sendData; setCfg(c); paint(); };
+  const renameChat = () => { const t = prompt('চ্যাটের নতুন নাম?', chatTitle()); if (t && t.trim()) { const l = listChats(); const c = l.find(x => x.id === curId()); if (c) { c.title = t.trim().slice(0, 40); saveList(l); } state.sheet = null; paint(); } };
+  const clearCurrent = () => { if (!confirm('এই কথোপকথনের সব মেসেজ মুছে যাবে — নিশ্চিত?')) return; saveMsgs(curId(), []); state.sheet = null; state.msgsFull = false; saveDraft(''); paint(); };
   const clearChats = () => { if (!confirm('সব চ্যাট মুছে ফেলবো?')) return; listChats().forEach(c => localStorage.removeItem('studyAiChat:' + c.id)); localStorage.removeItem(LS_LIST); localStorage.removeItem(LS_CUR); state.sheet = null; paint(); };
   const applyTheme = () => {
     const t = cfg().theme;
@@ -542,6 +829,6 @@ body{overflow-x:hidden}
     [1200, 2500, 4500].forEach(d => setTimeout(mountDashboard, d));
   };
 
-  window.StudyAiTool = { render, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, setEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, testKey, ensureSync, toggleEngine, _state: () => state };
+  window.StudyAiTool = { render, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, toggleEngine, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, sugg, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();
