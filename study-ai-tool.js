@@ -165,7 +165,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       let d = await res.json().catch(() => ({}));
       // গ্রাউন্ডিং (google_search) কোটা/প্ল্যানে না চললে টুল-ছাড়া পুনঃপ্রচেষ্টা — উত্তর তো আসবেই
       if (!res.ok) { res = await call(false); d = await res.json().catch(() => ({})); }
-      if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
+      if (!res.ok) throw new Error(res.status === 429 ? 'Gemini-র ফ্রি-কোটা এখন শেষ — ১ মিনিট পরে আবার পাঠাও, বা কম্পোজারের ব্যাজ চেপে 🌐 এজেন্টে বদলাও' : (d?.error?.message || 'HTTP ' + res.status));
       const text = String((d.candidates?.[0]?.content?.parts || []).map(pp => pp.text || '').join('')).trim();
       return { text: text || 'উত্তর পাইনি — আবার লেখো?', sources: gemSources(d) };
     }
@@ -175,7 +175,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const msgs = [{ role: 'system', content: sysPrompt() }, ...msgsOf(curId()).filter(m => m.text).slice(-8).map((m, i, arr) => ({ role: m.who === 'ai' ? 'assistant' : 'user', content: i === arr.length - 1 ? qText : m.text }))].slice(0, 9);
     const res = await fetch(base, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key }, body: JSON.stringify({ model, messages: msgs, temperature: 0.5, max_tokens: 1024 }) });
     const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(d?.error?.message || 'HTTP ' + res.status);
+    if (!res.ok) throw new Error(res.status === 429 ? 'এই provider-এর ফ্রি-কোটা এখন শেষ — ১ মিনিট পরে আবার' : (d?.error?.message || 'HTTP ' + res.status));
     return { text: String(d.choices?.[0]?.message?.content || '').trim() || 'উত্তর পাইনি — আবার লেখো?', sources: [] };
   };
   // 🔑 key-টেস্ট: আসলে কাজ করে কি না, কোন মডেল, লিমিট-হিন্ট — সেটিংস-পেজে দেখায়
@@ -214,7 +214,8 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     return `<div class="sai-landing">${ghost ? '<button class="sai-ghostbtn" onclick="StudyAiTool.shareData()">⚠️ ডেটা এখনো এজেন্টের কাছে পৌঁছায়নি — 📚 এখনই পাঠাও</button>' : ''}<div class="sai-logo"><span>🤖</span><i>✨</i></div><div class="sai-hello">হ্যালো, <b class="sai-name" onclick="StudyAiTool.editName()">${esc(nameOf())}</b>!</div><div class="sai-sub">আজ তোমাকে কীভাবে সাহায্য করবো?</div>${shareCard()}${synced ? `<div class="sai-memok">📚 মেমোরি: ${bn(new Date(Number(synced)).getDate())} তারিখে ${bn('…') || ''}ব্যাংক সেভ আছে · Settings-এ আপডেট করো</div>` : ''}<div class="sai-note">🌐 ব্রাউজার-এজেন্ট সত্যিই ওয়েব ঘেঁটে যাচাই করে উত্তর দেয় — সাধারণত ১০ সেকেন্ড–৩ মিনিট, কাজ বড় হলে বেশি</div></div>`;
   };
 
-  const inputBar = () => `<div class="sai-srcbar"><button class="sai-srchip" onclick="StudyAiTool.openSheet('source')">${esc(sourceLabel())} ▾</button></div>${state.attach.length ? `<div class="sai-attachbar">${state.attach.map((a, i) => `<span class="sai-atchip">${a.kind === 'image' && a.thumb ? `<img src="${a.thumb}">` : '📄'} ${esc((a.name || '').slice(0, 18))}<b onclick="StudyAiTool.removeAttach(${i})">✕</b></span>`).join('')}</div>` : ''}<div class="sai-inputbar"><button class="sai-plus" onclick="StudyAiTool.openSheet('source')" aria-label="সোর্স">⊕</button><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><input id="saiFile" type="file" multiple accept="image/*,.txt,.md,.json,.csv" style="display:none" onchange="StudyAiTool.handleFiles(this.files);this.value=''"><input id="saiInput" type="text" placeholder="প্রশ্ন লেখো…" onkeydown="if(event.key==='Enter')StudyAiTool.send()"><button class="sai-send" ${state.busy ? 'disabled' : ''} onclick="StudyAiTool.send()" aria-label="পাঠাও">▲</button></div>`;
+  const engBadge = () => { const c = cfg(); const lbl = c.engine === 'fast' ? '⚡ ' + (c.provider === 'gemini' ? 'Gemini' : c.provider === 'groq' ? 'Groq' : 'Grok') : '🌐 এজেন্ট'; return `<button class="sai-engchip ${c.engine === 'fast' ? 'fast' : ''}" onclick="StudyAiTool.toggleEngine()" title="উত্তর-ইঞ্জিন">${lbl}</button>`; };
+  const inputBar = () => `<div class="sai-srcbar"><button class="sai-srchip" onclick="StudyAiTool.openSheet('source')">${esc(sourceLabel())} ▾</button>${engBadge()}</div>${state.attach.length ? `<div class="sai-attachbar">${state.attach.map((a, i) => `<span class="sai-atchip">${a.kind === 'image' && a.thumb ? `<img src="${a.thumb}">` : '📄'} ${esc((a.name || '').slice(0, 18))}<b onclick="StudyAiTool.removeAttach(${i})">✕</b></span>`).join('')}</div>` : ''}<div class="sai-inputbar"><button class="sai-plus" onclick="StudyAiTool.openSheet('source')" aria-label="সোর্স">⊕</button><button class="sai-clip" onclick="StudyAiTool.pickAttach()" aria-label="ফাইল জোড়া">📎</button><input id="saiFile" type="file" multiple accept="image/*,.txt,.md,.json,.csv" style="display:none" onchange="StudyAiTool.handleFiles(this.files);this.value=''"><input id="saiInput" type="text" placeholder="প্রশ্ন লেখো…" onkeydown="if(event.key==='Enter')StudyAiTool.send()"><button class="sai-send" ${state.busy ? 'disabled' : ''} onclick="StudyAiTool.send()" aria-label="পাঠাও">▲</button></div>`;
 
   const sheet = () => {
     if (state.sheet === 'source') {
@@ -313,6 +314,8 @@ body{overflow-x:hidden}
 .sai-back2{background:var(--emerald-soft,#e8f3ec);border:none;width:40px;height:40px;border-radius:13px;font-size:20px;color:var(--emerald-d,#0f6b4f);cursor:pointer}
 .sai-setwrap{background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:18px;padding:16px 14px;box-shadow:0 6px 22px rgba(16,24,40,.05)}
 .sai-clip{background:none;border:none;font-size:19px;cursor:pointer;padding:2px}
+.sai-engchip{margin-left:auto;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:700;color:var(--sub,#6b7280);cursor:pointer}
+.sai-engchip.fast{background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f59e0b;color:#92400e}
 .sai-attachbar{display:flex;flex-wrap:wrap;gap:6px;padding:6px 2px}
 .sai-atchip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:12px;padding:4px 8px;font-size:11.5px;max-width:46vw}
 .sai-atchip img{width:26px;height:26px;object-fit:cover;border-radius:7px}
@@ -385,6 +388,13 @@ body{overflow-x:hidden}
     const imgs = atts.filter(a => a.kind === 'image');
     if (imgs.length && !(cfg().engine === 'fast' && cfg().provider === 'gemini' && cfg().keys.gemini)) {
       if (window.toast) window.toast('📎 ছবি পড়তে ⚡ ফাস্ট-ইঞ্জিনে Gemini key দরকার — Settings-এ বসাও');
+      return;
+    }
+    // ইউজার যে-ইঞ্জিন নির্বাচন করেছে সেটাই উত্তর দেবে — চুপচাপ অন্য-ইঞ্জিনে ফেলো নয়
+    if (cfg().engine === 'fast' && !fastAvailable()) {
+      push({ who: 'me', text });
+      push({ who: 'ai', text: '⚡ ফাস্ট-ইঞ্জিন নির্বাচিত, কিন্তু ওই provider-এর API key নেই 🙈\n⚙️ সেটিংসে key বসাও — অথবা কম্পোজারের ইঞ্জিন-ব্যাজে চেপে 🌐 ব্রাউজার-এজেন্টে বদলাও। তুমি যেটা বেছেছো সেটাই উত্তর দেবে, আমি নিজে থেকে অন্যটায় যাবো না।' });
+      if (input) input.value = '';
       return;
     }
     if (input) input.value = '';
@@ -477,7 +487,21 @@ body{overflow-x:hidden}
   const setSource = s => { state.source = s; state.sheet = null; paint(); };
   const setEngine = e => { const c = cfg(); c.engine = e; setCfg(c); paint(); };
   const setProvider = p => { const c = cfg(); c.provider = p; setCfg(c); paint(); };
-  const setKey = (k, v) => { const c = cfg(); c.keys[k] = String(v || '').trim(); setCfg(c); paint(); };
+  const setKey = (k, v) => {
+    const c = cfg(); c.keys[k] = String(v || '').trim();
+    if (c.keys[k]) { // key বসালেই ওই ইঞ্জিনেই উত্তর আসবে — ইউজারের নির্বাচনই শেষ কথা
+      c.provider = k;
+      if (c.engine !== 'fast') { c.engine = 'fast'; if (window.toast) window.toast('⚡ ফাস্ট-ইঞ্জিন (' + (k === 'gemini' ? 'Gemini' : k === 'groq' ? 'Groq' : 'Grok') + ') চালু হলো — এখন থেকে ওই-ই উত্তর দেবে'); }
+    }
+    setCfg(c); paint();
+  };
+  const toggleEngine = () => {
+    const c = cfg();
+    if (c.engine === 'fast') c.engine = 'agent';
+    else if (fastAvailable()) c.engine = 'fast';
+    else { if (window.toast) window.toast('⚡ ফাস্টের জন্য আগে API key বসাও — ⚙️ সেটিংস খুলছি'); state.page = 'settings'; state.keyTest = null; setCfg(c); paint(); return; }
+    setCfg(c); paint();
+  };
   const setModel = m => { const c = cfg(); c.model = String(m || '').trim(); setCfg(c); paint(); };
   const setTheme = t => { const c = cfg(); c.theme = t; setCfg(c); applyTheme(); paint(); };
   const toggleData = () => { const c = cfg(); c.sendData = !c.sendData; setCfg(c); paint(); };
@@ -518,6 +542,6 @@ body{overflow-x:hidden}
     [1200, 2500, 4500].forEach(d => setTimeout(mountDashboard, d));
   };
 
-  window.StudyAiTool = { render, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, setEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, testKey, ensureSync, _state: () => state };
+  window.StudyAiTool = { render, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, setEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, testKey, ensureSync, toggleEngine, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();
