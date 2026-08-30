@@ -14,10 +14,10 @@
 
 const APP_HEADER = 'admission-hub';
 const BU_BASE = 'https://api.browser-use.com/api/v2';
-const POLL_EVERY_MS = 20000;
-const POLL_MAX_MS = 8 * 60000;
+const POLL_EVERY_MS = 30000;
+const POLL_MAX_MS = 15 * 60000;
 
-const GK_SCHEMA = JSON.stringify({
+const GK_SCHEMA = {
   type: 'object',
   properties: {
     questions: {
@@ -36,8 +36,8 @@ const GK_SCHEMA = JSON.stringify({
     }
   },
   required: ['questions']
-});
-const NEWS_SCHEMA = JSON.stringify({
+};
+const NEWS_SCHEMA = {
   type: 'object',
   properties: {
     news: {
@@ -56,7 +56,7 @@ const NEWS_SCHEMA = JSON.stringify({
     }
   },
   required: ['news']
-});
+};
 
 const cors = request => {
   const origin = request.headers.get('Origin') || '';
@@ -97,13 +97,13 @@ const tryCreate = async (key, body) => {
   } catch (_) { return { error: 'network' }; }
 };
 
-const createWithFailover = async (env, date, body) => {
+const createWithFailover = async (env, date, body, shift = 0) => {
   const all = keys(env);
   if (!all.length) return null;
   const bad = await badKeysToday(env, date); // 401/402 — সেদিনের জন্য মৃত
   // দৈনিক রোটেশন: প্রতিদিন ভিন্ন key দিয়ে শুরু — কোটা সব key-এ সমান ভাগে খরচ হয়
   const dayIndex = Math.floor(Date.parse(date + 'T00:00:00+06:00') / 86400000);
-  const offset = ((dayIndex % all.length) + all.length) % all.length;
+  const offset = ((((dayIndex % all.length) + all.length) % all.length) + shift) % all.length;
   const busy = new Set(); // 429/নেটওয়ার্ক — শুধু এই রানে স্কিপ, key বাতিল নয়
   for (let i = 0; i < all.length; i++) {
     const idx = (offset + i) % all.length;
@@ -163,6 +163,11 @@ const runBackground = async (env, date, jobs) => {
     }
     if (results.gk && results.news) break;
   }
+  await finalizeResults(env, date, results);
+};
+
+// ফলাফল ফিল্টার → KV-সেভ → Telegram খবর (runBackground + healTasks দুই জায়গায় ব্যবহৃত)
+const finalizeResults = async (env, date, results) => {
   const questions = Array.isArray(results.gk?.questions) ? results.gk.questions.filter(q => q?.q && Array.isArray(q.options) && q.options.length >= 2).slice(0, 40) : [];
   const news = Array.isArray(results.news?.news) ? results.news.news.filter(n => n?.title && n?.summary).slice(0, 8) : [];
   const payload = { date, count: questions.length, newsCount: news.length, questions, news, finishedAt: Date.now(), partial: !results.gk || !results.news };
@@ -175,6 +180,27 @@ const runBackground = async (env, date, jobs) => {
       await fetch(`https://api.telegram.org/bot${env.TG_BOT_TOKEN}/sendMessage`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ chat_id: env.TG_CHAT_ID, text: msg }) }).catch(() => {});
     }
   } catch (_) {}
+  return payload;
+};
+
+// self-heal: ব্যাকগ্রাউন্ড-পোল শেষ হয়ে গেলেও /api/gk/today GET-ই BU-তে finished টাস্ক এনে সেভ করে
+const healTasks = async (env, date) => {
+  try {
+    const rec = await env.GK_KV.get(`gkTasks:${date}`);
+    if (!rec) return null;
+    const { jobs = [] } = JSON.parse(rec);
+    if (!jobs.length) return null;
+    const all = keys(env);
+    const results = { gk: null, news: null };
+    let pending = false;
+    for (const job of jobs) {
+      const task = await getTask(all[job.keyIndex] || all[0], job.id).catch(() => null);
+      if (!task || (task.status !== 'finished' && task.status !== 'failed')) { pending = true; continue; }
+      results[job.kind] = task.status === 'failed' ? { error: 'agent-failed' } : parseOutput(task);
+    }
+    if (pending && !results.gk && !results.news) return null; // এখনো চলছে
+    return await finalizeResults(env, date, results);
+  } catch (_) { return null; }
 };
 
 const maybeStart = async (request, env, ctx) => {
@@ -187,8 +213,8 @@ const maybeStart = async (request, env, ctx) => {
     }
     if (!keys(env).length) return json(request, { error: 'keys-not-configured' }, 503);
     await env.GK_KV.put('gkDay', date); // দিনে ১ run — এখনই গার্ড বসে
-    const gkJob = await createWithFailover(env, date, { task: GK_PROMPT(date), llm: env.BU_LLM || 'browser-use-llm', maxSteps: 45, structuredOutput: GK_SCHEMA, flashMode: false });
-    const newsJob = await createWithFailover(env, date, { task: NEWS_PROMPT(date), llm: env.BU_LLM || 'browser-use-llm', maxSteps: 25, structuredOutput: NEWS_SCHEMA, flashMode: true });
+    const gkJob = await createWithFailover(env, date, { task: GK_PROMPT(date), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 45, structuredOutput: JSON.stringify(GK_SCHEMA), flashMode: false });
+    const newsJob = await createWithFailover(env, date, { task: NEWS_PROMPT(date), llm: env.BU_LLM_NEWS || 'bu-2-0-mini-preview', maxSteps: 25, structuredOutput: JSON.stringify(NEWS_SCHEMA), flashMode: true }, 1); // shift+1: GK ও news ভিন্ন key-এ
     const jobs = [
       gkJob ? { kind: 'gk', id: gkJob.id, keyIndex: gkJob.keyIndex } : null,
       newsJob ? { kind: 'news', id: newsJob.id, keyIndex: newsJob.keyIndex } : null
@@ -221,6 +247,8 @@ export default {
       try {
         const stored = await env.GK_KV.get(`gkData:${date}`);
         if (stored) return json(request, { ready: true, date, payload: JSON.parse(stored) });
+        const healed = await healTasks(env, date); // পোল-মিস হলেও ডেটা হারাবে না
+        if (healed) return json(request, { ready: true, date, payload: healed });
         const tasks = await env.GK_KV.get(`gkTasks:${date}`);
         return json(request, { ready: false, date, running: !!tasks });
       } catch (_) { return json(request, { ready: false, date, running: false }); }
@@ -238,4 +266,4 @@ export default {
   }
 };
 
-export const __test = { tryCreate, createWithFailover, parseOutput, dhakaToday, keys, GK_PROMPT };
+export const __test = { tryCreate, createWithFailover, parseOutput, dhakaToday, keys, GK_PROMPT, GK_SCHEMA, NEWS_SCHEMA };
