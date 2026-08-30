@@ -239,7 +239,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const pv = c.provider;
     const base = pv === 'groq' ? 'https://api.groq.com/openai/v1/chat/completions' : pv === 'openrouter' ? 'https://openrouter.ai/api/v1/chat/completions' : 'https://router.huggingface.co/v1/chat/completions';
     const model = c.model || ({ groq: 'llama-3.3-70b-versatile', openrouter: 'openrouter/auto', hf: 'meta-llama/Llama-3.1-8B-Instruct' }[pv] || 'llama-3.3-70b-versatile');
-    const modelChain = [...new Set([model, { groq: 'llama-3.1-8b-instant', openrouter: 'meta-llama/llama-3.3-70b-instruct:free', hf: 'meta-llama/Llama-3.3-70B-Instruct' }[pv]].filter(Boolean))];
+    const modelChain = pv === 'openrouter' ? [...new Set([model, 'deepseek/deepseek-chat', 'meta-llama/llama-3.3-70b-instruct:free'])] : [...new Set([model, { groq: 'llama-3.1-8b-instant', hf: 'meta-llama/Llama-3.3-70B-Instruct' }[pv]].filter(Boolean))];
     const extraH = pv === 'openrouter' ? { 'HTTP-Referer': 'https://sheikhrashel47-stack.github.io/admission-hub/', 'X-Title': 'Admihub' } : {};
     if (imgs.length) {
       const vmodel = c.model || VL_DEFAULT[pv];
@@ -346,7 +346,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   const bubbleHTML = m => {
     const atts = (m.atts || []).map(a => a.kind === 'image' && (a.view || a.thumb) ? `<img class="sai-att" src="${a.view || a.thumb}" alt="${esc(a.name)}" onclick="StudyAiTool.viewer('${m.id}');event.stopPropagation()" role="button" aria-label="ছবি বড় করে দেখো">` : `<span class="sai-attfile">📄 ${esc(a.name)}</span>`).join('');
     let inner = '';
-    if (m.who === 'ai' && !m.text && m.status === 'pending') {
+    if (m.who === 'ai' && !m.text && (m.status === 'pending' || m.status === 'streaming')) {
       inner = `<div class="sai-typing"><span class="sai-orb"><b></b><b></b></span><div class="sai-wait">${m.phase === 'run' ? '🤖 ' : '🌐 '}<span class="sai-shimmer">${m.phase === 'run' ? 'এজেন্ট কাজ করছে…' : 'চিন্তা করছি…'}</span><br><small>${m.steps && m.steps.length ? 'ধাপ ' + bn(m.steps.length) + ' সম্পন্ন' : 'সাধারণত ১০ সেকেন্ড–২ মিনিট'}</small></div></div>`;
       if (m.steps && m.steps.length) inner += `<details class="sai-activity"><summary>▸ Agent activity <span class="muted">${bn(m.steps.length)} ধাপ</span></summary>${m.steps.map(st => `<div class="sai-step">✓ ${esc(st)}</div>`).join('')}</details>`;
     } else if (m.status === 'error') {
@@ -547,10 +547,10 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     renderShell(`<div id="saiBody"></div><div id="saiSheetRoot"></div>`, {
       title: engTitle(),
       hideNav: true,
-      back: "StudyAiTool.openSheet('menu')",
-      iconBack: '☰',
-      actions: [`<button class="sai-topicon" onclick="StudyAiTool.openSheet('menu')" aria-label="মেনু">⋯</button>`]
+      menu: "StudyAiTool.openSheet('menu')",
+      actions: []
     });
+    try { const tb = document.querySelector('.topbar'); if (tb) tb.classList.add('sai-chromeless'); } catch (_) {}
     if (!document.getElementById('saiAgentStyle')) {
       const s = document.createElement('style'); s.id = 'saiAgentStyle'; s.textContent = `
 body{overflow-x:hidden}
@@ -574,8 +574,8 @@ body{overflow-x:hidden}
 .sai-clip{background:none;border:none;font-size:20px;cursor:pointer;padding:2px;color:#5b6b63}
 .sai-keyta{width:100%;min-height:38px;border:1px solid var(--line,#e5e7eb);border-radius:10px;padding:8px 10px;font:12.5px/1.5 inherit;background:#fff;resize:vertical;color:#1f2937}
 .sai-drawer-bg{position:fixed;inset:0;z-index:10070;background:rgba(8,28,22,.45);animation:saiFade .25s ease}
-.sai-drawer{position:absolute;top:0;right:0;bottom:0;width:min(86%,364px);background:#fff;border-radius:22px 0 0 22px;box-shadow:-18px 0 44px rgba(16,24,40,.22);display:flex;flex-direction:column;animation:saiDrawerIn .28s cubic-bezier(.2,.9,.3,1);padding:14px 10px calc(10px + env(safe-area-inset-bottom));box-sizing:border-box}
-@keyframes saiDrawerIn{from{transform:translateX(40px);opacity:0}to{transform:none;opacity:1}}
+.sai-drawer{position:absolute;top:0;left:0;bottom:0;width:min(86%,364px);background:#fff;border-radius:0 22px 22px 0;box-shadow:18px 0 44px rgba(16,24,40,.22);display:flex;flex-direction:column;animation:saiDrawerIn .28s cubic-bezier(.2,.9,.3,1);padding:14px 10px calc(10px + env(safe-area-inset-bottom));box-sizing:border-box}
+@keyframes saiDrawerIn{from{transform:translateX(-40px);opacity:0}to{transform:none;opacity:1}}
 .sai-dhead{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 12px}
 .sai-dhead b{font-size:19px;font-weight:900;color:#12261d}
 .sai-dclose{width:34px;height:34px;border:0;border-radius:50%;background:#eef5f0;font-size:16px;cursor:pointer}
@@ -589,7 +589,8 @@ body{overflow-x:hidden}
 .sai-dsec{font-size:11px;font-weight:800;letter-spacing:.06em;color:#93a89d;padding:14px 10px 6px}
 .sai-dfoot{border-top:1px solid #edf2ee;padding-top:8px;margin-top:6px}
 .topbar h1{max-width:52vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.topbar:has(.sai-topicon){background:transparent;border-bottom:none;box-shadow:none}
+.topbar.sai-chromeless{background:transparent;border-bottom:none;box-shadow:none}
+.sai-menuicon{background:none;border:0;font-size:22px;line-height:1;cursor:pointer;padding:2px 10px 2px 2px;color:#23392f}
 .sai-engchip{margin-left:auto;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:700;color:var(--sub,#6b7280);cursor:pointer}
 .sai-engchip.fast{background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f59e0b;color:#92400e}
 .sai-attachbar{display:flex;flex-wrap:wrap;gap:6px;padding:6px 2px}
@@ -714,7 +715,11 @@ body{overflow-x:hidden}
 .sai-sheet-item small{display:block;font-weight:500;font-size:11px;color:var(--sub,#6b7280)}
 .sai-sheet-item.on{border-color:var(--emerald,#0f6b4f);background:#f0faf5}
 .sai-del{margin-left:auto;font-weight:400}
-.sai-setrow{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0}
+.sai-setrow{display:block;background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:14px;padding:12px 12px 11px;margin:10px 0;box-shadow:0 1px 5px rgba(16,24,40,.05)}
+.sai-setrow b{display:block;font-size:13px;font-weight:800;color:#20302a;margin-bottom:7px}
+.sai-setrow > .muted{display:block;margin:0 0 7px}
+.sai-setrow .row{margin-top:8px;flex-wrap:wrap}
+.sai-setrow .btn{white-space:nowrap;min-width:80px}
 .sai-setrow input[type=password],.sai-setwrap input[type=text]{width:100%;margin-top:4px}
 .sai-setwrap .flabel{margin-top:12px}
 `; document.head.appendChild(s);

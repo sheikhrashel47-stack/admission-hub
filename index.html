@@ -979,6 +979,7 @@ function renderShell(innerHtml, opts){
 }
 function topbarHtml(opts){
   return `<div class="topbar">
+    ${opts.menu ? `<button class="sai-menuicon" onclick="${opts.menu}" aria-label="মেনু">☰</button>` : ''}
     ${opts.back ? `<button class="backbtn" onclick="${opts.back}">${opts.iconBack||'←'}</button>` : ''}
     <h1>${opts.title||''}</h1>
     ${(opts.actions||[]).join('')}
@@ -5091,7 +5092,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       // An older worker can keep serving the pre-fix navigation bundle in an
       // installed PWA. Remove that controller once, then install the current
       // worker with a fresh build URL.
-      const expectedSwVersion = 'v125-brain-20260831';
+      const expectedSwVersion = 'v126-cleanui-20260831';
       if (registration && activeUrl && !activeUrl.includes(expectedSwVersion)) {
         await registration.unregister().catch(()=>{});
         registration=null;
@@ -5599,7 +5600,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./vocabulary-elevenlabs.js?v=el-voice-v105"></script>
 <script src="./notification-hub.js?v=notify-v110"></script>
 <script src="./gk-agent-tool.js?v=gk-v115"></script>
-<script src="./study-ai-tool.js?v=studyai-v125"></script>
+<script src="./study-ai-tool.js?v=studyai-v126"></script>
 <script src="./bug-agent-tool.js?v=bugagent-v112"></script>
 <script src="./memorizing-match-tool.js?v=memorizing-match-v8-stable-cards"></script>
 <script src="./question-card-game-visual.js?v=question-card-game-v2-persistent"></script>
