@@ -5092,7 +5092,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       // An older worker can keep serving the pre-fix navigation bundle in an
       // installed PWA. Remove that controller once, then install the current
       // worker with a fresh build URL.
-      const expectedSwVersion = 'v126-cleanui-20260831';
+      const expectedSwVersion = 'v126-cleanui-20260831b';
       if (registration && activeUrl && !activeUrl.includes(expectedSwVersion)) {
         await registration.unregister().catch(()=>{});
         registration=null;

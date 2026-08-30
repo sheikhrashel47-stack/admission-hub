@@ -627,7 +627,6 @@ body{overflow-x:hidden}
 .sai-srchip{display:inline-block;padding:5px 12px;border-radius:999px;border:1px solid var(--line,#e5e7eb);background:#fff;font-size:11.5px;font-weight:700;color:var(--emerald,#0f6b4f)}
 .sai-topchip{background:var(--mint,#e8f3ec);border:none;border-radius:999px;padding:7px 11px;font-size:11.5px;font-weight:800;color:var(--emerald-d,#0f6b4f);cursor:pointer;white-space:nowrap}
 .sai-topchip.gold{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e}
-.sai-topicon{background:none;border:none;font-size:21px;padding:4px 6px;color:var(--emerald-d,#0f6b4f);cursor:pointer;width:42px;height:42px;display:grid;place-items:center;border-radius:14px}
 .sai-compose{position:fixed;bottom:0;left:0;right:0;z-index:60;padding:4px 10px calc(6px + env(safe-area-inset-bottom,0px));background:linear-gradient(180deg,rgba(247,250,248,0),#f7faf8 18%,#f7faf8 70%)}
 .sai-inputbar{transition:border-color .2s ease,box-shadow .25s ease}.sai-inputbar:focus-within{border-color:#8fd4b8!important;box-shadow:0 4px 18px rgba(15,107,79,.14)!important}
 .sai-inputbar{display:flex;gap:8px;align-items:flex-end;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:22px;padding:6px 8px;box-shadow:0 4px 18px rgba(16,24,40,.07);transition:box-shadow .2s,border-color .2s}
