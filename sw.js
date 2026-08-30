@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v111-gk-agent-20260830';
+const BUILD_ID = 'v112-studyai-20260830';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -51,6 +51,8 @@ const APP_SHELL = [
   './vocabulary-master-tool.js?v=vm-autoimg-v106',
   './notification-hub.js?v=notify-v110',
   './gk-agent-tool.js?v=gk-v111',
+  './study-ai-tool.js?v=studyai-v112',
+  './bug-agent-tool.js?v=bugagent-v112',
   './vocabulary-pronunciation.js?v=voice-el-v104',
   './vocabulary-elevenlabs.js?v=el-voice-v105',
   './memorizing-match-tool.js?v=memorizing-match-v8-stable-cards',
