@@ -15,7 +15,7 @@
   const store = () => { try { return JSON.parse(localStorage.getItem(EXPL_KEY) || '{}') || {}; } catch (_) { return {}; } };
   const saveStore = st => { try { const ks = Object.keys(st); if (ks.length > 900) ks.sort((a, b) => (st[a].generatedAt || 0) - (st[b].generatedAt || 0)).slice(0, ks.length - 900).forEach(k => delete st[k]); localStorage.setItem(EXPL_KEY, JSON.stringify(st)); } catch (_) {} };
   const savedExp = qid => { const e = store()[String(qid)]; if (!e) return ''; if (typeof e.explanation === 'string' && e.explanation.trim()) return e.explanation.trim(); return [e.whyCorrect, e.whyWrong, e.easy, e.memory, e.trap, e.practice].filter(x => typeof x === 'string' && x.trim()).join(' '); };
-  const gemCfg = () => { try { const c = JSON.parse(localStorage.getItem('studyAiCfg') || '{}'); return { key: (c.keys && c.keys.gemini) || '', model: c.model || 'gemini-3.6-flash' }; } catch (_) { return { key: '', model: 'gemini-3.6-flash' }; } };
+  const gemCfg = () => { try { const c = JSON.parse(localStorage.getItem('studyAiCfg') || '{}'); const k = c.keys && c.keys.gemini; return { keys: (Array.isArray(k) ? k : (k ? [k] : [])).map(x => String(x || '').trim()).filter(Boolean), model: c.model || 'gemini-3.6-flash' }; } catch (_) { return { keys: [], model: 'gemini-3.6-flash' }; } };
   const md = t => (window.StudyAiTool && typeof window.StudyAiTool.renderMd === 'function') ? window.StudyAiTool.renderMd(t) : esc(t).replace(/\n/g, '<br>');
 
   function buildPrompt(q, c) {
@@ -40,14 +40,21 @@ Explain to the student in clear simple Bengali (তুমি-ফর্ম). Requ
   }
 
   async function callGemini(prompt) {
-    const { key, model } = gemCfg();
-    if (!key) throw new Error('no-key');
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ system_instruction: { parts: [{ text: 'তুমি বাংলাদেশি ভর্তি-পরীক্ষার অভিজ্ঞ শিক্ষক — সংক্ষিপ্ত, স্পষ্ট, বাংলায় শেখাও।' }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 900 } }) });
-    const d = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error('gem-' + res.status);
-    const text = String((d.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('')).trim();
-    if (!text) throw new Error('gem-empty');
-    return text;
+    const { keys, model } = gemCfg();
+    if (!keys.length) throw new Error('no-key');
+    const models = [...new Set([model, 'gemini-3.1-flash-lite', 'gemini-3-flash-preview'])];
+    let last = 'gem-http';
+    for (const k of keys) {
+      for (const m of models) {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, body: JSON.stringify({ system_instruction: { parts: [{ text: 'তুমি বাংলাদেশি ভর্তি-পরীক্ষার অভিজ্ঞ শিক্ষক — সংক্ষিপ্ত, স্পষ্ট, বাংলায় শেখাও।' }] }, contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 900 } }) });
+        const d = await res.json().catch(() => ({}));
+        if (!res.ok) { last = 'gem-' + res.status; continue; }
+        const text = String((d.candidates?.[0]?.content?.parts || []).map(p => p.text || '').join('')).trim();
+        if (!text) { last = 'gem-empty'; continue; }
+        return text;
+      }
+    }
+    throw new Error(last);
   }
 
   async function callAgent(prompt) {
@@ -71,7 +78,7 @@ Explain to the student in clear simple Bengali (তুমি-ফর্ম). Requ
     const p = (async () => {
       let text = '', via = 'gemini', model = gemCfg().model;
       try {
-        if (gemCfg().key) text = await callGemini(prompt);
+        if (gemCfg().keys.length) text = await callGemini(prompt);
         else { text = await callAgent(prompt); via = 'agent'; model = 'browser-agent'; }
       } catch (e) {
         const m = String(e && e.message || e);
