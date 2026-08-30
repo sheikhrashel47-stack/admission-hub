@@ -410,7 +410,7 @@
   }
   function splitParserRecords(text) {
     const lines = String(text || '').split('\n');
-    const serialStart = /^\s*(?:\d+\s*[/.):\-।]\s*[A-Za-z]|[A-Za-z][A-Za-z0-9\s'’-]{0,80}?\s*[:ঃ])/;
+    const serialStart = /^\s*(?:\d+\s*[/.):\-।]\s*[A-Za-z]|[A-Za-z][A-Za-z0-9\s'’()-]{0,80}?\s*[:ঃ])/;
     const starts = lines.reduce((all, line, index) => serialStart.test(line) ? [...all, index] : all, []);
     if (!starts.length) return [lines];
     const blocks = starts.map((start, index) => lines.slice(start, starts[index + 1] ?? lines.length));
@@ -422,14 +422,14 @@
     const records = splitParserRecords(normalizedText);
     return records.map((lines, index) => {
       const first = lines.find(line => line.trim());
-      const head = first?.match(/^\s*(?:\d+\s*[/.):\-।]\s*)?([A-Za-z][A-Za-z0-9\s'’-]{0,80}?)\s*(?:[:ঃ]|\s-\s)\s*(.+?)\s*$/);
+      const head = first?.match(/^\s*(?:\d+\s*[/.):\-।]\s*)?([A-Za-z][A-Za-z0-9\s'’()-]{0,80}?)\s*(?:[:ঃ]|\s-\s)\s*(.+?)\s*$/);
       if (!head) {
         const firstLine = lines.find(line => line.trim()) || '';
         const stripped = firstLine.replace(/^\s*\d+\s*[/.):\-।]\s*/, '');
         const parts = stripped.split(/\s*[:ঃ]\s*/);
         const word = String(parts[0] || '').trim().slice(0, 90);
         const meaning = parts.slice(1).join(': ').trim();
-        return { raw:lines.join('\n'), word, meaning, valid:false, error: word ? 'Bengali meaning পাওয়া যায়নি — তবু সেভ হবে।' : 'Word এবং Bengali meaning পাওয়া যায়নি — তবু সেভ হবে।' };
+        return { raw:lines.join('\n'), word, meaning, synonyms:[], antonyms:[], acronyms:[], tips:'', valid:false, error: word ? 'Bengali meaning পাওয়া যায়নি — তবু সেভ হবে।' : 'Word এবং Bengali meaning পাওয়া যায়নি — তবু সেভ হবে।' };
       }
       const word = head[1].trim();
       const meaning = head[2].trim();
@@ -881,7 +881,7 @@
     skipParsed(index) { state.parser.records.splice(index, 1); renderParser(); },
     editParsed(index) {
       const record = state.parser.records[index]; if (!record) return;
-      openModal(`<h3>Edit vocabulary</h3><label class="flabel">Word</label><input id="vmEditWord" value="${escape(record.word)}"><label class="flabel">Bengali Meaning</label><input id="vmEditMeaning" value="${escape(record.meaning)}"><label class="flabel">Synonyms (one per line: word : meaning)</label><textarea id="vmEditSyn">${escape(record.synonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Antonyms (one per line: word : meaning)</label><textarea id="vmEditAnt">${escape(record.antonyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Acronyms / Abbreviations (one per line: short form : meaning)</label><textarea id="vmEditAcr">${escape(record.acronyms.map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Tips & Explanation</label><textarea id="vmEditTips">${escape(record.tips)}</textarea><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.saveParsedEdit(${index})">Save changes</button>`);
+      openModal(`<h3>Edit vocabulary</h3><label class="flabel">Word</label><input id="vmEditWord" value="${escape(record.word)}"><label class="flabel">Bengali Meaning</label><input id="vmEditMeaning" value="${escape(record.meaning)}"><label class="flabel">Synonyms (one per line: word : meaning)</label><textarea id="vmEditSyn">${escape((record.synonyms || []).map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Antonyms (one per line: word : meaning)</label><textarea id="vmEditAnt">${escape((record.antonyms || []).map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Acronyms / Abbreviations (one per line: short form : meaning)</label><textarea id="vmEditAcr">${escape((record.acronyms || []).map(item => `${item.word} : ${item.meaning}`).join('\n'))}</textarea><label class="flabel">Tips & Explanation</label><textarea id="vmEditTips">${escape(record.tips)}</textarea><button class="btn" style="margin-top:14px" onclick="VocabularyMaster.saveParsedEdit(${index})">Save changes</button>`);
     },
     saveParsedEdit(index) { const current = state.parser.records[index]; if (!current) return; const parseLines = id => parsePairs(document.getElementById(id)?.value || ''); const updated = normalizeRecord({ ...current, word:document.getElementById('vmEditWord')?.value || '', meaning:document.getElementById('vmEditMeaning')?.value || '', synonyms:parseLines('vmEditSyn'), antonyms:parseLines('vmEditAnt'), acronyms:parseLines('vmEditAcr'), tips:document.getElementById('vmEditTips')?.value || '' }); state.parser.records[index] = { ...updated, raw:current.raw, valid:!!(updated.word && updated.meaning), error:updated.word && updated.meaning ? '' : 'Incomplete record' }; closeModal(); renderParser(); },
     async saveParsed() { const records = state.parser.records.filter(record => String(record.raw || '').trim()); if (!records.length) return toast('সেভ করার মতো কিছু পাওয়া যায়নি।'); const target = String(state.parser.targetCategory || '').toUpperCase(); let saved = 0; for (const source of records) { const record = normalizeRecord({ ...source, word: source.word || '', meaning: source.meaning || '' }); if (target && /^[A-Z#]$/.test(target)) record.category = target; await dbPut(STORE, record); saved++; } await loadRecords(true); state.parser = { text:'', records:[], stage:'input', targetCategory: target }; toast(`সব ${saved}টি vocabulary সেভ হয়েছে · duplicates kept`); navigate(route('bank')); },
