@@ -218,7 +218,7 @@ Rules: Reply in simple warm Bangla (তুমি-ফর্ম), 2-6 short lines,
 // ── ইউজারের প্রশ্নব্যাংক-মেমোরি: অ্যাপ থেকে আসা সব প্রশ্ন+ইতিহাস KV-তে ──
 const normalizeBank = (questions, stats) => {
   const qs = (Array.isArray(questions) ? questions : []).slice(0, 3000).map(q => {
-    const o = (Array.isArray(q && q.options) ? q.options : []).slice(0, 6).map(x => String(x).slice(0, 90));
+    const o = (Array.isArray(q && (q.o ?? q.options)) ? (q.o ?? q.options) : []).slice(0, 6).map(x => String(x).slice(0, 90));
     const ai = Number(q && (q.answerIndex ?? q.correctAnswerIndex));
     const a = String((q && (q.a ?? q.answer)) ?? (Number.isFinite(ai) && o[ai] != null ? o[ai] : '')).slice(0, 120);
     return {
@@ -400,7 +400,10 @@ export default {
       return json(request, { ok: true, keys: keys(env).length, askKey: !!env.ASK_API_KEY, kv: !!env.GK_KV, tg: !!env.TG_BOT_TOKEN, lastDay: env.GK_KV ? await env.GK_KV.get('gkDay') : null });
     }
 
-    if (request.headers.get('X-AH-App') !== APP_HEADER) return json(request, { error: 'forbidden' }, 403);
+    const isApp = request.headers.get('X-AH-App') === APP_HEADER;
+    // sendBeacon-ফলব্যাক: হেডার ছাড়া এলে শুধু অ্যাপের নিজের Origin হলে /api/bank POST গ্রহণযোগ্য
+    const beaconOk = !isApp && request.method === 'POST' && url.pathname === '/api/bank' && request.headers.get('Origin') === 'https://sheikhrashel47-stack.github.io';
+    if (!isApp && !beaconOk) return json(request, { error: 'forbidden' }, 403);
     if (request.method === 'POST' && url.pathname === '/api/ask') return await createAsk(request, env, ctx);
     if (request.method === 'POST' && url.pathname === '/api/bank') return await bankUpload(request, env);
     if (request.method === 'GET' && url.pathname === '/api/bank') return await bankInfo(request, env);
