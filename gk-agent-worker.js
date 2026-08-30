@@ -239,7 +239,7 @@ const bankUpload = async (request, env) => {
     let body = {}; try { body = await request.json(); } catch (_) {}
     const bank = normalizeBank(body.questions, body.stats);
     if (!bank.qs.length) return json(request, { error: 'empty-bank' }, 400);
-    await env.GK_KV.put('userBank', JSON.stringify({ ...bank, history: Array.isArray(body.history) ? body.history.slice(0, 25) : [], activity: body.activity && typeof body.activity === 'object' ? body.activity : {}, savedAt: Date.now() }));
+    await env.GK_KV.put('userBank', JSON.stringify({ ...bank, history: Array.isArray(body.history) ? body.history.slice(0, 500) : [], mistakes: Array.isArray(body.mistakes) ? body.mistakes.slice(0, 400) : [], vocabulary: Array.isArray(body.vocabulary) ? body.vocabulary.slice(0, 1500) : [], activity: body.activity && typeof body.activity === 'object' ? body.activity : {}, savedAt: Date.now() }));
     return json(request, { saved: true, count: bank.qs.length });
   } catch (_) { return json(request, { error: 'bank-failed' }, 500); }
 };
@@ -249,7 +249,7 @@ const bankInfo = async (request, env) => {
     const raw = await env.GK_KV.get('userBank');
     if (!raw) return json(request, { saved: false });
     const b = JSON.parse(raw);
-    return json(request, { saved: true, count: b.qs.length, stats: b.stats, savedAt: b.savedAt, history: Array.isArray(b.history) ? b.history.length : 0, activity: b.activity || {} });
+    return json(request, { saved: true, count: b.qs.length, stats: b.stats, savedAt: b.savedAt, history: Array.isArray(b.history) ? b.history.length : 0, mistakes: Array.isArray(b.mistakes) ? b.mistakes.length : 0, vocabulary: Array.isArray(b.vocabulary) ? b.vocabulary.length : 0, activity: b.activity || {} });
   } catch (_) { return json(request, { saved: false }); }
 };
 
@@ -261,6 +261,12 @@ const histBlock = b => {
     let out = '';
     if (h.length) out += '\nপরীক্ষার ইতিহাস (নতুন→পুরনো): ' + h.map(x => `${(x && x.d) || ''} — ${((x && x.s) || '?')}${x && x.m ? ' (' + x.m + ')' : ''}`).join(' | ');
     if (a && (a.exams || a.mistakes || a.vocab)) out += `\nঅ্যাক্টিভিটি: মোট পরীক্ষা ${a.exams || 0} · ভুল-নোট ${a.mistakes || 0} · শব্দ ${a.vocab || 0}`;
+    const lt = (a && a.lifetime) || {};
+    if (lt && (lt.answered || lt.daysActive)) out += `\nলাইফটাইম: উত্তর ${lt.answered || 0}টি · সঠিক ${lt.correct || 0}${lt.acc != null ? ' (' + lt.acc + '%)' : ''} · সক্রিয় দিন ${lt.daysActive || 0} · চ্যাট-ওপেন ${lt.opens || 0}`;
+    const ms2 = Array.isArray(b && b.mistakes) ? b.mistakes.slice(0, 8) : [];
+    if (ms2.length) out += '\nসাম্প্রতিক ভুল-প্রশ্ন (সঠিক-উত্তরসহ):\n' + ms2.map(x => `— ${String((x && x.q) || '').slice(0, 90)}${x && x.a ? ' ⇒ সঠিক: ' + String(x.a).slice(0, 40) : ''}`).join('\n');
+    const vs2 = Array.isArray(b && b.vocabulary) ? b.vocabulary.slice(0, 12) : [];
+    if (vs2.length) out += '\nশব্দ-সংগ্রহ: ' + vs2.map(x => `${String((x && x.w) || '').slice(0, 30)}${x && x.m ? '=' + String(x.m).slice(0, 30) : ''}`).join(', ');
     return out ? `\n(শিক্ষার্থীর পরীক্ষার ইতিহাস ও অ্যাক্টিভিটি — সাইলেন্টলি ব্যবহার করো, raw ডাম্প করো না)${out}` : '';
   } catch (_) { return ''; }
 };
