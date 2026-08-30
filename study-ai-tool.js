@@ -166,7 +166,22 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   const keyList = pv => { const k = cfg().keys[pv]; return (Array.isArray(k) ? k : (k ? [k] : [])).map(x => String(x || '').trim()).filter(Boolean); };
   const VL_DEFAULT = { openrouter: 'google/gemma-4-31b-it:free', hf: 'meta-llama/Llama-3.2-11B-Vision-Instruct' };
   // 🧠 লাইভ-ব্রেইন: ব্যাংক-সারাংশ + পুরনো চ্যাটের স্মৃতি — প্রতি মেসেজে তাজা (Gemini + OpenRouter; HF নয়)
-  const buildBrain = () => {
+  // ব্যাংক-অটোলুকআপ: ইউজারের প্রশ্নের টোকেন মিলিয়ে নিজের ব্যাংক থেকে কাছাকাছি প্রশ্ন-উত্তর
+  const bankMatch = text => {
+    try {
+      const toks = String(text || '').toLowerCase().split(/[^\p{L}\p{M}\p{N}]+/u).filter(t => t.length > 2).slice(0, 24);
+      if (toks.length < 2) return [];
+      const hits = [];
+      for (const q of (cache().questions || [])) {
+        const hay = String((q && (q.question ?? q.q)) || '').toLowerCase();
+        if (hay.length < 8) continue;
+        let sc = 0; for (const t of toks) if (hay.includes(t)) sc++;
+        if (sc >= Math.max(2, Math.ceil(toks.length * 0.4))) hits.push({ q, sc });
+      }
+      return hits.sort((a, b) => b.sc - a.sc).slice(0, 6);
+    } catch (_) { return []; }
+  };
+  const buildBrain = userText => {
     try {
       const c = cache();
       const qs = c.questions || [];
@@ -174,16 +189,18 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       let out = '[লাইভ-মেমোরি — অ্যাপের এখনকার অবস্থা]\nপ্রশ্নব্যাংক: ' + bn(qs.length) + 'টি প্রশ্ন' + (subs.length ? ' · বিষয়: ' + subs.join(', ') : '');
       const wrongs = (c.mistakes || []).slice(-6).map(m => { const q = qs.find(x => x && x.id === (m.questionId || (m.q || {}).id)); return q ? String(q.question || '').slice(0, 70) : ''; }).filter(Boolean);
       if (wrongs.length) out += '\nসাম্প্রতিক ভুল: ' + wrongs.join(' | ');
-      const exs = (c.examResults || []).slice(0, 3).map(e2 => { try { const t = Number(e2 && (e2.totalQuestions ?? 0)) || 0; return bn(e2 && (e2.correctCount ?? 0)) + '/' + bn(t); } catch (_) { return ''; } }).filter(Boolean);
-      if (exs.length) out += '\nসাম্প্রতিক পরীক্ষা: ' + exs.join(', ');
-      if ((c.vocabulary || []).length) out += '\nশব্দ-সংগ্রহ: ' + bn(c.vocabulary.length) + 'টি';
+      const hist = (c.examResults || []).slice(0, 10).map(e2 => { try { const t = Number(e2 && (e2.totalQuestions ?? 0)) || 0; const mo = e2 && e2.mode ? ' (' + String(e2.mode).slice(0, 10) + ')' : ''; return dateStr(e2 && ((e2.completedAt ?? e2.at) || Date.now())) + mo + ': ' + bn(e2 && (e2.correctCount ?? 0)) + '/' + bn(t); } catch (_) { return ''; } }).filter(Boolean);
+      if (hist.length) out += '\nপরীক্ষার ইতিহাস (নতুন→পুরনো):\n' + hist.join('\n');
+      out += '\nঅ্যাক্টিভিটি: মোট পরীক্ষা ' + bn((c.examResults || []).length) + ' · ভুল-নোট ' + bn((c.mistakes || []).length) + ' · শব্দ ' + bn((c.vocabulary || []).length);
+      const hits = bankMatch(userText);
+      if (hits.length) out += '\nতোমার ব্যাংক থেকে মিলে-যাওয়া প্রশ্ন (উত্তরসহ — উত্তরের প্রধান ভিত্তি এগুলো):\n' + hits.map(h => { const opts = Array.isArray(h.q.options) ? h.q.options : []; const ai = Number(h.q.answerIndex ?? h.q.answer ?? h.q.correctAnswerIndex); const ans = typeof h.q.answer === 'string' && h.q.answer ? h.q.answer : (Number.isFinite(ai) && opts[ai] != null ? String(opts[ai]) : ''); return '— ' + String(h.q.question ?? h.q.q).slice(0, 120) + (ans ? ' ⇒ উত্তর: ' + ans.slice(0, 40) : ''); }).join('\n').slice(0, 900);
       const lines = [];
       listChats().filter(ch => ch.id !== curId()).slice(0, 5).forEach(ch => {
         const ms = msgsOf(ch.id).filter(m => m.text).slice(-4);
         if (ms.length) lines.push('— ' + String(ch.title || 'চ্যাট').slice(0, 30) + ': ' + ms.map(m => (m.who === 'me' ? 'ইউজার' : 'AI') + ': ' + String(m.text).slice(0, 110)).join(' § '));
       });
       if (lines.length) out += '\nআগের চ্যাটের স্মৃতি:\n' + lines.join('\n').slice(0, 1200);
-      return out.slice(0, 2800);
+      return out.slice(0, 3600);
     } catch (_) { return ''; }
   };
   const fastAvailable = () => keyList(cfg().provider).length > 0;
@@ -205,7 +222,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const c = cfg(); const key = keyList(c.provider)[0] || '';
     if (!key) throw new Error('Settings-এ key নেই — 🌐 এজেন্ট মোড়ে পাঠাও বা key বসাও');
     const list = Array.isArray(atts) ? atts : [];
-    const brain = (c.provider === 'gemini' || c.provider === 'openrouter') ? buildBrain() : '';
+    const brain = (c.provider === 'gemini' || c.provider === 'openrouter') ? buildBrain(question) : '';
     // 🎨 ছবি-আঁকা — যেকোনো ইঞ্জিন থেকে Gemini-ইমেজ-মডেলে
     if (/(ছবি|চিত্র)[^\n.]{0,26}(বানাও|আঁকো|আঁকা|তৈরি|জেনারেট)|(বানাও|আঁকো)[^\n.]{0,20}ছবি|(generate|create|draw)[^\n.]{0,16}(image|picture)|^\/img/i.test(question)) {
       const gk = keyList('gemini')[0];
@@ -576,7 +593,6 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       menu: "StudyAiTool.openSheet('menu')",
       actions: []
     });
-    try { const tb = document.querySelector('.topbar'); if (tb) tb.classList.add('sai-chromeless'); } catch (_) {}
     if (!document.getElementById('saiAgentStyle')) {
       const s = document.createElement('style'); s.id = 'saiAgentStyle'; s.textContent = `
 body{overflow-x:hidden}
