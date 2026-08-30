@@ -208,10 +208,60 @@ const ASK_SCHEMA = {
   required: ['answer']
 };
 
-const ASK_PROMPT = (question, context) => `You are "স্টাডি বন্ধু" — a warm, friendly Bangla study-helper for a Bangladeshi university-admission candidate. Today: ${dhakaToday()} (Asia/Dhaka).
+const ASK_PROMPT = (question, context, bankBlock) => `You are "স্টাডি বন্ধু" — a warm, friendly Bangla study-helper for a Bangladeshi university-admission candidate. Today: ${dhakaToday()} (Asia/Dhaka).
 User's question: """${question}"""
-${context ? `User's study context (use silently, never dump raw): ${context}` : ''}
-Rules: Reply in simple warm Bangla (তুমি-ফর্ম), 2-6 short lines, light emoji ok. If the question needs current/factual web info, quickly browse credible sources and verify before answering; include source domains in sources. Never invent facts. End with a tiny nudge to keep studying.`;
+${context ? `User's study context (use silently, never dump raw): ${context}` : ''}${bankBlock || ''}
+Rules: Reply in simple warm Bangla (তুমি-ফর্ম), 2-6 short lines, light emoji ok.${bankBlock ? ' When the bank block is present, base your answer primarily on it (it is the student\'s own verified bank) and mention you answered from their question bank.' : ''} If the question needs current/factual web info, quickly browse credible sources and verify before answering; include source domains in sources. Never invent facts. End with a tiny nudge to keep studying.`;
+
+// ── ইউজারের প্রশ্নব্যাংক-মেমোরি: অ্যাপ থেকে আসা সব প্রশ্ন+ইতিহাস KV-তে ──
+const normalizeBank = (questions, stats) => {
+  const qs = (Array.isArray(questions) ? questions : []).slice(0, 3000).map(q => {
+    const o = (Array.isArray(q && q.options) ? q.options : []).slice(0, 6).map(x => String(x).slice(0, 90));
+    const ai = Number(q && (q.answerIndex ?? q.correctAnswerIndex));
+    const a = String((q && (q.a ?? q.answer)) ?? (Number.isFinite(ai) && o[ai] != null ? o[ai] : '')).slice(0, 120);
+    return {
+    q: String((q && (q.q ?? q.question)) ?? '').slice(0, 260),
+    o,
+    a,
+    e: String((q && (q.e ?? q.explain)) ?? '').slice(0, 260),
+    s: String((q && (q.s ?? q.subject)) ?? '').slice(0, 70),
+    t: String((q && (q.t ?? q.topic)) ?? '').slice(0, 70)
+    };
+  }).filter(x => x.q && x.o.length >= 2);
+  const st = (stats && typeof stats === 'object') ? stats : {};
+  return { qs, stats: { count: Number(st.count) || qs.length, exams: Number(st.exams) || 0, avgAcc: st.avgAcc ?? null, weak: Array.isArray(st.weak) ? st.weak.slice(0, 8).map(x => String(x).slice(0, 60)) : [] } };
+};
+
+const bankUpload = async (request, env) => {
+  try {
+    let body = {}; try { body = await request.json(); } catch (_) {}
+    const bank = normalizeBank(body.questions, body.stats);
+    if (!bank.qs.length) return json(request, { error: 'empty-bank' }, 400);
+    await env.GK_KV.put('userBank', JSON.stringify({ ...bank, savedAt: Date.now() }));
+    return json(request, { saved: true, count: bank.qs.length });
+  } catch (_) { return json(request, { error: 'bank-failed' }, 500); }
+};
+
+const bankInfo = async (request, env) => {
+  try {
+    const raw = await env.GK_KV.get('userBank');
+    if (!raw) return json(request, { saved: false });
+    const b = JSON.parse(raw);
+    return json(request, { saved: true, count: b.qs.length, stats: b.stats, savedAt: b.savedAt });
+  } catch (_) { return json(request, { saved: false }); }
+};
+
+// ব্যাংক থেকে প্রশ্নের সাথে মিলিয়ে top-পিক (subject ফিল্টারসহ)
+const bankPick = (bank, question, subject) => {
+  const toks = String(question).toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(t => t.length > 2).slice(0, 20);
+  let pool = bank.qs || [];
+  if (subject) { const f = pool.filter(q => (q.s || '').includes(subject) || (q.t || '').includes(subject)); if (f.length) pool = f; }
+  return pool.map(q => {
+    const hay = (q.q + ' ' + (q.o || []).join(' ') + ' ' + (q.s || '') + ' ' + (q.t || '')).toLowerCase();
+    let sc = 0; for (const t of toks) if (hay.includes(t)) sc++;
+    return { q, sc };
+  }).filter(x => x.sc > 0).sort((a, b) => b.sc - a.sc).slice(0, 12).map(x => x.q);
+};
 
 const newId = () => (crypto.randomUUID ? crypto.randomUUID() : 'ask-' + Date.now() + '-' + Math.floor(Math.random() * 1e6));
 
@@ -225,7 +275,20 @@ const createAsk = async (request, env, ctx) => {
     if (!question) return json(request, { error: 'empty-question' }, 400);
     if (!keys(env).length) return json(request, { error: 'keys-not-configured' }, 503);
     const id = newId();
-    const askBody = { task: ASK_PROMPT(question, context), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 12, structuredOutput: JSON.stringify(ASK_SCHEMA), flashMode: false };
+    const source = String(body.source || 'auto').slice(0, 60);
+    let bankBlock = '';
+    if (source.startsWith('bank')) {
+      const raw = await env.GK_KV.get('userBank');
+      if (raw) {
+        const bank = JSON.parse(raw);
+        const subject = source.startsWith('bank:') ? decodeURIComponent(source.slice(5)) : '';
+        const picks = bankPick(bank, question, subject);
+        bankBlock = picks.length
+          ? `\nশিক্ষার্থীর নিজের প্রশ্নব্যাংক থেকে মিলে-যাওয়া প্রশ্ন-উত্তর (উত্তরের প্রধান ভিত্তি এগুলো):\n${picks.map((q, i) => `${i + 1}) প্র: ${q.q}\n${(q.o || []).map((o, oi) => `   ${'কখগঘঙ'[oi] || oi + 1}) ${o}`).join('\n')}\n   উত্তর: ${q.a}${q.e ? ` — ${q.e}` : ''}`).join('\n')}\n`
+          : `\n(শিক্ষার্থীর প্রশ্নব্যাংকে এই বিষয়ে সরাসরি মিল পাওয়া যায়নি — তার অবস্থা মাথায় রেখে সাবধানে উত্তর দাও।)\n`;
+      }
+    }
+    const askBody = { task: ASK_PROMPT(question, context, bankBlock), llm: env.BU_LLM || 'browser-use-2.0', maxSteps: 12, structuredOutput: JSON.stringify(ASK_SCHEMA), flashMode: false };
     const askKey = String(env.ASK_API_KEY || '').trim();
     if (!askKey) return json(request, { error: 'ask-key-not-configured' }, 503);
     let job = await createWithFailover(env, date, askBody, 0, [askKey]); // dedicated চ্যাট-key
@@ -337,6 +400,8 @@ export default {
 
     if (request.headers.get('X-AH-App') !== APP_HEADER) return json(request, { error: 'forbidden' }, 403);
     if (request.method === 'POST' && url.pathname === '/api/ask') return await createAsk(request, env, ctx);
+    if (request.method === 'POST' && url.pathname === '/api/bank') return await bankUpload(request, env);
+    if (request.method === 'GET' && url.pathname === '/api/bank') return await bankInfo(request, env);
     if (request.method === 'GET' && url.pathname.startsWith('/api/ask/')) return await askStatus(request, env, url.pathname.split('/').pop() || '');
 
     if (request.method === 'POST' && url.pathname === '/api/gk/run') return maybeStart(request, env, ctx);
@@ -367,4 +432,4 @@ export default {
   }
 };
 
-export const __test = { tryCreate, createWithFailover, parseOutput, dhakaToday, keys, GK_PROMPT, GK_SCHEMA, NEWS_SCHEMA, finalizeResults };
+export const __test = { tryCreate, createWithFailover, parseOutput, dhakaToday, keys, GK_PROMPT, GK_SCHEMA, NEWS_SCHEMA, finalizeResults, normalizeBank, bankPick };

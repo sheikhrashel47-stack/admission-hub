@@ -17,8 +17,12 @@
 .gk-chip-bad{background:#fdecec;color:#c02626}
 .gk-crumb{font-size:11px;color:var(--sub,#6b7280);margin-bottom:6px}
 .gk-card .gk-q{font-weight:700;font-size:15px;line-height:1.45;margin-bottom:10px}
-.gk-opt-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:11px 12px;margin:7px 0;border:1.5px solid var(--line,#e5e7eb);border-radius:12px;background:#fff;font-size:14px;line-height:1.4;cursor:pointer}
-.gk-opt-btn span{flex:0 0 26px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:var(--bg,#f3f4f6);font-weight:800;font-size:12px}
+.gk-opt-btn{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 13px;margin:9px 0;border:1.5px solid var(--line,#e5e7eb);border-radius:14px;background:#fff;font-size:14px;line-height:1.45;cursor:pointer;transition:transform .12s ease,box-shadow .15s ease}
+.gk-opt-btn:active{transform:scale(.985)}
+.gk-opt-btn .gk-letter{flex:0 0 34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--bg,#f3f4f6);border:1px solid var(--line,#e5e7eb);font-weight:800;font-size:13px}
+.gk-opt-btn .gk-opttext{flex:1}
+.gk-foot{display:flex;align-items:center;gap:12px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line,#e5e7eb);font-size:12.5px;color:var(--sub,#6b7280)}
+.gk-footbtn{padding:7px 12px;border-radius:10px;border:1px solid var(--line,#e5e7eb);background:#fff;font-size:12px;font-weight:700;color:var(--ink,#111827)}
 .gk-opt-btn .gk-mark{margin-left:auto}
 .gk-opt-btn.correct{border-color:#0f6b4f;background:#e7f6ee;color:#0f6b4f;font-weight:700}
 .gk-opt-btn.correct span{background:#0f6b4f;color:#fff}
@@ -102,9 +106,10 @@
   const tabs = () => [['today', '📚 আজকের GK'], ['archive', '🗄 আর্কাইভ'], ['flash', '⚡ ফ্ল্যাশ'], ['mock', '📝 মক টেস্ট'], ['news', '📰 নিউজ']];
   const tabBar = () => `<div class="gk-tabs">${tabs().map(([key, label]) => `<button class="chip ${state.tab === key ? 'active' : ''}" onclick="GkAgentTool.setTab('${key}')">${label}</button>`).join('')}</div>`;
 
-  // Bank-কার্ড-স্টাইল ইন্টার‌অ্যাকটিভ কার্ড: অপশনে ক্লিক → তৎক্ষণাৎ ✓/✗ + ব্যাখ্যা
+  // Question Bank-কার্ডের হুবহু লুক: Q-চিপ + স্ট্যাটাস, অক্ষর-বক্স full-width অপশন, ফুটার Bookmark/Show Answer
   const qStatus = idx => { const a = state.answered[idx]; return a === undefined ? null : a; };
-  const statusChip = idx => { const s = qStatus(idx); return s === null ? '<span class="gk-chip gk-chip-plain">Unattempted</span>' : s ? '<span class="gk-chip gk-chip-ok">✓ সঠিক</span>' : '<span class="gk-chip gk-chip-bad">✗ ভুল</span>'; };
+  const statusChip = idx => { const s = qStatus(idx); return s === null ? '<span class="gk-chip gk-chip-plain">Unattempted</span>' : s ? '<span class="gk-chip gk-chip-ok">Correct</span>' : '<span class="gk-chip gk-chip-bad">Wrong</span>'; };
+  const bookmarked = q => { try { return (JSON.parse(localStorage.getItem('gkBookmarks') || '[]')).includes(q.id); } catch (_) { return false; } };
   const questionCard = (q, index, reveal) => {
     const answerIndex = q.options.findIndex(opt => opt.trim() === q.answer.trim());
     const picked = qStatus(index);
@@ -112,11 +117,25 @@
     const opts = q.options.map((opt, i) => {
       let cls = '';
       if (done) { if (i === answerIndex) cls = 'correct'; else if (picked === i) cls = 'wrong'; }
-      return `<button class="gk-opt-btn ${cls}" ${done ? 'disabled' : ''} onclick="GkAgentTool.answerQuestion(${index}, ${i})"><span>${LETTERS[i] || i + 1}</span> ${esc(opt)}${done && i === answerIndex ? '<b class="gk-mark">✓</b>' : ''}${picked === i && i !== answerIndex ? '<b class="gk-mark">✗</b>' : ''}</button>`;
+      return `<button class="gk-opt-btn ${cls}" ${done ? 'disabled' : ''} onclick="GkAgentTool.answerQuestion(${index}, ${i})"><span class="gk-letter">${LETTERS[i] || i + 1}</span><span class="gk-opttext">${esc(opt)}</span>${done && i === answerIndex ? '<b class="gk-mark">✓</b>' : ''}${picked === i && i !== answerIndex ? '<b class="gk-mark">✗</b>' : ''}</button>`;
     }).join('');
-    const fb = done ? `<div class="gk-explain ${picked !== null && picked !== answerIndex ? 'gk-explain-bad' : ''}">${picked === answerIndex ? '✓ <b>সঠিক!</b>' : picked !== null ? `✗ <b>ভুল — সঠিক উত্তর: ${LETTERS[answerIndex] || q.answer}</b>` : `💡 <b>সঠিক উত্তর: ${LETTERS[answerIndex] || q.answer}</b>`}${q.explain ? `<br>💡 ${esc(q.explain)}` : ''}</div>${q.source ? `<a class="gk-src" href="https://${String(q.source).replace(/^https?:\/\//, '')}" target="_blank" rel="noopener">🔗 ${esc(q.source.slice(0, 40))}</a>` : ''}` : '';
-    const peek = done ? '' : `<button class="btn ghost sm" onclick="GkAgentTool.reveal(this)">উত্তর দেখাও</button>`;
-    return `<div class="gk-card" data-idx="${index}"><div class="gk-card-head"><span class="gk-chip">Q ${bn(index + 1)}</span>${statusChip(index)}</div><div class="gk-crumb">GK • ডেইলি এজেন্ট${q.date ? ' • ' + dateBn(q.date) : ''}</div><div class="gk-q">${esc(q.q)}</div><div class="gk-opts">${opts}</div>${fb}${peek}</div>`;
+    const fb = done ? `<div class="gk-explain ${picked !== null && picked !== answerIndex ? 'gk-explain-bad' : ''}"><b>${picked === answerIndex ? '✓ সঠিক!' : picked !== null ? `✗ ভুল — সঠিক উত্তর: ${LETTERS[answerIndex] || q.answer}` : `💡 সঠিক উত্তর: ${LETTERS[answerIndex] || q.answer}`}</b>${q.explain ? `<br>💡 ${esc(q.explain)}` : ''}</div>${q.source ? `<a class="gk-src" href="https://${String(q.source).replace(/^https?:\/\//, '')}" target="_blank" rel="noopener">🔗 ${esc(q.source.slice(0, 40))}</a>` : ''}` : '';
+    const vals = Object.entries(state.answered).filter(([k, v]) => v >= 0);
+    const right = vals.filter(([k, v]) => qRightIdx(state.dayRows[Number(k)], v)).length;
+    const acc = vals.length ? Math.round(right / vals.length * 100) : 0;
+    const bm = bookmarked(q);
+    const footer = `<div class="gk-foot"><span>Accuracy <b>${bn(acc)}%</b></span><span>Mistakes <b>${bn(vals.length - right)}</b></span><button class="gk-footbtn" onclick="GkAgentTool.toggleBookmark('${esc(q.id || '')}', this)">${bm ? '★ Saved' : '☆ Bookmark'}</button>${done ? '' : '<button class="gk-footbtn" onclick="GkAgentTool.reveal(this)">Show Answer</button>'}</div>`;
+    return `<div class="gk-card" data-idx="${index}"><div class="gk-card-head"><span class="gk-chip">Q ${bn(index + 1)}</span>${statusChip(index)}</div><div class="gk-crumb">GK • ডেইলি এজেন্ট •${q.date ? ' ' + dateBn(q.date) : ''} 📅</div><div class="gk-q">${esc(q.q)}</div><div class="gk-opts">${opts}</div>${fb}${footer}</div>`;
+  };
+  const toggleBookmark = (qid, btn) => {
+    try {
+      const list = JSON.parse(localStorage.getItem('gkBookmarks') || '[]');
+      const i = list.indexOf(qid);
+      if (i >= 0) list.splice(i, 1); else if (qid) list.push(qid);
+      localStorage.setItem('gkBookmarks', JSON.stringify(list.slice(0, 500)));
+      if (btn) btn.textContent = i < 0 ? '★ Saved' : '☆ Bookmark';
+      window.toast?.(i < 0 ? 'বুকমার্ক সরানো হলো' : 'বুকমার্ক সেভ হয়েছে ⭐');
+    } catch (_) {}
   };
   const updateScorebar = () => {
     const rows = state.dayRows || [];
@@ -243,7 +262,7 @@
     render,
     setTab(tab) { state.tab = tab; GkAgentTool.render(); },
     fetchToday: () => { state.loading = false; fetchToday(); },
-    reveal, answerQuestion, startFlash, flashReveal, flashMove, startMock, mockNext,
+    reveal, answerQuestion, toggleBookmark, startFlash, flashReveal, flashMove, startMock, mockNext,
     setMockCount(n) { state.mockCount = n; GkAgentTool.render(); },
     mockAnswer(qi, oi) {
       const m = state.mock;
