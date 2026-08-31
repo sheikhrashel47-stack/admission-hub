@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v134-settings-sync-20260831';
+const BUILD_ID = 'v135-sync-button-fix-20260831';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -67,7 +67,7 @@ const APP_SHELL = [
   './daily-streak-card.js?v=streak-under-greet-v110',
   './result-interaction-polish.js?v=result-interaction-polish-v1',
   './today-command-center-live.js?v=today-command-center-live-v5-card',
-  './admission-sync.js?v=private-sync-v4-settings-sync',
+  './admission-sync.js?v=private-sync-v5-button-fix',
   './settings-command-cleanup.js?v=settings-command-cleanup-v2',
   './navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v5-home-escape',
   './progress-tool.js?v=progress-v6-live-score-ledger-reconcile',

@@ -15,11 +15,13 @@ assert.match(sync, /INITIAL_AUTHORITATIVE_STORES/, 'Initial reconciliation must 
 assert.match(sync, /if \(!isStandalone\(\)\)/, 'Initial reconciliation must not replace standalone PWA data.');
 assert.match(sync, /initialReconciliationVersion !== 3/, 'The new reconciliation version must be active.');
 const buildId = sw.match(/const BUILD_ID = '([^']+)'/)?.[1];
-assert.equal(buildId, 'v134-settings-sync-20260831', 'Service-worker cache must be invalidated for the patch.');
+assert.equal(buildId, 'v135-sync-button-fix-20260831', 'Service-worker cache must be invalidated for the patch.');
 assert.match(index, new RegExp(`expectedSwVersion = '${buildId}'`), 'Index and service worker must use the same build id.');
 assert.match(index, new RegExp(`sw\\.js\\?v=${buildId}`), 'Registration query must use the current build id.');
 assert.equal((index.match(/id=\"cloudSyncPanel\"/g) || []).length, 1, 'Settings must contain one stable sync mount.');
 assert.match(sync, /Private online backup \/ Sync/, 'Settings must expose the private backup section.');
+assert.match(sync, /Could not read local backup status/, 'Manual Sync must surface local status failures.');
+assert.match(sync, /Could not read recovery code/, 'Recovery code must surface local status failures.');
 assert.match(studyAi, /studyAiAutoSync/, 'Study AI automatic sync must have a user control.');
 assert.match(studyAi, /studyAiDataConsent/, 'Automatic AI upload must require explicit consent.');
 assert.match(studyAi, /studyAiSharePrompted/, 'Choosing Later must not grant sync consent.');

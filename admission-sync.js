@@ -217,9 +217,27 @@
     await setMeta({ ...currentMeta, ...patch, id: META_ID, updatedAt: now() });
   }
   async function syncNow(reason = 'manual') {
-    const currentMeta = await meta();
-    if (!currentMeta?.vaultId || !currentMeta.secret || syncing || applyingRemote || !navigator.onLine) return false;
+    let currentMeta;
+    try { currentMeta = await meta(); }
+    catch (error) {
+      if (reason === 'manual') notifySync('Backup status লোড হয়নি — Settings আবার খুলে চেষ্টা করো।');
+      console.warn('[Admission Hub sync] Could not read local backup status.', error);
+      return false;
+    }
+    if (!currentMeta?.vaultId || !currentMeta.secret) {
+      if (reason === 'manual') notifySync('আগে Private backup যুক্ত করো, তারপর Sync করো।');
+      return false;
+    }
+    if (syncing || applyingRemote) {
+      if (reason === 'manual') notifySync('একটি Sync ইতিমধ্যে চলছে।');
+      return false;
+    }
+    if (!navigator.onLine) {
+      if (reason === 'manual') notifySync('ইন্টারনেট নেই — online হলে আবার চেষ্টা করো।');
+      return false;
+    }
     syncing = true;
+    void renderSyncPanel();
     try {
       let remote = await pullRemote(currentMeta);
       let activeMeta = { ...currentMeta, revision: Number(remote.row.revision || currentMeta.revision || 0) };
@@ -257,14 +275,17 @@
         activeMeta.revision = Number(Array.isArray(response) ? response[0]?.revision : response?.revision);
       }
       await saveStatus(activeMeta, { lastSyncedAt: now(), lastError: '', lastReason: reason });
-      if (reason === 'manual' && typeof window.toast === 'function') window.toast('Private backup is up to date');
+      if (reason === 'manual') notifySync('Private backup up to date ✓');
       return true;
     } catch (error) {
-      await saveStatus(currentMeta, { lastError: String(error?.message || 'Online sync failed').slice(0, 180) });
-      if (reason === 'manual' && typeof window.toast === 'function') window.toast('Backup was not changed — try again later');
+      await saveSyncError(currentMeta, error);
+      if (reason === 'manual') notifySync('Sync হয়নি: ' + String(error?.message || 'অনলাইন সমস্যা').slice(0, 80));
       console.warn('[Admission Hub sync]', error);
       return false;
-    } finally { syncing = false; }
+    } finally {
+      syncing = false;
+      void renderSyncPanel();
+    }
   }
   const queueSync = (() => {
     let timer = 0;
@@ -307,27 +328,49 @@
     await window.loadCache();
     return { connected, result };
   }
+  function notifySync(message) {
+    if (typeof window.toast === 'function') window.toast(message);
+    else console.warn('[Admission Hub sync]', message);
+  }
+  function openAppModal(html) {
+    if (typeof window.openModal === 'function') { window.openModal(html); return true; }
+    const root = document.getElementById('modalRoot');
+    if (!root) return false;
+    document.body.classList.add('modal-open');
+    root.innerHTML = `<div class="modal-bg" onclick="if(event.target===this){this.remove();document.body.classList.remove('modal-open');}"><div class="modal">${html}</div></div>`;
+    return true;
+  }
+  function closeAppModal() {
+    if (typeof window.closeModal === 'function') { window.closeModal(); return; }
+    const root = document.getElementById('modalRoot');
+    if (root) root.innerHTML = '';
+    document.body.classList.remove('modal-open');
+  }
+  async function saveSyncError(currentMeta, error) {
+    try { await saveStatus(currentMeta, { lastError: String(error?.message || 'Online sync failed').slice(0, 180) }); } catch (_) {}
+  }
+
   function openMigrationDialog() {
     const message = isStandalone()
       ? 'This makes one encrypted online copy of the current Add to Home Screen data. Nothing is removed from this device.'
       : 'For safety, the first backup must start from the Add to Home Screen app where your main study data already exists.';
-    window.openModal(`<h3>Private online backup</h3><div class="muted">${message}</div>${isStandalone() ? '<button class="btn" style="margin-top:14px" onclick="AdmissionCloudSync.beginMigration()">Create private backup</button>' : ''}`);
+    openAppModal(`<h3>Private online backup</h3><div class="muted">${message}</div>${isStandalone() ? '<button class="btn" style="margin-top:14px" onclick="AdmissionCloudSync.beginMigration()">Create private backup</button>' : ''}`);
   }
   async function beginMigration() {
     try {
-      window.closeModal();
+      closeAppModal();
       const result = await bootstrapStandalone();
       const code = recoveryCode(result.meta);
-      window.openModal(`<h3>Private backup created</h3><div class="muted">Keep this one-time recovery code private. Open the normal website once, go to Settings → Private online backup, and paste it there.</div><textarea readonly style="width:100%;min-height:92px;margin-top:12px;">${code}</textarea><button class="btn secondary" style="margin-top:12px" onclick="navigator.clipboard.writeText(${JSON.stringify(code)}).then(()=>toast('Recovery code copied'))">Copy recovery code</button>`);
-    } catch (error) { window.closeModal(); window.toast(String(error?.message || 'Private backup was not started.')); }
+      openAppModal(`<h3>Private backup created</h3><div class="muted">Keep this one-time recovery code private. Open the normal website once, go to Settings → Private online backup, and paste it there.</div><textarea readonly style="width:100%;min-height:92px;margin-top:12px;">${code}</textarea><button class="btn secondary" style="margin-top:12px" onclick="navigator.clipboard.writeText(${JSON.stringify(code)}).then(()=>toast('Recovery code copied'))">Copy recovery code</button>`);
+    } catch (error) { closeAppModal(); window.toast(String(error?.message || 'Private backup was not started.')); }
   }
   function openConnectDialog() {
-    window.openModal(`<h3>Connect private backup</h3><div class="muted">Paste the one-time recovery code shown by the Add to Home Screen app. Local data is backed up before anything is merged.</div><textarea id="cloudSyncCode" placeholder="AH1.…" style="width:100%;min-height:92px;margin-top:12px;"></textarea><button class="btn" style="margin-top:12px" onclick="AdmissionCloudSync.connectFromDialog()">Connect safely</button>`);
+    openAppModal(`<h3>Connect private backup</h3><div class="muted">Paste the one-time recovery code shown by the Add to Home Screen app. Local data is backed up before anything is merged.</div><textarea id="cloudSyncCode" placeholder="AH1.…" style="width:100%;min-height:92px;margin-top:12px;"></textarea><button class="btn" style="margin-top:12px" onclick="AdmissionCloudSync.connectFromDialog()">Connect safely</button>`);
   }
   async function connectFromDialog() {
     try {
       const value = document.getElementById('cloudSyncCode')?.value || '';
-      window.closeModal();
+      closeAppModal();
       const result = await connectExisting(value);
       window.toast(`Private backup connected · ${result.result.added} records added`);
       if (typeof window.render === 'function') window.render();
@@ -354,16 +397,22 @@
   async function renderSyncPanel() {
     const node = document.getElementById('cloudSyncPanel');
     if (!node) return;
-    const currentMeta = await meta();
-    const conflictMeta = window.dbGet ? await window.dbGet('appMeta', CONFLICTS_ID) : null;
+    let currentMeta = null;
+    let metaError = '';
+    try { currentMeta = await meta(); }
+    catch (error) { metaError = String(error?.message || 'Local backup status could not be loaded').slice(0, 120); }
+    let conflictMeta = null;
+    try { conflictMeta = window.dbGet ? await window.dbGet('appMeta', CONFLICTS_ID) : null; } catch (_) {}
     const conflicts = conflictMeta?.entries?.length || 0;
-    const connected = Boolean(currentMeta?.vaultId);
+    const connected = Boolean(currentMeta?.vaultId && currentMeta?.secret);
     const privateAuto = autoSyncEnabled();
-    const privateActions = connected
-      ? '<button class="btn secondary" onclick="AdmissionCloudSync.syncNow(\'manual\')">Sync now · এখনই</button><button class="btn ghost" style="margin-left:8px" onclick="AdmissionCloudSync.showRecoveryCode()">Recovery code</button>'
-      : (isStandalone()
-        ? '<button class="btn secondary" onclick="AdmissionCloudSync.openMigrationDialog()">Private backup শুরু করো</button>'
-        : '<button class="btn secondary" onclick="AdmissionCloudSync.openConnectDialog()">Recovery code দিয়ে যুক্ত করো</button>');
+    const privateActions = metaError
+      ? '<button class="btn secondary" onclick="AdmissionCloudSync.refreshSettings()">Status আবার দেখো</button>'
+      : (connected
+        ? `<button class="btn secondary" onclick="AdmissionCloudSync.syncNow('manual')">${syncing ? 'Sync হচ্ছে…' : 'Sync now · এখনই'}</button><button class="btn ghost" style="margin-left:8px" onclick="AdmissionCloudSync.showRecoveryCode()">Recovery code</button>`
+        : (isStandalone()
+          ? '<button class="btn secondary" onclick="AdmissionCloudSync.openMigrationDialog()">Private backup শুরু করো</button>'
+          : '<button class="btn secondary" onclick="AdmissionCloudSync.openConnectDialog()">Recovery code দিয়ে যুক্ত করো</button>'));
 
     let aiState = {};
     try { aiState = window.StudyAiTool?._state?.() || {}; } catch (_) {}
@@ -384,7 +433,8 @@
       ? `<button class="btn secondary" onclick="AdmissionCloudSync.syncAiNow()">${aiBusy ? 'Sync হচ্ছে…' : (aiShared ? 'এখনই AI Sync' : 'একবার AI Sync শুরু করো')}</button>`
       : '<button class="btn secondary" disabled>Study AI লোড হচ্ছে…</button>';
     const localSummary = `এই ডিভাইসে ${String(questionCount).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d])}টি প্রশ্ন আছে।`;
-    const markup = `<div class="h2">Private online backup / Sync</div><div class="card" aria-label="Private online backup"><b>🔐 Encrypted private backup</b><div class="muted" style="margin:8px 0 10px;line-height:1.55;">${escapeHtml(statusText(currentMeta))}</div><div class="row wrap" style="gap:8px;">${privateActions}</div><div class="togglerow" style="margin-top:12px;"><div><b>Automatic private backup</b><div class="muted">Backup যুক্ত থাকলে পরিবর্তন নিজে থেকে সুরক্ষিত কপিতে যাবে।</div></div><button type="button" role="switch" aria-checked="${privateAuto}" class="toggle ${privateAuto ? 'on' : ''}" onclick="AdmissionCloudSync.setAutoSync(${!privateAuto})"><div class="dot"></div></button></div>${conflicts ? `<div class="muted" style="margin-top:10px;">${conflicts}টি protected conflict আলাদা করে রাখা আছে; কোনো record চুপিচুপি overwrite হয়নি।</div>` : ''}</div><div class="h2" style="margin-top:18px;">Study AI data sync</div><div class="card" aria-label="Study AI data sync"><b>📚 AI memory আপডেট</b><div class="muted" style="margin:8px 0;line-height:1.55;">${escapeHtml(localSummary)} প্রশ্নব্যাংক, পরীক্ষার ইতিহাস, ভুল-প্রশ্ন ও progress AI-এর memory-তে পাঠিয়ে আপডেট করে। এটি encrypted private backup-এর থেকে আলাদা।</div><div class="muted" style="font-size:12px;margin-bottom:10px;">${escapeHtml(aiStatus)}</div><div class="row wrap" style="gap:8px;">${aiButton}</div><div class="togglerow" style="margin-top:12px;"><div><b>Automatic AI sync</b><div class="muted">ডেটা শেয়ার করার পর নতুন প্রশ্ন বা পরীক্ষা হলে প্রায় ৯০ সেকেন্ড পর update হবে।</div></div><button type="button" role="switch" aria-checked="${aiAuto}" class="toggle ${aiAuto ? 'on' : ''}" onclick="AdmissionCloudSync.setAiAutoSync(${!aiAuto})"><div class="dot"></div></div></div></div><div class="card" style="margin-top:10px;"><div class="muted" style="line-height:1.6;"><b>কেন automatic Sync দেখা যায়?</b><br>Study AI-তে data share করার পরে নতুন data বদলেছে কি না দেখে প্রায় ৯০ সেকেন্ডে একবার update চেষ্টা করে। Private backup যুক্ত থাকলে app চালু হওয়া, online হওয়া, focus-এ ফেরা, background থেকে ফিরে আসা এবং visible অবস্থায় ২০ সেকেন্ডের refresh-এ backup check করে। Backup যুক্ত না থাকলে private অংশ কোনো encrypted snapshot পাঠায় না।</div></div>`;
+    const privateStatus = metaError ? `Backup status লোড হয়নি: ${metaError}` : statusText(currentMeta);
+    const markup = `<div class="h2">Private online backup / Sync</div><div class="card" aria-label="Private online backup"><b>🔐 Encrypted private backup</b><div class="muted" style="margin:8px 0 10px;line-height:1.55;">${escapeHtml(privateStatus)}</div><div class="row wrap" style="gap:8px;">${privateActions}</div><div class="togglerow" style="margin-top:12px;"><div><b>Automatic private backup</b><div class="muted">Backup যুক্ত থাকলে পরিবর্তন নিজে থেকে সুরক্ষিত কপিতে যাবে।</div></div><button type="button" role="switch" aria-checked="${privateAuto}" class="toggle ${privateAuto ? 'on' : ''}" onclick="AdmissionCloudSync.setAutoSync(${!privateAuto})"><div class="dot"></div></button></div>${conflicts ? `<div class="muted" style="margin-top:10px;">${conflicts}টি protected conflict আলাদা করে রাখা আছে; কোনো record চুপিচুপি overwrite হয়নি।</div>` : ''}</div><div class="h2" style="margin-top:18px;">Study AI data sync</div><div class="card" aria-label="Study AI data sync"><b>📚 AI memory আপডেট</b><div class="muted" style="margin:8px 0;line-height:1.55;">${escapeHtml(localSummary)} প্রশ্নব্যাংক, পরীক্ষার ইতিহাস, ভুল-প্রশ্ন ও progress AI-এর memory-তে পাঠিয়ে আপডেট করে। এটি encrypted private backup-এর থেকে আলাদা।</div><div class="muted" style="font-size:12px;margin-bottom:10px;">${escapeHtml(aiStatus)}</div><div class="row wrap" style="gap:8px;">${aiButton}</div><div class="togglerow" style="margin-top:12px;"><div><b>Automatic AI sync</b><div class="muted">ডেটা শেয়ার করার পর নতুন প্রশ্ন বা পরীক্ষা হলে প্রায় ৯০ সেকেন্ড পর update হবে।</div></div><button type="button" role="switch" aria-checked="${aiAuto}" class="toggle ${aiAuto ? 'on' : ''}" onclick="AdmissionCloudSync.setAiAutoSync(${!aiAuto})"><div class="dot"></div></div></div></div><div class="card" style="margin-top:10px;"><div class="muted" style="line-height:1.6;"><b>কেন automatic Sync দেখা যায়?</b><br>Study AI-তে data share করার পরে নতুন data বদলেছে কি না দেখে প্রায় ৯০ সেকেন্ডে একবার update চেষ্টা করে। Private backup যুক্ত থাকলে app চালু হওয়া, online হওয়া, focus-এ ফেরা, background থেকে ফিরে আসা এবং visible অবস্থায় ২০ সেকেন্ডের refresh-এ backup check করে। Backup যুক্ত না থাকলে private অংশ কোনো encrypted snapshot পাঠায় না।</div></div>`;
     const currentNode = document.getElementById('cloudSyncPanel');
     if (currentNode && currentNode.innerHTML !== markup) currentNode.innerHTML = markup;
   }
@@ -422,10 +472,18 @@
     new MutationObserver(scheduleSettingsPanel).observe(app, { childList: true, subtree: true });
   }
   async function showRecoveryCode() {
-    const currentMeta = await meta();
-    if (!currentMeta?.vaultId) return;
-    const code = recoveryCode(currentMeta);
-    window.openModal(`<h3>Recovery code</h3><div class="muted">Keep it private. It is only needed to connect a new browser or recover after reinstall.</div><textarea readonly style="width:100%;min-height:92px;margin-top:12px;">${code}</textarea><button class="btn secondary" style="margin-top:12px" onclick="navigator.clipboard.writeText(${JSON.stringify(code)}).then(()=>toast('Recovery code copied'))">Copy recovery code</button>`);
+    try {
+      const currentMeta = await meta();
+      if (!currentMeta?.vaultId || !currentMeta.secret) {
+        notifySync('এই ডিভাইসে Recovery code পাওয়া যায়নি।');
+        return;
+      }
+      const code = recoveryCode(currentMeta);
+      if (!openAppModal(`<h3>Recovery code</h3><div class="muted">Keep it private. It is only needed to connect a new browser or recover after reinstall.</div><textarea readonly style="width:100%;min-height:92px;margin-top:12px;">${code}</textarea><button class="btn secondary" style="margin-top:12px" onclick="navigator.clipboard.writeText(${JSON.stringify(code)}).then(()=>toast('Recovery code copied')).catch(()=>toast('Copy করা যায়নি'))">Copy recovery code</button>`)) notifySync('Recovery code দেখানোর জায়গা পাওয়া যায়নি।');
+    } catch (error) {
+      notifySync('Recovery code লোড হয়নি — Settings আবার খুলে চেষ্টা করো।');
+      console.warn('[Admission Hub sync] Could not read recovery code.', error);
+    }
   }
   function hookSettings() {
     const original = window.renderSettings;

@@ -5092,12 +5092,12 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       // An older worker can keep serving the pre-fix navigation bundle in an
       // installed PWA. Remove that controller once, then install the current
       // worker with a fresh build URL.
-      const expectedSwVersion = 'v134-settings-sync-20260831';
+      const expectedSwVersion = 'v135-sync-button-fix-20260831';
       if (registration && activeUrl && !activeUrl.includes(expectedSwVersion)) {
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v134-settings-sync-20260831',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v135-sync-button-fix-20260831',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5617,7 +5617,7 @@ window.ADMISSION_HUB_TURNSTILE_SITEKEY = '0x4AAAAAAEeUzke6MqE3DUgk';
     <script src="./daily-streak-card.js?v=streak-under-greet-v110" defer></script>
 <script src="./result-interaction-polish.js?v=result-interaction-polish-v1"></script>
 <script src="./today-command-center-live.js?v=today-command-center-live-v5-card"></script>
-<script src="./admission-sync.js?v=private-sync-v4-settings-sync"></script>
+<script src="./admission-sync.js?v=private-sync-v5-button-fix"></script>
 <script src="./settings-command-cleanup.js?v=settings-command-cleanup-v2"></script>
 <script src="./navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v5-home-escape"></script>
 <script src="./progress-tool.js?v=progress-v6-live-score-ledger-reconcile"></script>
