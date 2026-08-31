@@ -14,7 +14,7 @@
   const route = () => (window.location.hash || '').replace(/^#\/?/, '').split('?')[0];
   const WORKER = 'https://admission-gk.rashelzayan213.workers.dev';
   const APP_HEADER = { 'X-AH-App': 'admission-hub' };
-  const LS_LIST = 'studyAiChats', LS_CUR = 'studyAiCur', LS_SHARED = 'studyAiShared', LS_NAME = 'studyAiName', LS_BANK = 'studyAiBankAt', LS_CFG = 'studyAiCfg';
+  const LS_LIST = 'studyAiChats', LS_CUR = 'studyAiCur', LS_SHARED = 'studyAiShared', LS_CONSENT = 'studyAiDataConsent', LS_PROMPTED = 'studyAiSharePrompted', LS_NAME = 'studyAiName', LS_BANK = 'studyAiBankAt', LS_CFG = 'studyAiCfg', LS_AUTO = 'studyAiAutoSync';
 
   const bn = n => String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d]);
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -22,8 +22,11 @@
   const nameOf = () => localStorage.getItem(LS_NAME) || 'রাশেল';
   const cfg = () => { try { return Object.assign({ engine: 'agent', provider: 'gemini', keys: {}, model: '', sendData: true, theme: 'aurora' }, JSON.parse(localStorage.getItem(LS_CFG) || '{}')); } catch (_) { return { engine: 'agent', provider: 'gemini', keys: {}, model: '', sendData: true, theme: 'aurora' }; } };
   const setCfg = c => localStorage.setItem(LS_CFG, JSON.stringify(c));
+  const autoSyncOn = () => localStorage.getItem(LS_AUTO) !== '0';
+  const hasShareConsent = () => localStorage.getItem(LS_CONSENT) === '1';
+  const grantShareConsent = () => { localStorage.setItem(LS_SHARED, '1'); localStorage.setItem(LS_CONSENT, '1'); localStorage.removeItem(LS_PROMPTED); };
 
-  let state = { busy: false, sheet: null, view: {}, page: null, attach: [], keyTest: null, bankInfo: undefined, autoSyncTried: false };
+  let state = { busy: false, sheet: null, view: {}, page: null, attach: [], keyTest: null, bankInfo: undefined, autoSyncTried: false, autoSync: autoSyncOn() };
 
   // ── চ্যাট-লিস্ট (branches) ────────────────────────────────────────────────────
   const listChats = () => { try { const l = JSON.parse(localStorage.getItem(LS_LIST) || '[]'); return Array.isArray(l) ? l : []; } catch (_) { return []; } };
@@ -128,8 +131,11 @@
     localStorage.setItem('studyAiCtx', buildContext());
     return (payload.stats || {}).count || 0;
   };
-  // অটো-সিঙ্ক: worker-এ ব্যাংক না থাকলে চ্যাট খোলামাত্র নিজে থেকেই পাঠিয়ে দাও — ট্যাপ লাগে না
+  // অটো-সিঙ্ক: ডেটা শেয়ার করার পরে এবং toggle চালু থাকলেই worker-এ টাটকা মেমোরি পাঠায়
   const ensureSync = async manual => {
+    // Automatic upload is allowed only after the user has explicitly shared data.
+    // A manual button remains available even when automatic sync is off.
+    if (!manual && (!hasShareConsent() || !autoSyncOn())) return;
     try {
       const info = await fetch(WORKER + '/api/bank', { headers: APP_HEADER }).then(r => r.json()).catch(() => ({}));
       state.bankInfo = info;
@@ -137,7 +143,7 @@
       if (info && info.saved && !manual && localStorage.getItem('ahBankSig') === dataSig()) { if (!localStorage.getItem(LS_BANK)) localStorage.setItem(LS_BANK, String(info.savedAt || Date.now())); return; }
       const n = await syncBank();
       state.bankInfo = { saved: true, count: n, savedAt: Date.now() };
-      localStorage.setItem(LS_SHARED, '1');
+      grantShareConsent();
       localStorage.setItem('ahBankSig', dataSig());
       if (window.toast && manual) window.toast('📤 সব ডেটা AI-দের কাছে টাটকা হয়ে গেছে ✓');
     } catch (e) {
@@ -448,7 +454,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     return `${atts}<div class="sai-bubble">${inner}<span class="sai-meta">${timeBn(m.ts)}${m.who === 'me' && m.status === 'completed' ? ' ✓✓' : ''}</span></div>`;
   };
   const bubbleOuter = (m, prev) => `<div class="sai-row ${m.who}" data-mid="${m.id}" data-h="${esc(msgHash(m))}">${bubbleHTML(m)}${actRow(m, prev)}</div>`;
-  const shareCard = () => localStorage.getItem(LS_SHARED) === '1' ? '' : `<div class="card sai-share"><b>📊 এজেন্টকে তোমার সব ডেটা দাও?</b><p class="muted" style="margin:6px 0 10px">অ্যাপ পাঠাবে <b>সম্পূর্ণ প্রশ্নব্যাংক + পরীক্ষার ইতিহাস + প্রগ্রেস</b> — এজেন্টের নিজের ডাটাবেসে সেভ থাকবে। এরপর সে তোমার ব্যাংক থেকেই প্রশ্নের উত্তর দেবে। (এই কার্ড আর আসবে না; Settings-থেকে যখন খুশি আপডেট করা যাবে)</p><button class="btn" onclick="StudyAiTool.shareData()">✅ সব ডেটা পাঠাও</button><button class="btn ghost sm" style="margin-left:8px" onclick="StudyAiTool.skipShare()">পরে</button></div>`;
+  const shareCard = () => (localStorage.getItem(LS_SHARED) === '1' || localStorage.getItem(LS_PROMPTED) === '1') ? '' : `<div class="card sai-share"><b>📊 এজেন্টকে তোমার সব ডেটা দাও?</b><p class="muted" style="margin:6px 0 10px">অ্যাপ পাঠাবে <b>সম্পূর্ণ প্রশ্নব্যাংক + পরীক্ষার ইতিহাস + প্রগ্রেস</b> — এজেন্টের নিজের ডাটাবেসে সেভ থাকবে। এরপর সে তোমার ব্যাংক থেকেই প্রশ্নের উত্তর দেবে। (এই কার্ড আর আসবে না; Settings-থেকে যখন খুশি আপডেট করা যাবে)</p><button class="btn" onclick="StudyAiTool.shareData()">✅ সব ডেটা পাঠাও</button><button class="btn ghost sm" style="margin-left:8px" onclick="StudyAiTool.skipShare()">পরে</button></div>`;
   const CHIPS = ['আজ কী পড়বো?', 'দুর্বল টপিক বলো', '৭ দিনের রিভিশন প্ল্যান', 'GK কুইজ দাও'];
 
   const landing = () => {
@@ -513,9 +519,10 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const c = cfg();
     const bi = state.bankInfo;
     const syncErr = localStorage.getItem('studyAiSyncErr');
+    const autoSync = autoSyncOn();
     const memLine = bi === null ? '<div class="muted" style="font-size:12.5px">📚 মেমোরি: দেখা হচ্ছে…</div>'
       : bi && bi.saved ? `<div class="sai-memok" style="display:inline-block">📚 এজেন্ট-মেমোরি: ${bn(bi.count)}টি প্রশ্ন সেভ ✓${bi.savedAt ? ' · ' + dateStr(bi.savedAt) : ''}</div>`
-      : '<div class="sai-ghostbtn" style="display:inline-block;margin-top:6px">⚠️ এখনো কোনো ডেটা সেভ হয়নি — চ্যাট খুললে নিজে নিজে পাঠানোর চেষ্টা হবে, বা নিচের বাটনে চাপো</div>';
+      : '<div class="sai-ghostbtn" style="display:inline-block;margin-top:6px">⚠️ এখনো কোনো ডেটা সেভ হয়নি — নিচের বাটনে চাপলে এখনই পাঠাতে পারবে; আগে থেকে অনুমতি ছাড়া auto-sync হবে না</div>';
     const prov = (key, label) => { const kl = keyList(key); return `<div class="sai-setrow"><b>${label}</b>${kl.length > 1 ? `<span class="muted" style="font-size:11px">✓ ${bn(kl.length)}টি key — একটা আটকালে পরেরটা নিজে চলবে</span>` : ''}<textarea class="sai-keyta" rows="${Math.min(4, Math.max(1, kl.length))}" placeholder="key বসাও… (একাধিক হলে প্রতি লাইনে একটি)" onchange="StudyAiTool.setKey('${key}',this.value)">${esc(kl.join('\n'))}</textarea><div class="row" style="gap:6px"><button class="btn sm ${c.provider === key ? '' : 'ghost'}" onclick="StudyAiTool.setProvider('${key}')">${c.provider === key ? '✓ নির্বাচিত' : 'নাও'}</button>${kl.length ? `<button class="btn ghost sm" onclick="StudyAiTool.setKey('${key}','')">মুছি</button>` : ''}</div></div>`; };
     return `<div class="sai-settings-page">
       <div class="sai-sethead"><button class="sai-back2" onclick="StudyAiTool.closePage()" aria-label="ফিরে">←</button><b>⚙️ সেটিংস</b></div>
@@ -532,7 +539,8 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         <div class="row" style="gap:8px;margin:10px 0 4px"><button class="btn secondary sm" onclick="StudyAiTool.testKey()">🔑 key-টেস্ট করো</button></div>
         ${state.keyTest ? `<div class="${state.keyTest.ok === true ? 'sai-memok' : state.keyTest.ok === false ? 'sai-ghostbtn' : 'muted'}" style="display:block;font-size:12px;margin-top:6px">${esc(state.keyTest.msg)}</div>` : ''}
         <label class="flabel" style="margin-top:18px">📤 আমার ডেটা → AI</label>
-        <div class="sai-setrow"><b>সব ডেটা টাটকা রাখো</b><span class="muted" style="font-size:11.5px">প্রশ্নব্যাংক · পরীক্ষার ইতিহাস · প্রগ্রেস · অ্যাক্টিভিটি — ব্রাউজার-এজেন্টের ডাটাবেসে যায়, আর Gemini/OpenRouter প্রতি মেসেজে তাজা মেমোরি পায়। নতুন প্রশ্ন/পরীক্ষা হলে <b>নিজে নিজেই</b> আপডেট যাবে (~৯০ সেকেন্ডে)।</span>${state.bankInfo && state.bankInfo.saved ? `<span class="muted" style="font-size:11px">শেষ সিঙ্ক: ${dateStr(state.bankInfo.savedAt || Date.now())} · ${bn(state.bankInfo.count || 0)}টি প্রশ্ন</span>` : ''}<div class="sai-brow"><span>🗃️ প্রশ্নব্যাংক · ${bn((cache().questions || []).length)}টি</span><button class="btn ghost sm" onclick="StudyAiTool.syncType('bank')">🧠 টাটকা করো</button></div>
+        <div class="sai-setrow"><b>নিজে নিজে Sync</b><span class="muted" style="font-size:11.5px">ডেটা শেয়ার করার পরে নতুন প্রশ্ন বা পরীক্ষা হলে প্রায় ৯০ সেকেন্ড পর পর আপডেট যাবে। বন্ধ করলে শুধু তোমার চাপা বাটনেই যাবে।</span><div class="toggle ${autoSync?'on':''}" onclick="StudyAiTool.setAutoSync(${!autoSync})"><div class="dot"></div></div></div>
+        <div class="sai-setrow"><b>সব ডেটা টাটকা রাখো</b><span class="muted" style="font-size:11.5px">প্রশ্নব্যাংক · পরীক্ষার ইতিহাস · প্রগ্রেস · অ্যাক্টিভিটি — ব্রাউজার-এজেন্টের ডাটাবেসে যায়, আর Gemini/OpenRouter প্রতি মেসেজে তাজা মেমোরি পায়।</span>${state.bankInfo && state.bankInfo.saved ? `<span class="muted" style="font-size:11px">শেষ সিঙ্ক: ${dateStr(state.bankInfo.savedAt || Date.now())} · ${bn(state.bankInfo.count || 0)}টি প্রশ্ন</span>` : ''}<div class="sai-brow"><span>🗃️ প্রশ্নব্যাংক · ${bn((cache().questions || []).length)}টি</span><button class="btn ghost sm" onclick="StudyAiTool.syncType('bank')">🧠 টাটকা করো</button></div>
         <div class="sai-brow"><span>📊 পরীক্ষার ইতিহাস · ${bn(exSorted().length)}টি</span><button class="btn ghost sm" onclick="StudyAiTool.syncType('history')">🧠 টাটকা করো</button></div>
         <div class="sai-brow"><span>❌ ভুল-প্রশ্ন · ${bn((cache().mistakes || []).length)}টি</span><button class="btn ghost sm" onclick="StudyAiTool.syncType('mistakes')">🧠 টাটকা করো</button></div>
         <div class="sai-brow"><span>📚 শব্দভাণ্ডার · ${bn(vocPick().length)}টি</span><button class="btn ghost sm" onclick="StudyAiTool.syncType('vocab')">🧠 টাটকা করো</button></div>
@@ -973,14 +981,14 @@ body{overflow-x:hidden}
 
   // 📤 জোর-সিঙ্ক: সেটিংস-বাটন — প্রশ্নব্যাংক+ইতিহাস+অ্যাক্টিভিটি এখনই টাটকা পাঠায়
   const forceSync = async () => {
-    try { state.syncing = true; paint(); await syncBank(); localStorage.setItem('ahBankSig', dataSig()); state.bankInfo = { saved: true, count: (cache().questions || []).length, savedAt: Date.now() }; if (window.toast) window.toast('📤 সব ডেটা আপডেট হয়ে গেছে — এজেন্টের ডাটাবেসে টাটকা ✓'); }
+    try { state.syncing = true; paint(); await syncBank(); grantShareConsent(); localStorage.setItem('ahBankSig', dataSig()); state.bankInfo = { saved: true, count: (cache().questions || []).length, savedAt: Date.now() }; if (window.toast) window.toast('📤 সব ডেটা আপডেট হয়ে গেছে — এজেন্টের ডাটাবেসে টাটকা ✓'); }
     catch (e) { if (window.toast) window.toast('⚠️ সিঙ্ক হয়নি: ' + String(e?.message || e).slice(0, 70)); }
     state.syncing = false; paint();
   };
-  // অটো-ওয়াচ: ডেটা বদলালেই (নতুন প্রশ্ন/পরীক্ষা) নিজে নিজে টাটকা যায় — বারবার বাটন লাগে না
+  // অটো-ওয়াচ: toggle চালু থাকলে ডেটা বদলের পর নিজে নিজে টাটকা যায় — বারবার বাটন লাগে না
   const startWatch = () => {
     if (state.watchTried) return; state.watchTried = true;
-    setInterval(() => { try { if (document.hidden || !localStorage.getItem(LS_SHARED)) return; if (localStorage.getItem('ahBankSig') !== dataSig()) ensureSync(false); } catch (_) {} }, 90000);
+    setInterval(() => { try { if (document.hidden || !autoSyncOn() || !hasShareConsent()) return; if (localStorage.getItem('ahBankSig') !== dataSig()) ensureSync(false); } catch (_) {} }, 90000);
   };
   // 🧬 HF-similarity ডুপ্লিকেট-যাচাই (নতুন-যোগ প্রশ্ন বনাম ব্যাংক)
   const EMB = 'https://router.huggingface.co/hf-inference/models/sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2/pipeline/feature-extraction';
@@ -1020,7 +1028,7 @@ body{overflow-x:hidden}
     try {
       const count = await syncBank();
       state.bankInfo = { saved: true, count, savedAt: Date.now() };
-      localStorage.setItem(LS_SHARED, '1');
+      grantShareConsent();
       const id = curId(); const msgs = msgsOf(id); msgs[msgs.length - 1] = { who: 'ai', text: `রাখলাম! 📚\nতোমার সম্পূর্ণ প্রশ্নব্যাংক (${bn(count)}টি প্রশ্ন), পরীক্ষার ইতিহাস আর প্রগ্রেস আমার ডাটাবেসে সেভ হয়ে গেছে।\nএখন থেকে তোমার ব্যাংক থেকেই উত্তর দিতে পারব — ⊕ থেকে বিষয় বেছে নাও! 😊` }; saveMsgs(id, msgs);
     } catch (e) {
       localStorage.setItem('studyAiSyncErr', String(e?.message || e).slice(0, 90));
@@ -1028,7 +1036,7 @@ body{overflow-x:hidden}
     }
     state.page === 'settings' ? paint() : paint();
   };
-  const skipShare = () => { localStorage.setItem(LS_SHARED, '1'); paint(); };
+  const skipShare = () => { localStorage.setItem(LS_PROMPTED, '1'); paint(); };
   const quick = t => send(t);
   const editName = () => { const n = prompt('তোমার নাম?', nameOf()); if (n && n.trim()) { localStorage.setItem(LS_NAME, n.trim().slice(0, 20)); paint(); } };
   const openSheet = w => {
@@ -1103,6 +1111,7 @@ body{overflow-x:hidden}
   const setModel = m => { const c = cfg(); c.model = String(m || '').trim(); setCfg(c); paint(); };
   const setTheme = t => { const c = cfg(); c.theme = t; setCfg(c); applyTheme(); paint(); };
   const toggleData = () => { const c = cfg(); c.sendData = !c.sendData; setCfg(c); paint(); };
+  const setAutoSync = enabled => { const on = Boolean(enabled); localStorage.setItem(LS_AUTO, on ? '1' : '0'); state.autoSync = on; paint(); if (window.toast) window.toast(on ? 'Automatic Sync চালু' : 'Automatic Sync বন্ধ'); if (window.AdmissionCloudSync?.refreshSettings) window.AdmissionCloudSync.refreshSettings(); };
   const renameChat = () => { const t = prompt('চ্যাটের নতুন নাম?', chatTitle()); if (t && t.trim()) { const l = listChats(); const c = l.find(x => x.id === curId()); if (c) { c.title = t.trim().slice(0, 40); saveList(l); } state.sheet = null; paint(); } };
   const clearCurrent = () => { if (!confirm('এই কথোপকথনের সব মেসেজ মুছে যাবে — নিশ্চিত?')) return; saveMsgs(curId(), []); state.sheet = null; state.msgsFull = false; saveDraft(''); paint(); };
   const clearChats = () => { if (!confirm('সব চ্যাট মুছে ফেলবো?')) return; listChats().forEach(c => localStorage.removeItem('studyAiChat:' + c.id)); localStorage.removeItem(LS_LIST); localStorage.removeItem(LS_CUR); state.sheet = null; paint(); };
@@ -1147,6 +1156,7 @@ body{overflow-x:hidden}
     try {
       state.syncing = true; paint();
       await boostData(); await syncBank();
+      grantShareConsent();
       try { localStorage.setItem('ahBankSig', dataSig()); } catch (_) {}
       const c = cache();
       const label = { history: '📊 পরীক্ষার ইতিহাস — ' + bn(exSorted().length) + 'টি', vocab: '📚 শব্দভাণ্ডার — ' + bn(vocPick().length) + 'টি', mistakes: '❌ ভুল-প্রশ্ন — ' + bn((c.mistakes || []).length) + 'টি', bank: '🗃️ প্রশ্নব্যাংক — ' + bn((c.questions || []).length) + 'টি' }[kind] || 'ডেটা';
@@ -1208,6 +1218,6 @@ body{overflow-x:hidden}
     if (wrongs.length) setTimeout(() => { try { startChatExam(exShuffle(wrongs.map(w => w.q)).slice(0, 5)); } catch (_) {} }, 900);
   };
 
-  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, forceSync, dupCheck, syncType, startChatExam, examPick, examNav, examSubmit, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
+  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, setAutoSync, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, forceSync, dupCheck, syncType, startChatExam, examPick, examNav, examSubmit, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();

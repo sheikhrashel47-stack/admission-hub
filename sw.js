@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v133-fullsync-20260831';
+const BUILD_ID = 'v134-settings-sync-20260831';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -51,7 +51,7 @@ const APP_SHELL = [
   './vocabulary-master-tool.js?v=vm-autoimg-v106',
   './notification-hub.js?v=notify-v110',
   './gk-agent-tool.js?v=gk-v115',
-  './study-ai-tool.js?v=studyai-v133full',
+  './study-ai-tool.js?v=studyai-v134-settings-sync',
   './ai-explain-tool.js?v=aiex-v3',
   './bug-agent-tool.js?v=bugagent-v112',
   './vocabulary-pronunciation.js?v=voice-el-v104',
@@ -67,7 +67,7 @@ const APP_SHELL = [
   './daily-streak-card.js?v=streak-under-greet-v110',
   './result-interaction-polish.js?v=result-interaction-polish-v1',
   './today-command-center-live.js?v=today-command-center-live-v5-card',
-  './admission-sync.js?v=private-sync-v3',
+  './admission-sync.js?v=private-sync-v4-settings-sync',
   './settings-command-cleanup.js?v=settings-command-cleanup-v2',
   './navigation-tools-pronunciation.js?v=navigation-tools-pronunciation-v5-home-escape',
   './progress-tool.js?v=progress-v6-live-score-ledger-reconcile',

@@ -7,6 +7,7 @@
   const SUPABASE_URL = 'https://mqgfxpuiclizbuesklva.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1xZ2Z4cHVpY2xpemJ1ZXNrbHZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc1ODIzMjAsImV4cCI6MjEwMzE1ODMyMH0.pYYAxv-IdnJgqhONKDqMrSOwxEB3MDOm06CUdpMg7zU';
   const META_ID = 'cloudSync';
+  const AUTO_SYNC_KEY = 'cloudSyncAutoSync';
   const TOMBSTONES_ID = 'syncTombstones';
   const LOCAL_MERGE_BACKUP_ID = 'cloudSyncLocalMergeBackup';
   const CONFLICTS_ID = 'cloudSyncConflicts';
@@ -193,11 +194,24 @@
     } finally { applyingRemote = false; }
     return { added, updated, deleted, conflicts: conflicts.length };
   }
+  function autoSyncEnabled() {
+    try { return localStorage.getItem(AUTO_SYNC_KEY) !== '0'; } catch (_) { return true; }
+  }
+  function formatSyncDate(value) {
+    try {
+      const date = new Date(typeof value === 'number' || /^\d+$/.test(String(value || '')) ? Number(value) : value);
+      if (Number.isNaN(date.getTime())) return String(value || '—');
+      return date.toLocaleString('bn-BD');
+    } catch (_) { return new Date(value).toLocaleString(); }
+  }
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>\"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;', "'": '&#39;' }[ch]));
+  }
   function statusText(currentMeta) {
-    if (!currentMeta?.vaultId) return isStandalone() ? 'Not backed up yet — start the first private backup here.' : 'Open the Add to Home Screen app once to start the first private backup.';
-    if (currentMeta.lastError) return `Needs attention: ${currentMeta.lastError}`;
-    if (currentMeta.lastSyncedAt) return `Protected backup is on · last sync ${new Date(currentMeta.lastSyncedAt).toLocaleString()}`;
-    return 'Protected backup is connected.';
+    if (!currentMeta?.vaultId) return isStandalone() ? 'এখনো private backup তৈরি হয়নি — এখান থেকেই শুরু করো।' : 'প্রথম backup শুরু করতে Add to Home Screen app-এ একবার Settings খোলো।';
+    if (currentMeta.lastError) return `Sync-এ সমস্যা: ${currentMeta.lastError}`;
+    if (currentMeta.lastSyncedAt) return `Private backup চালু · শেষ Sync: ${formatSyncDate(currentMeta.lastSyncedAt)}`;
+    return 'Private backup যুক্ত আছে।';
   }
   async function saveStatus(currentMeta, patch) {
     await setMeta({ ...currentMeta, ...patch, id: META_ID, updatedAt: now() });
@@ -255,9 +269,14 @@
   const queueSync = (() => {
     let timer = 0;
     return reason => {
+      if (!autoSyncEnabled() && reason !== 'manual') return;
       queuedReason = reason || queuedReason || 'change';
       clearTimeout(timer);
-      timer = window.setTimeout(() => { const reasonToUse = queuedReason; queuedReason = ''; void syncNow(reasonToUse); }, 3500);
+      timer = window.setTimeout(() => {
+        const reasonToUse = queuedReason;
+        queuedReason = '';
+        if (autoSyncEnabled() || reasonToUse === 'manual') void syncNow(reasonToUse);
+      }, 3500);
     };
   })();
   async function bootstrapStandalone() {
@@ -314,14 +333,60 @@
       if (typeof window.render === 'function') window.render();
     } catch (error) { window.toast(String(error?.message || 'Could not connect private backup.')); }
   }
+  async function syncAiNow() {
+    if (typeof window.StudyAiTool?.forceSync !== 'function') {
+      if (typeof window.toast === 'function') window.toast('Study AI sync এখনো লোড হয়নি — একটু পরে চেষ্টা করো।');
+      return;
+    }
+    try { await window.StudyAiTool.forceSync(); }
+    finally { void renderSyncPanel(); }
+  }
+  function setAiAutoSync(enabled) {
+    if (typeof window.StudyAiTool?.setAutoSync === 'function') window.StudyAiTool.setAutoSync(Boolean(enabled));
+    else { try { localStorage.setItem('studyAiAutoSync', enabled ? '1' : '0'); } catch (_) {} }
+    void renderSyncPanel();
+  }
+  function setAutoSync(enabled) {
+    try { localStorage.setItem(AUTO_SYNC_KEY, enabled ? '1' : '0'); } catch (_) {}
+    if (enabled) queueSync('auto enabled');
+    void renderSyncPanel();
+  }
   async function renderSyncPanel() {
     const node = document.getElementById('cloudSyncPanel');
     if (!node) return;
     const currentMeta = await meta();
-    const conflicts = (await window.dbGet('appMeta', CONFLICTS_ID))?.entries?.length || 0;
+    const conflictMeta = window.dbGet ? await window.dbGet('appMeta', CONFLICTS_ID) : null;
+    const conflicts = conflictMeta?.entries?.length || 0;
     const connected = Boolean(currentMeta?.vaultId);
-    const markup = `<div class="h2">Private online backup</div><div class="card"><div class="muted" style="margin-bottom:10px;">${statusText(currentMeta)}</div>${connected ? '<button class="btn secondary" onclick="AdmissionCloudSync.syncNow(\'manual\')">Sync now</button><button class="btn ghost" style="margin-left:8px" onclick="AdmissionCloudSync.showRecoveryCode()">Recovery code</button>' : (isStandalone() ? '<button class="btn secondary" onclick="AdmissionCloudSync.openMigrationDialog()">Start one-time backup</button>' : '<button class="btn secondary" onclick="AdmissionCloudSync.openConnectDialog()">Connect recovery code</button>')}${conflicts ? `<div class="muted" style="margin-top:10px;">${conflicts} protected record conflict kept locally; nothing was silently overwritten.</div>` : ''}</div>`;
-    if (node.innerHTML !== markup) node.innerHTML = markup;
+    const privateAuto = autoSyncEnabled();
+    const privateActions = connected
+      ? '<button class="btn secondary" onclick="AdmissionCloudSync.syncNow(\'manual\')">Sync now · এখনই</button><button class="btn ghost" style="margin-left:8px" onclick="AdmissionCloudSync.showRecoveryCode()">Recovery code</button>'
+      : (isStandalone()
+        ? '<button class="btn secondary" onclick="AdmissionCloudSync.openMigrationDialog()">Private backup শুরু করো</button>'
+        : '<button class="btn secondary" onclick="AdmissionCloudSync.openConnectDialog()">Recovery code দিয়ে যুক্ত করো</button>');
+
+    let aiState = {};
+    try { aiState = window.StudyAiTool?._state?.() || {}; } catch (_) {}
+    const appCache = window.CACHE || {};
+    const questionCount = Array.isArray(appCache.questions) ? appCache.questions.length : 0;
+    let aiShared = false, aiSavedAt = '';
+    try {
+      aiShared = localStorage.getItem('studyAiShared') === '1';
+      aiSavedAt = aiState.bankInfo?.savedAt || localStorage.getItem('studyAiBankAt') || '';
+    } catch (_) {}
+    const aiAuto = (() => { try { return localStorage.getItem('studyAiAutoSync') !== '0'; } catch (_) { return true; } })();
+    const aiReady = typeof window.StudyAiTool?.forceSync === 'function';
+    const aiBusy = Boolean(aiState.syncing);
+    const aiStatus = aiSavedAt
+      ? `AI memory-তে শেষ Sync: ${formatSyncDate(Number(aiSavedAt))}`
+      : (aiShared ? 'AI memory যুক্ত আছে; এখনো এই ডিভাইসের নতুন Sync-এর সময় লেখা নেই।' : 'এখনো AI memory-তে ডেটা পাঠানো হয়নি।');
+    const aiButton = aiReady
+      ? `<button class="btn secondary" onclick="AdmissionCloudSync.syncAiNow()">${aiBusy ? 'Sync হচ্ছে…' : (aiShared ? 'এখনই AI Sync' : 'একবার AI Sync শুরু করো')}</button>`
+      : '<button class="btn secondary" disabled>Study AI লোড হচ্ছে…</button>';
+    const localSummary = `এই ডিভাইসে ${String(questionCount).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d])}টি প্রশ্ন আছে।`;
+    const markup = `<div class="h2">Private online backup / Sync</div><div class="card" aria-label="Private online backup"><b>🔐 Encrypted private backup</b><div class="muted" style="margin:8px 0 10px;line-height:1.55;">${escapeHtml(statusText(currentMeta))}</div><div class="row wrap" style="gap:8px;">${privateActions}</div><div class="togglerow" style="margin-top:12px;"><div><b>Automatic private backup</b><div class="muted">Backup যুক্ত থাকলে পরিবর্তন নিজে থেকে সুরক্ষিত কপিতে যাবে।</div></div><button type="button" role="switch" aria-checked="${privateAuto}" class="toggle ${privateAuto ? 'on' : ''}" onclick="AdmissionCloudSync.setAutoSync(${!privateAuto})"><div class="dot"></div></button></div>${conflicts ? `<div class="muted" style="margin-top:10px;">${conflicts}টি protected conflict আলাদা করে রাখা আছে; কোনো record চুপিচুপি overwrite হয়নি।</div>` : ''}</div><div class="h2" style="margin-top:18px;">Study AI data sync</div><div class="card" aria-label="Study AI data sync"><b>📚 AI memory আপডেট</b><div class="muted" style="margin:8px 0;line-height:1.55;">${escapeHtml(localSummary)} প্রশ্নব্যাংক, পরীক্ষার ইতিহাস, ভুল-প্রশ্ন ও progress AI-এর memory-তে পাঠিয়ে আপডেট করে। এটি encrypted private backup-এর থেকে আলাদা।</div><div class="muted" style="font-size:12px;margin-bottom:10px;">${escapeHtml(aiStatus)}</div><div class="row wrap" style="gap:8px;">${aiButton}</div><div class="togglerow" style="margin-top:12px;"><div><b>Automatic AI sync</b><div class="muted">ডেটা শেয়ার করার পর নতুন প্রশ্ন বা পরীক্ষা হলে প্রায় ৯০ সেকেন্ড পর update হবে।</div></div><button type="button" role="switch" aria-checked="${aiAuto}" class="toggle ${aiAuto ? 'on' : ''}" onclick="AdmissionCloudSync.setAiAutoSync(${!aiAuto})"><div class="dot"></div></div></div></div><div class="card" style="margin-top:10px;"><div class="muted" style="line-height:1.6;"><b>কেন automatic Sync দেখা যায়?</b><br>Study AI-তে data share করার পরে নতুন data বদলেছে কি না দেখে প্রায় ৯০ সেকেন্ডে একবার update চেষ্টা করে। Private backup যুক্ত থাকলে app চালু হওয়া, online হওয়া, focus-এ ফেরা, background থেকে ফিরে আসা এবং visible অবস্থায় ২০ সেকেন্ডের refresh-এ backup check করে। Backup যুক্ত না থাকলে private অংশ কোনো encrypted snapshot পাঠায় না।</div></div>`;
+    const currentNode = document.getElementById('cloudSyncPanel');
+    if (currentNode && currentNode.innerHTML !== markup) currentNode.innerHTML = markup;
   }
 
   function isSettingsRoute() {
@@ -411,14 +476,14 @@
     // Keep both clients near-live while visible without introducing a server worker.
     // Changes sync after a short debounce; the periodic check is only a safety refresh.
     // Avoid repeatedly writing a large encrypted snapshot and locking the Supabase row.
-    window.setInterval(() => { if (document.visibilityState === 'visible') { queueSync('visible refresh'); scheduleSettingsPanel(); } }, 20000);
+    window.setInterval(() => { if (document.visibilityState === 'visible') { if (autoSyncEnabled()) queueSync('visible refresh'); scheduleSettingsPanel(); } }, 20000);
     const waitForBoot = () => {
-      if (window.__admissionBootStatus === 'ready') { void syncNow('launch'); return; }
+      if (window.__admissionBootStatus === 'ready') { if (autoSyncEnabled()) void syncNow('launch'); return; }
       window.setTimeout(waitForBoot, 450);
     };
     waitForBoot();
   }
-  window.AdmissionCloudSync = { openMigrationDialog, beginMigration, openConnectDialog, connectFromDialog, syncNow, showRecoveryCode, status: meta, isStandalone };
+  window.AdmissionCloudSync = { openMigrationDialog, beginMigration, openConnectDialog, connectFromDialog, syncNow, showRecoveryCode, syncAiNow, setAiAutoSync, setAutoSync, refreshSettings: () => { void renderSyncPanel(); }, status: meta, isStandalone };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => window.setTimeout(start, 0));
   else window.setTimeout(start, 0);
 })();
