@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v136-phase2-cloud-20260831';
+const BUILD_ID = 'v137-android-p3-20260831';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -74,7 +74,9 @@ const APP_SHELL = [
   './mistakes-bank-tool.js?v=mistakes-bank-v1',
   './smart-revision-tool.js?v=smart-revision-v2-safe-session',
   './source-course-tool.js?v=bangla-only-courses-v23-freshfetch',
-  './cloud-content-sync.js?v=p2-cloud-v1',
+  './cloud-content-sync.js?v=p2-cloud-v2',
+  './public-users-admin.js?v=p3-admin-v1',
+  './android-runtime-fix.js?v=and-scroll-v1',
   './',
   './index.html',
   './manifest.json',
