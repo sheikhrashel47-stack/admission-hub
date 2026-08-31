@@ -1,3 +1,5 @@
+// v133b: public-product module
+import pubHandler from './public-worker.js';
 /**
  * 🤖 ADMISSION HUB — Daily GK Agent Worker
  * v111 · Browser Use cloud (৩ key failover) → দিনে মাত্র ১ রান → GK MCQ + verified admission news
@@ -420,6 +422,13 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(request) });
+
+    // v133b: /pub/* → পাবলিক-প্রোডাক্ট API (public-worker.js মডিউল — নিজের auth/admin/AI)
+    if (url.pathname.startsWith('/pub/')) {
+      const u2p = new URL(request.url); u2p.pathname = url.pathname.replace(/^\/pub\//, '/api/');
+      const envPub = { PUB_KV: env.PUB_KV, OLD_KV: env.GK_KV, ADMIN_TOKEN: env.ADMIN_TOKEN, GEMINI_KEYS: env.GEMINI_KEYS, RESEND_KEY: env.RESEND_KEY, MAIL_FROM: env.MAIL_FROM };
+      return pubHandler.fetch(new Request(u2p.href, request), envPub, ctx);
+    }
 
     if (url.pathname === '/health') {
       return json(request, { ok: true, keys: keys(env).length, askKey: !!env.ASK_API_KEY, kv: !!env.GK_KV, tg: !!env.TG_BOT_TOKEN, lastDay: env.GK_KV ? await env.GK_KV.get('gkDay') : null });
