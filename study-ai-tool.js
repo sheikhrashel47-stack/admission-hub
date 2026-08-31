@@ -41,8 +41,8 @@
     const l = listChats(); const c = l.find(x => x.id === id);
     if (c) { if (firstText && c.title === 'নতুন চ্যাট') c.title = String(firstText).slice(0, 28); c.at = Date.now(); saveList(l.sort((a, b) => b.at - a.at)); }
   };
-  const newChat = () => { const c = { id: uid(), title: 'নতুন চ্যাট', at: Date.now() }; saveList([c, ...listChats()]); localStorage.setItem(LS_CUR, c.id); state.sheet = null; state.msgsFull = false; paint(); };
-  const openChat = id => { localStorage.setItem(LS_CUR, id); state.sheet = null; state.msgsFull = false; fixIds(id); paint(); };
+  const newChat = () => { const c = { id: uid(), title: 'নতুন চ্যাট', at: Date.now() }; saveList([c, ...listChats()]); localStorage.setItem(LS_CUR, c.id); state.sheet = null; state.msgsFull = false; state.jumpBottom = true; paint(); };
+  const openChat = id => { localStorage.setItem(LS_CUR, id); state.sheet = null; state.msgsFull = false; state.jumpBottom = true; fixIds(id); paint(); };
   const delChat = id => { let l = listChats().filter(c => c.id !== id); localStorage.removeItem('studyAiChat:' + id); if (!l.length) { const c = { id: uid(), title: 'নতুন চ্যাট', at: Date.now() }; l = [c]; } saveList(l); if (curId() === id) localStorage.setItem(LS_CUR, l[0].id); paint(); };
   const chatTitle = () => (listChats().find(c => c.id === curId()) || {}).title || 'নতুন চ্যাট';
 
@@ -524,7 +524,12 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         <div class="row" style="gap:8px;margin:10px 0 4px"><button class="btn secondary sm" onclick="StudyAiTool.testKey()">🔑 key-টেস্ট করো</button></div>
         ${state.keyTest ? `<div class="${state.keyTest.ok === true ? 'sai-memok' : state.keyTest.ok === false ? 'sai-ghostbtn' : 'muted'}" style="display:block;font-size:12px;margin-top:6px">${esc(state.keyTest.msg)}</div>` : ''}
         <label class="flabel" style="margin-top:18px">📤 আমার ডেটা → AI</label>
-        <div class="sai-setrow"><b>সব ডেটা টাটকা রাখো</b><span class="muted" style="font-size:11.5px">প্রশ্নব্যাংক · পরীক্ষার ইতিহাস · প্রগ্রেস · অ্যাক্টিভিটি — ব্রাউজার-এজেন্টের ডাটাবেসে যায়, আর Gemini/OpenRouter প্রতি মেসেজে তাজা মেমোরি পায়। নতুন প্রশ্ন/পরীক্ষা হলে <b>নিজে নিজেই</b> আপডেট যাবে (~৯০ সেকেন্ডে)।</span>${state.bankInfo && state.bankInfo.saved ? `<span class="muted" style="font-size:11px">শেষ সিঙ্ক: ${dateStr(state.bankInfo.savedAt || Date.now())} · ${bn(state.bankInfo.count || 0)}টি প্রশ্ন</span>` : ''}<span class="muted" style="font-size:11px">এখনকার হিসাব: প্রশ্ন ${bn((cache().questions || []).length)} · পরীক্ষা ${bn((cache().examResults || []).length)} · ভুল ${bn((cache().mistakes || []).length)} · শব্দ ${bn(vocPick().length)}</span><div class="row"><button class="btn sm" onclick="StudyAiTool.forceSync()">${state.syncing ? 'পাঠানো হচ্ছে…' : '📤 এখনই সব ডেটা আপডেট করো'}</button></div></div>
+        <div class="sai-setrow"><b>সব ডেটা টাটকা রাখো</b><span class="muted" style="font-size:11.5px">প্রশ্নব্যাংক · পরীক্ষার ইতিহাস · প্রগ্রেস · অ্যাক্টিভিটি — ব্রাউজার-এজেন্টের ডাটাবেসে যায়, আর Gemini/OpenRouter প্রতি মেসেজে তাজা মেমোরি পায়। নতুন প্রশ্ন/পরীক্ষা হলে <b>নিজে নিজেই</b> আপডেট যাবে (~৯০ সেকেন্ডে)।</span>${state.bankInfo && state.bankInfo.saved ? `<span class="muted" style="font-size:11px">শেষ সিঙ্ক: ${dateStr(state.bankInfo.savedAt || Date.now())} · ${bn(state.bankInfo.count || 0)}টি প্রশ্ন</span>` : ''}<div class="sai-brow"><span>🗃️ প্রশ্নব্যাংক · ${bn((cache().questions || []).length)}টি</span><button class="btn ghost sm" onclick="StudyAiTool.syncType('bank')">🧠 টাটকা করো</button></div>
+        <div class="sai-brow"><span>📊 পরীক্ষার ইতিহাস · ${bn(exSorted().length)}টি</span><button class="btn ghost sm" onclick="StudyAiTool.syncType('history')">🧠 টাটকা করো</button></div>
+        <div class="sai-brow"><span>❌ ভুল-প্রশ্ন · ${bn((cache().mistakes || []).length)}টি</span><button class="btn ghost sm" onclick="StudyAiTool.syncType('mistakes')">🧠 টাটকা করো</button></div>
+        <div class="sai-brow"><span>📚 শব্দভাণ্ডার · ${bn(vocPick().length)}টি</span><button class="btn ghost sm" onclick="StudyAiTool.syncType('vocab')">🧠 টাটকা করো</button></div>
+        <div class="row"><button class="btn sm" onclick="StudyAiTool.forceSync()">${state.syncing ? 'পাঠানো হচ্ছে…' : '📤 সব একসাথে আপডেট করো'}</button></div>
+        <details class="sai-brainview"><summary>🧠 AI-এর ব্রেইনে এখন যা আছে (প্রিভিউ)</summary><pre>${esc(buildBrain('').slice(0, 1500))}${buildBrain('').length > 1500 ? '…' : ''}</pre></details></div>
         <label class="flabel">🧬 ডুপ্লিকেট-যাচাই (Hugging Face)</label>
         <div class="sai-setrow"><b>কাছাকাছি প্রশ্ন খুঁজো</b><span class="muted" style="font-size:11.5px">নতুন-যোগ ২৫টি প্রশ্নকে পুরো ব্যাংকের সাথে অর্থ-সাদৃশ্যে (embedding) মেলায় — কুইজ-কাটার ডুপ্লিকেট ধরা পড়বে।</span><div class="row"><button class="btn secondary sm" onclick="StudyAiTool.dupCheck()">${state.dupReport && state.dupReport.busy ? 'যাচাই হচ্ছে…' : '🧬 যাচাই করো'}</button></div>${state.dupReport && !state.dupReport.busy ? `<span class="muted" style="display:block;font-size:12px;margin-top:8px">${esc(state.dupReport.msg)}</span>${(state.dupReport.pairs || []).slice(0, 6).map(pp => `<span class="muted" style="display:block;font-size:11.5px;margin-top:6px;background:#f6fbf8;border-radius:9px;padding:7px 9px">🔁 ${bn(Math.round(pp.sc * 100))}% — ${esc(String(pp.a).slice(0, 60))} <small>↔</small> ${esc(String(pp.b).slice(0, 60))}</span>`).join('')}` : ''}</div>
         <label class="flabel" style="margin-top:16px">থিম</label>
@@ -547,9 +552,9 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const msgsAll = msgsOf(curId());
     const msgs = state.msgsFull ? msgsAll : msgsAll.slice(-renderCap());
     const older = !state.msgsFull && msgsAll.length > renderCap();
-    if (!msgsAll.length) return `<div class="sai-scroll" id="saiScroll"><div id="saiMsgs">${landing()}<div class="sai-chips">${EMPTY_TASKS.map(t => `<button class="chip" onclick="StudyAiTool.quick('${t}')">${t}</button>`).join('')}</div></div></div>`;
+    if (!msgsAll.length) return `<div class="sai-bg" aria-hidden="true"><i></i><i></i><i></i></div><div class="sai-scroll" id="saiScroll"><div id="saiMsgs">${landing()}<div class="sai-chips">${EMPTY_TASKS.map(t => `<button class="chip" onclick="StudyAiTool.quick('${t}')">${t}</button>`).join('')}</div></div></div>`;
     const rows = msgs.map((m, i) => bubbleOuter(m, msgs[i - 1])).join('');
-    return `<div class="sai-scroll" id="saiScroll"><div id="saiMsgs">${older ? `<button class="sai-older" onclick="StudyAiTool.expandMsgs()">↑ আগের মেসেজগুলো (${bn(msgsAll.length - renderCap())}টি)</button>` : ''}${rows}</div></div>`;
+    return `<div class="sai-bg" aria-hidden="true"><i></i><i></i><i></i></div><div class="sai-scroll" id="saiScroll"><div id="saiMsgs">${older ? `<button class="sai-older" onclick="StudyAiTool.expandMsgs()">↑ আগের মেসেজগুলো (${bn(msgsAll.length - renderCap())}টি)</button>` : ''}${rows}</div></div>`;
   };
   const composeSig = () => [state.busy, state.attach.map(a => a.id + a.status).join(','), draftText().length ? 1 : 0].join('|');
   const composerHTML = () => {
@@ -589,8 +594,8 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       } else {
         // স্থিতিশীল-রিকনসিল: বদলানো মেসেজের নোডই শুধু বদলায় — পুরো লিস্ট কখনো রিমাউন্ট নয়
         const container = b.querySelector('#saiMsgs');
-        const needsFull = !container || container.dataset.chat !== curId() || !container.querySelector('[data-mid]');
-        if (needsFull) { b.innerHTML = renderChat(); lastSig.compose = composeSig(); bindComposer(); bindTapActions(); const sc = document.getElementById('saiScroll'); if (sc) sc.scrollTop = sc.scrollHeight; }
+        const needsFull = state.jumpBottom || !container || container.dataset.chat !== curId() || !container.querySelector('[data-mid]');
+        if (needsFull) { b.innerHTML = renderChat(); lastSig.compose = composeSig(); bindComposer(); bindTapActions(); if (state.jumpBottom) { const jsc = document.getElementById('saiScroll'); if (jsc) { jsc.style.scrollBehavior = 'auto'; jsc.scrollTop = jsc.scrollHeight; jsc.style.scrollBehavior = ''; } } state.jumpBottom = false; const sc = document.getElementById('saiScroll'); if (sc) sc.scrollTop = sc.scrollHeight; }
         else {
           const nb = nearBottom(document.getElementById('saiScroll'));
           const msgs = (state.msgsFull ? msgsOf(curId()) : msgsOf(curId()).slice(-renderCap()));
@@ -625,7 +630,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   const engTitle = () => { const c = cfg(); return c.engine === 'fast' ? '⚡ ' + (ENG_LABEL[c.provider] || 'Fast') : '🌐 Admihub AI'; };
   const render = () => {
     ensureChat(); fixIds(curId());
-    state.page = null; state.viewer = null; state.msgsFull = false;
+    state.page = null; state.viewer = null; state.msgsFull = false; state.jumpBottom = true;
     if (!state.autoSyncTried) { state.autoSyncTried = true; try { localStorage.setItem('saiOpens', String((Number(localStorage.getItem('saiOpens')) || 0) + 1)); } catch (_) {} setTimeout(() => ensureSync(false), 900); startWatch(); }
     renderShell(`<div id="saiBody"></div><div id="saiSheetRoot"></div>`, {
       title: engTitle(),
@@ -671,7 +676,7 @@ body{overflow-x:hidden}
 .sai-dsec{font-size:11px;font-weight:800;letter-spacing:.06em;color:#93a89d;padding:14px 10px 6px}
 .sai-dfoot{border-top:1px solid #edf2ee;padding-top:8px;margin-top:6px}
 .topbar h1{max-width:52vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.topbar.sai-chromeless{background:transparent;border-bottom:none;box-shadow:none}
+.topbar.sai-chromeless{background:transparent;border-bottom:none;box-shadow:none;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}
 .sai-menuicon{background:none;border:0;font-size:22px;line-height:1;cursor:pointer;padding:2px 10px 2px 2px;color:#23392f}
 .sai-engchip{margin-left:auto;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:999px;padding:5px 12px;font-size:11.5px;font-weight:700;color:var(--sub,#6b7280);cursor:pointer}
 .sai-engchip.fast{background:linear-gradient(135deg,#fef3c7,#fde68a);border-color:#f59e0b;color:#92400e}
@@ -714,7 +719,16 @@ body{overflow-x:hidden}
 .sai-inputbar{display:flex;gap:8px;align-items:flex-end;background:#fff;border:1.5px solid var(--line,#e5e7eb);border-radius:22px;padding:6px 8px;box-shadow:0 4px 18px rgba(16,24,40,.07);transition:box-shadow .2s,border-color .2s}
 .sai-inputbar:focus-within{border-color:var(--emerald,#0f6b4f);box-shadow:0 6px 22px rgba(15,107,79,.14)}
 .sai-inputbar textarea{flex:1;border:none;outline:none;resize:none;font:inherit;font-size:14.5px;line-height:1.55;background:transparent;min-height:44px;max-height:132px;padding:10px 2px;overflow-y:hidden;word-break:break-word;white-space:pre-wrap}
-.sai-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 12px 30px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scroll-behavior:smooth}
+.sai-scroll{flex:1;overflow-y:auto;overflow-x:hidden;padding:14px 12px 30px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;scroll-behavior:smooth;position:relative;z-index:1;-webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 44px);mask-image:linear-gradient(to bottom,transparent 0,#000 44px)}
+.sai-bg{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.sai-bg i{position:absolute;border-radius:50%;filter:blur(52px);opacity:.32;will-change:transform}
+.sai-bg i:nth-child(1){width:64vw;height:64vw;left:-18vw;top:-14vh;background:radial-gradient(circle,#34d399,transparent 65%);animation:saiDrift1 26s ease-in-out infinite alternate}
+.sai-bg i:nth-child(2){width:56vw;height:56vw;right:-20vw;top:22vh;background:radial-gradient(circle,#a7f3d0,transparent 65%);animation:saiDrift2 33s ease-in-out infinite alternate}
+.sai-bg i:nth-child(3){width:48vw;height:48vw;left:6vw;bottom:-22vh;background:radial-gradient(circle,#fde68a,transparent 62%);opacity:.26;animation:saiDrift3 39s ease-in-out infinite alternate}
+@keyframes saiDrift1{from{transform:translate(0,0) scale(1)}to{transform:translate(9vw,7vh) scale(1.14)}}
+@keyframes saiDrift2{from{transform:translate(0,0) scale(1.08)}to{transform:translate(-8vw,9vh) scale(.94)}}
+@keyframes saiDrift3{from{transform:translate(0,0) scale(1)}to{transform:translate(7vw,-8vh) scale(1.12)}}
+@media (prefers-reduced-motion:reduce){.sai-bg i{animation:none}}
 .sai-tray{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 8px}
 .sai-trayitem{position:relative;flex:0 0 auto;width:74px;height:74px;border-radius:14px;border:1.5px solid var(--line,#e5e7eb);background:#fff;overflow:visible;display:grid;place-items:center}
 .sai-trayitem img{width:100%;height:100%;object-fit:cover;border-radius:13px;cursor:pointer}
@@ -767,6 +781,11 @@ body{overflow-x:hidden}
 .sai-exfin{display:block;width:100%;background:#0e7a58;color:#fff;border:0;border-radius:11px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;margin-top:8px}
 .sai-exrev{background:#fdf3f2;border:1px solid #f3d9d5;border-radius:10px;padding:8px 10px;margin:7px 0;font-size:12.5px}
 .sai-exrev small{color:#6b5a57}
+.sai-brow{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px dashed var(--line,#e5e7eb);font-size:12.5px;color:#20302a}
+.sai-brow .btn{white-space:nowrap}
+.sai-brainview{margin-top:10px}
+.sai-brainview summary{cursor:pointer;font-size:12px;color:#0f6b4f;font-weight:700}
+.sai-brainview pre{white-space:pre-wrap;font-size:11px;line-height:1.5;background:#f6faf8;border:1px solid var(--line,#e5e7eb);border-radius:10px;padding:10px;max-height:230px;overflow:auto;margin-top:8px}
 .sai-tbl{border-collapse:collapse;width:100%;font-size:12.8px;min-width:340px}
 .sai-tbl th{background:#f0f5f2;text-align:left;padding:8px 10px;font-size:11.5px;letter-spacing:.2px}
 .sai-tbl td{padding:7px 10px;border-top:1px solid var(--line,#eef1ef);vertical-align:top}
@@ -1115,6 +1134,19 @@ body{overflow-x:hidden}
     [1200, 2500, 4500].forEach(d => setTimeout(mountDashboard, d));
   };
 
+  // 🧠 ম্যানুয়াল ব্রেইন-আপডেট (প্রতি-ধরন) — সেটিংস থেকে
+  const syncType = async kind => {
+    try {
+      state.syncing = true; paint();
+      await boostData(); await syncBank();
+      try { localStorage.setItem('ahBankSig', dataSig()); } catch (_) {}
+      const c = cache();
+      const label = { history: '📊 পরীক্ষার ইতিহাস — ' + bn(exSorted().length) + 'টি', vocab: '📚 শব্দভাণ্ডার — ' + bn(vocPick().length) + 'টি', mistakes: '❌ ভুল-প্রশ্ন — ' + bn((c.mistakes || []).length) + 'টি', bank: '🗃️ প্রশ্নব্যাংক — ' + bn((c.questions || []).length) + 'টি' }[kind] || 'ডেটা';
+      if (window.toast) window.toast('🧠 ' + label + ' — ব্রেইনে টাটকা হলো ✓');
+    } catch (e) { if (window.toast) window.toast('⚠️ হয়নি: ' + String(e?.message || e).slice(0, 60)); }
+    state.syncing = false; paint();
+  };
+
   // 📝 চ্যাট-পরীক্ষা v2 — এক বড় কার্ড, সব-প্রশ্ন, next/previous, শেষে রেজাল্ট + অটো স্পেশাল-রিভিশন
   const chatExam = { on: false, qs: [], i: 0, picks: {}, mid: null, rev: false };
   const exShuffle = arr => arr.map(x => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
@@ -1168,6 +1200,6 @@ body{overflow-x:hidden}
     if (wrongs.length) setTimeout(() => { try { startChatExam(exShuffle(wrongs.map(w => w.q)).slice(0, 5)); } catch (_) {} }, 900);
   };
 
-  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, forceSync, dupCheck, startChatExam, examPick, examNav, examSubmit, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
+  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, forceSync, dupCheck, syncType, startChatExam, examPick, examNav, examSubmit, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();
