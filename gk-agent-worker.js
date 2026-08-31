@@ -241,7 +241,7 @@ const bankUpload = async (request, env) => {
     let body = {}; try { body = await request.json(); } catch (_) {}
     const bank = normalizeBank(body.questions, body.stats);
     if (!bank.qs.length) return json(request, { error: 'empty-bank' }, 400);
-    await env.GK_KV.put('userBank', JSON.stringify({ ...bank, history: Array.isArray(body.history) ? body.history.slice(0, 500) : [], mistakes: Array.isArray(body.mistakes) ? body.mistakes.slice(0, 400) : [], vocabulary: Array.isArray(body.vocabulary) ? body.vocabulary.slice(0, 1500) : [], activity: body.activity && typeof body.activity === 'object' ? body.activity : {}, savedAt: Date.now() }));
+    await env.GK_KV.put('userBank', JSON.stringify({ ...bank, history: Array.isArray(body.history) ? body.history.slice(0, 500) : [], mistakes: Array.isArray(body.mistakes) ? body.mistakes.slice(0, 400) : [], vocabulary: Array.isArray(body.vocabulary) ? body.vocabulary.slice(0, 1500) : [], activity: body.activity && typeof body.activity === 'object' ? body.activity : {}, ...(body.full && typeof body.full === 'object' ? { full: body.full } : {}), savedAt: Date.now() }));
     return json(request, { saved: true, count: bank.qs.length });
   } catch (_) { return json(request, { error: 'bank-failed' }, 500); }
 };

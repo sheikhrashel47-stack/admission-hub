@@ -75,6 +75,14 @@
       return { exams: ex.length, avgAcc: accs.length ? Math.round(accs.reduce((a, b) => a + b, 0) / accs.length) : null, weak: Object.entries(wrong).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([t]) => t) };
     } catch (_) { return { exams: 0, avgAcc: null, weak: [] }; }
   };
+  // v133f: পূর্ণাঙ্গ-ব্যাংক-এক্সপোর্ট (public-প্রোডাক্ট পাইপলাইন) — hierarchy-সহ সব রেকর্ড; বিশাল data-URI বাদ
+  const fullExport = () => { try {
+    const c = cache();
+    const clean = arr => (Array.isArray(arr) ? arr : []).map(x => { if (!x || typeof x !== 'object') return x; const o = Object.assign({}, x); ['imageDataUrl', 'image', 'thumbnail'].forEach(k => { if (typeof o[k] === 'string' && o[k].startsWith('data:') && o[k].length > 60000) delete o[k]; }); return o; });
+    const out = { subjects: Array.isArray(c.subjects) ? c.subjects : [], topics: Array.isArray(c.topics) ? c.topics : [], questions: Array.isArray(c.questions) ? c.questions : [], vocabulary: Array.isArray(c.vocabulary) ? c.vocabulary : [], vocabularyMaster: clean(c.vocabularyMaster) };
+    try { if (JSON.stringify(out).length > 18000000) out.vocabularyMaster = (out.vocabularyMaster || []).map(x => { const o = Object.assign({}, x); delete o.imageDataUrl; delete o.image; return o; }); } catch (_) {}
+    return out;
+  } catch (_) { return null; } };
   const buildBankUpload = () => {
     const c = cache();
     const qs = (Array.isArray(c.questions) ? c.questions : []).map(q => {
@@ -93,10 +101,10 @@
     const correct = (c.examResults || []).reduce((a, e) => { try { return a + (Number(e && (e.correctCount ?? e.correct)) || 0); } catch (_) { return a; } }, 0);
     const lifetime = { exams: (c.examResults || []).length, answered, correct, acc: answered ? Math.round(correct * 100 / answered) : null, daysActive: days.size, mistakes: misAll.length, vocab: vocAll.length, opens: Number(localStorage.getItem('saiOpens') || 0) };
     const coach = (() => { try { return JSON.parse(localStorage.getItem('saiCoachNote') || 'null'); } catch (_) { return null; } })();
-    return { questions: qs, stats: { count: qs.length, ...bankStats() }, history: ex, mistakes: mis, vocabulary: voc, activity: { exams: lifetime.exams, mistakes: misAll.length, vocab: vocAll.length, lastExamAt: lastAt, lifetime, coach, syncedAt: Date.now() } };
+    return { full: fullExport(), questions: qs, stats: { count: qs.length, ...bankStats() }, history: ex, mistakes: mis, vocabulary: voc, activity: { exams: lifetime.exams, mistakes: misAll.length, vocab: vocAll.length, lastExamAt: lastAt, lifetime, coach, syncedAt: Date.now() } };
   };
   // ডেটা-সিগনেচার: প্রশ্ন/পরীক্ষা বদলালেই নতুন-মান → অটো-রি-সিঙ্কের ভিত্তি
-  const dataSig = () => { const ex = exSorted(); const last = ex.length ? (Number((ex[0] && ((ex[0].completedAt ?? ex[0].at) || 0)) || 0)) : 0; return 'v131:' + (cache().questions || []).length + ':' + ex.length + ':' + (cache().mistakes || []).length + ':' + vocPick().length + ':' + last; };
+  const dataSig = () => { const ex = exSorted(); const last = ex.length ? (Number((ex[0] && ((ex[0].completedAt ?? ex[0].at) || 0)) || 0)) : 0; return 'v133f:' + (cache().questions || []).length + ':' + ex.length + ':' + (cache().mistakes || []).length + ':' + vocPick().length + ':' + last; };
   const syncBank = async () => {
     // অ্যাপ খুলে IndexedDB-তে প্রশ্ন আসা পর্যন্ত অপেক্ষা (সর্বোচ্চ ~১২ সেকেন্ড)
     for (let i = 0; i < 30 && !(cache().questions || []).length; i++) await new Promise(r => setTimeout(r, 400));
