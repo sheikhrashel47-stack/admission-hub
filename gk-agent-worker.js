@@ -263,6 +263,7 @@ const histBlock = b => {
     if (a && (a.exams || a.mistakes || a.vocab)) out += `\nঅ্যাক্টিভিটি: মোট পরীক্ষা ${a.exams || 0} · ভুল-নোট ${a.mistakes || 0} · শব্দ ${a.vocab || 0}`;
     const lt = (a && a.lifetime) || {};
     if (lt && (lt.answered || lt.daysActive)) out += `\nলাইফটাইম: উত্তর ${lt.answered || 0}টি · সঠিক ${lt.correct || 0}${lt.acc != null ? ' (' + lt.acc + '%)' : ''} · সক্রিয় দিন ${lt.daysActive || 0} · চ্যাট-ওপেন ${lt.opens || 0}`;
+    if (a && a.coach && a.coach.total) out += `\nশেষ চ্যাট-পরীক্ষা (কোচ-নোট): ${a.coach.score || 0}/${a.coach.total}${Array.isArray(a.coach.weak) && a.coach.weak.length ? ' — দুর্বল: ' + a.coach.weak.slice(0, 4).join(', ') : ''}`;
     const ms2 = Array.isArray(b && b.mistakes) ? b.mistakes.slice(0, 8) : [];
     if (ms2.length) out += '\nসাম্প্রতিক ভুল-প্রশ্ন (সঠিক-উত্তরসহ):\n' + ms2.map(x => `— ${String((x && x.q) || '').slice(0, 90)}${x && x.a ? ' ⇒ সঠিক: ' + String(x.a).slice(0, 40) : ''}`).join('\n');
     const vs2 = Array.isArray(b && b.vocabulary) ? b.vocabulary.slice(0, 12) : [];

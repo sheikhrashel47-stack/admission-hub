@@ -92,13 +92,15 @@
     const answered = (c.examResults || []).reduce((a, e) => { try { return a + (Number(e && (e.totalQuestions ?? (Array.isArray(e.questions) ? e.questions.length : 0))) || 0); } catch (_) { return a; } }, 0);
     const correct = (c.examResults || []).reduce((a, e) => { try { return a + (Number(e && (e.correctCount ?? e.correct)) || 0); } catch (_) { return a; } }, 0);
     const lifetime = { exams: (c.examResults || []).length, answered, correct, acc: answered ? Math.round(correct * 100 / answered) : null, daysActive: days.size, mistakes: misAll.length, vocab: vocAll.length, opens: Number(localStorage.getItem('saiOpens') || 0) };
-    return { questions: qs, stats: { count: qs.length, ...bankStats() }, history: ex, mistakes: mis, vocabulary: voc, activity: { exams: lifetime.exams, mistakes: misAll.length, vocab: vocAll.length, lastExamAt: lastAt, lifetime, syncedAt: Date.now() } };
+    const coach = (() => { try { return JSON.parse(localStorage.getItem('saiCoachNote') || 'null'); } catch (_) { return null; } })();
+    return { questions: qs, stats: { count: qs.length, ...bankStats() }, history: ex, mistakes: mis, vocabulary: voc, activity: { exams: lifetime.exams, mistakes: misAll.length, vocab: vocAll.length, lastExamAt: lastAt, lifetime, coach, syncedAt: Date.now() } };
   };
   // ডেটা-সিগনেচার: প্রশ্ন/পরীক্ষা বদলালেই নতুন-মান → অটো-রি-সিঙ্কের ভিত্তি
   const dataSig = () => { const c = cache(); const ex = c.examResults || []; const last = ex[0] && (ex[0].completedAt || ex[0].at) || 0; return (c.questions || []).length + ':' + ex.length + ':' + (c.mistakes || []).length + ':' + (c.vocabulary || []).length + ':' + last; };
   const syncBank = async () => {
     // অ্যাপ খুলে IndexedDB-তে প্রশ্ন আসা পর্যন্ত অপেক্ষা (সর্বোচ্চ ~১২ সেকেন্ড)
     for (let i = 0; i < 30 && !(cache().questions || []).length; i++) await new Promise(r => setTimeout(r, 400));
+    try { await boostData(); } catch (_) {}
     const payload = buildBankUpload();
     if (!payload.questions.length) throw new Error('ব্যাংক খালি (অ্যাপে প্রশ্ন লোড হয়নি?)');
     try {
@@ -141,6 +143,7 @@
   const sysPrompt = () => `তুমি "স্টাডি বন্ধু" — বাংলাদেশি বিশ্ববিদ্যালয় ভর্তি-প্রস্তুতির বন্ধুসুলভ AI সহকারী (অ্যাপ: Admission Hub / Admihub AI)।
 আজকের তারিখ: ${todayBd()} (বাংলাদেশ, Asia/Dhaka)। FRESHNESS নিয়ম: তারিখ/সংখ্যা/নাম/কারেন্ট-অ্যাফেয়ার্স/ভর্তি-তথ্য জাতীয় যেকোনো প্রশ্নে নিজের পুরনো জ্ঞানে (training memory) উত্তর দেওয়া নিষিদ্ধ — সর্বশেষ যাচাইকৃত তথ্য দাও; যাচাই করতে না পারলে স্পষ্ট করে বলো কোনটা যাচাই করা যায়নি।
 নিয়ম: সহজ-উষ্ণ বাংলায় তুমি-ফর্মে কথা বলো; উত্তর ছোট ও সোজা (সাধারণত ২-৬ লাইন); হালকা emoji ঠিক আছে কিন্তু অতিরিক্ত নয়; ভুল তথ্য কখনো বানাবে না — নিশ্চিত না হলে স্বচ্ছভাবে বলবে বা ওয়েব ঘেঁটে যাচাই করবে।
+কোচ-ভূমিকা (গুরুত্বপূর্ণ): তুমি শুধু উত্তর-মেশিন নও — ব্যক্তিগত প্রশিক্ষক। শিক্ষার্থীর ইতিহাস/ভুল-প্রশ্ন/দুর্বল-টপিক/শব্দভাণ্ডার দেখে সক্রিয়ভাবে ট্রেনিং দাও: ছোট লক্ষ্য ঠিক করে দাও, রিভিশন-প্ল্যান বানাও, মনে-রাখার টিপস দাও, আগের কথা মনে রেখে প্রগ্রেস তুলনা করো।
 ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার্থীর ডেটা (প্রসঙ্গ কাজে লাগাও, কাঁচা ডেটা ফেরত লিখো না):\n${localStorage.getItem('studyAiCtx')}` : ''}`;
 
   // ── 🌐 Browser Use এজেন্ট ────────────────────────────────────────────────────
@@ -173,6 +176,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
   const VL_DEFAULT = { openrouter: 'google/gemma-4-31b-it:free', hf: 'meta-llama/Llama-3.2-11B-Vision-Instruct' };
   // 🧠 লাইভ-ব্রেইন: ব্যাংক-সারাংশ + পুরনো চ্যাটের স্মৃতি — প্রতি মেসেজে তাজা (Gemini + OpenRouter; HF নয়)
   // ব্যাংক-অটোলুকআপ: ইউজারের প্রশ্নের টোকেন মিলিয়ে নিজের ব্যাংক থেকে কাছাকাছি প্রশ্ন-উত্তর
+  const boostData = async () => { try { if (typeof dbGetAll === 'function') { if (!(cache().vocabulary || []).length) cache().vocabulary = await dbGetAll('vocabulary'); if (!(cache().mistakes || []).length) cache().mistakes = await dbGetAll('mistakes'); } } catch (_) {} };
   const bankMatch = text => {
     try {
       const toks = String(text || '').toLowerCase().split(/[^\p{L}\p{M}\p{N}]+/u).filter(t => t.length > 2).slice(0, 24);
@@ -204,6 +208,8 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
       if (misRec.length) out += '\nসাম্প্রতিক ভুল (সঠিক-উত্তরসহ):\n' + misRec.join('\n');
       const vocRec = (c.vocabulary || []).slice(-6).map(v => { try { return String((v && (v.word ?? v.w)) || '').slice(0, 30) + (v && v.meaning ? '=' + String(v.meaning).slice(0, 40) : ''); } catch (_) { return ''; } }).filter(Boolean);
       if (vocRec.length) out += '\nশব্দ-সংগ্রহ: ' + bn((c.vocabulary || []).length) + 'টি — সাম্প্রতিক: ' + vocRec.join(', ');
+      const coachN = (() => { try { return JSON.parse(localStorage.getItem('saiCoachNote') || 'null'); } catch (_) { return null; } })();
+      if (coachN && coachN.total) out += '\nশেষ চ্যাট-পরীক্ষা (কোচ-নোট): ' + dateStr(coachN.at || Date.now()) + ' — ' + bn(coachN.score) + '/' + bn(coachN.total) + (Array.isArray(coachN.weak) && coachN.weak.length ? ' — দুর্বল: ' + coachN.weak.slice(0, 4).join(', ') : '');
       const lines = [];
       listChats().filter(ch => ch.id !== curId()).slice(0, 5).forEach(ch => {
         const ms = msgsOf(ch.id).filter(m => m.text).slice(-4);
@@ -235,14 +241,31 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
     const brain = buildBrain(question); // v129: ইউজার-নির্দেশ — যেকোনো মডেল (Gemini/OpenRouter/HF/Groq) সব-ডেটা পাবে
     // 🎨 ছবি-আঁকা — যেকোনো ইঞ্জিন থেকে Gemini-ইমেজ-মডেলে
     if (/(ছবি|চিত্র)[^\n.]{0,26}(বানাও|আঁকো|আঁকা|তৈরি|জেনারেট)|(বানাও|আঁকো)[^\n.]{0,20}ছবি|(generate|create|draw)[^\n.]{0,16}(image|picture)|^\/img/i.test(question)) {
+      // v130: ছবি-চেইন — ① Gemini ② Hugging Face FLUX.1-schnell ③ OpenRouter Images (OR/HF = সেরা-ছবি-বিশেষজ্ঞ)
       const gk = keyList('gemini')[0];
-      if (!gk) throw new Error('ছবি আঁকতে Gemini-র key দরকার 🎨 — ⚙️ সেটিংসে key বসাও, তারপর যেকোনো ইঞ্জিন থেকেই ছবি আঁকা যাবে');
-      const gd = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent', Object.assign({ method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': gk }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Generate an image: ' + question }] }] }) }, ctl ? { signal: ctl.signal } : {})).then(r => r.json()).catch(() => ({}));
-      const gparts = (gd?.candidates?.[0]?.content?.parts || []);
-      const gimg = gparts.find(pp => pp.inline_data && pp.inline_data.data);
-      const gcap = gparts.filter(pp => pp.text).map(pp => pp.text).join(' ').slice(0, 180);
-      if (!gimg) throw new Error('ছবি আঁকা গেল না এখন 😅 — একটু পরে আবার বলো');
-      return { text: gcap || 'ছবি তৈরি হয়েছে ✨', img: (await shrinkB64(String(gimg.inline_data.data))) || undefined };
+      if (gk) {
+        const gd = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image:generateContent', Object.assign({ method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': gk }, body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: 'Generate an image: ' + question }] }] }) }, ctl ? { signal: ctl.signal } : {})).then(r => r.json()).catch(() => ({}));
+        const gparts = (gd?.candidates?.[0]?.content?.parts || []);
+        const gimg = gparts.find(pp => pp.inline_data && pp.inline_data.data);
+        const gcap = gparts.filter(pp => pp.text).map(pp => pp.text).join(' ').slice(0, 180);
+        if (gimg) return { text: gcap || 'ছবি তৈরি হয়েছে ✨', img: (await shrinkB64(String(gimg.inline_data.data))) || undefined };
+      }
+      const hk = keyList('hf')[0];
+      if (hk) {
+        const hres = await fetch('https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell', Object.assign({ method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + hk }, body: JSON.stringify({ inputs: String(question).slice(0, 400) }) }, ctl ? { signal: ctl.signal } : {}));
+        if (hres.ok) {
+          const buf = await hres.arrayBuffer(); let bin = ''; const u8 = new Uint8Array(buf);
+          for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 8192));
+          return { text: 'ছবি তৈরি হয়েছে ✨ (HF FLUX)', img: (await shrinkB64(btoa(bin))) || undefined };
+        }
+      }
+      const orK = keyList('openrouter')[0];
+      if (orK) {
+        const od = await fetch('https://openrouter.ai/api/v1/images', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + orK, 'HTTP-Referer': 'https://sheikhrashel47-stack.github.io/admission-hub/', 'X-Title': 'Admihub' }, body: JSON.stringify({ model: 'google/gemini-2.5-flash-image', prompt: String(question).slice(0, 400) }) }).then(r => r.json()).catch(() => ({}));
+        const ob64 = od && od.data && od.data[0] && od.data[0].b64Json;
+        if (ob64) return { text: 'ছবি তৈরি হয়েছে ✨ (OpenRouter)', img: (await shrinkB64(String(ob64))) || undefined };
+      }
+      throw new Error('ছবি আঁকতে অন্তত একটা key দরকার 🎨 — ⚙️ সেটিংসে Gemini/Hugging Face key বসাও');
     }
     const imgs = list.filter(a => a.kind === 'image'), txts = list.filter(a => a.kind === 'text');
     const qText = question + txts.map(a => `\n\n📎 "${a.name}" ফাইলের বিষয়বস্তু:\n${(a.text || '').slice(0, 9000)}`).join('');
@@ -496,7 +519,7 @@ ${cfg().sendData && localStorage.getItem('studyAiCtx') ? `শিক্ষার�
         <div class="row" style="gap:8px;margin:10px 0 4px"><button class="btn secondary sm" onclick="StudyAiTool.testKey()">🔑 key-টেস্ট করো</button></div>
         ${state.keyTest ? `<div class="${state.keyTest.ok === true ? 'sai-memok' : state.keyTest.ok === false ? 'sai-ghostbtn' : 'muted'}" style="display:block;font-size:12px;margin-top:6px">${esc(state.keyTest.msg)}</div>` : ''}
         <label class="flabel" style="margin-top:18px">📤 আমার ডেটা → AI</label>
-        <div class="sai-setrow"><b>সব ডেটা টাটকা রাখো</b><span class="muted" style="font-size:11.5px">প্রশ্নব্যাংক · পরীক্ষার ইতিহাস · প্রগ্রেস · অ্যাক্টিভিটি — ব্রাউজার-এজেন্টের ডাটাবেসে যায়, আর Gemini/OpenRouter প্রতি মেসেজে তাজা মেমোরি পায়। নতুন প্রশ্ন/পরীক্ষা হলে <b>নিজে নিজেই</b> আপডেট যাবে (~৯০ সেকেন্ডে)।</span>${state.bankInfo && state.bankInfo.saved ? `<span class="muted" style="font-size:11px">শেষ সিঙ্ক: ${dateStr(state.bankInfo.savedAt || Date.now())} · ${bn(state.bankInfo.count || 0)}টি প্রশ্ন</span>` : ''}<div class="row"><button class="btn sm" onclick="StudyAiTool.forceSync()">${state.syncing ? 'পাঠানো হচ্ছে…' : '📤 এখনই সব ডেটা আপডেট করো'}</button></div></div>
+        <div class="sai-setrow"><b>সব ডেটা টাটকা রাখো</b><span class="muted" style="font-size:11.5px">প্রশ্নব্যাংক · পরীক্ষার ইতিহাস · প্রগ্রেস · অ্যাক্টিভিটি — ব্রাউজার-এজেন্টের ডাটাবেসে যায়, আর Gemini/OpenRouter প্রতি মেসেজে তাজা মেমোরি পায়। নতুন প্রশ্ন/পরীক্ষা হলে <b>নিজে নিজেই</b> আপডেট যাবে (~৯০ সেকেন্ডে)।</span>${state.bankInfo && state.bankInfo.saved ? `<span class="muted" style="font-size:11px">শেষ সিঙ্ক: ${dateStr(state.bankInfo.savedAt || Date.now())} · ${bn(state.bankInfo.count || 0)}টি প্রশ্ন</span>` : ''}<span class="muted" style="font-size:11px">এখনকার হিসাব: প্রশ্ন ${bn((cache().questions || []).length)} · পরীক্ষা ${bn((cache().examResults || []).length)} · ভুল ${bn((cache().mistakes || []).length)} · শব্দ ${bn((cache().vocabulary || []).length)}</span><div class="row"><button class="btn sm" onclick="StudyAiTool.forceSync()">${state.syncing ? 'পাঠানো হচ্ছে…' : '📤 এখনই সব ডেটা আপডেট করো'}</button></div></div>
         <label class="flabel">🧬 ডুপ্লিকেট-যাচাই (Hugging Face)</label>
         <div class="sai-setrow"><b>কাছাকাছি প্রশ্ন খুঁজো</b><span class="muted" style="font-size:11.5px">নতুন-যোগ ২৫টি প্রশ্নকে পুরো ব্যাংকের সাথে অর্থ-সাদৃশ্যে (embedding) মেলায় — কুইজ-কাটার ডুপ্লিকেট ধরা পড়বে।</span><div class="row"><button class="btn secondary sm" onclick="StudyAiTool.dupCheck()">${state.dupReport && state.dupReport.busy ? 'যাচাই হচ্ছে…' : '🧬 যাচাই করো'}</button></div>${state.dupReport && !state.dupReport.busy ? `<span class="muted" style="display:block;font-size:12px;margin-top:8px">${esc(state.dupReport.msg)}</span>${(state.dupReport.pairs || []).slice(0, 6).map(pp => `<span class="muted" style="display:block;font-size:11.5px;margin-top:6px;background:#f6fbf8;border-radius:9px;padding:7px 9px">🔁 ${bn(Math.round(pp.sc * 100))}% — ${esc(String(pp.a).slice(0, 60))} <small>↔</small> ${esc(String(pp.b).slice(0, 60))}</span>`).join('')}` : ''}</div>
         <label class="flabel" style="margin-top:16px">থিম</label>
@@ -728,6 +751,17 @@ body{overflow-x:hidden}
 .sai-exq b{display:block;margin-bottom:7px;font-size:13.5px;color:#0f6b4f}
 .sai-exopt{display:block;width:100%;text-align:left;background:#f6faf8;border:1px solid var(--line,#e5e7eb);border-radius:10px;padding:9px 11px;margin:6px 0;font-size:13.5px;cursor:pointer;color:#20302a}
 .sai-exopt:active{transform:scale(.985)}
+.sai-exopt.sel{background:#e7f5ee;border-color:#0e7a58;font-weight:700}
+.sai-exnav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.sai-exnb{background:#fff;border:1px solid var(--line,#e5e7eb);border-radius:9px;padding:7px 12px;font-size:12.5px;cursor:pointer;color:#0f6b4f;font-weight:700}
+.sai-exnb:disabled{opacity:.4}
+.sai-exdots{display:flex;gap:3px}
+.sai-exdot{font-size:9px;color:#c9d6cf}
+.sai-exdot.done{color:#0e7a58}
+.sai-exdot.cur{color:#0f6b4f;font-size:12px}
+.sai-exfin{display:block;width:100%;background:#0e7a58;color:#fff;border:0;border-radius:11px;padding:11px;font-size:14px;font-weight:800;cursor:pointer;margin-top:8px}
+.sai-exrev{background:#fdf3f2;border:1px solid #f3d9d5;border-radius:10px;padding:8px 10px;margin:7px 0;font-size:12.5px}
+.sai-exrev small{color:#6b5a57}
 .sai-tbl{border-collapse:collapse;width:100%;font-size:12.8px;min-width:340px}
 .sai-tbl th{background:#f0f5f2;text-align:left;padding:8px 10px;font-size:11.5px;letter-spacing:.2px}
 .sai-tbl td{padding:7px 10px;border-top:1px solid var(--line,#eef1ef);vertical-align:top}
@@ -823,6 +857,7 @@ body{overflow-x:hidden}
   const send = async (textArg, retryOf) => {
     if (state.busy) return;
     if (!retryOf && String(textArg || '').trim() === '/exam') { startChatExam(); return; }
+    try { await boostData(); } catch (_) {}
     if (!retryOf && typeof navigator !== 'undefined' && navigator.onLine === false) {
       push({ who: 'me', text: String(textArg || draftText()).trim() || '…' });
       push({ who: 'ai', text: '📡 এখন ইন্টারনেট নেই — তোমার চ্যাট পড়া যাচ্ছে, কিন্তু নতুন উত্তর আনতে নেট লাগবে। নেট ফিরলে আবার পাঠাও 😊' });
@@ -1075,41 +1110,59 @@ body{overflow-x:hidden}
     [1200, 2500, 4500].forEach(d => setTimeout(mountDashboard, d));
   };
 
-  // 📝 চ্যাট-পরীক্ষা (ফ্ল্যাশ-টেস্ট স্টাইল) — ব্যাংক থেকে ৫ প্রশ্ন, স্কোর আসল-ইতিহাসে
-  const chatExam = { on: false, qs: [], i: 0, score: 0 };
+  // 📝 চ্যাট-পরীক্ষা v2 — এক বড় কার্ড, সব-প্রশ্ন, next/previous, শেষে রেজাল্ট + অটো স্পেশাল-রিভিশন
+  const chatExam = { on: false, qs: [], i: 0, picks: {}, mid: null, rev: false };
   const exShuffle = arr => arr.map(x => [Math.random(), x]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
   const exAnsOf = q => { const opts = Array.isArray(q.options) ? q.options : []; const ai = Number(q.answerIndex ?? q.answer ?? q.correctAnswerIndex); return { ai, ans: typeof q.answer === 'string' && q.answer ? q.answer : (Number.isFinite(ai) && opts[ai] != null ? String(opts[ai]) : '') }; };
-  const exQBlock = () => { const e = chatExam, q = e.qs[e.i]; const opts = Array.isArray(q.options) ? q.options : []; return `<div class="sai-exq"><b>📝 প্রশ্ন ${bn(e.i + 1)}/${bn(e.qs.length)} · স্কোর ${bn(e.score)}</b>${esc(String((q.question ?? q.q) || '').slice(0, 300))}<div style="margin-top:6px">${opts.map((o, oi) => `<button class="sai-exopt" onclick="StudyAiTool.examPick(${oi})">${'কখগঘঙ'[oi] || oi + 1}) ${esc(String(o).slice(0, 90))}</button>`).join('')}</div></div>`; };
-  const startChatExam = () => {
+  const exWeakIds = () => [...new Set((cache().mistakes || []).map(m => { try { return (m && m.q && m.q.topicId) || (m && m.topicId) || ''; } catch (_) { return ''; } }).filter(Boolean))];
+  const exQBlock = () => {
+    const e = chatExam, q = e.qs[e.i]; if (!q) return '';
+    const opts = Array.isArray(q.options) ? q.options : [];
+    const picked = e.picks[e.i];
+    const answered = Object.keys(e.picks).length;
+    const last = e.i >= e.qs.length - 1;
+    return `<div class="sai-exq"><b>📝 ${e.rev ? '🔄 স্পেশাল রিভিশন' : 'চ্যাট-পরীক্ষা'} · প্রশ্ন ${bn(e.i + 1)}/${bn(e.qs.length)} · উত্তর ${bn(answered)}/${bn(e.qs.length)}</b>${esc(String((q.question ?? q.q) || '').slice(0, 300))}<div style="margin-top:6px">${opts.map((o, oi) => `<button class="sai-exopt${picked === oi ? ' sel' : ''}" onclick="StudyAiTool.examPick(${e.i},${oi})">${'কখগঘঙ'[oi] || oi + 1}) ${esc(String(o).slice(0, 90))}</button>`).join('')}</div><div class="sai-exnav"><button class="sai-exnb" ${e.i === 0 ? 'disabled' : ''} onclick="StudyAiTool.examNav(-1)">← আগের</button><span class="sai-exdots">${e.qs.map((_, di) => `<span class="sai-exdot${di === e.i ? ' cur' : (e.picks[di] != null ? ' done' : '')}">●</span>`).join('')}</span><button class="sai-exnb" ${last ? 'disabled' : ''} onclick="StudyAiTool.examNav(1)">পরের →</button></div>${last || answered >= e.qs.length ? `<button class="sai-exfin" onclick="StudyAiTool.examSubmit()">✅ জমা দিয়ে রেজাল্ট দেখাও${answered < e.qs.length ? ' (বাকি ' + bn(e.qs.length - answered) + ')' : ''}</button>` : ''}</div>`;
+  };
+  const exPatch = () => { try { if (chatExam.mid) patchMsg(chatExam.mid, { exam: exQBlock() }); } catch (_) {} paint(); };
+  const startChatExam = revQs => {
     state.sheet = null;
-    const pool = (cache().questions || []).filter(q => q && Array.isArray(q.options) && q.options.length >= 2);
-    if (!pool.length) { if (window.toast) window.toast('আগে প্রশ্নব্যাংক লোড হোক — তারপর পরীক্ষা! 📚'); return; }
-    chatExam.on = true; chatExam.qs = exShuffle(pool).slice(0, Math.min(5, pool.length)); chatExam.i = 0; chatExam.score = 0;
-    push({ who: 'me', text: '📝 চ্যাট-পরীক্ষা শুরু!' });
-    push({ who: 'ai', text: 'চলো! ' + bn(chatExam.qs.length) + 'টি প্রশ্ন — অপশনে চাপ দাও 😄', exam: exQBlock() });
+    let qs;
+    if (Array.isArray(revQs)) { qs = revQs; }
+    else {
+      const pool = (cache().questions || []).filter(q => q && Array.isArray(q.options) && q.options.length >= 2);
+      if (!pool.length) { if (window.toast) window.toast('আগে প্রশ্নব্যাংক লোড হোক — তারপর পরীক্ষা! 📚'); return; }
+      const weak = exWeakIds();
+      const wq = pool.filter(q => weak.includes(String(q.topicId || ''))), rq = pool.filter(q => !weak.includes(String(q.topicId || '')));
+      const target = Math.min(8, pool.length);
+      qs = exShuffle(wq).slice(0, Math.ceil(target * 0.6)).concat(exShuffle(rq)).slice(0, target);
+    }
+    chatExam.on = true; chatExam.rev = Array.isArray(revQs); chatExam.qs = qs; chatExam.i = 0; chatExam.picks = {};
+    push({ who: 'me', text: chatExam.rev ? '🎯 স্পেশাল রিভিশন শুরু!' : '📝 চ্যাট-পরীক্ষা শুরু!' });
+    const m = push({ who: 'ai', text: 'বড় কার্ডে ' + bn(qs.length) + 'টি প্রশ্ন — অপশনে চাপ দাও, ⬅️ আগের/পরের ➡️ দিয়ে ঘুরো, শেষে জমা দিলে রেজাল্ট + রিভিশন! 😄', exam: exQBlock(), status: 'completed' });
+    chatExam.mid = m.id;
     paint();
   };
-  const examPick = oi => {
+  const examPick = (qi, oi) => { if (!chatExam.on) return; chatExam.picks[qi] = oi; exPatch(); };
+  const examNav = d => { if (!chatExam.on) return; chatExam.i = Math.max(0, Math.min(chatExam.qs.length - 1, chatExam.i + d)); exPatch(); };
+  const examSubmit = () => {
     if (!chatExam.on) return;
-    const e = chatExam, q = e.qs[e.i];
-    const { ai, ans } = exAnsOf(q);
-    const right = oi === ai;
-    if (right) e.score++;
-    push({ who: 'me', text: (right ? '✓ ' : '✗ ') + String((q.options || [])[oi] ?? '').slice(0, 60) });
-    e.i++;
-    if (e.i >= e.qs.length) {
-      const pct = e.qs.length ? Math.round(e.score * 100 / e.qs.length) : 0;
-      const finMsg = push({ who: 'ai', text: '', exam: `<div class="sai-exq"><b>🏁 শেষ! স্কোর ${bn(e.score)}/${bn(e.qs.length)} (${bn(pct)}%)</b>${pct >= 80 ? 'দুর্দান্ত! 🎉' : pct >= 60 ? 'ভালো — আরও একটু! 💪' : 'চিন্তা নেই — ভুলগুলোই তো শেখা! 🌱'}</div>` });
-      try { patchMsg(finMsg.id, { status: 'completed' }); } catch (_) {}
-      try { const c2 = cache(); c2.examResults = Array.isArray(c2.examResults) ? c2.examResults : []; c2.examResults.unshift({ completedAt: Date.now(), at: Date.now(), totalQuestions: e.qs.length, correctCount: e.score, mode: 'chat' }); } catch (_) {}
-      chatExam.on = false;
-      try { ensureSync(false); } catch (_) {}
-    } else {
-      push({ who: 'ai', text: right ? '✓ ঠিক! পরেরটা…' : ('✗ ভুল — সঠিক: ' + ans.slice(0, 40)), exam: exQBlock() });
-    }
+    const e = chatExam;
+    let score = 0; const wrongs = [];
+    e.qs.forEach((q, qi) => { const { ai, ans } = exAnsOf(q); if (e.picks[qi] === ai) score++; else wrongs.push({ q, ans, picked: e.picks[qi] }); });
+    const pct = e.qs.length ? Math.round(score * 100 / e.qs.length) : 0;
+    const weakTopics = [...new Set(wrongs.map(w => { try { return topName(w.q.topicId) || String(w.q.topicId || ''); } catch (_) { return ''; } }).filter(Boolean))];
+    const review = wrongs.slice(0, 8).map(w => `<div class="sai-exrev">✗ ${esc(String((w.q.question ?? w.q.q) || '').slice(0, 90))}<br><small>সঠিক: ${esc(w.ans.slice(0, 60))}${w.picked != null ? ' · তোমার: ' + esc(String((w.q.options || [])[w.picked] ?? '').slice(0, 40)) : ' · উত্তর দাওনি'}</small></div>`).join('');
+    const card = `<div class="sai-exq"><b>🏁 রেজাল্ট: ${bn(score)}/${bn(e.qs.length)} (${bn(pct)}%)</b>${pct >= 80 ? 'দুর্দান্ত! 🎉' : pct >= 60 ? 'ভালো — আরও একটু! 💪' : 'চিন্তা নেই — নিচের রিভিশন শেষ করলেই ঠিক হয়ে যাবে! 🌱'}${review || '<div class="sai-exrev">সব ঠিক — পারফেক্ট! ✨</div>'}</div>`;
+    if (chatExam.mid) patchMsg(chatExam.mid, { exam: card, status: 'completed' });
+    try { const c2 = cache(); c2.examResults = Array.isArray(c2.examResults) ? c2.examResults : []; c2.examResults.unshift({ completedAt: Date.now(), at: Date.now(), totalQuestions: e.qs.length, correctCount: score, mode: 'chat' }); } catch (_) {}
+    try { localStorage.setItem('saiCoachNote', JSON.stringify({ at: Date.now(), score, total: e.qs.length, weak: weakTopics })); } catch (_) {}
+    chatExam.on = false; chatExam.mid = null;
+    push({ who: 'ai', text: pct >= 80 ? 'শাবাশ! পরেরবার আরও কঠিন নেবো 😎' : 'এবার ভুলগুলোর জন্য 🎯 স্পেশাল রিভিশন নিচ্ছি — ঠিক ওই টপিকগুলো থেকে!', status: 'completed' });
     paint();
+    try { ensureSync(false); } catch (_) {}
+    if (wrongs.length) setTimeout(() => { try { startChatExam(exShuffle(wrongs.map(w => w.q)).slice(0, 5)); } catch (_) {} }, 900);
   };
 
-  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, forceSync, dupCheck, startChatExam, examPick, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
+  window.StudyAiTool = { render, renderMd: md, send, quick, shareData, skipShare, editName, openSheet, closeSheet, closePage, setSource, newChat, openChat, delChat, clearChats, clearCurrent, renameChat, setEngine, pickEngine, setProvider, setKey, setModel, setTheme, toggleData, pickAttach, handleFiles, removeAttach, retryAttach, testKey, ensureSync, forceSync, dupCheck, startChatExam, examPick, examNav, examSubmit, stopGen, copyMsg, editMsg, retryMsg, regenerate, rate, expandMsgs, viewer, viewerTray, viewerNav, viewerClose, _state: () => state };
   if (typeof document !== 'undefined') bootMount();
 })();
