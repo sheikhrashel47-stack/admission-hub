@@ -248,6 +248,8 @@ const bankInfo = async (request, env) => {
   try {
     const raw = await env.GK_KV.get('userBank');
     if (!raw) return json(request, { saved: false });
+    // v133: full=1 → পুরো ব্যাংক (প্রশ্ন+ভুল+শব্দ+ইতিহাস) — public-প্রোডাক্ট পাইপলাইনের সেতু (admin-only ব্যবহার)
+    try { if (new URL(request.url).searchParams.get('full') === '1') return json(request, { saved: true, bank: JSON.parse(raw) }); } catch (_) {}
     const b = JSON.parse(raw);
     return json(request, { saved: true, count: b.qs.length, stats: b.stats, savedAt: b.savedAt, history: Array.isArray(b.history) ? b.history.length : 0, mistakes: Array.isArray(b.mistakes) ? b.mistakes.length : 0, vocabulary: Array.isArray(b.vocabulary) ? b.vocabulary.length : 0, activity: b.activity || {} });
   } catch (_) { return json(request, { saved: false }); }
