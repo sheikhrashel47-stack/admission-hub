@@ -1,9 +1,9 @@
-# LATEST — Admission Hub (control) · 2026-09-01
+# LATEST — 2026-09-01 · Premium Profile System A–Z ✅ LIVE
 
-## সক্রিয়
-- Demo repo: **Signup OTP** (লিংক বাদ → ৬-ডিজিট কোড) — demo HEAD `50dead7`; worker redeploy `555600bf`
-- public-worker.js sync করা হয়েছে (OTP signup + OTP মেইল subject fix)
-- v11 AI ডিজাইন onboarding (আগের ধাপ) — demo `95ae8b8`-এ
-
-## সিক্রেট
-resume-তে সিক্রেট রাখা হয় না (detail: 2026-09-01-emailfix-glassdesign-3dloader.md)।
+- **Demo:** `sheikhrashel47-stack/admission-hub-demo` @ `aa58e29` (GH Pages live)
+- **Control:** `admission-hub` @ `d1738be`
+- **Worker:** `admission-gk` live version `be83674c` — sessions/devices, security activity, re-auth, export, passkey add/remove, google link/unlink, contact-change re-auth
+- **Frontend:** `premium-auth.js?p3-auth-prof-v27` — premium hero, academic, snapshot (real), achievements (real), prep ring, security center, devices, activity, preferences (theme/lang), data export, delete w/ re-auth, logout
+- **টেস্ট:** jsdom 53/53 · live API সব পাস (isolation, invalidation, re-auth) · টেস্ট অ্যাকাউন্ট cleanup করা
+- **স্ট্যাটাস:** STOP → ভাইয়ের approval-এর অপেক্ষা
+- Resume: `AGENT_RESUME/2026-09-01-premium-profile.md`
