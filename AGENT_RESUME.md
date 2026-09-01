@@ -1,7 +1,7 @@
 # AGENT_RESUME — Admission Hub (control)
 
 **Date:** 2026-09-01  
-Public Phase 3 rebuilt: real auth gate. Control PWA is unchanged except worker + admin users.
+Public Phase 3: reference-locked auth screens 1–5 as CSS 3D + SVG (no stock images). Control PWA unchanged except worker.
 
 Full detail: `admission-hub-demo/AGENT_RESUME.md`
 
@@ -9,5 +9,3 @@ Full detail: `admission-hub-demo/AGENT_RESUME.md`
 
 Live control: https://sheikhrashel47-stack.github.io/admission-hub/  
 Live public: https://sheikhrashel47-stack.github.io/admission-hub-demo/
-
-Worker deploy: upload `gk-agent-worker.js` + `public-worker.js` as `admission-gk`. Keep secret_text. Add `RESEND_KEY`, `MAIL_FROM`, Twilio/SMS, `GOOGLE_CLIENT_ID` for production OTP/Google.
