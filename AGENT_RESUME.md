@@ -1,11 +1,6 @@
 # AGENT_RESUME — Admission Hub (control)
 
-**Date:** 2026-09-01  
-Public Phase 3: reference-locked auth screens 1–5 as CSS 3D + SVG (no stock images). Control PWA unchanged except worker.
+> ⚠️ **এই ফাইলটি ডিপ্রিকেটেড।** এখন থেকে সব resume/state তথ্য এখানে:
+> **👉 `AGENT_RESUME/` ফোল্ডার** — প্রথমে `AGENT_RESUME/LATEST.md` পড়ো, তারপর সবচেয়ে নতুন ডেটেড resume।
 
-Full detail: `admission-hub-demo/AGENT_RESUME.md`
-
-**STOP for “PHASE 3 APPROVED”.** Do not start Phase 4.
-
-Live control: https://sheikhrashel47-stack.github.io/admission-hub/  
-Live public: https://sheikhrashel47-stack.github.io/admission-hub-demo/
+**Latest resume:** `AGENT_RESUME/2026-09-01-resume-system-setup.md`
