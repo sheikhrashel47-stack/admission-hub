@@ -3,11 +3,11 @@
   'use strict';
   if (window.__ahPublicUsersAdmin) return;
   window.__ahPublicUsersAdmin = true;
-  const WORKER = 'https://admission-gk.admissionhub.workers.dev';
+  const WORKER = 'https://admission-gk.rashelzayan213.workers.dev';
   const tokenKey = 'ahAdminToken';
   const tok = () => { try { return sessionStorage.getItem(tokenKey) || ''; } catch (_) { return ''; } };
   const api = async (path, body) => {
-    const res = await fetch(WORKER + '/api' + path, {
+    const res = await fetch(WORKER + '/pub' + path, {
       method: body ? 'POST' : 'GET',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok() },
       body: body ? JSON.stringify(body) : undefined
