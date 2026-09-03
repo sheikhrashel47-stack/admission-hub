@@ -1,2 +1,2 @@
-# LATEST — 2026-09-03 · sync: Premium Bangla email + University/Unit fix (demo v173 mirror)
-মিরর: curriculum-config.js, onboarding.js (refreshDash+no-fallback), public-worker.js (বাংলা টেমপ্লেট), gk-agent-worker.js (api-gate fix), sw/index v173, guard update। লাইভ বিবরণ: demo/AGENT_RESUME/।
+# LATEST — 2026-09-03 · sync: PREMIUM 3D INTRO v174 (demo mirror)
+মিরর: splash-3d.js, index.html (3 জায়গা splash → premium), sw v174 (index+shell sync), phase1-upgrade.js, urgent-fix.js, guard regex। লাইভ বিবরণ: demo/AGENT_RESUME/।

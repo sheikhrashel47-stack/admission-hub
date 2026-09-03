@@ -567,9 +567,10 @@ textarea{min-height:96px}
   window.addEventListener('hashchange', () => trace('route', location.hash));
 })();
 </script>
+<script src="./splash-3d.js?v=splash3d-v1"></script>
 </head>
 <body class="app-booting">
-<div id="app"><main class="app-loading" role="status"><div class="app-loading-mark">✦</div><b>Preparing your study space…</b><span>Loading your saved data safely.</span></main></div>
+<div id="app"><main class="app-loading" id="ahSplash" role="status"><div class="ahfs-prefill" aria-hidden="true"><span class="ahfs-prefill-tile">✦</span><b>Admission Hub</b><span>তোমার স্টাডি স্পেস প্রস্তুত হচ্ছে…</span></div></main></div>
 <div id="navRoot" aria-label="Primary navigation"></div>
 <div id="toast" class="toast"></div>
 <div id="modalRoot"></div>
@@ -956,10 +957,15 @@ function renderStartupLoading(){
   const app=document.getElementById('app');
   if(!app) return;
   app.classList.add('no-nav');
-  if(!app.firstElementChild || !app.firstElementChild.classList.contains('app-loading')) app.innerHTML='<main class="app-loading" role="status"><div class="app-loading-mark">✦</div><b>Preparing your study space…</b><span>Loading your saved data safely.</span></main>';
+  let node=app.firstElementChild;
+  if(!node || !node.classList.contains('app-loading')){
+    app.innerHTML='<main class="app-loading" id="ahSplash" role="status"><div class="ahfs-prefill" aria-hidden="true"><span class="ahfs-prefill-tile">✦</span><b>Admission Hub</b><span>তোমার স্টাডি স্পেস প্রস্তুত হচ্ছে…</span></div></main>';
+    node=app.firstElementChild;
+  }
   const navRoot=document.getElementById('navRoot');
   if(navRoot) navRoot.innerHTML='';
-  return app.firstElementChild;
+  try{ if(window.AdmissionSplash3D) window.AdmissionSplash3D.mount(node); }catch(_){}
+  return node;
 }
 function renderShell(innerHtml, opts){
   opts=opts||{};
@@ -4934,9 +4940,11 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       if(apiName==='planner-today' && typeof window.getPlannerTodayJson==='function'){
         window.getPlannerTodayJson().then(payload=>{
           document.open();
-          document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Planner Today API</title></head><body><pre>'+JSON.stringify(payload,null,1).replace(/</g,'&lt;')+'</pre></body></html>');
+          document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Planner Today API</title><script src="./splash-3d.js?v=splash3d-v1"></script>
+</head><body><pre>'+JSON.stringify(payload,null,1).replace(/</g,'&lt;')+'</pre></body></html>');
           document.close();
-        }).catch(err=>{document.open();document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Planner Today API</title></head><body><pre>'+JSON.stringify({error:String(err)},null,1)+'</pre></body></html>');document.close();});
+        }).catch(err=>{document.open();document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Planner Today API</title><script src="./splash-3d.js?v=splash3d-v1"></script>
+</head><body><pre>'+JSON.stringify({error:String(err)},null,1)+'</pre></body></html>');document.close();});
         return; /* skip normal app render */
       }
     }catch(_){}
@@ -5097,7 +5105,7 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v173-uniunit-fix-20260903',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v174-splash3d-20260903',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
