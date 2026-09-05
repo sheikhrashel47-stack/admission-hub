@@ -152,7 +152,7 @@
     if (vocabulary.length) await putManyFast('vocabulary', vocabulary.filter(x => x && x.id));
     if (vocabularyMaster.length) await putManyFast('vocabularyMaster', vocabularyMaster.filter(x => x && x.id));
     if (typeof loadCache === 'function') await loadCache();
-    if (typeof render === 'function') render();
+    /* D-V189: render() call removed to prevent infinite loop on Settings page */
     return true;
   };
 
@@ -209,7 +209,10 @@
     });
   };
 
-  /* ── D-V189: Sync & Export functions exposed for Settings UI ── */
+  /* ── D-V189: Safe toast helper ── */
+  const safeToast = (msg) => { try { if (typeof toast === 'function') toast(msg); } catch (_) {} };
+
+  /* ── D-V189: Sync button handler (Settings page) ─ */
   window.cloudSyncPull = async () => {
     const status = document.getElementById('cloud-sync-status');
     if (status) { status.textContent = '⏳ Syncing from server...'; status.style.color = '#4361ee'; }
@@ -217,24 +220,24 @@
       await pull();
       const last = window.__ahCloudLastPull;
       if (last && last.ok) {
-        const qs = await dbGetAll('questions').catch(() => []);
-        if (status) { status.textContent = `✅ Synced! ${qs.length} questions loaded from server (v${last.v})`; status.style.color = '#00c853'; }
-        if (typeof render === 'function') render();
-        toast('✅ Synced from server!');
+        if (status) { status.textContent = '✅ Sync complete! Page reload হচ্ছে...'; status.style.color = '#00c853'; }
+        safeToast('Synced! Reloading...');
+        setTimeout(() => { location.reload(); }, 1200);
       } else {
-        if (status) { status.textContent = '❌ Server থেকে ডেটা আসেনি। Server-এ এখনো content publish হয়নি।'; status.style.color = '#ff5252'; }
-        toast('❌ Server থেকে ডেটা আসেনি');
+        if (status) { status.textContent = '❌ Server থেকে ডেটা আসেনি।'; status.style.color = '#ff5252'; }
+        safeToast('Server থেকে ডেটা আসেনি');
       }
     } catch (e) {
-      if (status) { status.textContent = '❌ Sync failed: ' + (e.message || e); status.style.color = '#ff5252'; }
-      toast('Sync failed');
+      if (status) { status.textContent = '❌ Sync failed'; status.style.color = '#ff5252'; }
+      safeToast('Sync failed');
     }
   };
 
+  /* ── D-V189: Export button handler (Settings page) ── */
   window.cloudExportData = async () => {
-    if (!(await bootReady())) { toast('DB ready না'); return; }
+    if (!(await bootReady())) { safeToast('DB ready না'); return; }
     const status = document.getElementById('cloud-sync-status');
-    if (status) { status.textContent = ' Collecting data...'; status.style.color = '#f59e0b'; }
+    if (status) { status.textContent = '📤 Collecting data...'; status.style.color = '#f59e0b'; }
     try {
       const data = await collect();
       const counts = {
@@ -258,17 +261,17 @@
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
       if (status) {
-        status.textContent = `✅ Exported! ${counts.questions} questions, ${counts.vocabulary} vocabulary, ${counts.subjects} subjects, ${counts.topics} topics — JSON file download হয়েছে।`;
+        status.textContent = '✅ Exported! ' + counts.questions + ' questions, ' + counts.vocabulary + ' vocabulary, ' + counts.subjects + ' subjects';
         status.style.color = '#00c853';
       }
-      toast('✅ Data exported! JSON file save করো।');
+      safeToast('Data exported! JSON file save করো');
     } catch (e) {
-      if (status) { status.textContent = '❌ Export failed: ' + (e.message || e); status.style.color = '#ff5252'; }
-      toast('Export failed');
+      if (status) { status.textContent = '❌ Export failed'; status.style.color = '#ff5252'; }
+      safeToast('Export failed');
     }
   };
 
-  window.AdmissionCloudContent = { publish, pull, role: ROLE, putManyFast, exportData: window.cloudExportData };
+  window.AdmissionCloudContent = { publish, pull, role: ROLE, putManyFast };
 
   const kick = async () => {
     try { await start(); } catch (_) {}
