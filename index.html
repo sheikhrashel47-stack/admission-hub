@@ -3845,7 +3845,7 @@ function renderSettings(){
   <div class="h2">Data</div>
   <div class="card">
     <div class="muted" style="margin-bottom:10px;">Subjects: ${CACHE.subjects.length} · Topics: ${CACHE.topics.length} · Questions: ${CACHE.questions.length} · Exams: ${CACHE.examResults.length} · Vocabulary: ${CACHE.vocabulary.length}</div>
-    <button class="btn secondary" onclick="exportBackup()">⬇️ Export Full Backup</button>
+    <button class="btn secondary" onclick="exportBackup()">⬇️ Export Questions + Vocabulary</button>
     <div style="height:8px;"></div>
     <button class="btn ghost" onclick="document.getElementById('restoreFile').click()">⬆️ Restore from Backup</button>
     <input type="file" id="restoreFile" accept="application/json" class="hide" onchange="handleRestoreFile(event)">
@@ -3877,14 +3877,17 @@ async function toggleQPref(key){
   await dbPut('settings',CACHE.settings); render();
 }
 async function exportBackup(){
-  const data={appMeta:await dbGetAll('appMeta'), subjects:CACHE.subjects, topics:CACHE.topics, questions:CACHE.questions,
-    exams:CACHE.exams, examResults:CACHE.examResults, mistakes:CACHE.mistakes, vocabulary:CACHE.vocabulary, vocabularyMaster:await dbGetAll('vocabularyMaster'),
-    dailyStats:CACHE.dailyStats, settings:CACHE.settings, exportedAt:Date.now()};
+  const questions=await dbGetAll('questions');
+  const vocabulary=await dbGetAll('vocabulary');
+  const vocabularyMaster=await dbGetAll('vocabularyMaster');
+  const data={type:'admission-hub-question-vocabulary-export',version:2,exportedAt:Date.now(),
+    counts:{questions:questions.length,vocabulary:vocabulary.length,vocabularyMaster:vocabularyMaster.length},
+    questions,vocabulary,vocabularyMaster};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
-  const a=document.createElement('a'); a.href=url; a.download='admission-hub-backup-'+todayKey()+'.json'; document.body.appendChild(a); a.click(); a.remove();
+  const a=document.createElement('a'); a.href=url; a.download='admission-hub-questions-vocabulary-'+todayKey()+'.json'; document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
-  toast('Backup exported');
+  toast(`Exported ${questions.length.toLocaleString()} questions + ${(vocabulary.length+vocabularyMaster.length).toLocaleString()} vocabulary`);
 }
 function handleRestoreFile(ev){
   const file=ev.target.files[0]; if(!file) return;
@@ -5133,12 +5136,12 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       // An older worker can keep serving the pre-fix navigation bundle in an
       // installed PWA. Remove that controller once, then install the current
       // worker with a fresh build URL.
-      const expectedSwVersion = 'v190-settings-sync-timeout-20260905';
+      const expectedSwVersion = 'v191-question-vocabulary-export-20260905';
       if (registration && activeUrl && !activeUrl.includes(expectedSwVersion)) {
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v190-settings-sync-timeout-20260905',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v191-question-vocabulary-export-20260905',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);

@@ -15,7 +15,7 @@ assert.match(sync, /INITIAL_AUTHORITATIVE_STORES/, 'Initial reconciliation must 
 assert.match(sync, /if \(!isStandalone\(\)\)/, 'Initial reconciliation must not replace standalone PWA data.');
 assert.match(sync, /initialReconciliationVersion !== 3/, 'The new reconciliation version must be active.');
 const buildId = sw.match(/const BUILD_ID = '([^']+)'/)?.[1];
-assert.equal(buildId, 'v190-settings-sync-timeout-20260905', 'Service-worker cache must be invalidated for the patch.');
+assert.equal(buildId, 'v191-question-vocabulary-export-20260905', 'Service-worker cache must be invalidated for the patch.');
 assert.match(index, new RegExp(`expectedSwVersion = '${buildId}'`), 'Index and service worker must use the same build id.');
 assert.match(index, new RegExp(`sw\\.js\\?v=${buildId}`), 'Registration query must use the current build id.');
 assert.equal((index.match(/id=\"cloudSyncPanel\"/g) || []).length, 1, 'Settings must contain one stable sync mount.');
