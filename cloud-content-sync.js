@@ -209,9 +209,32 @@
     });
   };
 
-  /* ── D-V189: Export Data — IndexedDB থেকে সব ডেটা JSON file-এ download ── */
-  const exportData = async () => {
-    if (!(await bootReady())) return alert('DB ready না হওয়া পর্যন্ত অপেক্ষা করুন');
+  /* ── D-V189: Sync & Export functions exposed for Settings UI ── */
+  window.cloudSyncPull = async () => {
+    const status = document.getElementById('cloud-sync-status');
+    if (status) { status.textContent = '⏳ Syncing from server...'; status.style.color = '#4361ee'; }
+    try {
+      await pull();
+      const last = window.__ahCloudLastPull;
+      if (last && last.ok) {
+        const qs = await dbGetAll('questions').catch(() => []);
+        if (status) { status.textContent = `✅ Synced! ${qs.length} questions loaded from server (v${last.v})`; status.style.color = '#00c853'; }
+        if (typeof render === 'function') render();
+        toast('✅ Synced from server!');
+      } else {
+        if (status) { status.textContent = '❌ Server থেকে ডেটা আসেনি। Server-এ এখনো content publish হয়নি।'; status.style.color = '#ff5252'; }
+        toast('❌ Server থেকে ডেটা আসেনি');
+      }
+    } catch (e) {
+      if (status) { status.textContent = '❌ Sync failed: ' + (e.message || e); status.style.color = '#ff5252'; }
+      toast('Sync failed');
+    }
+  };
+
+  window.cloudExportData = async () => {
+    if (!(await bootReady())) { toast('DB ready না'); return; }
+    const status = document.getElementById('cloud-sync-status');
+    if (status) { status.textContent = ' Collecting data...'; status.style.color = '#f59e0b'; }
     try {
       const data = await collect();
       const counts = {
@@ -223,105 +246,32 @@
       };
       const fp = fingerprint(data);
       const json = JSON.stringify({
-        v: 1,
-        at: Date.now(),
-        sig: fp,
-        counts: counts,
-        subjects: data.subjects,
-        topics: data.topics,
-        questions: data.questions,
-        vocabulary: data.vocabulary,
+        v: 1, at: Date.now(), sig: fp, counts,
+        subjects: data.subjects, topics: data.topics,
+        questions: data.questions, vocabulary: data.vocabulary,
         vocabularyMaster: data.vocabularyMaster
       });
       const blob = new Blob([json], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'admission-hub-export-' + Date.now() + '.json';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = url; a.download = 'admission-hub-cloud-export-' + Date.now() + '.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      alert('✅ ডেটা export হয়েছে!\n' +
-        'Subjects: ' + counts.subjects +
-        '\nTopics: ' + counts.topics +
-        '\nQuestions: ' + counts.questions +
-        '\nVocabulary: ' + counts.vocabulary);
+      if (status) {
+        status.textContent = `✅ Exported! ${counts.questions} questions, ${counts.vocabulary} vocabulary, ${counts.subjects} subjects, ${counts.topics} topics — JSON file download হয়েছে।`;
+        status.style.color = '#00c853';
+      }
+      toast('✅ Data exported! JSON file save করো।');
     } catch (e) {
-      alert('Export failed: ' + (e.message || e));
+      if (status) { status.textContent = '❌ Export failed: ' + (e.message || e); status.style.color = '#ff5252'; }
+      toast('Export failed');
     }
   };
-  window.AdmissionCloudContent = { publish, pull, role: ROLE, putManyFast, exportData };
 
-  /* ── D-V189: Sync UI — Export + Sync Now buttons ── */
-  const createSyncUI = () => {
-    if (document.getElementById('ah-sync-panel')) return;
-    const panel = document.createElement('div');
-    panel.id = 'ah-sync-panel';
-    panel.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:6px 12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);backdrop-filter:blur(12px);font-family:system-ui,sans-serif;transition:all 0.3s ease;opacity:0.95;';
-    panel.innerHTML = `
-      <span id="ah-sync-dot" style="width:8px;height:8px;border-radius:50%;background:#ffc107;flex-shrink:0;"></span>
-      <span id="ah-sync-text" style="color:#e0e0e0;font-size:11px;white-space:nowrap;">ডেটা লোড...</span>
-      <button id="ah-sync-btn" style="background:linear-gradient(135deg,#4361ee,#3a0ca3);color:#fff;border:none;border-radius:16px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">🔄 Sync</button>
-      <button id="ah-export-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:16px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;" title="তোমার ডেটা export করো">📤 Export</button>
-    `;
-    document.body.appendChild(panel);
-
-    document.getElementById('ah-sync-btn').addEventListener('click', () => {
-      const btn = document.getElementById('ah-sync-btn');
-      const dot = document.getElementById('ah-sync-dot');
-      const text = document.getElementById('ah-sync-text');
-      btn.disabled = true; btn.textContent = '⏳...';
-      dot.style.background = '#4361ee';
-      text.textContent = 'Sync হচ্ছে...';
-      pull().then(() => {
-        const qs = window.__ahCloudLastPull;
-        if (qs && qs.ok) {
-          dot.style.background = '#00c853';
-          text.textContent = '✅ ' + (qs.v || '') + ' synced';
-          setTimeout(() => { text.textContent = '📚 Ready'; dot.style.background = '#00c853'; }, 3000);
-        } else {
-          dot.style.background = '#ff5252';
-          text.textContent = '❌ Server থেকে data আসেনি';
-        }
-        btn.disabled = false; btn.textContent = '🔄 Sync';
-      }).catch(() => {
-        dot.style.background = '#ff5252';
-        text.textContent = '❌ ব্যর্থ';
-        btn.disabled = false; btn.textContent = '🔄 Sync';
-      });
-    });
-
-    document.getElementById('ah-export-btn').addEventListener('click', () => {
-      const text = document.getElementById('ah-sync-text');
-      text.textContent = 'Export হচ্ছে...';
-      exportData().then(() => { text.textContent = '📤 Exported'; }).catch(() => { text.textContent = '❌ Export failed'; });
-    });
-
-    // Pulse animation
-    if (!document.getElementById('ah-sync-style')) {
-      const style = document.createElement('style');
-      style.id = 'ah-sync-style';
-      style.textContent = '@keyframes ah-pulse{0%,100%{opacity:1}50%{opacity:0.4}}';
-      document.head.appendChild(style);
-    }
-  };
+  window.AdmissionCloudContent = { publish, pull, role: ROLE, putManyFast, exportData: window.cloudExportData };
 
   const kick = async () => {
-    createSyncUI();
-    try {
-      await start();
-      const qs = await dbGetAll('questions').catch(() => []);
-      const dot = document.getElementById('ah-sync-dot');
-      const text = document.getElementById('ah-sync-text');
-      if (qs && qs.length > 0) {
-        if (dot) dot.style.background = '#00c853';
-        if (text) text.textContent = '📚 ' + qs.length + ' প্রশ্ন Ready';
-      } else {
-        if (dot) dot.style.background = '#ff5252';
-        if (text) text.textContent = '📤 Export করে server-এ পাঠাও';
-      }
-    } catch (_) {}
+    try { await start(); } catch (_) {}
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(kick, 100));
   else setTimeout(kick, 100);

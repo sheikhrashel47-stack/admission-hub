@@ -3820,6 +3820,16 @@ function renderSettings(){
     <input type="file" id="restoreFile" accept="application/json" class="hide" onchange="handleRestoreFile(event)">
   </div>
 
+  <div class="h2">☁️ Cloud Sync</div>
+  <div class="card">
+    <div class="muted" style="margin-bottom:10px;">Server থেকে সব প্রশ্ন ভোকাবুলারি sync করো অথবা তোমার ডেটা server-এ upload করো। সবার জন্য global read-only data।</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button class="btn secondary" id="cloud-sync-btn" onclick="cloudSyncPull()" style="flex:1;min-width:120px;">🔄 Sync from Server</button>
+      <button class="btn secondary" id="cloud-export-btn" onclick="cloudExportData()" style="flex:1;min-width:120px;">📤 Export to Cloud</button>
+    </div>
+    <div id="cloud-sync-status" class="muted" style="margin-top:10px;font-size:12px;"></div>
+  </div>
+
   <div class="h2">Data Safety</div>
   <div class="card">
     <div class="muted">Existing subjects, topics, questions, bookmarks, mistakes, exam history, statistics, and vocabulary are preserved. Backup restore uses additive merge only; destructive reset is not available.</div>
