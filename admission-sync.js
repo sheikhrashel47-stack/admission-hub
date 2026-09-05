@@ -87,11 +87,21 @@
   }
 
   async function rpc(name, payload) {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
-      method: 'POST', cache: 'no-store',
-      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    const controller = typeof AbortController === 'function' ? new AbortController() : null;
+    const timeout = window.setTimeout(() => controller?.abort(), 15000);
+    let response;
+    try {
+      response = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${name}`, {
+        method: 'POST', cache: 'no-store', signal: controller?.signal,
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (error) {
+      if (error?.name === 'AbortError') throw new Error('অনলাইন sync timeout হয়েছে — পরে আবার চেষ্টা করো।');
+      throw error;
+    } finally {
+      window.clearTimeout(timeout);
+    }
     const body = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(body.message || body.hint || `Online sync failed (${response.status})`);
     return body;
@@ -444,6 +454,7 @@
     return String(window.Router?.path || hash || '').replace(/^#\/?/, '').split('?')[0] === 'settings';
   }
   let settingsPanelTimer = 0;
+  let settingsPanelRendering = false;
   function mountSettingsPanel() {
     if (!isSettingsRoute()) return;
     const app = document.getElementById('app');
@@ -469,7 +480,13 @@
     const app = document.getElementById('app');
     if (!app || app.__cloudSyncSettingsObserved || !window.MutationObserver) return;
     app.__cloudSyncSettingsObserved = true;
-    new MutationObserver(scheduleSettingsPanel).observe(app, { childList: true, subtree: true });
+    new MutationObserver(mutations => {
+      // Rendering this panel changes its own subtree. Ignore those mutations;
+      // otherwise Settings can continuously schedule itself and become unresponsive.
+      const panel = document.getElementById('cloudSyncPanel');
+      if (panel && mutations.length && mutations.every(mutation => panel.contains(mutation.target))) return;
+      scheduleSettingsPanel();
+    }).observe(app, { childList: true, subtree: true });
   }
   async function showRecoveryCode() {
     try {
