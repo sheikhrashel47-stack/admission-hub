@@ -74,7 +74,7 @@ const APP_SHELL = [
   './mistakes-bank-tool.js?v=mistakes-bank-v1',
   './smart-revision-tool.js?v=smart-revision-v2-safe-session',
   './source-course-tool.js?v=bangla-only-courses-v23-freshfetch',
-  './cloud-content-sync.js?v=p2-cloud-v2',
+  './cloud-content-sync.js?v=v189-fix2',
   './public-users-admin.js?v=p3-admin-v1',
   './android-runtime-fix.js?v=and-scroll-v1',
   './',

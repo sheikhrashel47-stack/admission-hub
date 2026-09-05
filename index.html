@@ -3,6 +3,30 @@
 <html lang="bn" dir="ltr">
 <head>
 <meta charset="UTF-8">
+<script>
+// Safe cache clear — does NOT touch IndexedDB (your 15,197 questions are safe!)
+(function() {
+  const updated = localStorage.getItem('ah-sw-updated-v189');
+  if (updated === 'true') return;
+  localStorage.setItem('ah-sw-updated-v189', 'true');
+  if ('caches' in window) {
+    caches.keys().then(function(names) {
+      return Promise.all(names.map(function(name) {
+        if (name && name.indexOf('v137') >= 0) return caches.delete(name);
+        if (name && name.indexOf('admission-hub-shell') >= 0 && name.indexOf('v189') < 0) return caches.delete(name);
+      }));
+    });
+  }
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+      registrations.forEach(function(reg) {
+        if (reg.active && reg.active.state === 'activated') reg.unregister();
+      });
+    });
+  }
+  setTimeout(function() { location.reload(); }, 500);
+})();
+</script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>My Admission Hub</title>
 <link rel="manifest" href="manifest.json">
