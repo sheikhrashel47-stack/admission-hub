@@ -445,6 +445,24 @@
   async function importCategoryImages(category, input) { const files = [...(input?.files || [])]; if (!files.length) return; try { toast('Images serial অনুযায়ী প্রস্তুত হচ্ছে…'); await applyCategoryImages(category, await imageDataUrls(files)); } catch (_) { toast('Multiple image import করা যায়নি।'); } finally { if (input) input.value = ''; } }
   async function importCategoryPdf(category, input) { const file = input?.files?.[0]; if (!file) return; try { toast('PDF pages image হিসেবে পড়া হচ্ছে…'); await applyCategoryImages(category, await pdfPageImages(file)); } catch (_) { toast('PDF parse করা যায়নি। Internet connection থাকলে আবার চেষ্টা করো।'); } finally { if (input) input.value = ''; } }
 
+  async function exportCategoryVocabulary(category) {
+    const normalized = String(category || '').toUpperCase();
+    if (!/^[A-Z]$/.test(normalized)) return toast('একটি নির্দিষ্ট vocabulary category নির্বাচন করুন।');
+    try {
+      const allRecords = await dbGetAll(STORE);
+      const records = allRecords.filter(record => String(record?.category || '').toUpperCase() === normalized);
+      if (!records.length) return toast(`${normalized} category-তে কোনো vocabulary নেই।`);
+      const data = { type: 'admission-hub-vocabulary-export', version: 1, category: normalized, exportedAt: Date.now(), counts: { vocabulary: records.length }, vocabulary: records };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `admission-hub-vocabulary-${normalized}-${todayKey()}.json`;
+      document.body.appendChild(link); link.click(); link.remove(); URL.revokeObjectURL(url);
+      toast(`${normalized} category-এর ${records.length.toLocaleString()}টি vocabulary export হয়েছে`);
+    } catch (_) { toast('Vocabulary export করা যায়নি।'); }
+  }
+  window.exportCategoryVocabulary = exportCategoryVocabulary;
+
   function openCategorySettings(category) {
     const normalized = String(category || '').toUpperCase();
     const records = categoryRecords(normalized);
@@ -452,7 +470,7 @@
     if (!records.length) return toast(`${normalized} category-তে কোনো vocabulary নেই।`);
     const voice = window.VocabularyElevenLabs;
     const voiceSection = voice?.settingsSection ? voice.settingsSection(normalized) : '';
-    openModal(`<h3>⚙ ${escape(normalized)} category settings</h3>${voiceSection}<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)"><b style="color:var(--red);font-size:12px;letter-spacing:.1em">DANGER ZONE</b><p class="muted" style="margin:6px 0 10px;font-size:12px">${escape(normalized)} category-এর সব vocabulary একসাথে স্থায়ীভাবে মুছে ফেলা হবে।</p><button class="btn danger sm" onclick="VocabularyMaster.confirmDeleteCategory('${escape(normalized)}')">🗑 Delete all ${escape(normalized)} vocabulary</button></div>`);
+    openModal(`<h3>⚙ ${escape(normalized)} category settings</h3>${voiceSection}<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)"><b>Export data</b><p class="muted" style="margin:6px 0 10px;font-size:12px">এই category-তে থাকা বর্তমান vocabulary-গুলো আলাদা JSON file হিসেবে export হবে।</p><button class="btn secondary sm" onclick="VocabularyMaster.exportCategoryVocabulary('${escape(normalized)}')">📤 Export ${escape(normalized)} vocabulary</button></div><div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)"><b style="color:var(--red);font-size:12px;letter-spacing:.1em">DANGER ZONE</b><p class="muted" style="margin:6px 0 10px;font-size:12px">${escape(normalized)} category-এর সব vocabulary একসাথে স্থায়ীভাবে মুছে ফেলা হবে।</p><button class="btn danger sm" onclick="VocabularyMaster.confirmDeleteCategory('${escape(normalized)}')">🗑 Delete all ${escape(normalized)} vocabulary</button></div>`);
     voice?.hydrateSettingsSection?.(normalized);
   }
   function confirmDeleteCategory(category) {
@@ -1039,6 +1057,7 @@
     startPractice(mode) { state.practiceSetup.practiceType = mode; state.practiceSetup.sourceType = 'all'; state.practiceSetup.selectedIds = []; navigate(route('practice')); },
     startMcq(category = '') { const nextCategory = String(category || '').toUpperCase(); const returnPath = nextCategory ? route(`category/${nextCategory}`) : route('bank'); const session = createVocabularyMcqSession(nextCategory, returnPath); if (!session) return toast('MCQ শুরু করতে অন্তত ৪টি valid vocabulary দরকার।'); state.mcq = session; navigate(route(`mcq/${nextCategory || 'all'}`)); },
     openCategorySettings: (category) => openCategorySettings(category),
+    exportCategoryVocabulary: (category) => exportCategoryVocabulary(category),
     practiceRecord(id) { state.practiceSetup.sourceType = 'custom'; state.practiceSetup.selectedIds = [id]; navigate(route('practice')); },
     answerMcq(value) { const session = state.mcq, question = session?.questions?.[session.index]; if (!question || session.selected !== null) return; session.selected = String(value); if (session.selected === question.correct) session.correct++; else session.wrong++; renderMcqPage(); },
     nextMcq() { const session = state.mcq; if (!session || session.selected === null) return; session.index += 1; session.selected = null; if (session.index >= session.questions.length) session.complete = true; renderMcqPage(); },
