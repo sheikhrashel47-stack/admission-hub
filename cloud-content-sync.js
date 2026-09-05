@@ -1,9 +1,8 @@
-/* Phase 2/3 — global content cloud bridge.
-   Fast batched IDB (Android-safe). Never clear-before-write.
-   control → POST /api/cloud/publish ; public ← GET /pub/content */
+/* D-V189: global content cloud bridge — updated to admissionhub.workers.dev
+   control → POST /api/admin/publish ; public ← GET /api/content (no auth) */
 (() => {
   'use strict';
-  const WORKER = 'https://admission-gk.rashelzayan213.workers.dev';
+  const WORKER = 'https://admission-gk.admissionhub.workers.dev';
   const ROLE = String(window.AH_CLOUD_ROLE || '').trim() || 'public';
   const GLOBAL_STORES = ['subjects', 'topics', 'questions', 'vocabulary', 'vocabularyMaster'];
   const META_KEY = 'ahCloudApplied';
@@ -97,7 +96,7 @@
     try { if (sessionStorage.getItem('ahCloudFp') === fp) return; } catch (_) {}
     publishing = true;
     try {
-      const res = await fetch(WORKER + '/api/cloud/publish', { method: 'POST', headers: APP_HEADER, body: JSON.stringify(full) });
+      const res = await fetch(WORKER + '/api/admin/publish', { method: 'POST', headers: APP_HEADER, body: JSON.stringify(full) });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || ('http-' + res.status));
       try { sessionStorage.setItem('ahCloudFp', fp); localStorage.setItem('ahCloudLastPublishAt', String(Date.now())); } catch (_) {}
@@ -172,23 +171,18 @@
     return ok;
   };
 
-  const authHeaders = () => {
-    const h = {};
-    try { const t = localStorage.getItem('ahPubToken'); if (t) h.Authorization = 'Bearer ' + t; } catch (_) {}
-    return h;
-  };
+  /* D-V189: public content pull — no auth required (global read-only data) */
   const pull = async () => {
     if (ROLE !== 'public') return;
-    if (window.AHAuth && typeof window.AHAuth.isAuthed === 'function' && !window.AHAuth.isAuthed()) return;
     if (!(await bootReady())) return;
     const localQs = await dbGetAll('questions').catch(() => []);
     if (!(localQs || []).length) await applySeedIfEmpty();
     let meta = null;
-    try { meta = await fetch(WORKER + '/pub/content/meta', { headers: authHeaders() }).then(r => r.ok ? r.json() : null); } catch (_) { meta = null; }
+    try { meta = await fetch(WORKER + '/api/content/meta').then(r => r.ok ? r.json() : null); } catch (_) { meta = null; }
     const local = appliedMeta();
     if (meta && Number(meta.v || 0) > 0 && Number(meta.v) === Number(local.v) && meta.sig && meta.sig === local.sig) return;
     let doc = null;
-    try { doc = await fetch(WORKER + '/pub/content', { headers: authHeaders() }).then(r => r.ok ? r.json() : null); } catch (_) { doc = null; }
+    try { doc = await fetch(WORKER + '/api/content').then(r => r.ok ? r.json() : null); } catch (_) { doc = null; }
     if (!doc || Number(doc.v || 0) <= 0) return;
     if (Number(doc.v) === Number(local.v) && doc.sig && doc.sig === local.sig) return;
     const ok = await applyDoc(doc);
@@ -215,8 +209,120 @@
     });
   };
 
-  window.AdmissionCloudContent = { publish, pull, role: ROLE, putManyFast };
-  const kick = () => { start().catch(() => {}); };
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(kick, 50));
-  else setTimeout(kick, 50);
+  /* ── D-V189: Export Data — IndexedDB থেকে সব ডেটা JSON file-এ download ── */
+  const exportData = async () => {
+    if (!(await bootReady())) return alert('DB ready না হওয়া পর্যন্ত অপেক্ষা করুন');
+    try {
+      const data = await collect();
+      const counts = {
+        subjects: (data.subjects || []).length,
+        topics: (data.topics || []).length,
+        questions: (data.questions || []).length,
+        vocabulary: (data.vocabulary || []).length,
+        vocabularyMaster: (data.vocabularyMaster || []).length
+      };
+      const fp = fingerprint(data);
+      const json = JSON.stringify({
+        v: 1,
+        at: Date.now(),
+        sig: fp,
+        counts: counts,
+        subjects: data.subjects,
+        topics: data.topics,
+        questions: data.questions,
+        vocabulary: data.vocabulary,
+        vocabularyMaster: data.vocabularyMaster
+      });
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'admission-hub-export-' + Date.now() + '.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert('✅ ডেটা export হয়েছে!\n' +
+        'Subjects: ' + counts.subjects +
+        '\nTopics: ' + counts.topics +
+        '\nQuestions: ' + counts.questions +
+        '\nVocabulary: ' + counts.vocabulary);
+    } catch (e) {
+      alert('Export failed: ' + (e.message || e));
+    }
+  };
+  window.AdmissionCloudContent = { publish, pull, role: ROLE, putManyFast, exportData };
+
+  /* ── D-V189: Sync UI — Export + Sync Now buttons ── */
+  const createSyncUI = () => {
+    if (document.getElementById('ah-sync-panel')) return;
+    const panel = document.createElement('div');
+    panel.id = 'ah-sync-panel';
+    panel.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:6px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid rgba(255,255,255,0.1);border-radius:24px;padding:6px 12px;box-shadow:0 4px 20px rgba(0,0,0,0.3);backdrop-filter:blur(12px);font-family:system-ui,sans-serif;transition:all 0.3s ease;opacity:0.95;';
+    panel.innerHTML = `
+      <span id="ah-sync-dot" style="width:8px;height:8px;border-radius:50%;background:#ffc107;flex-shrink:0;"></span>
+      <span id="ah-sync-text" style="color:#e0e0e0;font-size:11px;white-space:nowrap;">ডেটা লোড...</span>
+      <button id="ah-sync-btn" style="background:linear-gradient(135deg,#4361ee,#3a0ca3);color:#fff;border:none;border-radius:16px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">🔄 Sync</button>
+      <button id="ah-export-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:16px;padding:4px 10px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;" title="তোমার ডেটা export করো">📤 Export</button>
+    `;
+    document.body.appendChild(panel);
+
+    document.getElementById('ah-sync-btn').addEventListener('click', () => {
+      const btn = document.getElementById('ah-sync-btn');
+      const dot = document.getElementById('ah-sync-dot');
+      const text = document.getElementById('ah-sync-text');
+      btn.disabled = true; btn.textContent = '⏳...';
+      dot.style.background = '#4361ee';
+      text.textContent = 'Sync হচ্ছে...';
+      pull().then(() => {
+        const qs = window.__ahCloudLastPull;
+        if (qs && qs.ok) {
+          dot.style.background = '#00c853';
+          text.textContent = '✅ ' + (qs.v || '') + ' synced';
+          setTimeout(() => { text.textContent = '📚 Ready'; dot.style.background = '#00c853'; }, 3000);
+        } else {
+          dot.style.background = '#ff5252';
+          text.textContent = '❌ Server থেকে data আসেনি';
+        }
+        btn.disabled = false; btn.textContent = '🔄 Sync';
+      }).catch(() => {
+        dot.style.background = '#ff5252';
+        text.textContent = '❌ ব্যর্থ';
+        btn.disabled = false; btn.textContent = '🔄 Sync';
+      });
+    });
+
+    document.getElementById('ah-export-btn').addEventListener('click', () => {
+      const text = document.getElementById('ah-sync-text');
+      text.textContent = 'Export হচ্ছে...';
+      exportData().then(() => { text.textContent = '📤 Exported'; }).catch(() => { text.textContent = '❌ Export failed'; });
+    });
+
+    // Pulse animation
+    if (!document.getElementById('ah-sync-style')) {
+      const style = document.createElement('style');
+      style.id = 'ah-sync-style';
+      style.textContent = '@keyframes ah-pulse{0%,100%{opacity:1}50%{opacity:0.4}}';
+      document.head.appendChild(style);
+    }
+  };
+
+  const kick = async () => {
+    createSyncUI();
+    try {
+      await start();
+      const qs = await dbGetAll('questions').catch(() => []);
+      const dot = document.getElementById('ah-sync-dot');
+      const text = document.getElementById('ah-sync-text');
+      if (qs && qs.length > 0) {
+        if (dot) dot.style.background = '#00c853';
+        if (text) text.textContent = '📚 ' + qs.length + ' প্রশ্ন Ready';
+      } else {
+        if (dot) dot.style.background = '#ff5252';
+        if (text) text.textContent = '📤 Export করে server-এ পাঠাও';
+      }
+    } catch (_) {}
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => setTimeout(kick, 100));
+  else setTimeout(kick, 100);
 })();
