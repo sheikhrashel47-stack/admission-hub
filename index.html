@@ -4,27 +4,34 @@
 <head>
 <meta charset="UTF-8">
 <script>
-// Safe cache clear — does NOT touch IndexedDB (your 15,197 questions are safe!)
+// EMERGENCY CACHE CLEAR — IndexedDB safe! Only clears JS/CSS cache
 (function() {
-  const updated = localStorage.getItem('ah-sw-updated-v189');
-  if (updated === 'true') return;
-  localStorage.setItem('ah-sw-updated-v189', 'true');
+  const flag = 'ah-sw-emergency-clear-v2';
+  if (localStorage.getItem(flag) === 'done') return;
+  localStorage.setItem(flag, 'done');
+  
+  // Clear ALL caches (only JS/CSS, NOT IndexedDB)
   if ('caches' in window) {
     caches.keys().then(function(names) {
-      return Promise.all(names.map(function(name) {
-        if (name && name.indexOf('v137') >= 0) return caches.delete(name);
-        if (name && name.indexOf('admission-hub-shell') >= 0 && name.indexOf('v189') < 0) return caches.delete(name);
+      Promise.all(names.map(function(name) {
+        return caches.delete(name);
       }));
     });
   }
+  
+  // Unregister ALL service workers
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function(registrations) {
       registrations.forEach(function(reg) {
-        if (reg.active && reg.active.state === 'activated') reg.unregister();
+        reg.unregister();
       });
     });
   }
-  setTimeout(function() { location.reload(); }, 500);
+  
+  // Hard reload (bypass cache)
+  setTimeout(function() {
+    window.location.reload(true);
+  }, 300);
 })();
 </script>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
