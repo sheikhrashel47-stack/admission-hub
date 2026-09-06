@@ -5672,5 +5672,27 @@ window.ADMISSION_HUB_TURNSTILE_SITEKEY = '0x4AAAAAAEeUzke6MqE3DUgk';
 <script>window.AH_CLOUD_ROLE='control';</script>
 <script src="./cloud-content-sync.js?v=v189-fix2"></script>
 <script src="./public-users-admin.js?v=p3-admin-v1"></script>
+<link rel="stylesheet" href="./juju-workspace.css?v=1">
+<script src="./juju-workspace.js?v=1"></script>
+<script>
+(() => {
+  const current = () => String(location.hash.replace(/^#\/?/, '').split('?')[0] || (window.Router && Router.path) || 'dashboard');
+  const previous = window.__admissionRenderRoute;
+  window.__admissionRenderRoute = function jujuRoute() {
+    if (current() === 'juju' && typeof window.renderJujuWorkspace === 'function') return window.renderJujuWorkspace();
+    return typeof previous === 'function' ? previous.apply(this, arguments) : undefined;
+  };
+  const oldRender = window.render;
+  if (typeof oldRender === 'function') {
+    window.render = function jujuRender() {
+      if (current() === 'juju' && typeof window.renderJujuWorkspace === 'function') return window.renderJujuWorkspace();
+      return oldRender.apply(this, arguments);
+    };
+  }
+  window.addEventListener('hashchange', () => {
+    if (current() === 'juju' && window.Router) { Router.path = 'juju'; window.renderJujuWorkspace?.(); }
+  });
+})();
+</script>
 </body>
 </html>
