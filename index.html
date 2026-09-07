@@ -5136,12 +5136,12 @@ window.__admissionBootPromise.catch(error => console.error('[Admission Hub] boot
       // An older worker can keep serving the pre-fix navigation bundle in an
       // installed PWA. Remove that controller once, then install the current
       // worker with a fresh build URL.
-      const expectedSwVersion = 'v192-settings-separated-exports-20260905';
+      const expectedSwVersion = 'v193-voice-pagesproxy-20260907';
       if (registration && activeUrl && !activeUrl.includes(expectedSwVersion)) {
         await registration.unregister().catch(()=>{});
         registration=null;
       }
-      registration=await navigator.serviceWorker.register('./sw.js?v=v192-settings-separated-exports-20260905',{scope:'./',updateViaCache:'none'});
+      registration=await navigator.serviceWorker.register('./sw.js?v=v193-voice-pagesproxy-20260907',{scope:'./',updateViaCache:'none'});
       await registration.update().catch(()=>{});
       // Apply an already-installed worker immediately; never require a cache-clear action.
       activateWaiting(registration);
@@ -5641,7 +5641,7 @@ setTimeout(() => { if (location.hash.replace(/^#/, '').split('?')[0] === 'dictio
 <script src="./one-time-mock-tool.js?v=20260824-native"></script>
 <script src="./vocabulary-master-tool.js?v=vm-autoimg-v106"></script>
 <script src="./vocabulary-pronunciation.js?v=voice-el-v104"></script>
-<script src="./vocabulary-elevenlabs.js?v=el-voice-v107"></script>
+<script src="./vocabulary-elevenlabs.js?v=el-voice-v108"></script>
 <script src="./notification-hub.js?v=notify-v110"></script>
 <script src="./gk-agent-tool.js?v=gk-v115"></script>
 <script src="./study-ai-tool.js?v=studyai-v134-settings-sync"></script>

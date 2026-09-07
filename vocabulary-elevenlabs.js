@@ -46,15 +46,18 @@
   // ── Secure endpoint (worker URL — secret নয়, key নয়) ────────────────────────
   // Never ship a guessed/dead workers.dev hostname. Configure the deployed
   // proxy once; generated blobs remain usable without it afterwards.
-  // P20-followup (2026-09-07): admission-voice.admissionhub.workers.dev সরাসরি-যাচাই-করা
-  // (POST /api/voice → 200 · audio/mpeg · সত্যিকারের MP3) — তাই এটাই-নিরাপদ-ডিফল্ট;
-  // UI-থেকে বদলানো-যায়; 'off' দিলে বন্ধ।
-  const DEFAULT_LIVE = 'https://admission-voice.admissionhub.workers.dev';
+  // P20-final (2026-09-07) — admission-hub-হোস্ট (github.io) স্ট্যাটিক, তাই নিজে voice-worker-এ
+  // ডাকা যায় না; অধিকন্তু *users.dev-ব্লক-নেটও-আছে। সমাধান: voice-ও যায়
+  // https://admissionhub.pages.dev/api/voice-এ (সেই হোস্ট users-নেটে-খোলে + তার Pages Worker
+  // /api/voice → voice-worker-এ পৌঁছে দেয়; CORS: allowlist-এ github.io+pages.dev আছে)।
+  // লাইভ-যাচাই-করা: OPTIONS→204 · POST→200 audio/mpeg · ACAO=github.io।
+  const DEFAULT_LIVE = 'https://admissionhub.pages.dev';
   let proxyUrl = DEFAULT_LIVE;
   try {
     proxyUrl = String(localStorage.getItem(LS_ENDPOINT) || '').trim();
-    // Older builds persisted this hostname even though it no longer resolves.
-    if (proxyUrl === 'https://admission-voice.rashelzayan213.workers.dev') {
+    // Older builds persisted a dead/blocked workers.dev hostname — যেকোনো workers.dev-সেভ
+    // → pages.dev-প্রক্সি-ডিফল্ট (যা-নেটে-খোলে ও voice-worker-এ-পৌঁছে)।
+    if (proxyUrl.includes('.workers.dev')) {
       proxyUrl = DEFAULT_LIVE;
       localStorage.setItem(LS_ENDPOINT, DEFAULT_LIVE);
     }

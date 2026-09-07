@@ -1,5 +1,5 @@
 const CACHE_PREFIX = 'admission-hub-shell-';
-const BUILD_ID = 'v192-settings-separated-exports-20260905';
+const BUILD_ID = 'v193-voice-pagesproxy-20260907';
 const CACHE_NAME = `${CACHE_PREFIX}${BUILD_ID}`;
 const VERSION_HEADER = 'X-Admission-Hub-Build';
 const isCurrentBuild = response => response && response.headers && response.headers.get(VERSION_HEADER) === BUILD_ID;
@@ -55,7 +55,7 @@ const APP_SHELL = [
   './ai-explain-tool.js?v=aiex-v3',
   './bug-agent-tool.js?v=bugagent-v112',
   './vocabulary-pronunciation.js?v=voice-el-v104',
-  './vocabulary-elevenlabs.js?v=el-voice-v107',
+  './vocabulary-elevenlabs.js?v=el-voice-v108',
   './memorizing-match-tool.js?v=memorizing-match-v8-stable-cards',
   './question-card-game-visual.js?v=question-card-game-v2-persistent',
   './result-analysis-500.js?v=result-analysis-500-deep-matched-v2',
