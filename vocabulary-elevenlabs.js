@@ -44,16 +44,30 @@
   const delRow = key => dbReady() ? Promise.resolve(dbDelRaw('voiceCache', key)).catch(() => false) : (mem.delete(key), Promise.resolve(true));
 
   // ── Secure endpoint (worker URL — secret নয়, key নয়) ────────────────────────
-  const DEFAULT_ENDPOINT = 'https://admission-voice.rashelzayan213.workers.dev';
-  let proxyUrl = DEFAULT_ENDPOINT;
+  // Never ship a guessed/dead workers.dev hostname. Configure the deployed
+  // proxy once; generated blobs remain usable without it afterwards.
+  let proxyUrl = '';
   try {
-    const saved = String(localStorage.getItem(LS_ENDPOINT) || '').trim();
-    proxyUrl = saved === 'off' ? '' : (saved || DEFAULT_ENDPOINT);
+    proxyUrl = String(localStorage.getItem(LS_ENDPOINT) || '').trim();
+    // Older builds persisted this hostname even though it no longer resolves.
+    if (proxyUrl === 'https://admission-voice.rashelzayan213.workers.dev') {
+      proxyUrl = '';
+      localStorage.removeItem(LS_ENDPOINT);
+    }
   } catch (_) {}
   const saveEndpoint = url => {
     const value = String(url || '').trim().replace(/\/+$/, '');
-    proxyUrl = value === 'off' ? '' : (value || DEFAULT_ENDPOINT);
-    try { localStorage.setItem(LS_ENDPOINT, value); } catch (_) {}
+    if (value && value !== 'off') {
+      try {
+        const parsed = new URL(value);
+        if (!/^https?:$/.test(parsed.protocol) || parsed.username || parsed.password) throw new Error('invalid-endpoint');
+      } catch (_) {
+        window.toast?.('⚠ সঠিক HTTPS voice worker URL দাও');
+        return proxyUrl;
+      }
+    }
+    proxyUrl = value === 'off' ? '' : value;
+    try { localStorage.setItem(LS_ENDPOINT, proxyUrl); } catch (_) {}
     return proxyUrl;
   };
   const configured = () => !!proxyUrl;
@@ -164,15 +178,21 @@
     apiCalls++;
     try {
       const blob = await job;
-      await putRow({
-        id: key, wordKey: customKey, word: word.slice(0, VOICE_CONFIG.maxWordLength), type: 'vocabulary',
-        audioBlob: blob, voiceId: VOICE_CONFIG.voiceId, modelId: VOICE_CONFIG.modelId,
-        settingsVersion: VOICE_CONFIG.settingsVersion, lang: VOICE_CONFIG.lang,
-        createdAt: Date.now(), size: blob.size
-      });
       playBlob(blob);
+      // Playback must not depend on IndexedDB succeeding (notably on iOS
+      // private browsing). A network success is still a successful voice.
+      try {
+        await putRow({
+          id: key, wordKey: customKey, word: word.slice(0, VOICE_CONFIG.maxWordLength), type: 'vocabulary',
+          audioBlob: blob, voiceId: VOICE_CONFIG.voiceId, modelId: VOICE_CONFIG.modelId,
+          settingsVersion: VOICE_CONFIG.settingsVersion, lang: VOICE_CONFIG.lang,
+          createdAt: Date.now(), size: blob.size
+        });
+      } catch (_) {
+        window.toast?.('✓ Voice বাজছে, তবে offline cache save হয়নি');
+      }
       btnState(btn, 'ok');
-      window.toast?.('✓ Voice saved — এখন অফলাইনেও বাজবে');
+      if (proxyUrl) window.toast?.('✓ Voice saved — এখন অফলাইনেও বাজবে');
       return done('generated', word, 1);
     } catch (_) {
       cooldown.set(key, Date.now() + VOICE_CONFIG.errorCooldownMs);
@@ -236,7 +256,7 @@
         <button type="button" class="btn ghost sm" onclick="VocabularyElevenLabs.confirmClearCategory('${escape(category)}')">🧹 এই category-র voice cache</button>
         <button type="button" class="btn ghost sm" onclick="VocabularyElevenLabs.confirmClearAll()">🗑 সব voice cache</button>
       </div>
-      <small style="display:block;margin-top:9px;color:var(--sub);font-size:11px;line-height:1.5">Cached voice অফলাইনেও বাজে। Clear করলে শুধু audio যায় — vocabulary ডেটা ও 🎧 custom voice অক্ষত। ডিফল্ট worker চলছে; বন্ধ করতে চাইলে ঘরে লেখো <code>off</code>।</small>
+      <small style="display:block;margin-top:9px;color:var(--sub);font-size:11px;line-height:1.5">একবার generate হলে voice এই device-এ save হয়ে যায় এবং পরে offline-এও বাজে। API key কখনো এখানে দেবে না—শুধু নিজের deployed voice worker URL দাও।</small>
     </div>`;
   const hydrateSettingsSection = async category => {
     const box = document.getElementById('vmVoiceStatus');
