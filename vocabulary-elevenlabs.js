@@ -46,13 +46,17 @@
   // ── Secure endpoint (worker URL — secret নয়, key নয়) ────────────────────────
   // Never ship a guessed/dead workers.dev hostname. Configure the deployed
   // proxy once; generated blobs remain usable without it afterwards.
-  let proxyUrl = '';
+  // P20-followup (2026-09-07): admission-voice.admissionhub.workers.dev সরাসরি-যাচাই-করা
+  // (POST /api/voice → 200 · audio/mpeg · সত্যিকারের MP3) — তাই এটাই-নিরাপদ-ডিফল্ট;
+  // UI-থেকে বদলানো-যায়; 'off' দিলে বন্ধ।
+  const DEFAULT_LIVE = 'https://admission-voice.admissionhub.workers.dev';
+  let proxyUrl = DEFAULT_LIVE;
   try {
     proxyUrl = String(localStorage.getItem(LS_ENDPOINT) || '').trim();
     // Older builds persisted this hostname even though it no longer resolves.
     if (proxyUrl === 'https://admission-voice.rashelzayan213.workers.dev') {
-      proxyUrl = '';
-      localStorage.removeItem(LS_ENDPOINT);
+      proxyUrl = DEFAULT_LIVE;
+      localStorage.setItem(LS_ENDPOINT, DEFAULT_LIVE);
     }
   } catch (_) {}
   const saveEndpoint = url => {
@@ -194,10 +198,12 @@
       btnState(btn, 'ok');
       if (proxyUrl) window.toast?.('✓ Voice saved — এখন অফলাইনেও বাজবে');
       return done('generated', word, 1);
-    } catch (_) {
+    } catch (err) {
       cooldown.set(key, Date.now() + VOICE_CONFIG.errorCooldownMs);
       btnState(btn, 'error');
-      window.toast?.('⚠ Voice generate হয়নি — বিল্ট-ইন voice চলছে');
+      const why = String((err && err.message) || '').slice(0, 90);
+      window.__lastVoiceError = why || 'unknown';
+      window.toast?.('⚠ Voice হয়নি (' + (why || 'অজানা') + ') — বিল্ট-ইন voice চলছে');
       return fallbackTts(word, btn, 'error');
     } finally { pending.delete(key); }
   };
