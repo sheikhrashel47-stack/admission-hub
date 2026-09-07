@@ -2,8 +2,36 @@
 // রুট: /api/content · /api/auth/* · /api/state · /api/ai · /api/admin/*
 const JSONH = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization,content-type', 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' };
 const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: JSONH });
-const GEM_CHAIN = ['gemini-3.1-flash-lite', 'gemini-3-flash-preview', 'gemini-2.5-flash'];
-const OLD_WORKER = 'https://admission-gk.rashelzayan213.workers.dev';
+const GEM_CHAIN = ['gemini-3-flash-preview', 'gemini-3.1-flash-lite'];
+const OLD_WORKER = 'https://admission-gk.admissionhub.workers.dev';const PROMPT_V = 'p05-1';
+const AI_BUDGET = { msgs: 24000, brain: 6000, perMsg: 4000 };
+const dayKey = () => new Date().toISOString().slice(0, 10);
+const metKey = (name) => 'aim:' + name + ':' + dayKey();
+const kvInc = async (kv, key, ttl = 172800) => { try { const n = Number((await kv.get(key)) || 0) + 1; await kv.put(key, String(n), { expirationTtl: ttl }); return n; } catch (_) { return 0; } };
+const badKeyName = (key, model) => 'aibad:' + String(key).slice(0, 12) + ':' + model + ':' + dayKey();
+const aibadMark = async (kv, key, model) => { try { await kv.put(badKeyName(key, model), '1', { expirationTtl: 86400 }); } catch (_) {} };
+const aiChain = (keys, chain, badSet) => {
+  const out = [];
+  for (const k of keys || []) for (const m of chain || []) {
+    if (badSet.has(String(k).slice(0, 12) + ':' + m)) continue;
+    out.push({ k, m });
+  }
+  return out;
+};
+const clipMessages = (msgs, maxChars) => {
+  const out = []; let used = 0;
+  for (let i = (msgs || []).length - 1; i >= 0; i--) {
+    const m = msgs[i]; const c = String(m && m.content || '').slice(0, AI_BUDGET.perMsg);
+    if (used + c.length > maxChars) break;
+    out.unshift({ role: (m.role === 'ai' ? 'assistant' : (m.role || 'user')), content: c });
+    used += c.length;
+  }
+  return out;
+};
+const fitText = (s, max) => { s = String(s || ''); return s.length <= max ? s : s.slice(0, max - 1) + '…'; };
+
+
+
 const SYS = ai => `তুমি "স্টাডি বন্ধু" — বাংলাদেশি ভর্তি-প্রস্তুতির বন্ধুসুলভ AI টিউটর (অ্যাপ: Admission Hub)। আজ: ${new Date().toLocaleDateString('bn-BD', { timeZone: 'Asia/Dhaka' })}।
 কোচ-ভূমিকা: শুধু উত্তর নয় — শিক্ষার্থীর ইতিহাস/ভুল/শব্দ দেখে লক্ষ্য ঠিক করো, রিভিশন-প্ল্যান দাও, মনে-রাখার টিপস দাও।
 নিয়ম: সহজ-উষ্ণ বাংলায় তুমি-ফর্ম, ২-৬ লাইন, হালকা emoji। ${ai ? 'নিচের [লাইভ-মেমোরি] সাইলেন্টলি ব্যবহার করো, raw ডাম্প নয়।' : ''}`;
@@ -38,7 +66,7 @@ const countsOf = doc => ({
 });
 
 
-const PERSONAL_KEYS = ['examResults', 'mistakes', 'settings', 'dailyStats', 'activityLogs', 'notes', 'v', 'at'];
+const PERSONAL_KEYS = ['examResults', 'mistakes', 'settings', 'dailyStats', 'activityLogs', 'notes', 'vocabulary', 'admissionPlans', 'planDays', 'deletedQuestions', 'v', 'at'];
 function sanitizeState(b) {
   const out = { v: 1, at: Date.now() };
   if (!b || typeof b !== 'object') return out;
@@ -53,6 +81,17 @@ function sanitizeState(b) {
 };
 const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
 const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const kvGetRetry = async (kv, key, opts = {}) => {
+  const tries = opts.tries || 6, base = opts.base || 250;
+  let v = null;
+  for (let i = 0; i < tries; i++) {
+    try { v = await kv.get(key); } catch (_) { v = null; }
+    if (v !== null && v !== undefined) return v;
+    await new Promise((r) => setTimeout(r, base * (i + 1)));
+  }
+  return v;
+};
+
 async function hashPassword(password, saltB64) {
   const enc = new TextEncoder();
   const salt = saltB64 ? unb64(saltB64) : crypto.getRandomValues(new Uint8Array(16));
@@ -71,7 +110,7 @@ function publicUser(u, profile) {
     email, mobile, contact: u.contact || email || mobile,
     verified: !!u.verified, emailVerified: !!u.emailVerified, mobileVerified: !!u.mobileVerified,
     status: st, created: u.created, lastSeen: u.lastSeen, photo: pf.photo || '',
-    institution: pf.institution || '', targetUniversity: pf.targetUniversity || '',
+    institution: pf.institution || '', college: pf.college || '', school: pf.school || '', targetUniversity: pf.targetUniversity || '',
     targetUnit: pf.targetUnit || '', admissionYear: pf.admissionYear || '',
     bio: pf.bio || '', dob: pf.dob || '', gender: pf.gender || '', studyGroup: pf.studyGroup || '',
     providers: u.providers || [],
@@ -126,17 +165,16 @@ async function trackSession(env, uid, token, ua) {
 }
 async function clearSession(env, uid, token) {
   const key = 'sess:' + uid;
-  const list = JSON.parse((await kvGet(env, key)) || '{}');
+  const list = JSON.parse((await env.PUB_KV.get(key)) || '{}');
   if (list && list[token]) { delete list[token]; await env.PUB_KV.put(key, JSON.stringify(list), { expirationTtl: 31536000 }); }
   await env.PUB_KV.delete('tok:' + token);
-  if (env.OLD_KV) await env.OLD_KV.delete('tok:' + token).catch(() => {});
 }
 async function listSessions(env, uid, currentToken) {
-  const list = JSON.parse((await kvGet(env, 'sess:' + uid)) || '{}');
+  const list = JSON.parse((await env.PUB_KV.get('sess:' + uid)) || '{}');
   const out = [];
   for (const token of Object.keys(list || {})) {
     const s = list[token];
-    const live = !!(await kvGet(env, 'tok:' + token));
+    const live = !!(await env.PUB_KV.get('tok:' + token));
     out.push({
       id: token.slice(0, 8),
       device: s.device || 'Browser', browser: s.browser || '',
@@ -168,6 +206,17 @@ async function rateLimit(env, key, max, ttl) {
   const remain = Math.max(10, Math.ceil((row.exp - now) / 1000));
   await env.PUB_KV.put(k, JSON.stringify(row), { expirationTtl: remain });
   return row.n <= max;
+};
+
+/* ── additive অথ-ইভেন্ট কাউন্টার (Admin AC-4-র read-only হুক; আচরণ বদলায় না) ── */
+async function admEvent(env, ev) {
+  try {
+    if (!env || !env.PUB_KV) return;
+    const day = new Date().toISOString().slice(0, 10);
+    const k = 'adm-events:' + String(ev).slice(0, 30) + ':' + day;
+    const n = Number((await env.PUB_KV.get(k)) || 0) + 1;
+    await env.PUB_KV.put(k, String(n), { expirationTtl: 172800 }); /* ২ দিন */
+  } catch (_) { /* কখনো মূল-পথ আটকাবে না */ }
 };
 
 export const publishGlobal = async (env, full) => {
@@ -209,7 +258,7 @@ export default {
     try {
       if (p === '/api/health') return json({ ok: true, at: Date.now() });
       if (p === '/api/content/meta' && request.method === 'GET') {
-        await authUser(request, env);
+        /* D-V189: public content — সবার জন্য read-only (global data) */
         const raw = await env.PUB_KV.get('pubContentMeta');
         if (raw) return json(JSON.parse(raw));
         const full = await env.PUB_KV.get('pubContent');
@@ -217,9 +266,10 @@ export default {
         return json({ v: d.v || 0, at: d.at || 0, sig: d.sig || '', counts: countsOf(d) });
       }
       if (p === '/api/content' && request.method === 'GET') {
-        await authUser(request, env);
+        /* D-V189: public content — সবার জন্য read-only (global data) */
         const raw = await env.PUB_KV.get('pubContent');
-        return json(raw ? JSON.parse(raw) : { v: 0, at: 0, questions: [], vocabulary: [], exams: [] });
+        const q = new URL(request.url).searchParams;
+        return json(paginateContent(raw ? JSON.parse(raw) : { v: 0, at: 0, questions: [], vocabulary: [], exams: [] }, q.get('limit'), q.get('offset')));
       }
       if (p === '/api/auth/config' && request.method === 'GET') {
         return json({
@@ -227,7 +277,8 @@ export default {
           googleClientId: env.GOOGLE_CLIENT_ID || '',
           passkey: true,
           email: !!((env.RESEND_KEY || env.RESEND_KEY_2 || env.MAIL_HOOK || env.BREVO_KEY) && (env.MAIL_FROM || env.MAIL_HOOK || env.BREVO_KEY)),
-          sms: !!(env.TWILIO_SID && env.TWILIO_TOKEN && env.TWILIO_FROM) || !!(env.SMS_API_URL && env.SMS_API_KEY) || !!env.GREENWEB_TOKEN
+          sms: smsReady(env),
+          phone: true,
         });
       }
       if (p === '/api/auth/register' && request.method === 'POST') return await authRegister(request, env);
@@ -256,15 +307,15 @@ export default {
       if (p === '/api/auth/google/link' && request.method === 'POST') return await authGoogleLink(request, env, uid);
       if (p === '/api/auth/google/unlink' && request.method === 'POST') return await authGoogleUnlink(request, env, uid);
       if (p === '/api/auth/me' && request.method === 'GET') {
-        const u = await getUserById(env, uid);
-        const pf = await loadProfile(env, u && (u.uid || u.id));
+        const u = JSON.parse((await env.PUB_KV.get('user:' + uid)) || 'null');
+        const pf = JSON.parse((await env.PUB_KV.get('profile:' + (u && (u.uid || u.id)))) || '{}');
         return json({ user: publicUser(u, pf) });
       }
       if (p === '/api/auth/password' && request.method === 'POST') return await authChangePassword(request, env, uid);
       if (p === '/api/auth/delete' && request.method === 'POST') return await authDelete(request, env, uid);
       if (p === '/api/profile' && request.method === 'GET') {
-        const u = await getUserById(env, uid);
-        const pf = await loadProfile(env, u && (u.uid || u.id));
+        const u = JSON.parse((await env.PUB_KV.get('user:' + uid)) || 'null');
+        const pf = JSON.parse((await env.PUB_KV.get('profile:' + (u && (u.uid || u.id)))) || '{}');
         return json({ user: publicUser(u, pf) });
       }
       if (p === '/api/profile' && request.method === 'PUT') return await profilePut(request, env, uid);
@@ -279,41 +330,35 @@ export default {
         const target = String(b.token || '');
         if (!target) return json({ error: 'সেশন চিহ্নিত করা যায়নি' }, 400);
         if (target === tok.slice(0, 8)) return json({ error: 'বর্তমান সেশন এভাবে বন্ধ করা যায় না — লগআউট ব্যবহার করো' }, 400);
-        const list = JSON.parse((await kvGet(env, 'sess:' + uid)) || '{}');
+        const list = JSON.parse((await env.PUB_KV.get('sess:' + uid)) || '{}');
         let found = false;
         for (const t of Object.keys(list || {})) {
-          if (t.slice(0, 8) === target) {
-            await env.PUB_KV.delete('tok:' + t);
-            if (env.OLD_KV) await env.OLD_KV.delete('tok:' + t).catch(() => {});
-            delete list[t]; found = true;
-          }
+          if (t.slice(0, 8) === target) { await env.PUB_KV.delete('tok:' + t); delete list[t]; found = true; }
         }
         if (found) { await env.PUB_KV.put('sess:' + uid, JSON.stringify(list), { expirationTtl: 31536000 }); await logAct(env, uid, 'logout', 'একটি ডিভাইস সেশন বন্ধ করা হয়েছে'); }
         return json({ ok: true, revoked: found });
       }
       if (p === '/api/sessions/revoke-others' && request.method === 'POST') {
         const tok = String(request.headers.get('Authorization') || '').replace('Bearer ', '').trim();
-        const list = JSON.parse((await kvGet(env, 'sess:' + uid)) || '{}');
+        const list = JSON.parse((await env.PUB_KV.get('sess:' + uid)) || '{}');
         let n = 0;
         for (const t of Object.keys(list || {})) {
           if (t === tok) continue;
-          await env.PUB_KV.delete('tok:' + t);
-          if (env.OLD_KV) await env.OLD_KV.delete('tok:' + t).catch(() => {});
-          delete list[t]; n++;
+          await env.PUB_KV.delete('tok:' + t); delete list[t]; n++;
         }
         await env.PUB_KV.put('sess:' + uid, JSON.stringify(list), { expirationTtl: 31536000 });
         if (n > 0) await logAct(env, uid, 'logout', 'অন্য সব ডিভাইসের সেশন বন্ধ করা হয়েছে');
         return json({ ok: true, revoked: n });
       }
       if (p === '/api/security/activity' && request.method === 'GET') {
-        const arr = JSON.parse((await kvGet(env, 'act:' + uid)) || '[]');
+        const arr = JSON.parse((await env.PUB_KV.get('act:' + uid)) || '[]');
         return json({ activity: Array.isArray(arr) ? arr : [] });
       }
       if (p === '/api/export' && request.method === 'GET') {
         const u = await getUserById(env, uid);
         if (!u) return json({ error: 'অ্যাকাউন্ট পাওয়া যায়নি' }, 404);
         const pf = await loadProfile(env, u.uid || u.id);
-        const ustate = JSON.parse((await kvGet(env, 'ustate:' + u.id)) || 'null');
+        const ustate = JSON.parse((await env.PUB_KV.get('ustate:' + u.id)) || 'null');
         const sessions = await listSessions(env, uid, String(request.headers.get('Authorization') || '').replace('Bearer ', '').trim());
         const activity = JSON.parse((await env.PUB_KV.get('act:' + uid)) || '[]');
         const data = {
@@ -330,7 +375,7 @@ export default {
           },
           profile: {
             displayName: pf.displayName || '', dob: pf.dob || '', bio: pf.bio || '',
-            institution: pf.institution || '', targetUniversity: pf.targetUniversity || '',
+            institution: pf.institution || '', college: pf.college || '', school: pf.school || '', targetUniversity: pf.targetUniversity || '',
             targetUnit: pf.targetUnit || '', admissionYear: pf.admissionYear || '',
             photo: pf.photo ? '(base64 image)' : '',
             onboarding: pf.onboarding || { completed: false }
@@ -367,7 +412,24 @@ export default {
 };
 
 
+
+const paginateContent = (doc, limit, offset) => {
+  if (!doc || typeof doc !== 'object') return doc;
+  const limRaw = Number(limit);
+  const lim = Number.isFinite(limRaw) && limRaw > 0 ? Math.min(500, limRaw) : 0;
+  const off = Math.max(0, Number(offset) || 0);
+  if (!lim) return doc;
+  const out = Object.assign({}, doc);
+  ['questions', 'vocabulary', 'vocabularyMaster', 'subjects', 'topics', 'exams'].forEach((k) => { if (Array.isArray(doc[k])) out[k] = doc[k].slice(off, off + lim); });
+  out.total = Array.isArray(doc.questions) ? doc.questions.length : 0;
+  out.page = { limit: lim, offset: off };
+  return out;
+};
+
 const normId = s => { s = String(s || '').trim(); if (/^\+?\d[\d\s-]{8,14}$/.test(s)) return 'ph:' + s.replace(/\D/g, ''); if (s.includes('@')) return 'em:' + s.toLowerCase(); return 'un:' + s.toLowerCase().slice(0, 40); };
+
+const smsReady = (env) => !!(env && ((env.TWILIO_SID && env.TWILIO_TOKEN && env.TWILIO_FROM) || env.GREENWEB_TOKEN || env.BULKSMS_API_KEY || (env.SMS_API_URL && env.SMS_API_KEY)));
+
 const maskDest = id => {
   if (id.startsWith('em:')) { const e = id.slice(3); const i = e.indexOf('@'); return i > 2 ? e.slice(0, 2) + '••••' + e.slice(i) : '••••' + e.slice(-8); }
   if (id.startsWith('ph:')) { const n = id.slice(3); return '••••' + n.slice(-4); }
@@ -384,8 +446,7 @@ function strongPass(p) {
   return '';
 }
 async function loadProfile(env, uid) {
-  const v = await kvGet(env, 'profile:' + uid);
-  return JSON.parse(v || '{}');
+  return JSON.parse((await kvGetRetry(env.PUB_KV, 'profile:' + uid, { tries: 4, base: 200 })) || '{}');
 }
 async function saveProfile(env, uid, pf) {
   await env.PUB_KV.put('profile:' + uid, JSON.stringify(pf).slice(0, 350000));
@@ -399,24 +460,65 @@ function officialLetter(kind, extra) {
   const code = extra && extra.code ? String(extra.code) : '';
   const link = extra && extra.link ? String(extra.link) : '';
   const isReset = kind === 'reset';
-  const subject = isReset ? 'Admission Hub | Password Recovery' : 'Admission Hub | Email Verification';
-  const enLead = isReset
-    ? 'This correspondence confirms a request to recover the password for the Admission Hub account registered to this email address.'
-    : 'This correspondence confirms a request to verify the email address submitted for registration with Admission Hub.';
-  const bnLead = isReset
-    ? 'Admission Hub-এ এই ইমেইল ঠিকানায় নিবন্ধিত অ্যাকাউন্টের পাসওয়ার্ড পুনরুদ্ধারের অনুরোধ এই পত্রের মাধ্যমে নিশ্চিত করা হচ্ছে।'
-    : 'Admission Hub-এ নিবন্ধনের জন্য প্রদত্ত ইমেইল ঠিকানা যাচাইয়ের অনুরোধ এই পত্রের মাধ্যমে নিশ্চিত করা হচ্ছে।';
-  const enTime = code ? 'This verification code remains valid for two (2) minutes only.' : 'This verification remains valid for fifteen (15) minutes only.';
-  const bnTime = code ? 'এই যাচাইকরণ কোড মাত্র দুই (২) মিনিটের জন্য কার্যকর থাকবে।' : 'এই যাচাইকরণ মাত্র পনেরো (১৫) মিনিটের জন্য কার্যকর থাকবে।';
-  const enIgn = 'If you did not initiate this request, please disregard this message. No further action is required.';
-  const bnIgn = 'আপনি এই অনুরোধ না করে থাকলে এই বার্তাটি উপেক্ষা করুন। কোনো অতিরিক্ত পদক্ষেপ প্রয়োজন নেই।';
-  const text = ['Dear Student / প্রিয় শিক্ষার্থী,', '', enLead, bnLead, '', enTime, bnTime, '',
-    code ? ('Verification code / যাচাইকরণ কোড: ' + code) : ('Verification link / যাচাইকরণ লিংক:'),
-    code ? '' : link, '', enIgn, bnIgn, '', 'Yours sincerely,', 'Office of Student Accounts', 'Admission Hub'].filter(x => x !== undefined).join('\n');
-  const action = code
-    ? ('<p style="font-size:28px;letter-spacing:8px;font-weight:700;color:#1e7a4c;margin:22px 0;font-family:Arial,sans-serif">' + code + '</p>')
-    : ('<p style="margin:26px 0 10px"><a href="' + link + '" style="display:inline-block;background:#1e7a4c;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:6px;font-weight:700;font-size:14px;font-family:Arial,sans-serif">Verify email address</a></p><p style="font-size:12px;color:#66756e;word-break:break-all;font-family:Arial,sans-serif">' + link + '</p>');
-  const html = '<div style="background:#f3f5f4;padding:24px;font-family:Georgia,Times,serif;color:#1a2420"><div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dce6e0;padding:32px 28px"><p style="margin:0 0 4px;font-family:Arial,sans-serif;font-size:11px;letter-spacing:.16em;color:#1e7a4c;font-weight:700">ADMISSION HUB</p><p style="margin:0 0 22px;font-family:Arial,sans-serif;font-size:12px;color:#66756e">Office of Student Accounts</p><p>Dear Student / প্রিয় শিক্ষার্থী,</p><p>' + enLead + '</p><p>' + bnLead + '</p><p>' + enTime + '<br>' + bnTime + '</p>' + action + '<p style="color:#5b675f;font-size:14px">' + enIgn + '<br>' + bnIgn + '</p><p style="margin:28px 0 0">Yours sincerely,<br>Office of Student Accounts<br>Admission Hub</p></div></div>';
+  const subject = isReset ? 'Admission Hub পাসওয়ার্ড পুনরুদ্ধার করুন' : 'Admission Hub অ্যাকাউন্ট যাচাই করুন';
+  const preheader = isReset ? 'পাসওয়ার্ড পুনরুদ্ধারের লিংক প্রস্তুত রয়েছে।' : 'আপনার ইমেইল যাচাই করার কোড প্রস্তুত রয়েছে।';
+  const F = "'Noto Sans Bengali','Hind Siliguri','SolaimanLipi',Arial,sans-serif";
+  const EMERALD = '#0b6b4b';
+  const EMERALD_D = '#08452f';
+  const INK = '#16241c';
+  const SUB = '#5b6b62';
+
+  const text = isReset
+    ? ['ADMISSION HUB', 'শিক্ষার্থী অ্যাকাউন্ট সেবা', '', 'আপনার ইমেইল ঠিকানা যাচাই করা হয়েছে', '', 'Admission Hub-এ আপনার অ্যাকাউন্টের পাসওয়ার্ড পুনরুদ্ধার করতে নিচের লিংকটি খুলুন:', '', link, '', 'লিংকটি ১৫ মিনিট পর্যন্ত কার্যকর থাকবে।', '', 'আপনি যদি এই অনুরোধ না করে থাকেন, তাহলে এই ইমেইলটি উপেক্ষা করুন। কোনো পদক্ষেপের প্রয়োজন নেই।', '', 'শুভেচ্ছান্তে,', 'Admission Hub', 'শিক্ষার্থী অ্যাকাউন্ট সেবা'].join('\n')
+    : ['ADMISSION HUB', 'শিক্ষার্থী অ্যাকাউন্ট সেবা', '', 'আপনার ইমেইল ঠিকানা যাচাই করুন', '', 'Admission Hub-এ আপনার অ্যাকাউন্ট তৈরির প্রক্রিয়া সম্পন্ন করতে নিচের যাচাইকরণ কোডটি ব্যবহার করুন।', '', 'আপনার যাচাইকরণ কোড: ' + code, '', 'কোডটি ২ মিনিট পর্যন্ত কার্যকর থাকবে।', '', 'আপনি যদি এই কোডের জন্য অনুরোধ না করে থাকেন, তাহলে এই ইমেইলটি উপেক্ষা করুন। কোনো পদক্ষেপের প্রয়োজন নেই।', '', 'শুভেচ্ছান্তে,', 'Admission Hub', 'শিক্ষার্থী অ্যাকাউন্ট সেবা'].join('\n');
+
+  const codeHtml = code
+    ? ('<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:22px auto 10px;"><tr>' +
+       code.split('').map(d => '<td style="padding:14px 10px;background:#f1f8f4;border:1px solid #bcd9ca;border-radius:10px;font-family:' + F + ';font-size:30px;line-height:1;font-weight:800;color:' + EMERALD_D + ';letter-spacing:2px;">' + d + '</td>').join('<td style="width:6px;"></td>') +
+       '</tr></table>' +
+       '<p style="text-align:center;color:' + SUB + ';font-size:13px;line-height:1.7;margin:14px 0 0;">এই কোডটি <b style="color:' + EMERALD_D + ';">২ মিনিট</b> পর্যন্ত কার্যকর থাকবে।</p>')
+    : ('<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:24px auto 8px;"><tr><td style="background:' + EMERALD + ';border-radius:12px;"><a href="' + link + '" style="display:block;padding:14px 30px;color:#ffffff;text-decoration:none;font-family:' + F + ';font-size:15px;font-weight:700;border-radius:12px;">পাসওয়ার্ড পুনরুদ্ধার করুন</a></td></tr></table>' +
+       '<p style="text-align:center;color:' + SUB + ';font-size:13px;line-height:1.7;margin:14px 0 0;">লিংকটি <b style="color:' + EMERALD_D + ';">১৫ মিনিট</b> পর্যন্ত কার্যকর থাকবে।</p>' +
+       '<p style="text-align:center;word-break:break-all;font-size:11px;color:#93a39a;margin:12px 0 0;font-family:' + F + ';">' + link + '</p>');
+
+  const html =
+'<!DOCTYPE html><html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="x-apple-disable-message-reformatting"><title>' + subject + '</title></head>' +
+'<body style="margin:0;padding:0;background:#eef4f1;">' +
+'<div style="display:none;max-height:0;overflow:hidden;opacity:0;">' + preheader + '</div>' +
+'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef4f1;padding:28px 12px;">' +
+'<tr><td align="center">' +
+'<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:18px;overflow:hidden;border:1px solid #dbe8e0;">' +
+  '<tr><td style="padding:30px 40px 6px;" align="center">' +
+    '<p style="margin:0;font-family:' + F + ';font-size:14px;letter-spacing:.22em;color:' + EMERALD + ';font-weight:800;">ADMISSION HUB</p>' +
+    '<p style="margin:6px 0 0;font-family:' + F + ';font-size:12px;color:' + SUB + ';">শিক্ষার্থী অ্যাকাউন্ট সেবা</p>' +
+    '<div style="height:1px;background:#e3ede7;margin:22px 0 0;"></div>' +
+  '</td></tr>' +
+  '<tr><td style="padding:26px 40px 8px;">' +
+    '<h1 style="margin:0 0 12px;font-family:' + F + ';font-size:23px;line-height:1.5;color:' + INK + ';font-weight:800;">' + (isReset ? 'আপনার পাসওয়ার্ড পুনরুদ্ধার করুন' : 'আপনার ইমেইল ঠিকানা যাচাই করুন') + '</h1>' +
+    '<p style="margin:0;font-family:' + F + ';font-size:15px;line-height:1.9;color:#33463b;">' +
+      (isReset
+        ? 'Admission Hub-এ আপনার অ্যাকাউন্টের পাসওয়ার্ড পুনরুদ্ধার করতে নিচের বোতামটি ব্যবহার করুন।'
+        : 'Admission Hub-এ আপনার অ্যাকাউন্ট তৈরির প্রক্রিয়া সম্পন্ন করতে নিচের যাচাইকরণ কোডটি ব্যবহার করে আপনার ইমেইল ঠিকানা নিশ্চিত করুন।') +
+    '</p>' +
+  '</td></tr>' +
+  '<tr><td style="padding:10px 40px 0;" align="center">' + codeHtml + '</td></tr>' +
+  '<tr><td style="padding:24px 40px 6px;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7fbf8;border-left:3px solid ' + EMERALD + ';border-radius:10px;"><tr><td style="padding:13px 16px;font-family:' + F + ';font-size:13px;line-height:1.8;color:' + SUB + ';">' +
+      (isReset
+        ? 'আপনি যদি পাসওয়ার্ড পুনরুদ্ধারের অনুরোধ না করে থাকেন, তাহলে এই ইমেইলটি উপেক্ষা করুন। আপনার কোনো অতিরিক্ত পদক্ষেপ নেওয়ার প্রয়োজন নেই।'
+        : 'আপনি যদি এই যাচাইকরণ কোডের জন্য অনুরোধ না করে থাকেন, তাহলে এই ইমেইলটি উপেক্ষা করুন। আপনার কোনো অতিরিক্ত পদক্ষেপ নেওয়ার প্রয়োজন নেই।') +
+    '</td></tr></table>' +
+  '</td></tr>' +
+  '<tr><td style="padding:26px 40px 30px;">' +
+    '<div style="height:1px;background:#e3ede7;margin-bottom:20px;"></div>' +
+    '<p style="margin:0;font-family:' + F + ';font-size:14px;color:' + INK + ';font-weight:700;">শুভেচ্ছান্তে,</p>' +
+    '<p style="margin:6px 0 0;font-family:' + F + ';font-size:14px;color:' + EMERALD_D + ';font-weight:800;">Admission Hub</p>' +
+    '<p style="margin:2px 0 18px;font-family:' + F + ';font-size:12px;color:' + SUB + ';">শিক্ষার্থী অ্যাকাউন্ট সেবা</p>' +
+    '<p style="margin:0;font-family:' + F + ';font-size:11px;line-height:1.7;color:#93a39a;">এই ইমেইলটি স্বয়ংক্রিয়ভাবে পাঠানো হয়েছে — অনুগ্রহ করে এর উত্তর দেবেন না।</p>' +
+  '</td></tr>' +
+'</table>' +
+'</td></tr></table></body></html>';
+
   return { subject, text, html };
 }
 async function sendOtpMessage(env, destId, code, kind) {
@@ -511,12 +613,12 @@ async function issueOtp(env, destId, purpose, ip) {
   const code = String(Math.floor(100000 + Math.random() * 900000));
   const sent = await sendOtpMessage(env, destId, code, purpose);
   if (!sent.ok) return { error: sent.error, status: 503 };
-  await env.PUB_KV.put(key, JSON.stringify({ hash: await shaHex(code), exp: Date.now() + 120000, tries: 0, sentAt: Date.now(), purpose }), { expirationTtl: 150 });
+  await env.PUB_KV.put(key, JSON.stringify({ hash: await shaHex(code), exp: Date.now() + 900000, tries: 0, sentAt: Date.now(), purpose }), { expirationTtl: 900 });
   return { sent: true, channel: sent.channel, masked: maskDest(destId), wait: 120 };
 }
 async function checkOtp(env, destId, purpose, code) {
   const key = 'otp:' + purpose + ':' + destId;
-  const o = JSON.parse((await env.PUB_KV.get(key)) || 'null');
+  const o = JSON.parse((await kvGetRetry(env.PUB_KV, key, { tries: 5, base: 250 })) || 'null');
   if (!o || !o.hash) return { error: 'আগে কোড পাঠাও', status: 400 };
   if (o.exp < Date.now()) return { error: 'কোডের সময় শেষ — আবার পাঠাও', status: 401 };
   if (o.tries >= 5) return { error: 'অনেকবার ভুল হয়েছে — একটু পরে চেষ্টা করো', status: 429 };
@@ -529,20 +631,19 @@ async function checkOtp(env, destId, purpose, code) {
   await env.PUB_KV.delete(key);
   return { ok: true };
 }
-async function kvGet(env, key) {
-  // primary: PUB_KV → fallback: OLD_KV (পুরনো deploy থেকে data মাইগ্রেট না হওয়া পর্যন্ত)
-  let v = null;
-  if (env.PUB_KV) v = await env.PUB_KV.get(key);
-  if (v == null && env.OLD_KV) v = await env.OLD_KV.get(key);
-  return v;
-}
 async function getUserById(env, id) {
-  return JSON.parse((await kvGet(env, 'user:' + id)) || 'null');
+  return JSON.parse((await kvGetRetry(env.PUB_KV, 'user:' + id, { tries: 5, base: 200 })) || 'null');
 }
 
 
+const RP_ORIGINS = ['https://sheikhrashel47-stack.github.io', 'https://admissionhub.pages.dev']; /* P17: পাসকি-মাল্টি-হোস্ট (pages.dev + github.io) */
 const RP_ID = 'sheikhrashel47-stack.github.io';
-const RP_ORIGIN = 'https://sheikhrashel47-stack.github.io';
+const RP_ORIGIN = RP_ORIGINS[0];
+function rpHost(req) {
+  const o = String((req && req.headers && (req.headers.get('Origin') || req.headers.get('Referer'))) || '').trim().replace(/\/+$/, '');
+  const hit = RP_ORIGINS.find((x) => o.startsWith(x));
+  return hit ? new URL(hit).hostname : RP_ID;
+}
 const APP_URL = 'https://sheikhrashel47-stack.github.io/admission-hub-demo/';
 function b64url(buf) {
   const u = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
@@ -620,7 +721,7 @@ async function issueVerifyLink(env, destId, purpose, ip) {
   const raw = b64url(crypto.getRandomValues(new Uint8Array(32)));
   const hash = await shaHex(raw);
   await env.PUB_KV.put('vlink:' + hash, JSON.stringify({ id: destId, purpose, at: Date.now() }), { expirationTtl: 900 });
-  const link = 'https://admission-gk.rashelzayan213.workers.dev/pub/auth/confirm?t=' + raw;
+  const link = 'https://admission-gk.admissionhub.workers.dev/api/auth/confirm?t=' + raw;
   const to = destId.slice(3);
   const letter = officialLetter('verify', { link });
   const sent = await sendEmail(env, to, letter.subject, letter.text, letter.html);
@@ -690,8 +791,8 @@ const authWait = async (request, env) => {
   const waitId = String(b.waitId || '');
   const id = normId(b.id || '');
   let row = null;
-  if (waitId.length >= 16) row = JSON.parse((await env.PUB_KV.get('wait:' + waitId)) || 'null');
-  if (!row && id.startsWith('em:')) row = JSON.parse((await env.PUB_KV.get('waitid:' + id)) || 'null');
+  if (waitId.length >= 16) row = JSON.parse((await kvGetRetry(env.PUB_KV, 'wait:' + waitId, { tries: 4, base: 250 })) || 'null');
+  if (!row && id.startsWith('em:')) row = JSON.parse((await kvGetRetry(env.PUB_KV, 'waitid:' + id, { tries: 4, base: 250 })) || 'null');
   if (!row) return json({ waiting: true });
   if (row.status === 'ready' && row.token) return json({ token: row.token, user: row.user, ready: true });
   return json({ waiting: true });
@@ -706,7 +807,7 @@ const pkRegBegin = async (request, env) => {
     userId: uid,
     options: {
       challenge: b64url(chal),
-      rp: { id: RP_ID, name: 'Admission Hub' },
+      rp: { id: rpHost(request), name: 'Admission Hub' },
       user: { id: b64url(new TextEncoder().encode('pk:' + uid)), name: 'scholar-' + uid.slice(0, 8), displayName: 'Scholar' },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
       authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'preferred', requireResidentKey: false, userVerification: 'required' },
@@ -723,7 +824,7 @@ const pkRegFinish = async (request, env) => {
   try { cdata = JSON.parse(new TextDecoder().decode(unb64url(b.clientDataJSON))); } catch (_) { return json({ error: 'Passkey ডেটা খারাপ' }, 400); }
   if (cdata.type !== 'webauthn.create') return json({ error: 'Passkey টাইপ ভুল' }, 400);
   if (String(cdata.challenge) !== ch.challenge) return json({ error: 'Passkey মিলছে না' }, 401);
-  if (!String(cdata.origin || '').startsWith(RP_ORIGIN)) return json({ error: 'Origin মিলছে না' }, 401);
+  if (!RP_ORIGINS.some((o) => String(cdata.origin || "").startsWith(o))) return json({ error: 'Origin মিলছে না' }, 401);
   if (!b.publicKey || !b.rawId) return json({ error: 'Passkey পাবলিক কী নেই' }, 400);
   const id = 'pk:' + ch.uid;
   let passHash, passSalt;
@@ -759,7 +860,7 @@ const pkAddBegin = async (request, env, uid) => {
     chalId,
     options: {
       challenge: b64url(chal),
-      rp: { id: RP_ID, name: 'Admission Hub' },
+      rp: { id: rpHost(request), name: 'Admission Hub' },
       user: { id: b64url(new TextEncoder().encode(String(u.uid || u.id))), name: String(u.name || 'Scholar').slice(0, 32), displayName: String(u.name || 'Scholar').slice(0, 32) },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
       authenticatorSelection: { authenticatorAttachment: 'platform', residentKey: 'preferred', requireResidentKey: false, userVerification: 'required' },
@@ -776,7 +877,7 @@ const pkAddFinish = async (request, env, uid) => {
   try { cdata = JSON.parse(new TextDecoder().decode(unb64url(b.clientDataJSON))); } catch (_) { return json({ error: 'Passkey ডেটা খারাপ' }, 400); }
   if (cdata.type !== 'webauthn.create') return json({ error: 'Passkey টাইপ ভুল' }, 400);
   if (String(cdata.challenge) !== ch.challenge) return json({ error: 'Passkey মিলছে না' }, 401);
-  if (!String(cdata.origin || '').startsWith(RP_ORIGIN)) return json({ error: 'Origin মিলছে না' }, 401);
+  if (!RP_ORIGINS.some((o) => String(cdata.origin || "").startsWith(o))) return json({ error: 'Origin মিলছে না' }, 401);
   if (!b.publicKey || !b.rawId) return json({ error: 'Passkey পাবলিক কী নেই' }, 400);
   const u = await getUserById(env, uid);
   if (!u) return json({ error: 'অ্যাকাউন্ট পাওয়া যায়নি' }, 404);
@@ -830,7 +931,7 @@ const authGoogleUnlink = async (request, env, uid) => {
 };
 const authRemovePasskey = async (request, env) => {
   const tok = String(request.headers.get('Authorization') || '').replace('Bearer ', '').trim();
-  const tr = JSON.parse((await env.PUB_KV.get('tok:' + tok)) || 'null');
+  const tr = JSON.parse((await kvGetRetry(env.PUB_KV, 'tok:' + tok, { tries: 4, base: 200 })) || 'null');
   if (!tr) return json({ error: 'আগে লগইন করো' }, 401);
   const u = JSON.parse((await env.PUB_KV.get('user:' + tr.id)) || 'null');
   if (!u) return json({ error: 'অ্যাকাউন্ট পাওয়া যায়নি' }, 404);
@@ -850,7 +951,7 @@ const pkLoginBegin = async (request, env) => {
     chalId,
     options: {
       challenge: b64url(chal),
-      rpId: RP_ID,
+      rpId: rpHost(request),
       timeout: 120000,
       userVerification: 'required'
     }
@@ -859,12 +960,12 @@ const pkLoginBegin = async (request, env) => {
 const pkLoginFinish = async (request, env) => {
   const b = await request.json().catch(() => ({}));
   const ch = JSON.parse((await env.PUB_KV.get('pkch:' + b.chalId)) || 'null');
-  if (!ch || ch.t !== 'login') return json({ error: 'Passkey চ্যালেঞ্জ শেষ' }, 401);
+  if (!ch || ch.t !== 'login') { await admEvent(env, 'pk-fail'); return json({ error: 'Passkey চ্যালেঞ্জ শেষ' }, 401); }
   let cdata;
   try { cdata = JSON.parse(new TextDecoder().decode(unb64url(b.clientDataJSON))); } catch (_) { return json({ error: 'Passkey ডেটা খারাপ' }, 400); }
   if (cdata.type !== 'webauthn.get') return json({ error: 'Passkey টাইপ ভুল' }, 400);
   if (String(cdata.challenge) !== ch.challenge) return json({ error: 'Passkey মিলছে না' }, 401);
-  if (!String(cdata.origin || '').startsWith(RP_ORIGIN)) return json({ error: 'Origin মিলছে না' }, 401);
+  if (!RP_ORIGINS.some((o) => String(cdata.origin || "").startsWith(o))) return json({ error: 'Origin মিলছে না' }, 401);
   const row = JSON.parse((await env.PUB_KV.get('pkid:' + b.rawId)) || 'null');
   if (!row || !row.id) return json({ error: 'এই ডিভাইসে Passkey নেই — আগে তৈরি করো' }, 404);
   const rec = JSON.parse((await env.PUB_KV.get('user:' + row.id)) || 'null');
@@ -885,8 +986,9 @@ const pkLoginFinish = async (request, env) => {
       const key = await crypto.subtle.importKey('spki', pub, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']);
       ok = await crypto.subtle.verify({ name: 'RSASSA-PKCS1-v1_5' }, key, unb64url(b.signature), signed);
     }
-    if (!ok) return json({ error: 'Passkey যাচাই ব্যর্থ' }, 401);
+    if (!ok) { await admEvent(env, 'pk-fail'); return json({ error: 'Passkey যাচাই ব্যর্থ' }, 401); }
   } catch (e) {
+    await admEvent(env, 'pk-fail');
     return json({ error: 'Passkey যাচাই ব্যর্থ' }, 401);
   }
   await env.PUB_KV.delete('pkch:' + b.chalId);
@@ -899,14 +1001,18 @@ const pkLoginFinish = async (request, env) => {
 
 const authRegisterEmail = async (request, env) => {
   const ip = request.headers.get('CF-Connecting-IP') || 'ip';
-  if (!(await rateLimit(env, 'reg:' + ip, 400, 3600))) return json({ error: 'একটু পরে আবার চেষ্টা করো' }, 429);
+  if (!(await rateLimit(env, 'reg:' + ip, 400, 3600))) { await admEvent(env, 'reg-ratelimit'); return json({ error: 'একটু পরে আবার চেষ্টা করো' }, 429); }
   const b = await request.json().catch(() => ({}));
   const id = normId(b.id || b.email);
   const name = String(b.name || '').trim().slice(0, 40);
   if (!name || name.length < 2) return json({ error: 'পূর্ণ নাম লেখো' }, 400);
   if (!id.startsWith('em:')) return json({ error: 'সঠিক ইমেইল লেখো' }, 400);
   const existing = await getUserById(env, id);
-  if (existing && existing.status === 'active') return json({ error: 'এই ইমেইল আগেই আছে — লগইন করো' }, 409);
+  if (existing && existing.status === 'active') {
+    const hasPassOnly = !!(existing.passHash || existing.passSalt);
+    if (hasPassOnly) return json({ error: 'এই ইমেইল আগেই আছে — পাসওয়ার্ড দিয়ে লগইন করো' }, 409);
+    // google/passkey-মাত্র অ্যাকাউন্ট (পাসওয়ার্ড-নেই): ব্লক নয় — ইমেইল-OTP মালিকানা-প্রমাণে পাসওয়ার্ড-সংযুক্তি (merge)
+  }
   const password = String(b.password || '');
   const confirm = String(b.confirm || b.password2 || '');
   const weak = strongPass(password);
@@ -921,7 +1027,7 @@ const authRegisterEmail = async (request, env) => {
     school: String(b.school || '').slice(0, 80),
     college: String(b.college || '').slice(0, 80),
     passHash: hp.hash, passSalt: hp.salt, waitId,
-    created: Date.now(), providers: ['email', 'password'], verified: false, emailVerified: false, status: 'pending'
+    created: Date.now(), providers: Array.from(new Set(['email', 'password', ...((existing && existing.providers) || [])])), verified: false, emailVerified: false, status: 'pending'
   };
   await env.PUB_KV.put('pending:' + id, JSON.stringify(pending), { expirationTtl: 900 });
   await env.PUB_KV.put('wait:' + waitId, JSON.stringify({ id, status: 'pending' }), { expirationTtl: 150 });
@@ -939,6 +1045,7 @@ const authRegister = async (request, env) => {
   const name = String(b.name || '').trim().slice(0, 40);
   if (!name || name.length < 2) return json({ error: 'পূর্ণ নাম লেখো' }, 400);
   if (!(id.startsWith('em:') || id.startsWith('ph:'))) return json({ error: 'সঠিক ইমেইল বা মোবাইল লেখো' }, 400);
+  if (id.startsWith('ph:') && !smsReady(env)) return json({ error: 'মোবাইল-OTP এখনো সক্রিয় নয় — Google বা Passkey দিয়ে ঢোকো' }, 400);
   const weak = strongPass(password);
   if (weak) return json({ error: weak }, 400);
   if (confirm && confirm !== password) return json({ error: 'পাসওয়ার্ড দুটো মিলছে না' }, 400);
@@ -953,7 +1060,7 @@ const authRegister = async (request, env) => {
     contact: id.startsWith('ph:') ? '+88' + id.slice(3).replace(/^88/, '') : id.slice(3),
     created: Date.now(), providers: ['password']
   };
-  if (!id.startsWith('em:')) return json({ error: 'ইমেইল লিংক ভেরিফাই শুধু Gmail/ইমেইলে — মোবাইলে Google বা Passkey ব্যবহার করো' }, 400);
+  if (!id.startsWith('em:') && !smsReady(env)) return json({ error: 'মোবাইল-রেজিস্ট্রেশন এখনো সক্রিয় নয় — Gmail বা Google/Passkey ব্যবহার করো' }, 400);
   await env.PUB_KV.put('pending:' + id, JSON.stringify(pending), { expirationTtl: 1800 });
   const sent = await issueOtp(env, id, 'signup', ip);
   if (sent.error) return json({ error: sent.error }, sent.status || 503);
@@ -987,12 +1094,12 @@ const otpSend = async (request, env) => {
 
 const otpVerify = async (request, env) => {
   const ip = request.headers.get('CF-Connecting-IP') || 'ip';
-  if (!(await rateLimit(env, 'otptry:' + ip, 400, 3600))) return json({ error: 'একটু পরে আবার চেষ্টা করো' }, 429);
+  if (!(await rateLimit(env, 'otptry:' + ip, 400, 3600))) { await admEvent(env, 'otp-ratelimit'); return json({ error: 'একটু পরে আবার চেষ্টা করো' }, 429); }
   const b = await request.json().catch(() => ({}));
   const id = normId(b.id);
   const purpose = String(b.purpose || 'login');
   const chk = await checkOtp(env, id, purpose, b.code);
-  if (!chk.ok) return json({ error: chk.error }, chk.status || 401);
+  if (!chk.ok) { await admEvent(env, 'otp-fail'); return json({ error: chk.error }, chk.status || 401); }
   if (purpose === 'signup') {
     const pending = JSON.parse((await env.PUB_KV.get('pending:' + id)) || 'null');
     if (!pending) return json({ error: 'সাইন আপ সময় শেষ — আবার চেষ্টা করো' }, 400);
@@ -1026,14 +1133,14 @@ const otpVerify = async (request, env) => {
 
 const authLogin = async (request, env) => {
   const ip = request.headers.get('CF-Connecting-IP') || 'ip';
-  if (!(await rateLimit(env, 'login:' + ip, 2000, 3600))) return json({ error: 'একটু পরে আবার চেষ্টা করো' }, 429);
+  if (!(await rateLimit(env, 'login:' + ip, 2000, 3600))) { await admEvent(env, 'login-ratelimit'); return json({ error: 'একটু পরে আবার চেষ্টা করো' }, 429); }
   const b = await request.json().catch(() => ({}));
   const id = normId(b.id);
   const u = await getUserById(env, id);
-  if (!u || !u.passHash) return json({ error: 'ইমেইল/মোবাইল বা পাসওয়ার্ড ভুল' }, 401);
-  if (u.blocked || u.status === 'disabled' || u.status === 'suspended') return json({ error: 'অ্যাকাউন্ট বন্ধ' }, 403);
+  if (!u || !u.passHash) { await admEvent(env, 'login-fail'); return json({ error: 'ইমেইল/মোবাইল বা পাসওয়ার্ড ভুল' }, 401); }
+  if (u.blocked || u.status === 'disabled' || u.status === 'suspended') { await admEvent(env, 'login-blocked'); return json({ error: 'অ্যাকাউন্ট বন্ধ' }, 403); }
   const hp = await hashPassword(String(b.password || ''), u.passSalt);
-  if (hp.hash !== u.passHash) return json({ error: 'ইমেইল/মোবাইল বা পাসওয়ার্ড ভুল' }, 401);
+  if (hp.hash !== u.passHash) { await admEvent(env, 'login-fail'); return json({ error: 'ইমেইল/মোবাইল বা পাসওয়ার্ড ভুল' }, 401); }
   const issued = await issueToken(env, u);
   issued.user = await fullUser(env, u);
   await logAct(env, u.id, 'login', 'পাসওয়ার্ড দিয়ে লগইন সফল');
@@ -1146,23 +1253,19 @@ const authDelete = async (request, env, uid) => {
     const hp = await hashPassword(String(b.password || ''), u.passSalt);
     if (hp.hash !== u.passHash) return json({ error: 'পাসওয়ার্ড ভুল' }, 401);
   }
-  const del = async (k) => {
-    await env.PUB_KV.delete(k);
-    if (env.OLD_KV) await env.OLD_KV.delete(k).catch(() => {});
-  };
-  await del('user:' + u.id);
-  await del('profile:' + (u.uid || u.id));
-  await del('ustate:' + u.id);
-  await del('onb:' + u.id);
-  await del('ach:' + u.id);
-  await del('act:' + u.id);
-  if (u.credId) await del('pkid:' + u.credId);
+  await env.PUB_KV.delete('user:' + u.id);
+  await env.PUB_KV.delete('profile:' + (u.uid || u.id));
+  await env.PUB_KV.delete('ustate:' + u.id);
+  await env.PUB_KV.delete('onb:' + u.id);
+  await env.PUB_KV.delete('ach:' + u.id);
+  await env.PUB_KV.delete('act:' + u.id);
+  if (u.credId) await env.PUB_KV.delete('pkid:' + u.credId);
   // revoke every live session token for this account
-  const sessions = JSON.parse((await kvGet(env, 'sess:' + u.id)) || '{}');
-  for (const t of Object.keys(sessions || {})) await del('tok:' + t);
-  await del('sess:' + u.id);
+  const sessions = JSON.parse((await env.PUB_KV.get('sess:' + u.id)) || '{}');
+  for (const t of Object.keys(sessions || {})) await env.PUB_KV.delete('tok:' + t);
+  await env.PUB_KV.delete('sess:' + u.id);
   const tok = String(request.headers.get('Authorization') || '').replace('Bearer ', '').trim();
-  if (tok) await del('tok:' + tok);
+  if (tok) await env.PUB_KV.delete('tok:' + tok);
   return json({ ok: true, deleted: true });
 };
 
@@ -1247,7 +1350,7 @@ const profilePut = async (request, env, uid) => {
   if (!u) return json({ error: 'অ্যাকাউন্ট পাওয়া যায়নি' }, 404);
   const b = await request.json().catch(() => ({}));
   const pf = await loadProfile(env, u.uid || u.id);
-  const fields = ['displayName', 'institution', 'targetUniversity', 'targetUnit', 'admissionYear', 'bio', 'dob', 'gender', 'studyGroup'];
+  const fields = ['displayName', 'institution', 'college', 'targetUniversity', 'targetUnit', 'admissionYear', 'bio', 'dob', 'gender', 'studyGroup'];
   for (const f of fields) if (b[f] !== undefined) pf[f] = String(b[f] || '').slice(0, f === 'bio' ? 200 : 80);
   if (b.name) { u.name = String(b.name).slice(0, 40); await env.PUB_KV.put('user:' + u.id, JSON.stringify(u)); }
   // sensitive contact changes require password re-authentication
@@ -1293,9 +1396,9 @@ const profilePhoto = async (request, env, uid) => {
 
 const authUser = async (request, env) => {
   const tok = String(request.headers.get('Authorization') || '').replace('Bearer ', '').trim();
-  const tr = JSON.parse((await kvGet(env, 'tok:' + tok)) || 'null');
+  const tr = JSON.parse((await env.PUB_KV.get('tok:' + tok)) || 'null');
   if (!tr) throw Object.assign(new Error('আগে লগইন করো'), { status: 401 });
-  const u = JSON.parse((await kvGet(env, 'user:' + tr.id)) || '{}');
+  const u = JSON.parse((await kvGetRetry(env.PUB_KV, 'user:' + tr.id, { tries: 4, base: 200 })) || '{}');
   if (u.blocked || u.status === 'disabled' || u.status === 'suspended') throw Object.assign(new Error('অ্যাকাউন্ট বন্ধ করা হয়েছে'), { status: 403 });
   // session freshness tracking (best-effort, never blocks)
   try {
@@ -1314,11 +1417,20 @@ const bankMatch = (qs, text) => {
 };
 const aiCall = async (request, env, uid) => {
   const b = await request.json().catch(() => ({}));
-  const msgs = (Array.isArray(b.messages) ? b.messages : []).slice(-8).map(m => ({ role: m.role === 'ai' ? 'assistant' : (m.role || 'user'), content: String(m.content || '').slice(0, 4000) }));
-  const lastU = [...msgs].reverse().find(m => m.role === 'user');
-  const [contentRaw, stRaw] = await Promise.all([env.PUB_KV.get('pubContent'), env.PUB_KV.get('ustate:' + uid)]);
+  const [contentRaw, stRaw, memRaw] = await Promise.all([
+    env.PUB_KV.get('pubContent'),
+    env.PUB_KV.get('ustate:' + uid),
+    env.PUB_KV.get('chatmem:' + uid)
+  ]);
   const C = contentRaw ? JSON.parse(contentRaw) : { questions: [], vocabulary: [] };
   const st = stRaw ? JSON.parse(stRaw) : {};
+  let mem = [];
+  try { mem = JSON.parse(memRaw || '[]'); if (!Array.isArray(mem)) mem = []; } catch (_) { mem = []; }
+  let msgs = (Array.isArray(b.messages) ? b.messages : []).map(m => ({ role: m.role === 'ai' ? 'assistant' : (m.role || 'user'), content: String(m.content || '').slice(0, 4000) }));
+  /* কনভারসেশন-ম্যানেজার: ক্লায়েন্ট-সংক্ষিপ্ত হলে আগের স্মৃতি থেকে সিড */
+  if (msgs.length < 3 && mem.length) msgs = mem.concat(msgs);
+  msgs = clipMessages(msgs, AI_BUDGET.msgs);
+  const lastU = [...msgs].reverse().find(m => m.role === 'user');
   const subs = [...new Set((C.questions || []).map(q => q.s).filter(Boolean))];
   let brain = `[লাইভ-মেমোরি — অ্যাপ + শিক্ষার্থী]\nঅ্যাপ-ব্যাংক: ${bn((C.questions || []).length)} প্রশ্ন · বিষয়: ${subs.slice(0, 8).join(', ')} · শব্দ: ${bn((C.vocabulary || []).length)}\n`;
   const exs = (st.attempts || []).slice(0, 5).map(a => `${a.mode === 'exam' ? 'পরীক্ষা' : 'প্র্যাকটিস'}(${a.sub || ''}): ${bn(a.right)}/${bn(a.total)}`);
@@ -1328,19 +1440,36 @@ const aiCall = async (request, env, uid) => {
   if ((st.vocab || []).length) brain += `শেখা শব্দ: ${bn(st.vocab.length)}টি — সাম্প্রতিক: ${(st.vocab || []).slice(-6).map(v => v.w).join(', ')}\n`;
   const hits = bankMatch(C.questions || [], lastU ? lastU.content : '');
   if (hits.length) brain += 'ব্যাংক থেকে মিলে-যাওয়া প্রশ্ন (উত্তরের ভিত্তি):\n' + hits.map(h => `— ${String(h.q.q).slice(0, 110)}${h.q.a != null && (h.q.o || [])[h.q.a] ? ' ⇒ উত্তর: ' + String(h.q.o[h.q.a]).slice(0, 50) : ''}`).join('\n');
+  brain = fitText(brain, AI_BUDGET.brain);
   const keys = String(env.GEMINI_KEYS || '').split(',').map(s => s.trim()).filter(Boolean);
-  if (!keys.length) return json({ error: 'AI-key কনফিগার নেই (admin)' }, 503);
-  let last = '';
+  if (!keys.length) { await kvInc(env.PUB_KV, metKey('nokey')); return json({ error: 'AI-key কনফিগার নেই (admin)' }, 503); }
+  /* মডেল-রাউটার: আজ-মার্ক-করা কী/মডেল বাদ → কী×মডেল failover-chain */
+  const badSet = new Set();
   for (const k of keys) for (const m of GEM_CHAIN) {
+    try { if (await env.PUB_KV.get(badKeyName(k, m))) badSet.add(String(k).slice(0, 12) + ':' + m); } catch (_) {}
+  }
+  const chain = aiChain(keys, GEM_CHAIN, badSet);
+  let last = '';
+  for (let i = 0; i < chain.length; i++) {
+    const { k, m } = chain[i];
+    if (i) await new Promise(r => setTimeout(r, 250 * i));
     try {
       const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + m + ':generateContent', { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': k }, body: JSON.stringify({ system_instruction: { parts: [{ text: SYS(true) + '\n\n' + brain }] }, contents: msgs.length ? msgs : [{ role: 'user', parts: [{ text: 'হ্যালো' }] }] }) });
       const d = await r.json().catch(() => ({}));
       const t = String(d?.candidates?.[0]?.content?.parts?.map(x => x.text || '').join('') || '').trim();
-      if (r.ok && t) { await touchUser(env, uid); return json({ text: t, model: m }); }
+      if (r.ok && t) {
+        await kvInc(env.PUB_KV, metKey(m));
+        await kvInc(env.PUB_KV, metKey('total'));
+        try { await env.PUB_KV.put('chatmem:' + uid, JSON.stringify(clipMessages(msgs.concat([{ role: 'assistant', content: t }]), AI_BUDGET.msgs)), { expirationTtl: 2592000 }); } catch (_) {}
+        await touchUser(env, uid);
+        return json({ text: t, model: m, pv: PROMPT_V });
+      }
       last = 'HTTP ' + r.status + ' ' + m;
+      if (r.status === 401 || r.status === 402 || r.status === 429 || r.status >= 500) await aibadMark(env.PUB_KV, k, m);
     } catch (e) { last = String(e.message || e); }
   }
-  return json({ error: 'AI এখন ব্যস্ত — একটু পরে (' + last + ')' }, 502);
+  await kvInc(env.PUB_KV, metKey('fail'));
+  return json({ error: 'AI এখন ব্যস্ত — একটু পরে (' + last + ')', retryable: true }, 502);
 };
 
 /* ── Admin (Bearer ADMIN_TOKEN) ── */
